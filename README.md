@@ -1,3 +1,5 @@
+![CI](https://github.com/krikri8k-cmd/event-bot/actions/workflows/ci.yml/badge.svg)
+
 # 🎫 EventBot - Telegram Bot для поиска событий
 
 Умный Telegram бот для поиска и рекомендации событий в Индонезии с поддержкой AI генерации.
