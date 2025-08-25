@@ -1,27 +1,36 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
 import hashlib
-from datetime import datetime
+from typing import Any
 
 from openai import OpenAI
 
 from config import load_settings
 
 
-def _make_client() -> Optional[OpenAI]:
+def _make_client() -> OpenAI | None:
     settings = load_settings()
     if not settings.openai_api_key:
         return None
-    return OpenAI(api_key=settings.openai_api_key)
+
+    # Поддержка как User API Key, так и Project API Key
+    api_key = settings.openai_api_key
+
+    # Для Project API Key нужно указать organization
+    if api_key.startswith("sk-proj-") and settings.openai_organization:
+        # Project API Key - используем organization
+        return OpenAI(api_key=api_key, organization=settings.openai_organization)
+    else:
+        # Обычный User API Key или Project Key без organization
+        return OpenAI(api_key=api_key)
 
 
 def _dedupe_key(title: str, time_utc_iso: str, lat: float, lng: float) -> str:
-    raw = f"{title}|{time_utc_iso}|{lat:.6f}|{lng:.6f}".encode("utf-8")
+    raw = f"{title}|{time_utc_iso}|{lat:.6f}|{lng:.6f}".encode()
     return hashlib.sha1(raw).hexdigest()
 
 
-async def fetch_ai_events_nearby(lat: float, lng: float) -> List[Dict[str, Any]]:
+async def fetch_ai_events_nearby(lat: float, lng: float) -> list[dict[str, Any]]:
     """
     Query GPT for events near given coordinates and return normalized list.
 
@@ -40,7 +49,6 @@ async def fetch_ai_events_nearby(lat: float, lng: float) -> List[Dict[str, Any]]
     if client is None:
         return []
 
-    settings = load_settings()
     prompt = (
         "Ты помощник, который предлагает офлайн события рядом с координатами. "
         "Верни до 5 коротких карточек JSON-списком, без комментариев. Каждый объект: "
@@ -60,6 +68,7 @@ async def fetch_ai_events_nearby(lat: float, lng: float) -> List[Dict[str, Any]]
     content = completion.choices[0].message.content or "[]"
     # Lazy import to avoid heavyweight dep if unused
     import json
+
     try:
         data = json.loads(content)
         if not isinstance(data, list):
@@ -67,7 +76,7 @@ async def fetch_ai_events_nearby(lat: float, lng: float) -> List[Dict[str, Any]]
     except Exception:
         return []
 
-    normalized: List[Dict[str, Any]] = []
+    normalized: list[dict[str, Any]] = []
     for item in data:
         try:
             title = str(item.get("title") or "").strip()
@@ -96,6 +105,3 @@ async def fetch_ai_events_nearby(lat: float, lng: float) -> List[Dict[str, Any]]
             continue
 
     return normalized
-
-
-

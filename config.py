@@ -1,11 +1,12 @@
-from dotenv import load_dotenv
 import os
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 # Load .env.local relative to this file to avoid CWD issues
 _BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(_BASE_DIR / '.env.local', encoding='utf-8-sig')
+load_dotenv(_BASE_DIR / ".env.local", encoding="utf-8-sig")
 
 
 @dataclass
@@ -13,6 +14,8 @@ class Settings:
     telegram_token: str
     database_url: str
     openai_api_key: str | None
+    openai_organization: str | None
+    eventbrite_api_key: str | None
     google_maps_api_key: str | None
     default_radius_km: float
     admin_ids: set[int]
@@ -36,13 +39,15 @@ def _parse_admin_ids(value: str | None) -> set[int]:
 
 def load_settings() -> Settings:
     # Ensure .env.local is loaded even if called from different CWD
-    load_dotenv(_BASE_DIR / '.env.local', encoding='utf-8-sig')
+    load_dotenv(_BASE_DIR / ".env.local", encoding="utf-8-sig")
 
     telegram_token = (os.getenv("TELEGRAM_TOKEN") or "").strip()
     database_url = (os.getenv("DATABASE_URL") or "").strip()
     openai_api_key = os.getenv("OPENAI_API_KEY")
+    openai_organization = os.getenv("OPENAI_ORGANIZATION")
+    eventbrite_api_key = os.getenv("EVENTBRITE_API_KEY")
     google_maps_api_key = os.getenv("GOOGLE_MAPS_API_KEY")
-    default_radius_km_str = (os.getenv("DEFAULT_RADIUS_KM") or "4").strip()
+    default_radius_km_str = (os.getenv("DEFAULT_RADIUS_KM") or "5").strip()
     admin_ids = _parse_admin_ids(os.getenv("ADMIN_IDS"))
 
     try:
@@ -63,11 +68,10 @@ def load_settings() -> Settings:
         telegram_token=telegram_token,
         database_url=database_url,
         openai_api_key=openai_api_key,
+        openai_organization=openai_organization,
+        eventbrite_api_key=eventbrite_api_key,
         google_maps_api_key=google_maps_api_key,
         default_radius_km=default_radius_km,
         admin_ids=admin_ids,
         google_application_credentials=gcp_path,
     )
-
-
-
