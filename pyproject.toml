@@ -39,6 +39,7 @@ ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+"tests/test_events_nearby.py" = ["UP017"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
