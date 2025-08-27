@@ -38,7 +38,7 @@ def seed(api_engine, title, lat, lng, starts_at=None):
         )
 
 
-def test_nearby_returns_seeded_event(api_client, api_engine):
+def test_nearby_returns_seeded_event(api_client, api_engine, db_clean):
     # Пример: Бали; подстрой координаты при необходимости
     seed(api_engine, "Sunset Meetup", -8.6500, 115.2167)
 
@@ -51,7 +51,7 @@ def test_nearby_returns_seeded_event(api_client, api_engine):
     assert "Sunset Meetup" in titles
 
 
-def test_nearby_filters_by_radius(api_client, api_engine):
+def test_nearby_filters_by_radius(api_client, api_engine, db_clean):
     seed(api_engine, "Far Event", -8.7000, 115.3000)  # далеко за 5км
 
     r = api_client.get(
@@ -62,7 +62,7 @@ def test_nearby_filters_by_radius(api_client, api_engine):
     assert all(e.get("title") != "Far Event" for e in r.json())
 
 
-def test_nearby_returns_distance_km(api_client, api_engine):
+def test_nearby_returns_distance_km(api_client, api_engine, db_clean):
     """Проверяем, что в ответе есть distance_km и он ≤ radius_km"""
     seed(api_engine, "Near Event", -8.6500, 115.2167)
 
@@ -81,7 +81,7 @@ def test_nearby_returns_distance_km(api_client, api_engine):
         assert event["distance_km"] >= 0
 
 
-def test_nearby_pagination(api_client, api_engine):
+def test_nearby_pagination(api_client, api_engine, db_clean):
     """Тестируем пагинацию: засеиваем 4 события, проверяем limit=2, offset=0 и offset=2"""
     # Засеиваем 4 события рядом
     events_data = [
