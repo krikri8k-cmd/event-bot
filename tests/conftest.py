@@ -7,7 +7,8 @@ if os.environ.get("FULL_TESTS") == "1":
     try:
         from fastapi.testclient import TestClient
         from sqlalchemy import create_engine, text
-        from api.app import app
+
+        from api.app import app  # локальный импорт отделён пустой строкой
 
         @pytest.fixture(scope="session")
         def api_engine():
