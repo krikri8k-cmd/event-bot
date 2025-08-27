@@ -1,47 +1,30 @@
 import os
-from datetime import datetime, timedelta
 
 import pytest
 
-# В лёгком CI все тесты файла скипаем целиком
 if os.environ.get("FULL_TESTS") != "1":
     pytest.skip("Skipping API tests in light CI", allow_module_level=True)
 
-# Доп. защита: если кто-то запустил full без пакетов
-pytest.importorskip("fastapi", reason="fastapi not installed")
-pytest.importorskip("sqlalchemy", reason="sqlalchemy not installed")
 
-from sqlalchemy import text
+def test_nearby_returns_seeded_event(api_client, api_engine, db_clean):
+    # любые тяжёлые импорты — только внутри функции
+    from datetime import datetime, timedelta
 
-# В лёгком CI все тесты файла скипаем целиком
-if os.environ.get("FULL_TESTS") != "1":
-    pytest.skip("Skipping API tests in light CI", allow_module_level=True)
+    from sqlalchemy import text
 
-# Доп. защита: если кто-то запустил full без пакетов
-pytest.importorskip("fastapi", reason="fastapi not installed")
-pytest.importorskip("sqlalchemy", reason="sqlalchemy not installed")
-
-
-pytestmark = pytest.mark.api  # удобно фильтровать в CI
-
-
-def seed(api_engine, title, lat, lng, starts_at=None):
+    # сидинг
     with api_engine.begin() as c:
         c.execute(
             text("INSERT INTO events (title, lat, lng, starts_at) VALUES (:t, :lat, :lng, :ts)"),
             {
-                "t": title,
-                "lat": float(lat),
-                "lng": float(lng),
-                "ts": starts_at or (datetime.now(datetime.UTC) + timedelta(hours=2)),
+                "t": "Sunset Meetup",
+                "lat": -8.6500,
+                "lng": 115.2167,
+                "ts": datetime.now(datetime.UTC) + timedelta(hours=2),
             },
         )
 
-
-def test_nearby_returns_seeded_event(api_client, api_engine, db_clean):
-    # Пример: Бали; подстрой координаты при необходимости
-    seed(api_engine, "Sunset Meetup", -8.6500, 115.2167)
-
+    # вызов API
     r = api_client.get(
         "/events/nearby",
         params={"lat": -8.6501, "lng": 115.2166, "radius_km": 5},
@@ -52,8 +35,23 @@ def test_nearby_returns_seeded_event(api_client, api_engine, db_clean):
 
 
 def test_nearby_filters_by_radius(api_client, api_engine, db_clean):
-    seed(api_engine, "Far Event", -8.7000, 115.3000)  # далеко за 5км
+    from datetime import datetime, timedelta
 
+    from sqlalchemy import text
+
+    # два события: одно близко, одно далеко
+    with api_engine.begin() as c:
+        c.execute(
+            text("INSERT INTO events (title, lat, lng, starts_at) VALUES (:t, :lat, :lng, :ts)"),
+            {
+                "t": "Far Event",
+                "lat": -8.7000,
+                "lng": 115.3000,
+                "ts": datetime.now(datetime.UTC) + timedelta(hours=2),
+            },
+        )
+
+    # радиус 3 км — «Far Event» отфильтруется
     r = api_client.get(
         "/events/nearby",
         params={"lat": -8.6501, "lng": 115.2166, "radius_km": 3},
@@ -64,7 +62,21 @@ def test_nearby_filters_by_radius(api_client, api_engine, db_clean):
 
 def test_nearby_returns_distance_km(api_client, api_engine, db_clean):
     """Проверяем, что в ответе есть distance_km и он ≤ radius_km"""
-    seed(api_engine, "Near Event", -8.6500, 115.2167)
+    from datetime import datetime, timedelta
+
+    from sqlalchemy import text
+
+    # сидинг
+    with api_engine.begin() as c:
+        c.execute(
+            text("INSERT INTO events (title, lat, lng, starts_at) VALUES (:t, :lat, :lng, :ts)"),
+            {
+                "t": "Near Event",
+                "lat": -8.6500,
+                "lng": 115.2167,
+                "ts": datetime.now(datetime.UTC) + timedelta(hours=2),
+            },
+        )
 
     r = api_client.get(
         "/events/nearby",
@@ -83,6 +95,10 @@ def test_nearby_returns_distance_km(api_client, api_engine, db_clean):
 
 def test_nearby_pagination(api_client, api_engine, db_clean):
     """Тестируем пагинацию: засеиваем 4 события, проверяем limit=2, offset=0 и offset=2"""
+    from datetime import datetime, timedelta
+
+    from sqlalchemy import text
+
     # Засеиваем 4 события рядом
     events_data = [
         ("Event 1", -8.6500, 115.2167),
@@ -92,7 +108,16 @@ def test_nearby_pagination(api_client, api_engine, db_clean):
     ]
 
     for title, lat, lng in events_data:
-        seed(api_engine, title, lat, lng)
+        with api_engine.begin() as c:
+            c.execute(
+                text("INSERT INTO events (title, lat, lng, starts_at) VALUES (:t, :lat, :lng, :ts)"),
+                {
+                    "t": title,
+                    "lat": float(lat),
+                    "lng": float(lng),
+                    "ts": datetime.now(datetime.UTC) + timedelta(hours=2),
+                },
+            )
 
     # Первая страница: limit=2, offset=0
     r1 = api_client.get(
