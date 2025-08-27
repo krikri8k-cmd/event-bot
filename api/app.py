@@ -13,6 +13,7 @@ def get_engine() -> Engine:
         raise RuntimeError("DATABASE_URL is not set")
     return create_engine(url, future=True, pool_pre_ping=True)
 
+
 def create_app() -> FastAPI:
     app = FastAPI(title="EventBot API (CI)")
 
@@ -27,6 +28,7 @@ def create_app() -> FastAPI:
         return {"db": "ok", "value": int(val)}
 
     return app
+
 
 # для импортов типа "from api.app import app"
 app = create_app()
