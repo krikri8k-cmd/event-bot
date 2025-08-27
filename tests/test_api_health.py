@@ -2,6 +2,8 @@ import os
 
 import pytest
 
+pytestmark = pytest.mark.api  # помечаем файл целиком
+
 # В лёгком CI пропускаем модуль целиком, чтобы не импортировать fastapi/sqlalchemy
 if os.environ.get("FULL_TESTS") != "1":
     pytest.skip("Skipping API tests in light CI", allow_module_level=True)

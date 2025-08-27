@@ -66,4 +66,4 @@ jobs:
       - name: API & DB tests
         env:
           FULL_TESTS: "1"
-        run: pytest -q -m "api"
+        run: pytest -q -m "api or db"

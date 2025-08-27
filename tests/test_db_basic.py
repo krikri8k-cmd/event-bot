@@ -2,6 +2,8 @@ import os
 
 import pytest
 
+pytestmark = pytest.mark.db  # DB-маркер
+
 if os.environ.get("FULL_TESTS") != "1":
     pytest.skip("Skipping DB tests in light CI", allow_module_level=True)
 
