@@ -58,6 +58,17 @@ jobs:
           until pg_isready -h localhost -p 5432 -U postgres -d testdb; do sleep 1; done
           psql -h localhost -U postgres -d testdb -c "SELECT 1;"
 
+      - name: Run database migrations
+        env:
+          PGPASSWORD: postgres
+        run: |
+          # Если есть alembic, применяем миграции
+          if command -v alembic &> /dev/null; then
+            alembic upgrade head
+          else
+            echo "Alembic not found, skipping migrations"
+          fi
+
       - name: Lint (ruff)
         run: ruff check .
 
