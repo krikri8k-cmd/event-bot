@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import os
+
 from fastapi import FastAPI
-from sqlalchemy import text
+from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
-from sqlalchemy import create_engine
+
 
 def get_engine() -> Engine:
     url = os.getenv("DATABASE_URL")

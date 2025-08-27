@@ -1,6 +1,8 @@
 import os
+
 import pytest
 from sqlalchemy import create_engine, text
+
 
 @pytest.mark.timeout(10)
 def test_db_select_one():
