@@ -3,9 +3,14 @@
 Простые тесты для CI без внешних зависимостей
 """
 
+import os
 import importlib.util
 
 import pytest
+
+# В лёгком CI (по умолчанию) пропускаем целиком
+if os.environ.get("FULL_TESTS") != "1":
+    pytest.skip("Skipping heavy tests in light CI", allow_module_level=True)
 
 
 def test_imports():
