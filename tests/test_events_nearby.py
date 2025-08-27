@@ -10,7 +10,7 @@ if os.environ.get("FULL_TESTS") != "1":
 
 def test_nearby_returns_seeded_event(api_client, api_engine, db_clean):
     # любые тяжёлые импорты — только внутри функции
-    from datetime import datetime, timedelta, timezone
+    import datetime as dt
 
     from sqlalchemy import text
 
@@ -22,7 +22,7 @@ def test_nearby_returns_seeded_event(api_client, api_engine, db_clean):
                 "t": "Sunset Meetup",
                 "lat": -8.6500,
                 "lng": 115.2167,
-                "ts": datetime.now(timezone.utc) + timedelta(hours=2),
+                "ts": dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=2),
             },
         )
 
@@ -37,7 +37,7 @@ def test_nearby_returns_seeded_event(api_client, api_engine, db_clean):
 
 
 def test_nearby_filters_by_radius(api_client, api_engine, db_clean):
-    from datetime import datetime, timedelta, timezone
+    import datetime as dt
 
     from sqlalchemy import text
 
@@ -49,7 +49,7 @@ def test_nearby_filters_by_radius(api_client, api_engine, db_clean):
                 "t": "Far Event",
                 "lat": -8.7000,
                 "lng": 115.3000,
-                "ts": datetime.now(timezone.utc) + timedelta(hours=2),
+                "ts": dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=2),
             },
         )
 
@@ -64,7 +64,7 @@ def test_nearby_filters_by_radius(api_client, api_engine, db_clean):
 
 def test_nearby_returns_distance_km(api_client, api_engine, db_clean):
     """Проверяем, что в ответе есть distance_km и он ≤ radius_km"""
-    from datetime import datetime, timedelta, timezone
+    import datetime as dt
 
     from sqlalchemy import text
 
@@ -76,7 +76,7 @@ def test_nearby_returns_distance_km(api_client, api_engine, db_clean):
                 "t": "Near Event",
                 "lat": -8.6500,
                 "lng": 115.2167,
-                "ts": datetime.now(timezone.utc) + timedelta(hours=2),
+                "ts": dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=2),
             },
         )
 
@@ -97,7 +97,7 @@ def test_nearby_returns_distance_km(api_client, api_engine, db_clean):
 
 def test_nearby_pagination(api_client, api_engine, db_clean):
     """Тестируем пагинацию: засеиваем 4 события, проверяем limit=2, offset=0 и offset=2"""
-    from datetime import datetime, timedelta, timezone
+    import datetime as dt
 
     from sqlalchemy import text
 
@@ -117,7 +117,7 @@ def test_nearby_pagination(api_client, api_engine, db_clean):
                     "t": title,
                     "lat": float(lat),
                     "lng": float(lng),
-                    "ts": datetime.now(timezone.utc) + timedelta(hours=2),
+                    "ts": dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=2),
                 },
             )
 
