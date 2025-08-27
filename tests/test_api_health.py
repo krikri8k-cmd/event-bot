@@ -1,12 +1,20 @@
+import os
+
+import pytest
+
+# В лёгком CI пропускаем модуль целиком, чтобы не импортировать fastapi/sqlalchemy
+if os.environ.get("FULL_TESTS") != "1":
+    pytest.skip("Skipping API tests in light CI", allow_module_level=True)
+
+# Доп. защита: если full-запуск, но пакета нет — помечаем как skipped, а не error
+pytest.importorskip("fastapi", reason="fastapi not installed")
+pytest.importorskip("sqlalchemy", reason="sqlalchemy not installed")
+
 from fastapi.testclient import TestClient
 
-# пробуем оба варианта импорта
-try:
-    from api.app import create_app  # type: ignore
-
-    app = create_app()
-except Exception:
-    from api.app import app  # type: ignore
+# если у проекта фабрика приложения, используй её:
+# from api.app import create_app; app = create_app()
+from api.app import app  # адаптируй под свой код
 
 client = TestClient(app)
 

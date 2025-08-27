@@ -1,6 +1,13 @@
 import os
 
 import pytest
+
+# Лёгкий CI: пропускаем модуль сразу
+if os.environ.get("FULL_TESTS") != "1":
+    pytest.skip("Skipping DB tests in light CI", allow_module_level=True)
+
+# В full-запуске, если SQLAlchemy не установлена — мягко skip
+pytest.importorskip("sqlalchemy", reason="sqlalchemy not installed")
 from sqlalchemy import create_engine, text
 
 
