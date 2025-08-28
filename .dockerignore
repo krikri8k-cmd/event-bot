@@ -1,0 +1,21 @@
+.git
+.gitignore
+.vscode
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.log
+dist
+build
+.coverage
+htmlcov
+.pytest_cache
+.mypy_cache
+*.egg-info
+# Тесты обычно не нужны внутри образа
+tests/
+# Большие артефакты/локальные тайлы
+*.sqlite
+*.db
