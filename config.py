@@ -4,9 +4,12 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Load .env.local relative to this file to avoid CWD issues
+# Load .env.local and .env files (first .env.local, then .env)
 _BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(_BASE_DIR / ".env.local", encoding="utf-8-sig")
+for fn in (".env.local", ".env"):
+    env_file = _BASE_DIR / fn
+    if env_file.exists():
+        load_dotenv(env_file, override=False, encoding="utf-8-sig")
 
 
 @dataclass
@@ -16,6 +19,7 @@ class Settings:
     openai_api_key: str | None
     openai_organization: str | None
     eventbrite_api_key: str | None
+    meetup_api_key: str | None
     google_maps_api_key: str | None
     default_radius_km: float
     admin_ids: set[int]
@@ -46,6 +50,7 @@ def load_settings() -> Settings:
     openai_api_key = os.getenv("OPENAI_API_KEY")
     openai_organization = os.getenv("OPENAI_ORGANIZATION")
     eventbrite_api_key = os.getenv("EVENTBRITE_API_KEY")
+    meetup_api_key = os.getenv("MEETUP_API_KEY")
     google_maps_api_key = os.getenv("GOOGLE_MAPS_API_KEY")
     default_radius_km_str = (os.getenv("DEFAULT_RADIUS_KM") or "5").strip()
     admin_ids = _parse_admin_ids(os.getenv("ADMIN_IDS"))
@@ -70,6 +75,7 @@ def load_settings() -> Settings:
         openai_api_key=openai_api_key,
         openai_organization=openai_organization,
         eventbrite_api_key=eventbrite_api_key,
+        meetup_api_key=meetup_api_key,
         google_maps_api_key=google_maps_api_key,
         default_radius_km=default_radius_km,
         admin_ids=admin_ids,

@@ -25,6 +25,7 @@ dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
     "ruff>=0.3.0",
+    "pre-commit>=4.0.0",
 ]
 
 [tool.ruff]
@@ -58,5 +59,6 @@ markers = [
     "unit: marks tests as unit tests",
     "api: API-тесты, требуют FastAPI и БД",
     "db: DB-smoke без FastAPI",
+    "meetup: tests that require Meetup enabled",
     "timeout: marks tests with timeout",
 ]
