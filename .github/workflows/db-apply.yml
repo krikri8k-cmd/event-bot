@@ -1,0 +1,48 @@
+name: DB Apply (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      sql_path:
+        description: 'Path to SQL file to apply'
+        required: true
+        default: 'sql/2025_ics_sources_and_indexes.sql'
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install psql client
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client
+
+      - name: Apply SQL using psql
+        env:
+          RAW_DB_URL: ${{ secrets.DATABASE_URL }}   # Секрет должен быть добавлен в Settings → Secrets → Actions
+          SQL_PATH: ${{ github.event.inputs.sql_path }}
+        run: |
+          if [[ -z "$RAW_DB_URL" ]]; then
+            echo "DATABASE_URL secret is not set"; exit 1
+          fi
+
+          # Railway обычно требует SSL. Если в строке нет sslmode=*, добавим ?sslmode=require или &sslmode=require.
+          DB_URL="$RAW_DB_URL"
+          if [[ "$DB_URL" != *"sslmode="* ]]; then
+            if [[ "$DB_URL" == *"?"* ]]; then
+              DB_URL="${DB_URL}&sslmode=require"
+            else
+              DB_URL="${DB_URL}?sslmode=require"
+            fi
+          fi
+
+          echo "Applying $SQL_PATH ..."
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_PATH"
+          echo "Done."
