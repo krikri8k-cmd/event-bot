@@ -88,6 +88,108 @@ event-bot/
 
 Подробная документация по обновлениям и настройке в файле `UPDATE_INSTRUCTIONS.md`.
 
+## Apply SQL (event_sources + indexes)
+
+### Locally (Linux/Mac)
+```bash
+export DATABASE_URL="postgresql+psycopg2://USER:PASS@HOST:5432/DBNAME"
+make db-apply
+```
+
+### Locally (Windows PowerShell)
+```powershell
+$Env:DATABASE_URL="postgresql+psycopg2://USER:PASS@HOST:5432/DBNAME"
+python scripts\apply_sql.py sql\2025_ics_sources_and_indexes.sql
+# или:
+powershell -File scripts\db_apply.ps1
+```
+
+### Verify
+```bash
+python - << 'PY'
+import os
+from sqlalchemy import create_engine, text
+eng = create_engine(os.environ["DATABASE_URL"], future=True)
+with eng.begin() as c:
+    cols = c.execute(text(
+        "SELECT column_name FROM information_schema.columns WHERE table_name='event_sources'"
+    )).all()
+print("event_sources columns:", [r[0] for r in cols])
+PY
+```
+
+### OAuth Meetup (локально)
+
+1) Запусти API:
+   ```bash
+   uvicorn api.app:app --reload --port 8000
+   ```
+
+2) Открой ссылку на логин:
+   ```bash
+   GET http://localhost:8000/oauth/meetup/login
+   ```
+   → вернётся JSON с "authorize_url".
+
+3) Перейди по `authorize_url`, залогинься в Meetup.
+   После логина тебя вернёт на:
+   ```
+   http://localhost:8000/oauth/meetup/callback?code=...
+   ```
+
+4) Эндпоинт обменяет `code` на токены и вернёт превью токенов.
+   ПОЛНЫЕ значения токенов смотри в логах uvicorn:
+   ```
+   MEETUP_ACCESS_TOKEN=...
+   MEETUP_REFRESH_TOKEN=...
+   ```
+
+5) Скопируй оба значения в `.env.local`:
+   ```
+   MEETUP_ACCESS_TOKEN=...
+   MEETUP_REFRESH_TOKEN=...
+   ```
+
+6) Теперь источники Meetup работают с авторизацией.
+
+## Meetup (фиче-флаг)
+
+По умолчанию интеграция Meetup выключена.
+
+**Включить:**
+```bash
+# .env.local
+MEETUP_ENABLED=1
+# опционально для мок-режима callback:
+# MEETUP_MOCK=1
+```
+
+Эндпоинты `/oauth/meetup/*` и любые источники Meetup будут доступны только при `MEETUP_ENABLED=1`.
+
+### Meetup OAuth — мок-режим (dev)
+
+Для быстрой локальной проверки OAuth-колбэка используйте мок-режим:
+```bash
+export MEETUP_MOCK=1
+uvicorn api.app:app --reload --port 8000
+# затем:
+# http://localhost:8000/oauth/meetup/callback?code=test123&state=xyz
+```
+
+**Ожидаемый ответ:**
+
+```json
+{"ok": true, "code": "test123", "state": "xyz", "mock": true}
+```
+
+**Боевой режим** (обмен code→tokens) включается автоматически, когда переменная `MEETUP_MOCK` не установлена.
+
+**Redirect URL для Meetup (локально):**
+
+```
+http://localhost:8000/oauth/meetup/callback
+```
+
 ## 🤝 Вклад в проект
 
 1. Форкните репозиторий
@@ -98,6 +200,17 @@ event-bot/
 ## 📄 Лицензия
 
 MIT License
+
+## 🗄️ DB Apply (manual)
+
+Применить SQL к БД через GitHub Actions:
+
+1. Перейди в **Actions** → выбери **DB Apply (manual)**.
+2. Нажми **Run workflow**.
+3. В `sql_path` оставь по умолчанию `sql/2025_ics_sources_and_indexes.sql` (или укажи нужный файл).
+4. Подтверди **Run workflow** и жди зелёный статус.
+
+> Важно: строка подключения берётся из `Settings → Secrets and variables → Actions → DATABASE_URL`.
 
 ---
 
