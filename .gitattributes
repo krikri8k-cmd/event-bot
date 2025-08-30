@@ -1,0 +1,13 @@
+# Единые окончания строк во всём репо
+*           text=auto eol=lf
+
+# Явно для распространённых типов
+*.py        text eol=lf
+*.pyi       text eol=lf
+*.sh        text eol=lf
+*.toml      text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.json      text eol=lf
+*.sql       text eol=lf
+*.md        text eol=lf
