@@ -1,7 +1,10 @@
 import os
 
 import pytest
-from fastapi.testclient import TestClient
+
+# Защита от отсутствия fastapi
+pytest.importorskip("fastapi")
+from fastapi.testclient import TestClient  # noqa: E402
 
 pytestmark = [
     pytest.mark.api,
