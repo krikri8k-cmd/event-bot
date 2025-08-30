@@ -24,12 +24,16 @@ dependencies = [
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
-    "ruff>=0.3.0",
+    "ruff>=0.4.0",
+    "pre-commit>=4.0.0",
 ]
 
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+
+[tool.ruff.format]
+line-ending = "lf"
 
 [tool.ruff.lint]
 select = ["E", "F", "UP", "I"]
@@ -58,5 +62,6 @@ markers = [
     "unit: marks tests as unit tests",
     "api: API-тесты, требуют FastAPI и БД",
     "db: DB-smoke без FastAPI",
+    "meetup: tests that require Meetup enabled",
     "timeout: marks tests with timeout",
 ]

@@ -140,6 +140,24 @@ async def search_nearby_places(
     return []
 
 
+def get_bbox(lat: float, lng: float, radius_km: float) -> tuple[float, float, float, float]:
+    """
+    Вычисляет bounding box для заданных координат и радиуса в километрах.
+    Возвращает (min_lat, min_lng, max_lat, max_lng).
+    """
+    # Приблизительно: 1 градус широты ≈ 111 км
+    # 1 градус долготы ≈ 111 * cos(lat) км
+    lat_delta = radius_km / 111.0
+    lng_delta = radius_km / (111.0 * math.cos(math.radians(lat)))
+
+    min_lat = lat - lat_delta
+    max_lat = lat + lat_delta
+    min_lng = lng - lng_delta
+    max_lng = lng + lng_delta
+
+    return min_lat, min_lng, max_lat, max_lng
+
+
 async def search_events_places(lat: float, lng: float, radius_km: int = 5) -> list[dict]:
     """
     Ищет места, где могут проходить события

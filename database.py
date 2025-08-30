@@ -56,11 +56,26 @@ class Event(Base):
     __tablename__ = "events"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    source: Mapped[str | None] = mapped_column(
+        String(64), index=True
+    )  # источник события (ics.bali, nexudus.jakarta, etc)
+    external_id: Mapped[str | None] = mapped_column(
+        String(64), index=True
+    )  # уникальный ID из источника
     title: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     time_local: Mapped[str | None] = mapped_column(String(16))  # YYYY-MM-DD HH:MM
     event_tz: Mapped[str | None] = mapped_column(String(64))
-    time_utc: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+    time_utc: Mapped[DateTime | None] = mapped_column(
+        DateTime(timezone=True)
+    )  # legacy, используем starts_at
+    starts_at: Mapped[DateTime | None] = mapped_column(
+        DateTime(timezone=True)
+    )  # время начала события
+    ends_at: Mapped[DateTime | None] = mapped_column(
+        DateTime(timezone=True)
+    )  # время окончания события
+    url: Mapped[str | None] = mapped_column(Text)  # ссылка на событие
     location_name: Mapped[str | None] = mapped_column(String(255))
     location_url: Mapped[str | None] = mapped_column(Text)
     lat: Mapped[float | None] = mapped_column(Float)
@@ -152,6 +167,13 @@ def init_engine(database_url: str) -> None:
 def create_all() -> None:
     assert engine is not None
     Base.metadata.create_all(bind=engine)
+
+
+def get_engine() -> Engine:
+    """Возвращает глобальный engine"""
+    if engine is None:
+        raise RuntimeError("Engine not initialized. Call init_engine() first.")
+    return engine
 
 
 def get_session():

@@ -28,7 +28,11 @@ if os.environ.get("FULL_TESTS") == "1":
                   lat DOUBLE PRECISION NOT NULL,
                   lng DOUBLE PRECISION NOT NULL,
                   starts_at TIMESTAMPTZ,
-                  created_at TIMESTAMPTZ DEFAULT NOW()
+                  created_at TIMESTAMPTZ DEFAULT NOW(),
+                  updated_at TIMESTAMPTZ,
+                  source TEXT,
+                  external_id TEXT,
+                  url TEXT
                 );
             """)
             with api_engine.begin() as c:

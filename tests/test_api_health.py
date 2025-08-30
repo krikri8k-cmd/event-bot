@@ -2,6 +2,9 @@ import os
 
 import pytest
 
+# Защита от отсутствия fastapi
+pytest.importorskip("fastapi")
+
 pytestmark = pytest.mark.api  # помечаем файл целиком
 
 # В лёгком CI пропускаем модуль целиком, чтобы не импортировать fastapi/sqlalchemy

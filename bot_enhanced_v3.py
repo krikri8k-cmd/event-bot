@@ -9,7 +9,6 @@ from datetime import datetime
 
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
-from aiogram.filters.text import Text
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -50,12 +49,13 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
     keyboard = [
         [KeyboardButton(text="📍 Что рядом"), KeyboardButton(text="➕ Создать")],
         [KeyboardButton(text="📋 Мои события"), KeyboardButton(text="🔗 Поделиться")],
-        [KeyboardButton(text="❓ Помощь")],
+        [KeyboardButton(text="❓ Помощь"), KeyboardButton(text="🚀 Старт")],
     ]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
 @dp.message(Command("start"))
+@dp.message(F.text == "🚀 Старт")
 async def cmd_start(message: types.Message):
     """Обработчик команды /start"""
     user_id = message.from_user.id
@@ -76,7 +76,7 @@ async def cmd_start(message: types.Message):
     welcome_text = (
         "Привет! Я EventAroundBot. Помогаю находить события рядом и создавать свои.\n\n"
         "🎯 Что я умею:\n"
-        "• Искать события в радиусе 4 км от вас\n"
+        "• Искать события в радиусе 5 км от вас\n"
         "• Генерировать AI события\n"
         "• Искать в популярных местах\n"
         "• Создавать ваши собственные события\n\n"
@@ -86,7 +86,8 @@ async def cmd_start(message: types.Message):
     await message.answer(welcome_text, reply_markup=main_menu_kb())
 
 
-@dp.message(Text("📍 Что рядом"))
+@dp.message(Command("nearby"))
+@dp.message(F.text == "📍 Что рядом")
 async def on_what_nearby(message: types.Message):
     """Обработчик кнопки 'Что рядом'"""
     await message.answer(
@@ -113,7 +114,7 @@ async def on_location(message: types.Message):
             if user:
                 user.last_lat = lat
                 user.last_lng = lng
-                user.last_geo_at_utc = datetime.utcnow()
+                user.last_geo_at_utc = datetime.now(datetime.UTC)
                 session.commit()
 
         # Ищем события из всех источников
@@ -128,9 +129,11 @@ async def on_location(message: types.Message):
 
         # Формируем ответ
         lines = []
-        for i, event in enumerate(events[:10], 1):  # Показываем до 10 событий
+        for i, event in enumerate(
+            events[:8], 1
+        ):  # Показываем до 8 событий (меньше для избежания длинного caption)
             distance = haversine_km(lat, lng, event["lat"], event["lng"])
-            url = event.get("location_url") or to_google_maps_link(event["lat"], event["lng"])
+            event.get("location_url") or to_google_maps_link(event["lat"], event["lng"])
             time_part = f" — {event['time_local']}" if event.get("time_local") else ""
             source_emoji = {
                 "ai_generated": "🤖",
@@ -139,11 +142,15 @@ async def on_location(message: types.Message):
                 "social_media": "📱",
             }.get(event.get("source", ""), "📌")
 
+            # Ограничиваем длину названия и места
+            title = event["title"][:50] + "..." if len(event["title"]) > 50 else event["title"]
+            location = event.get("location_name", "Место не указано")
+            location = location[:40] + "..." if len(location) > 40 else location
+
             lines.append(
-                f"{source_emoji} **{event['title']}**{time_part}\n"
-                f"📍 {event.get('location_name', 'Место не указано')}\n"
-                f"📏 {distance:.1f} км\n"
-                f"🔗 {url}"
+                f"{source_emoji} **{title}**{time_part}\n"
+                f"📍 {location}\n"
+                f"📏 {distance:.1f} км"
             )
 
         text = "\n\n".join(lines)
@@ -151,7 +158,7 @@ async def on_location(message: types.Message):
         # Создаём карту
         points = []
         label_ord = ord("A")
-        for event in events[:10]:
+        for event in events[:8]:  # Используем те же 8 событий
             points.append((chr(label_ord), event["lat"], event["lng"]))
             label_ord += 1
 
@@ -178,7 +185,8 @@ async def on_location(message: types.Message):
         )
 
 
-@dp.message(Text("➕ Создать"))
+@dp.message(Command("create"))
+@dp.message(F.text == "➕ Создать")
 async def on_create(message: types.Message):
     """Обработчик кнопки 'Создать'"""
     await dp.storage.set_state(message.from_user.id, EventCreation.waiting_for_title)
@@ -190,7 +198,7 @@ async def on_create(message: types.Message):
     )
 
 
-@dp.message(Text("❌ Отмена"))
+@dp.message(F.text == "❌ Отмена")
 async def cancel_creation(message: types.Message, state: FSMContext):
     """Отмена создания события"""
     await state.clear()
@@ -256,14 +264,15 @@ async def process_location(message: types.Message, state: FSMContext):
     )
 
 
-@dp.message(Text("📋 Мои события"))
+@dp.message(Command("myevents"))
+@dp.message(F.text == "📋 Мои события")
 async def on_my_events(message: types.Message):
     """Обработчик кнопки 'Мои события'"""
     with get_session() as session:
         events = (
             session.query(Event)
             .filter(Event.organizer_id == message.from_user.id)
-            .order_by(Event.created_at.desc())
+            .order_by(Event.created_at_utc.desc())
             .limit(5)
             .all()
         )
@@ -291,7 +300,8 @@ async def on_my_events(message: types.Message):
     )
 
 
-@dp.message(Text("🔗 Поделиться"))
+@dp.message(Command("share"))
+@dp.message(F.text == "🔗 Поделиться")
 async def on_share(message: types.Message):
     """Обработчик кнопки 'Поделиться'"""
     bot_info = await bot.get_me()
@@ -304,12 +314,13 @@ async def on_share(message: types.Message):
     await message.answer(text, reply_markup=main_menu_kb())
 
 
-@dp.message(Text("❓ Помощь"))
+@dp.message(Command("help"))
+@dp.message(F.text == "❓ Помощь")
 async def on_help(message: types.Message):
     """Обработчик кнопки 'Помощь'"""
     help_text = (
         "🤖 **EventAroundBot - Помощь**\n\n"
-        "**📍 Что рядом** - ищет события в радиусе 4 км от вас\n"
+        "**📍 Что рядом** - ищет события в радиусе 5 км от вас\n"
         "**➕ Создать** - создаёт новое событие\n"
         "**📋 Мои события** - показывает ваши созданные события\n"
         "**🔗 Поделиться** - ссылки для добавления бота\n\n"
@@ -336,6 +347,22 @@ async def echo_message(message: types.Message):
 async def main():
     """Главная функция"""
     logger.info("Запуск улучшенного EventBot (aiogram 3.x)...")
+
+    # Устанавливаем команды бота для удобства пользователей
+    try:
+        await bot.set_my_commands(
+            [
+                types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
+                types.BotCommand(command="help", description="❓ Показать справку"),
+                types.BotCommand(command="nearby", description="📍 Найти события рядом"),
+                types.BotCommand(command="create", description="➕ Создать событие"),
+                types.BotCommand(command="myevents", description="📋 Мои события"),
+                types.BotCommand(command="share", description="🔗 Поделиться ботом"),
+            ]
+        )
+        logger.info("Команды бота установлены")
+    except Exception as e:
+        logger.warning(f"Не удалось установить команды бота: {e}")
 
     # Запускаем бота
     try:

@@ -3,6 +3,9 @@ name: CI Full (Postgres + API tests)
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   full-tests:
     runs-on: ubuntu-latest
