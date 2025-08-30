@@ -68,3 +68,5 @@ jobs:
 
       - name: Run tests (light)
         run: pytest -q
+        env:
+          FULL_TESTS: "1"
