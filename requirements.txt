@@ -14,5 +14,7 @@ ruff==0.4.0
 icalendar==5.0.11
 beautifulsoup4==4.12.3
 requests==2.31.0
+lxml>=5.2.1
+python-dateutil==2.8.2
 
 

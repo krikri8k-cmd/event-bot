@@ -1,0 +1,42 @@
+[
+  {
+    "url": "https://thehoneycombers.com/bali/calendar/",
+    "region": "bali",
+    "city": "Denpasar"
+  },
+  {
+    "url": "https://bali.com/events-calendar/",
+    "region": "bali",
+    "city": "Denpasar"
+  },
+  {
+    "url": "https://www.savaya.com/event-calendar",
+    "region": "bali",
+    "city": "Uluwatu",
+    "js_render": true
+  },
+  {
+    "url": "https://seminyak.potatohead.co/whats-on",
+    "region": "bali",
+    "city": "Seminyak",
+    "js_render": true
+  },
+  {
+    "url": "https://www.facebook.com/paradisoubud/",
+    "region": "bali",
+    "city": "Ubud",
+    "source_type": "facebook",
+    "js_render": true
+  },
+  {
+    "url": "https://atlasbeachfest.com/beach-club/events",
+    "region": "bali",
+    "city": "Canggu",
+    "js_render": true
+  },
+  {
+    "url": "https://www.balispirit.com/community/events",
+    "region": "bali",
+    "city": "Ubud"
+  }
+]

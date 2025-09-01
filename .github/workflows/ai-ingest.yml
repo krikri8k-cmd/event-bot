@@ -1,0 +1,38 @@
+name: AI Ingest (manual/cron)
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "18 3 * * *"   # ежедневно 03:18 UTC
+
+jobs:
+  ai_ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install openai requests beautifulsoup4 lxml python-dateutil SQLAlchemy
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Smoke test DB connection
+        env:
+          RAW_DB_URL: ${{ secrets.DATABASE_URL }}
+        run: psql "$RAW_DB_URL" -c "select current_database();"
+
+      - name: Run AI ingest
+        env:
+          RAW_DB_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: gpt-4o-mini
+          DEFAULT_TZ: Asia/Makassar
+          GEOCODE_URL: https://nominatim.openstreetmap.org/search
+          GEOCODE_EMAIL: ${{ secrets.GEOCODE_EMAIL || 'dev@local' }}
+        run: |
+          python -m api.ingest.ai_ingest
