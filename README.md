@@ -307,6 +307,15 @@ MIT License
 
 > Важно: строка подключения берётся из `Settings → Secrets and variables → Actions → DATABASE_URL`.
 
+### GitHub Actions: DATABASE_URL
+
+- При редактировании секрета поле Value **пустое** — это норма (write-only).
+- Секрет должен быть задан в Settings → Secrets and variables → Actions (и в Environments, если job использует `environment:`).
+- Формат для Railway:
+  `postgresql://postgres:<PASSWORD>@interchange.proxy.rlwy.net:23764/railway?sslmode=require`
+- Для smoke-теста можно использовать:
+  `psql "$DATABASE_URL" -c "select current_database();"`
+
 ---
 
 **Создано с ❤️ для поиска лучших событий в Индонезии!**
