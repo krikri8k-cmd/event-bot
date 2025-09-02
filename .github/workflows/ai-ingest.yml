@@ -34,5 +34,6 @@ jobs:
           DEFAULT_TZ: Asia/Makassar
           GEOCODE_URL: https://nominatim.openstreetmap.org/search
           GEOCODE_EMAIL: ${{ secrets.GEOCODE_EMAIL || 'dev@local' }}
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           python -m api.ingest.ai_ingest
