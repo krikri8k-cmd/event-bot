@@ -41,7 +41,7 @@ def _parse_admin_ids(value: str | None) -> set[int]:
     return ids
 
 
-def load_settings() -> Settings:
+def load_settings(require_bot: bool = False) -> Settings:
     # Ensure .env.local is loaded even if called from different CWD
     load_dotenv(_BASE_DIR / ".env.local", encoding="utf-8-sig")
 
@@ -60,7 +60,8 @@ def load_settings() -> Settings:
     except ValueError:
         default_radius_km = 4.0
 
-    if not telegram_token:
+    # Требовать токен только в режиме бота
+    if require_bot and not telegram_token:
         raise RuntimeError("TELEGRAM_TOKEN is required")
     if not database_url:
         raise RuntimeError("DATABASE_URL is required (e.g. postgres://user:pass@host:port/db)")

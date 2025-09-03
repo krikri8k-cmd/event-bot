@@ -24,7 +24,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Загружаем настройки
-settings = load_settings()
+# Для бота — токен обязателен
+settings = load_settings(require_bot=True)
 
 # Инициализация базы данных
 init_engine(settings.database_url)
