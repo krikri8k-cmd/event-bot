@@ -73,12 +73,17 @@ def static_map_url(
     if not settings.google_maps_api_key:
         return None
     key = settings.google_maps_api_key
+
+    # Пользователь (синяя метка с U)
     markers = [f"markers=color:blue%7Clabel:U%7C{user_lat:.6f},{user_lng:.6f}"]
-    label_ord = ord("A")
+
+    # События (красные метки с номерами)
     for label, lat, lng in points:
-        safe_label = label or chr(label_ord)
-        markers.append(f"markers=color:red%7Clabel:{safe_label}%7C{lat:.6f},{lng:.6f}")
-        label_ord += 1
+        # Проверяем что координаты валидные
+        if -90 <= lat <= 90 and -180 <= lng <= 180:
+            safe_label = str(label) if label else "?"
+            markers.append(f"markers=color:red%7Clabel:{safe_label}%7C{lat:.6f},{lng:.6f}")
+
     markers_str = "&".join(markers)
     return f"https://maps.googleapis.com/maps/api/staticmap?size={size}&zoom={zoom}&{markers_str}&key={key}"
 

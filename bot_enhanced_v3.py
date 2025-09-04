@@ -18,7 +18,26 @@ from bot_health import health_server
 from config import load_settings
 from database import Event, User, create_all, get_session, init_engine
 from enhanced_event_search import enhanced_search_events
-from utils.geo_utils import haversine_km, static_map_url, to_google_maps_link
+from utils.geo_utils import haversine_km, static_map_url
+
+
+def get_source_link(event: dict) -> str:
+    """
+    Генерирует ссылку на источник события
+    """
+    source = event.get("source", "")
+
+    if source == "ai_generated":
+        return "AI генерация"
+    elif source == "popular_places":
+        return "Популярные места"
+    elif source == "event_calendars":
+        return "Календари событий"
+    elif source == "social_media":
+        return "Социальные сети"
+    else:
+        return "Неизвестный источник"
+
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -142,14 +161,13 @@ async def on_location(message: types.Message):
             )
             return
 
-        # Формируем ответ
+        # Формируем ответ с нумерацией
         lines = []
-        for i, event in enumerate(
-            events[:8], 1
-        ):  # Показываем до 8 событий (меньше для избежания длинного caption)
+        for i, event in enumerate(events[:8], 1):  # Показываем до 8 событий
             distance = haversine_km(lat, lng, event["lat"], event["lng"])
-            event.get("location_url") or to_google_maps_link(event["lat"], event["lng"])
             time_part = f" — {event['time_local']}" if event.get("time_local") else ""
+
+            # Эмодзи для источника
             source_emoji = {
                 "ai_generated": "🤖",
                 "popular_places": "🏛️",
@@ -157,25 +175,41 @@ async def on_location(message: types.Message):
                 "social_media": "📱",
             }.get(event.get("source", ""), "📌")
 
+            # Ссылка на источник
+            source_link = get_source_link(event)
+            source_info = f"🔗 {source_link}" if source_link else ""
+
             # Ограничиваем длину названия и места
             title = event["title"][:50] + "..." if len(event["title"]) > 50 else event["title"]
             location = event.get("location_name", "Место не указано")
             location = location[:40] + "..." if len(location) > 40 else location
 
             lines.append(
-                f"{source_emoji} **{title}**{time_part}\n"
+                f"**{i}) {title}**{time_part}\n"
                 f"📍 {location}\n"
-                f"📏 {distance:.1f} км"
+                f"📏 {distance:.1f} км\n"
+                f"{source_emoji} {event.get('source', 'unknown')} {source_info}"
             )
 
         text = "\n\n".join(lines)
 
-        # Создаём карту
+        # Создаём карту с нумерованными метками
         points = []
-        label_ord = ord("A")
-        for event in events[:8]:  # Используем те же 8 событий
-            points.append((chr(label_ord), event["lat"], event["lng"]))
-            label_ord += 1
+        for i, event in enumerate(events[:8], 1):  # Используем те же 8 событий
+            event_lat = event.get("lat")
+            event_lng = event.get("lng")
+
+            # Проверяем что координаты валидные
+            if event_lat is not None and event_lng is not None:
+                if -90 <= event_lat <= 90 and -180 <= event_lng <= 180:
+                    points.append((str(i), event_lat, event_lng))  # Метки 1, 2, 3
+                    logger.info(
+                        f"Событие {i}: {event['title']} - координаты ({event_lat:.6f}, {event_lng:.6f})"
+                    )
+                else:
+                    logger.warning(f"Событие {i}: неверные координаты ({event_lat}, {event_lng})")
+            else:
+                logger.warning(f"Событие {i}: отсутствуют координаты")
 
         map_url = static_map_url(lat, lng, points)
 
