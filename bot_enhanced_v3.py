@@ -369,10 +369,12 @@ async def main():
 
     # Запускаем health check сервер для Railway
     try:
-        health_server.start()
-        logger.info("Health check сервер запущен")
+        if health_server.start():
+            logger.info("Health check сервер запущен")
+        else:
+            logger.warning("Не удалось запустить health check сервер")
     except Exception as e:
-        logger.warning(f"Не удалось запустить health check сервер: {e}")
+        logger.warning(f"Ошибка запуска health check сервера: {e}")
 
     # Устанавливаем команды бота для удобства пользователей
     try:
