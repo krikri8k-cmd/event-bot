@@ -120,9 +120,22 @@ async def on_location(message: types.Message):
                 session.commit()
 
         # Ищем события из всех источников
-        events = await enhanced_search_events(lat, lng, radius_km=int(settings.default_radius_km))
+        try:
+            logger.info(f"🔍 Начинаем поиск событий для координат ({lat}, {lng})")
+            events = await enhanced_search_events(
+                lat, lng, radius_km=int(settings.default_radius_km)
+            )
+            logger.info(f"✅ Поиск завершен, найдено {len(events)} событий")
+        except Exception as e:
+            logger.error(f"❌ Ошибка при поиске событий: {e}")
+            await message.answer(
+                "Произошла ошибка при поиске событий. Попробуйте позже.",
+                reply_markup=main_menu_kb(),
+            )
+            return
 
         if not events:
+            logger.info("📭 События не найдены")
             await message.answer(
                 "Пока ничего не нашла. Попробуй позже или создай своё событие через '➕ Создать'.",
                 reply_markup=main_menu_kb(),

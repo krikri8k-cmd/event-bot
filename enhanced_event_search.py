@@ -4,11 +4,15 @@
 """
 
 import asyncio
+import logging
 from datetime import datetime
 from typing import Any
 
 from ai_utils import fetch_ai_events_nearby
 from config import load_settings
+
+# Настройка логирования
+logger = logging.getLogger(__name__)
 
 
 class EventSearchEngine:
@@ -23,41 +27,53 @@ class EventSearchEngine:
         """
         all_events = []
 
-        print(f"🔍 Ищем события в радиусе {radius_km} км от ({lat}, {lng})")
+        logger.info(f"🔍 Ищем события в радиусе {radius_km} км от ({lat}, {lng})")
 
         # 1. AI генерация событий
-        print("🤖 Генерируем AI события...")
-        ai_events = await fetch_ai_events_nearby(lat, lng)
-        if ai_events:
-            print(f"   ✅ AI сгенерировал {len(ai_events)} событий")
-            for event in ai_events:
-                event["source"] = "ai_generated"
-                all_events.append(event)
-        else:
-            print("   ⚠️ AI не сгенерировал события")
+        logger.info("🤖 Генерируем AI события...")
+        try:
+            ai_events = await fetch_ai_events_nearby(lat, lng)
+            if ai_events:
+                logger.info(f"   ✅ AI сгенерировал {len(ai_events)} событий")
+                for event in ai_events:
+                    event["source"] = "ai_generated"
+                    all_events.append(event)
+            else:
+                logger.info("   ⚠️ AI не сгенерировал события")
+        except Exception as e:
+            logger.error(f"   ❌ Ошибка при AI генерации: {e}")
 
         # 2. Поиск в популярных местах (парки, музеи, театры)
-        print("🏛️ Ищем события в популярных местах...")
-        popular_events = await self._search_popular_places(lat, lng, radius_km)
-        if popular_events:
-            print(f"   ✅ Найдено {len(popular_events)} событий в популярных местах")
-            all_events.extend(popular_events)
+        logger.info("🏛️ Ищем события в популярных местах...")
+        try:
+            popular_events = await self._search_popular_places(lat, lng, radius_km)
+            if popular_events:
+                logger.info(f"   ✅ Найдено {len(popular_events)} событий в популярных местах")
+                all_events.extend(popular_events)
+        except Exception as e:
+            logger.error(f"   ❌ Ошибка при поиске в популярных местах: {e}")
 
         # 3. Поиск в календарях событий
-        print("📅 Ищем в календарях событий...")
-        calendar_events = await self._search_event_calendars(lat, lng, radius_km)
-        if calendar_events:
-            print(f"   ✅ Найдено {len(calendar_events)} событий в календарях")
-            all_events.extend(calendar_events)
+        logger.info("📅 Ищем в календарях событий...")
+        try:
+            calendar_events = await self._search_event_calendars(lat, lng, radius_km)
+            if calendar_events:
+                logger.info(f"   ✅ Найдено {len(calendar_events)} событий в календарях")
+                all_events.extend(calendar_events)
+        except Exception as e:
+            logger.error(f"   ❌ Ошибка при поиске в календарях: {e}")
 
         # 4. Поиск в социальных сетях (симуляция)
-        print("📱 Ищем в социальных сетях...")
-        social_events = await self._search_social_media(lat, lng, radius_km)
-        if social_events:
-            print(f"   ✅ Найдено {len(social_events)} событий в соцсетях")
-            all_events.extend(social_events)
+        logger.info("📱 Ищем в социальных сетях...")
+        try:
+            social_events = await self._search_social_media(lat, lng, radius_km)
+            if social_events:
+                logger.info(f"   ✅ Найдено {len(social_events)} событий в соцсетях")
+                all_events.extend(social_events)
+        except Exception as e:
+            logger.error(f"   ❌ Ошибка при поиске в соцсетях: {e}")
 
-        print(f"🎯 Всего найдено: {len(all_events)} событий")
+        logger.info(f"🎯 Всего найдено: {len(all_events)} событий")
         return all_events
 
     async def _search_popular_places(
