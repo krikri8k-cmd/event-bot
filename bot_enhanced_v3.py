@@ -189,18 +189,26 @@ async def send_detailed_events_list(
         else:
             text = f"📋 **Все найденные события:**\n\n{text}"
 
-        # Создаем инлайн клавиатуру для перехода в Google Maps
+            # Создаем инлайн клавиатуру для перехода в Google Maps
         maps_url = f"https://www.google.com/maps/search/?api=1&query={user_lat:.6f},{user_lng:.6f}"
         inline_kb = InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text="🗺️ Открыть в Google Maps", url=maps_url)]]
         )
 
-        # Отправляем часть событий
-        await message.answer(
-            text,
-            reply_markup=inline_kb,
-            parse_mode="Markdown",
-        )
+        try:
+            # Отправляем часть событий
+            await message.answer(
+                text,
+                reply_markup=inline_kb,
+                parse_mode="Markdown",
+            )
+            logger.info(f"✅ Часть {part + 1} событий отправлена")
+        except Exception as e:
+            logger.error(f"❌ Ошибка отправки части {part + 1}: {e}")
+            # Fallback - отправляем без форматирования
+            await message.answer(
+                f"📋 События (часть {part + 1} из {total_parts}):\n\n{text}", reply_markup=inline_kb
+            )
 
 
 # Настройка логирования
@@ -336,22 +344,20 @@ async def on_location(message: types.Message):
         short_caption = f"🎯 Найдено {len(events)} событий рядом!\n\n"
 
         # Добавляем краткую информацию о событиях с короткими ссылками
-        for i, event in enumerate(events_to_show[:5], 1):  # Показываем первые 5
+        for i, event in enumerate(events_to_show[:3], 1):  # Показываем только первые 3
             distance = haversine_km(lat, lng, event["lat"], event["lng"])
             time_part = f" {event['time_local']}" if event.get("time_local") else ""
-            title = event["title"][:25] + "..." if len(event["title"]) > 25 else event["title"]
+            title = event["title"][:20] + "..." if len(event["title"]) > 20 else event["title"]
 
             # Короткая ссылка на источник
             short_link = get_short_source_link(event)
 
             short_caption += f"**{i}) {title}**{time_part} • {distance:.1f}км {short_link}\n"
 
-        if len(events) > 5:
-            short_caption += f"\n... и еще {len(events) - 5} событий"
+        if len(events) > 3:
+            short_caption += f"\n... и еще {len(events) - 3} событий"
 
-        short_caption += (
-            "\n\n💡 **Нажми на карту чтобы открыть в Google Maps с полной информацией!**"
-        )
+        short_caption += "\n\n💡 **Нажми кнопку ниже для Google Maps!**"
 
         # Создаём карту с нумерованными метками
         points = []
@@ -412,7 +418,18 @@ async def on_location(message: types.Message):
                 )
 
                 # Отправляем детальный список событий отдельным сообщением
-                await send_detailed_events_list(message, events, lat, lng)
+                try:
+                    await send_detailed_events_list(message, events, lat, lng)
+                    logger.info("✅ Детальный список событий отправлен")
+                except Exception as e:
+                    logger.error(f"❌ Ошибка отправки детального списка: {e}")
+                    # Fallback - отправляем краткий список
+                    await message.answer(
+                        f"📋 **Все {len(events)} событий:**\n\n"
+                        f"💡 Нажми кнопку '🗺️ Открыть в Google Maps с событиями' выше "
+                        f"чтобы увидеть полную информацию о каждом событии!",
+                        parse_mode="Markdown",
+                    )
             except Exception as e:
                 logger.exception("Failed to send map image, will send URL as text: %s", e)
                 await message.answer(
@@ -420,7 +437,17 @@ async def on_location(message: types.Message):
                 )
         else:
             # Если карта не сгенерировалась, отправляем только список событий
-            await send_detailed_events_list(message, events, lat, lng)
+            try:
+                await send_detailed_events_list(message, events, lat, lng)
+                logger.info("✅ Детальный список событий отправлен (без карты)")
+            except Exception as e:
+                logger.error(f"❌ Ошибка отправки детального списка: {e}")
+                # Fallback - отправляем краткий список
+                await message.answer(
+                    f"📋 **Все {len(events)} событий:**\n\n"
+                    f"💡 К сожалению, карта не загрузилась, но все события найдены!",
+                    parse_mode="Markdown",
+                )
 
     except Exception as e:
         logger.error(f"Ошибка при поиске событий: {e}")
