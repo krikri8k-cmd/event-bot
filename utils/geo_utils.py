@@ -67,12 +67,18 @@ def static_map_url(
     user_lng: float,
     points: list[tuple[str, float, float]],
     zoom: int = 15,
-    size: str = "600x400",
+    size: str = "800x600",
 ) -> str | None:
     settings = load_settings()
     if not settings.google_maps_api_key:
         return None
     key = settings.google_maps_api_key
+
+    # Автоматически рассчитываем оптимальный зум на основе количества событий
+    if len(points) > 8:
+        zoom = max(12, zoom - 2)  # Уменьшаем зум для большего количества событий
+    elif len(points) > 4:
+        zoom = max(13, zoom - 1)  # Немного уменьшаем зум
 
     # Пользователь (синяя метка с U)
     markers = [f"markers=color:blue%7Clabel:U%7C{user_lat:.6f},{user_lng:.6f}"]

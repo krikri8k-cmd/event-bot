@@ -12,7 +12,10 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
+from aiogram.types import (
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+)
 
 from bot_health import health_server
 from config import load_settings
@@ -37,6 +40,52 @@ def get_source_link(event: dict) -> str:
         return "Социальные сети"
     else:
         return "Неизвестный источник"
+
+
+def sort_events_by_time(events: list) -> list:
+    """
+    Сортирует события по времени (ближайшие первыми)
+    """
+
+    def get_event_time(event):
+        time_str = event.get("time_local", "")
+        if not time_str:
+            return float("inf")  # События без времени в конец
+
+        try:
+            # Парсим время в формате "2025-01-04 19:00"
+            from datetime import datetime
+
+            event_time = datetime.strptime(time_str, "%Y-%m-%d %H:%M")
+            return event_time.timestamp()
+        except (ValueError, TypeError):
+            return float("inf")  # При ошибке парсинга в конец
+
+    return sorted(events, key=get_event_time)
+
+
+def create_event_links(event: dict) -> str:
+    """
+    Создает кликабельные ссылки для события
+    """
+    links = []
+
+    # Ссылка на Google Maps
+    if event.get("lat") and event.get("lng"):
+        maps_url = (
+            f"https://www.google.com/maps/search/?api=1&query={event['lat']:.6f},{event['lng']:.6f}"
+        )
+        links.append(f"🗺️ [Google Maps]({maps_url})")
+
+    # Ссылка на сайт места (если есть)
+    if event.get("website"):
+        links.append(f"🌐 [Сайт]({event['website']})")
+
+    # Ссылка на бронирование (если есть)
+    if event.get("booking_url"):
+        links.append(f"📅 [Забронировать]({event['booking_url']})")
+
+    return " | ".join(links) if links else "🔗 [Google Maps](https://maps.google.com)"
 
 
 # Настройка логирования
@@ -161,6 +210,10 @@ async def on_location(message: types.Message):
             )
             return
 
+        # Сортируем события по времени (ближайшие первыми)
+        events = sort_events_by_time(events)
+        logger.info("📅 События отсортированы по времени")
+
         # Формируем ответ с нумерацией
         lines = []
         for i, event in enumerate(events[:8], 1):  # Показываем до 8 событий
@@ -175,9 +228,8 @@ async def on_location(message: types.Message):
                 "social_media": "📱",
             }.get(event.get("source", ""), "📌")
 
-            # Ссылка на источник
-            source_link = get_source_link(event)
-            source_info = f"🔗 {source_link}" if source_link else ""
+            # Кликабельные ссылки для события
+            event_links = create_event_links(event)
 
             # Ограничиваем длину названия и места
             title = event["title"][:50] + "..." if len(event["title"]) > 50 else event["title"]
@@ -188,7 +240,8 @@ async def on_location(message: types.Message):
                 f"**{i}) {title}**{time_part}\n"
                 f"📍 {location}\n"
                 f"📏 {distance:.1f} км\n"
-                f"{source_emoji} {event.get('source', 'unknown')} {source_info}"
+                f"{source_emoji} {event.get('source', 'unknown')}\n"
+                f"{event_links}"
             )
 
         text = "\n\n".join(lines)
@@ -211,7 +264,8 @@ async def on_location(message: types.Message):
             else:
                 logger.warning(f"Событие {i}: отсутствуют координаты")
 
-        map_url = static_map_url(lat, lng, points)
+        # Увеличиваем размер карты для отображения всех событий
+        map_url = static_map_url(lat, lng, points, size="800x600", zoom=14)
 
         # --- DEBUG: persist & log map url ---
         from pathlib import Path
@@ -226,10 +280,22 @@ async def on_location(message: types.Message):
 
         if map_url and map_url.startswith("http"):
             try:
+                # Создаем инлайн клавиатуру с ссылкой на Google Maps
+                from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+                # Ссылка на Google Maps с координатами пользователя
+                maps_url = f"https://www.google.com/maps/search/?api=1&query={lat:.6f},{lng:.6f}"
+
+                inline_kb = InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [InlineKeyboardButton(text="🗺️ Открыть в Google Maps", url=maps_url)]
+                    ]
+                )
+
                 await message.answer_photo(
                     map_url,
-                    caption=f"🎯 Найдено {len(events)} событий рядом:\n\n{text}",
-                    reply_markup=main_menu_kb(),
+                    caption=f"🎯 Найдено {len(events)} событий рядом:\n\n{text}\n\n💡 **Нажми на карту чтобы открыть в Google Maps!**",
+                    reply_markup=inline_kb,
                     parse_mode="Markdown",
                 )
             except Exception as e:
