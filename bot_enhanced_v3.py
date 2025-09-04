@@ -88,6 +88,75 @@ def create_event_links(event: dict) -> str:
     return " | ".join(links) if links else "🔗 [Google Maps](https://maps.google.com)"
 
 
+async def send_detailed_events_list(
+    message: types.Message, events: list, user_lat: float, user_lng: float
+):
+    """
+    Отправляет детальный список событий отдельным сообщением
+    """
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    # Разбиваем события на части (Telegram лимит ~4096 символов)
+    events_per_message = 5
+    total_parts = (len(events) + events_per_message - 1) // events_per_message
+
+    for part in range(total_parts):
+        start_idx = part * events_per_message
+        end_idx = min(start_idx + events_per_message, len(events))
+        part_events = events[start_idx:end_idx]
+
+        # Формируем текст для части
+        lines = []
+        for i, event in enumerate(part_events, start_idx + 1):
+            distance = haversine_km(user_lat, user_lng, event["lat"], event["lng"])
+            time_part = f" — {event['time_local']}" if event.get("time_local") else ""
+
+            # Эмодзи для источника
+            source_emoji = {
+                "ai_generated": "🤖",
+                "popular_places": "🏛️",
+                "event_calendars": "📅",
+                "social_media": "📱",
+            }.get(event.get("source", ""), "📌")
+
+            # Кликабельные ссылки для события
+            event_links = create_event_links(event)
+
+            # Ограничиваем длину названия и места
+            title = event["title"][:50] + "..." if len(event["title"]) > 50 else event["title"]
+            location = event.get("location_name", "Место не указано")
+            location = location[:40] + "..." if len(location) > 40 else location
+
+            lines.append(
+                f"**{i}) {title}**{time_part}\n"
+                f"📍 {location}\n"
+                f"📏 {distance:.1f} км\n"
+                f"{source_emoji} {event.get('source', 'unknown')}\n"
+                f"{event_links}\n"
+            )
+
+        text = "\n".join(lines)
+
+        # Добавляем заголовок части
+        if total_parts > 1:
+            text = f"📋 **События (часть {part + 1} из {total_parts}):**\n\n{text}"
+        else:
+            text = f"📋 **Все найденные события:**\n\n{text}"
+
+        # Создаем инлайн клавиатуру для перехода в Google Maps
+        maps_url = f"https://www.google.com/maps/search/?api=1&query={user_lat:.6f},{user_lng:.6f}"
+        inline_kb = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="🗺️ Открыть в Google Maps", url=maps_url)]]
+        )
+
+        # Отправляем часть событий
+        await message.answer(
+            text,
+            reply_markup=inline_kb,
+            parse_mode="Markdown",
+        )
+
+
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -214,41 +283,28 @@ async def on_location(message: types.Message):
         events = sort_events_by_time(events)
         logger.info("📅 События отсортированы по времени")
 
-        # Формируем ответ с нумерацией
-        lines = []
-        for i, event in enumerate(events[:8], 1):  # Показываем до 8 событий
+        # Формируем краткую подпись для карты (чтобы не превысить лимит Telegram)
+        events_to_show = events[:8]  # Показываем до 8 событий
+
+        # Создаем краткую подпись для карты
+        short_caption = f"🎯 Найдено {len(events)} событий рядом!\n\n"
+
+        # Добавляем краткую информацию о первых событиях
+        for i, event in enumerate(events_to_show[:3], 1):  # Только первые 3 для краткости
             distance = haversine_km(lat, lng, event["lat"], event["lng"])
-            time_part = f" — {event['time_local']}" if event.get("time_local") else ""
+            time_part = f" {event['time_local']}" if event.get("time_local") else ""
+            title = event["title"][:30] + "..." if len(event["title"]) > 30 else event["title"]
 
-            # Эмодзи для источника
-            source_emoji = {
-                "ai_generated": "🤖",
-                "popular_places": "🏛️",
-                "event_calendars": "📅",
-                "social_media": "📱",
-            }.get(event.get("source", ""), "📌")
+            short_caption += f"**{i}) {title}**{time_part} • {distance:.1f}км\n"
 
-            # Кликабельные ссылки для события
-            event_links = create_event_links(event)
+        if len(events) > 3:
+            short_caption += f"\n... и еще {len(events) - 3} событий"
 
-            # Ограничиваем длину названия и места
-            title = event["title"][:50] + "..." if len(event["title"]) > 50 else event["title"]
-            location = event.get("location_name", "Место не указано")
-            location = location[:40] + "..." if len(location) > 40 else location
-
-            lines.append(
-                f"**{i}) {title}**{time_part}\n"
-                f"📍 {location}\n"
-                f"📏 {distance:.1f} км\n"
-                f"{source_emoji} {event.get('source', 'unknown')}\n"
-                f"{event_links}"
-            )
-
-        text = "\n\n".join(lines)
+        short_caption += "\n\n💡 **Нажми на карту чтобы открыть в Google Maps!**"
 
         # Создаём карту с нумерованными метками
         points = []
-        for i, event in enumerate(events[:8], 1):  # Используем те же 8 событий
+        for i, event in enumerate(events_to_show, 1):  # Используем те же события
             event_lat = event.get("lat")
             event_lng = event.get("lng")
 
@@ -292,23 +348,24 @@ async def on_location(message: types.Message):
                     ]
                 )
 
+                # Отправляем карту с краткой подписью
                 await message.answer_photo(
                     map_url,
-                    caption=f"🎯 Найдено {len(events)} событий рядом:\n\n{text}\n\n💡 **Нажми на карту чтобы открыть в Google Maps!**",
+                    caption=short_caption,
                     reply_markup=inline_kb,
                     parse_mode="Markdown",
                 )
+
+                # Отправляем детальный список событий отдельным сообщением
+                await send_detailed_events_list(message, events, lat, lng)
             except Exception as e:
                 logger.exception("Failed to send map image, will send URL as text: %s", e)
                 await message.answer(
                     f"Не удалось загрузить изображение карты. Вот URL для проверки:\n{map_url}"
                 )
         else:
-            await message.answer(
-                f"🎯 Найдено {len(events)} событий рядом:\n\n{text}",
-                reply_markup=main_menu_kb(),
-                parse_mode="Markdown",
-            )
+            # Если карта не сгенерировалась, отправляем только список событий
+            await send_detailed_events_list(message, events, lat, lng)
 
     except Exception as e:
         logger.error(f"Ошибка при поиске событий: {e}")
