@@ -1,16 +1,15 @@
-# Используем тонкий образ Python
+# Dockerfile для Telegram бота
 FROM python:3.12-slim
 
 # Настройки Python
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PORT=8000
+    PIP_NO_CACHE_DIR=1
 
 # Рабочая директория
 WORKDIR /app
 
-# Системные зависимости (минимум; psycopg2-binary не требует компиляции)
+# Системные зависимости
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
@@ -23,9 +22,8 @@ RUN python -m pip install --upgrade pip wheel setuptools \
 # Копируем проект
 COPY . .
 
-# Экспортируем порт (для локальных запусков; на Railway достаточно CMD)
-EXPOSE ${PORT}
+# Делаем скрипт исполняемым
+RUN chmod +x railway-bot-start.sh
 
-# Старт — Uvicorn с FastAPI
-# Если приложение в api/app.py: app
-CMD ["bash", "-lc", "uvicorn api.app:app --host 0.0.0.0 --port ${PORT}"]
+# Запускаем Telegram бота через скрипт
+CMD ["./railway-bot-start.sh"]
