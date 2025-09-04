@@ -4,12 +4,22 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Load .env.local and .env files (first .env.local, then .env)
+
+def _load_dotenv_with_bom(path: Path):
+    """Load .env file with BOM handling"""
+    if path and path.exists():
+        load_dotenv(dotenv_path=path, encoding="utf-8-sig", override=True)
+
+
+# Load environment files with priority: ENV_FILE > .env.local > .env
 _BASE_DIR = Path(__file__).resolve().parent
+env_file = os.getenv("ENV_FILE")
+if env_file:
+    _load_dotenv_with_bom(Path(env_file))
+
+# Then load .env.local and .env
 for fn in (".env.local", ".env"):
-    env_file = _BASE_DIR / fn
-    if env_file.exists():
-        load_dotenv(env_file, override=False, encoding="utf-8-sig")
+    _load_dotenv_with_bom(_BASE_DIR / fn)
 
 
 @dataclass
@@ -24,6 +34,7 @@ class Settings:
     default_radius_km: float
     admin_ids: set[int]
     google_application_credentials: str | None
+    env_file: str | None
 
 
 def _parse_admin_ids(value: str | None) -> set[int]:
@@ -42,8 +53,8 @@ def _parse_admin_ids(value: str | None) -> set[int]:
 
 
 def load_settings(require_bot: bool = False) -> Settings:
-    # Ensure .env.local is loaded even if called from different CWD
-    load_dotenv(_BASE_DIR / ".env.local", encoding="utf-8-sig")
+    # Environment files are already loaded at module level
+    # Just get the current ENV_FILE value for reference
 
     telegram_token = (os.getenv("TELEGRAM_TOKEN") or "").strip()
     database_url = (os.getenv("DATABASE_URL") or "").strip()
@@ -81,4 +92,5 @@ def load_settings(require_bot: bool = False) -> Settings:
         default_radius_km=default_radius_km,
         admin_ids=admin_ids,
         google_application_credentials=gcp_path,
+        env_file=env_file,
     )

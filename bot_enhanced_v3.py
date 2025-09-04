@@ -5,7 +5,7 @@
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
@@ -14,6 +14,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
+from bot_health import health_server
 from config import load_settings
 from database import Event, User, create_all, get_session, init_engine
 from enhanced_event_search import enhanced_search_events
@@ -115,7 +116,7 @@ async def on_location(message: types.Message):
             if user:
                 user.last_lat = lat
                 user.last_lng = lng
-                user.last_geo_at_utc = datetime.now(datetime.UTC)
+                user.last_geo_at_utc = datetime.now(UTC)
                 session.commit()
 
         # Ищем события из всех источников
@@ -163,15 +164,32 @@ async def on_location(message: types.Message):
             points.append((chr(label_ord), event["lat"], event["lng"]))
             label_ord += 1
 
-        map_url = static_map_url(lat, lng, points) or ""
+        map_url = static_map_url(lat, lng, points)
 
-        if map_url:
-            await message.answer_photo(
-                map_url,
-                caption=f"🎯 Найдено {len(events)} событий рядом:\n\n{text}",
-                reply_markup=main_menu_kb(),
-                parse_mode="Markdown",
-            )
+        # --- DEBUG: persist & log map url ---
+        from pathlib import Path
+
+        try:
+            Path("last_map_url.txt").write_text(map_url, encoding="utf-8")
+        except Exception as e:
+            logger.warning("Cannot write last_map_url.txt: %s", e)
+        logger.info("Map URL: %s", map_url)
+        print(f"MAP_URL={map_url}")
+        # --- END DEBUG ---
+
+        if map_url and map_url.startswith("http"):
+            try:
+                await message.answer_photo(
+                    map_url,
+                    caption=f"🎯 Найдено {len(events)} событий рядом:\n\n{text}",
+                    reply_markup=main_menu_kb(),
+                    parse_mode="Markdown",
+                )
+            except Exception as e:
+                logger.exception("Failed to send map image, will send URL as text: %s", e)
+                await message.answer(
+                    f"Не удалось загрузить изображение карты. Вот URL для проверки:\n{map_url}"
+                )
         else:
             await message.answer(
                 f"🎯 Найдено {len(events)} событий рядом:\n\n{text}",
@@ -348,6 +366,13 @@ async def echo_message(message: types.Message):
 async def main():
     """Главная функция"""
     logger.info("Запуск улучшенного EventBot (aiogram 3.x)...")
+
+    # Запускаем health check сервер для Railway
+    try:
+        health_server.start()
+        logger.info("Health check сервер запущен")
+    except Exception as e:
+        logger.warning(f"Не удалось запустить health check сервер: {e}")
 
     # Устанавливаем команды бота для удобства пользователей
     try:
