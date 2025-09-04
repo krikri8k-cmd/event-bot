@@ -75,7 +75,9 @@ def static_map_url(
     key = settings.google_maps_api_key
 
     # Автоматически рассчитываем оптимальный зум на основе количества событий
-    if len(points) > 8:
+    if len(points) > 12:
+        zoom = max(11, zoom - 3)  # Уменьшаем зум для большого количества событий
+    elif len(points) > 8:
         zoom = max(12, zoom - 2)  # Уменьшаем зум для большего количества событий
     elif len(points) > 4:
         zoom = max(13, zoom - 1)  # Немного уменьшаем зум

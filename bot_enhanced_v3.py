@@ -42,6 +42,52 @@ def get_source_link(event: dict) -> str:
         return "Неизвестный источник"
 
 
+def get_short_source_link(event: dict) -> str:
+    """
+    Генерирует короткую ссылку на источник события для карты
+    """
+    source = event.get("source", "")
+
+    if source == "ai_generated":
+        return "🤖"
+    elif source == "popular_places":
+        return "🏛️"
+    elif source == "event_calendars":
+        return "📅"
+    elif source == "social_media":
+        return "📱"
+    else:
+        return "📌"
+
+
+def create_enhanced_google_maps_url(user_lat: float, user_lng: float, events: list) -> str:
+    """
+    Создает расширенную ссылку на Google Maps с информацией о событиях
+    """
+    # Базовая ссылка на Google Maps
+    base_url = "https://www.google.com/maps/search/"
+
+    # Добавляем события как поисковые запросы
+    search_queries = []
+    for i, event in enumerate(events[:8], 1):  # Максимум 8 событий для URL
+        title = event.get("title", "").replace(" ", "+")
+        time_part = event.get("time_local", "").replace(" ", "+") if event.get("time_local") else ""
+
+        # Формируем поисковый запрос: "Название+события+время+координаты"
+        search_query = f"{title}"
+        if time_part:
+            search_query += f"+{time_part}"
+
+        search_queries.append(search_query)
+
+    # Объединяем все поисковые запросы
+    if search_queries:
+        combined_search = "+".join(search_queries)
+        return f"{base_url}{combined_search}/@{user_lat:.6f},{user_lng:.6f},13z"
+    else:
+        return f"{base_url}@{user_lat:.6f},{user_lng:.6f},13z"
+
+
 def sort_events_by_time(events: list) -> list:
     """
     Сортирует события по времени (ближайшие первыми)
@@ -283,24 +329,29 @@ async def on_location(message: types.Message):
         events = sort_events_by_time(events)
         logger.info("📅 События отсортированы по времени")
 
-        # Формируем краткую подпись для карты (чтобы не превысить лимит Telegram)
-        events_to_show = events[:8]  # Показываем до 8 событий
+        # Формируем краткую подпись для карты с короткими ссылками
+        events_to_show = events[:12]  # Показываем до 12 событий на карте
 
         # Создаем краткую подпись для карты
         short_caption = f"🎯 Найдено {len(events)} событий рядом!\n\n"
 
-        # Добавляем краткую информацию о первых событиях
-        for i, event in enumerate(events_to_show[:3], 1):  # Только первые 3 для краткости
+        # Добавляем краткую информацию о событиях с короткими ссылками
+        for i, event in enumerate(events_to_show[:5], 1):  # Показываем первые 5
             distance = haversine_km(lat, lng, event["lat"], event["lng"])
             time_part = f" {event['time_local']}" if event.get("time_local") else ""
-            title = event["title"][:30] + "..." if len(event["title"]) > 30 else event["title"]
+            title = event["title"][:25] + "..." if len(event["title"]) > 25 else event["title"]
 
-            short_caption += f"**{i}) {title}**{time_part} • {distance:.1f}км\n"
+            # Короткая ссылка на источник
+            short_link = get_short_source_link(event)
 
-        if len(events) > 3:
-            short_caption += f"\n... и еще {len(events) - 3} событий"
+            short_caption += f"**{i}) {title}**{time_part} • {distance:.1f}км {short_link}\n"
 
-        short_caption += "\n\n💡 **Нажми на карту чтобы открыть в Google Maps!**"
+        if len(events) > 5:
+            short_caption += f"\n... и еще {len(events) - 5} событий"
+
+        short_caption += (
+            "\n\n💡 **Нажми на карту чтобы открыть в Google Maps с полной информацией!**"
+        )
 
         # Создаём карту с нумерованными метками
         points = []
@@ -339,12 +390,16 @@ async def on_location(message: types.Message):
                 # Создаем инлайн клавиатуру с ссылкой на Google Maps
                 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-                # Ссылка на Google Maps с координатами пользователя
-                maps_url = f"https://www.google.com/maps/search/?api=1&query={lat:.6f},{lng:.6f}"
+                # Создаем расширенную ссылку на Google Maps с информацией о событиях
+                maps_url = create_enhanced_google_maps_url(lat, lng, events_to_show)
 
                 inline_kb = InlineKeyboardMarkup(
                     inline_keyboard=[
-                        [InlineKeyboardButton(text="🗺️ Открыть в Google Maps", url=maps_url)]
+                        [
+                            InlineKeyboardButton(
+                                text="🗺️ Открыть в Google Maps с событиями", url=maps_url
+                            )
+                        ]
                     ]
                 )
 
