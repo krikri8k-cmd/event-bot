@@ -721,8 +721,36 @@ async def on_location(message: types.Message):
         # Формируем краткую подпись для карты с короткими ссылками
         events_to_show = events[:12]  # Показываем до 12 событий на карте
 
-        # Создаем краткую подпись для карты
-        short_caption = f"🎯 Найдено {len(events)} событий рядом!\n\n"
+        # Создаем краткую подпись для карты с правильным отчётом
+        # 1) сначала фильтруем и группируем (после всех проверок publishable)
+        prepared = prepare_events_for_feed(events)
+
+        # Обогащаем события названиями мест
+        for event in prepared:
+            enrich_venue_name(event)
+
+        groups = {
+            "moment": [e for e in prepared if e["type"] == "moment"],
+            "user": [e for e in prepared if e["type"] == "user"],
+            "source": [e for e in prepared if e["type"] == "source"],
+        }
+        counts = {
+            "all": len(prepared),
+            "moments": len(groups["moment"]),
+            "user": len(groups["user"]),
+            "sources": len(groups["source"]),
+        }
+
+        # Формируем заголовок с правильным отчётом
+        header_lines = [f"🗺 Найдено рядом: <b>{counts['all']}</b>"]
+        if counts["moments"]:
+            header_lines.append(f"• ⚡ Мгновенные: {counts['moments']}")
+        if counts["user"]:
+            header_lines.append(f"• 👥 От пользователей: {counts['user']}")
+        if counts["sources"]:
+            header_lines.append(f"• 🌐 Из источников: {counts['sources']}")
+
+        short_caption = "\n".join(header_lines) + "\n\n"
 
         # Добавляем краткую информацию о событиях с короткими ссылками
         for i, event in enumerate(events_to_show[:3], 1):  # Показываем только первые 3
@@ -733,12 +761,12 @@ async def on_location(message: types.Message):
             # Короткая ссылка на источник
             short_link = get_short_source_link(event)
 
-            short_caption += f"**{i}) {title}**{time_part} • {distance:.1f}км {short_link}\n"
+            short_caption += f"<b>{i}) {title}</b>{time_part} • {distance:.1f}км {short_link}\n"
 
         if len(events) > 3:
             short_caption += f"\n... и еще {len(events) - 3} событий"
 
-        short_caption += "\n\n💡 **Нажми кнопку ниже для Google Maps!**"
+        short_caption += "\n\n💡 <b>Нажми кнопку ниже для Google Maps!</b>"
 
         # Создаём карту с нумерованными метками
         points = []
@@ -795,7 +823,7 @@ async def on_location(message: types.Message):
                     map_url,
                     caption=short_caption,
                     reply_markup=inline_kb,
-                    parse_mode="Markdown",
+                    parse_mode="HTML",
                 )
 
                 # Отправляем компактный список событий отдельным сообщением
