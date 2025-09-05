@@ -6,6 +6,7 @@
 import asyncio
 import html
 import logging
+import os
 from datetime import UTC, datetime
 from math import ceil
 from urllib.parse import quote_plus, urlparse
@@ -372,12 +373,14 @@ async def send_compact_events_list(
     groups = group_by_type(prepared)
     counts = make_counts(groups)
 
-    # 3) Сохраняем состояние для пагинации
+    # 3) Сохраняем состояние для пагинации и расширения радиуса
     user_state[message.chat.id] = {
         "prepared": prepared,
         "counts": counts,
         "lat": user_lat,
         "lng": user_lng,
+        "radius": int(settings.default_radius_km),
+        "page": 1,
     }
 
     # 4) Рендерим страницу
@@ -701,10 +704,10 @@ async def on_location(message: types.Message):
                 lat, lng, radius_km=int(settings.default_radius_km)
             )
             logger.info(f"✅ Поиск завершен, найдено {len(events)} событий")
-        except Exception as e:
-            logger.error(f"❌ Ошибка при поиске событий: {e}")
+        except Exception:
+            logger.exception("❌ Ошибка при поиске событий")
             await message.answer(
-                "Произошла ошибка при поиске событий. Попробуйте позже.",
+                "Упс, не получилось загрузить события. Попробуй ещё раз или расширь радиус до 10–15 км.",
                 reply_markup=main_menu_kb(),
             )
             return
@@ -721,133 +724,157 @@ async def on_location(message: types.Message):
         events = sort_events_by_time(events)
         logger.info("📅 События отсортированы по времени")
 
-        # 1) Сначала фильтруем и группируем (после всех проверок publishable)
-        prepared = prepare_events_for_feed(events)
-
-        # Обогащаем события названиями мест и расстояниями
-        for event in prepared:
-            enrich_venue_name(event)
-            event["distance_km"] = haversine_km(lat, lng, event["lat"], event["lng"])
-
-        # 2) Группируем и считаем
-        groups = group_by_type(prepared)
-        counts = make_counts(groups)
-
-        # 3) Сохраняем состояние для пагинации
-        user_state[message.chat.id] = {
-            "prepared": prepared,
-            "counts": counts,
-            "lat": lat,
-            "lng": lng,
-        }
-
-        # 4) Формируем заголовок с правильным отчётом
-        header_html = render_header(counts)
-
-        # 5) Рендерим первые 3 события для карты
-        page_html, _ = render_page(prepared, page=1, page_size=3)
-        short_caption = header_html + "\n\n" + page_html
-
-        if len(prepared) > 3:
-            short_caption += f"\n\n... и еще {len(prepared) - 3} событий"
-
-        short_caption += "\n\n💡 <b>Нажми кнопку ниже для Google Maps!</b>"
-
-        # Создаём карту с нумерованными метками
-        points = []
-        for i, event in enumerate(prepared[:12], 1):  # Используем отфильтрованные события
-            event_lat = event.get("lat")
-            event_lng = event.get("lng")
-
-            # Проверяем что координаты валидные
-            if event_lat is not None and event_lng is not None:
-                if -90 <= event_lat <= 90 and -180 <= event_lng <= 180:
-                    points.append((str(i), event_lat, event_lng))  # Метки 1, 2, 3
-                    logger.info(
-                        f"Событие {i}: {event['title']} - координаты ({event_lat:.6f}, {event_lng:.6f})"
-                    )
-                else:
-                    logger.warning(f"Событие {i}: неверные координаты ({event_lat}, {event_lng})")
-            else:
-                logger.warning(f"Событие {i}: отсутствуют координаты")
-
-        # Увеличиваем размер карты для отображения всех событий
-        map_url = static_map_url(lat, lng, points, size="800x600", zoom=14)
-
-        # --- DEBUG: persist & log map url ---
-        from pathlib import Path
-
+        # Единый конвейер: prepared → groups → counts → render
         try:
-            Path("last_map_url.txt").write_text(map_url, encoding="utf-8")
-        except Exception as e:
-            logger.warning("Cannot write last_map_url.txt: %s", e)
-        logger.info("Map URL: %s", map_url)
-        print(f"MAP_URL={map_url}")
-        # --- END DEBUG ---
+            prepared = prepare_events_for_feed(events)
 
-        if map_url and map_url.startswith("http"):
+            # Обогащаем события названиями мест и расстояниями
+            for event in prepared:
+                enrich_venue_name(event)
+                event["distance_km"] = haversine_km(lat, lng, event["lat"], event["lng"])
+
+            # Группируем и считаем
+            groups = group_by_type(prepared)
+            counts = make_counts(groups)
+
+            # Сохраняем состояние для пагинации и расширения радиуса
+            user_state[message.chat.id] = {
+                "prepared": prepared,
+                "counts": counts,
+                "lat": lat,
+                "lng": lng,
+                "radius": int(settings.default_radius_km),
+                "page": 1,
+            }
+
+            # 4) Формируем заголовок с правильным отчётом
+            header_html = render_header(counts)
+
+            # 5) Рендерим первые 3 события для карты
+            page_html, _ = render_page(prepared, page=1, page_size=3)
+            short_caption = header_html + "\n\n" + page_html
+
+            if len(prepared) > 3:
+                short_caption += f"\n\n... и еще {len(prepared) - 3} событий"
+
+            short_caption += "\n\n💡 <b>Нажми кнопку ниже для Google Maps!</b>"
+
+            # Создаём карту с нумерованными метками
+            points = []
+            for i, event in enumerate(prepared[:12], 1):  # Используем отфильтрованные события
+                event_lat = event.get("lat")
+                event_lng = event.get("lng")
+
+                # Проверяем что координаты валидные
+                if event_lat is not None and event_lng is not None:
+                    if -90 <= event_lat <= 90 and -180 <= event_lng <= 180:
+                        points.append((str(i), event_lat, event_lng))  # Метки 1, 2, 3
+                        logger.info(
+                            f"Событие {i}: {event['title']} - координаты ({event_lat:.6f}, {event_lng:.6f})"
+                        )
+                    else:
+                        logger.warning(
+                            f"Событие {i}: неверные координаты ({event_lat}, {event_lng})"
+                        )
+                else:
+                    logger.warning(f"Событие {i}: отсутствуют координаты")
+
+            # Увеличиваем размер карты для отображения всех событий
+            map_url = static_map_url(lat, lng, points, size="800x600", zoom=14)
+
+            # --- DEBUG: persist & log map url ---
+            from pathlib import Path
+
             try:
-                # Создаем инлайн клавиатуру с ссылкой на Google Maps
-                from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+                Path("last_map_url.txt").write_text(map_url, encoding="utf-8")
+            except Exception as e:
+                logger.warning("Cannot write last_map_url.txt: %s", e)
+            logger.info("Map URL: %s", map_url)
+            print(f"MAP_URL={map_url}")
+            # --- END DEBUG ---
 
-                # Создаем расширенную ссылку на Google Maps с информацией о событиях
-                maps_url = create_enhanced_google_maps_url(lat, lng, prepared[:12])
+            if map_url and map_url.startswith("http"):
+                try:
+                    # Создаем инлайн клавиатуру с ссылкой на Google Maps
+                    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-                # Создаем кнопки для расширения радиуса, если событий мало
-                keyboard_buttons = [
-                    [InlineKeyboardButton(text="🗺️ Открыть в Google Maps с событиями", url=maps_url)]
-                ]
+                    # Создаем расширенную ссылку на Google Maps с информацией о событиях
+                    maps_url = create_enhanced_google_maps_url(lat, lng, prepared[:12])
 
-                # Добавляем кнопки расширения радиуса, если событий меньше 3
-                if len(prepared) < 3:
-                    keyboard_buttons.append(
-                        [InlineKeyboardButton(text="🔍 Расширить до 10 км", callback_data="rx:10")]
+                    # Создаем кнопки для расширения радиуса, если событий мало
+                    keyboard_buttons = [
+                        [
+                            InlineKeyboardButton(
+                                text="🗺️ Открыть в Google Maps с событиями", url=maps_url
+                            )
+                        ]
+                    ]
+
+                    # Добавляем кнопки расширения радиуса, если событий меньше 3
+                    if counts["all"] < 3:
+                        keyboard_buttons.append(
+                            [
+                                InlineKeyboardButton(
+                                    text="🔍 Расширить до 10 км", callback_data="rx:10"
+                                )
+                            ]
+                        )
+                        keyboard_buttons.append(
+                            [
+                                InlineKeyboardButton(
+                                    text="🔍 Расширить до 15 км", callback_data="rx:15"
+                                )
+                            ]
+                        )
+
+                    inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+
+                    # Отправляем карту с краткой подписью
+                    await message.answer_photo(
+                        map_url,
+                        caption=short_caption,
+                        reply_markup=inline_kb,
+                        parse_mode="HTML",
                     )
-                    keyboard_buttons.append(
-                        [InlineKeyboardButton(text="🔍 Расширить до 15 км", callback_data="rx:15")]
+
+                    # Отправляем компактный список событий отдельным сообщением
+                    try:
+                        await send_compact_events_list(message, events, lat, lng, page=0)
+                        logger.info("✅ Компактный список событий отправлен")
+                    except Exception as e:
+                        logger.error(f"❌ Ошибка отправки компактного списка: {e}")
+                        # Fallback - отправляем краткий список
+                        await message.answer(
+                            f"📋 **Все {len(events)} событий:**\n\n"
+                            f"💡 Нажми кнопку '🗺️ Открыть в Google Maps с событиями' выше "
+                            f"чтобы увидеть полную информацию о каждом событии!",
+                            parse_mode="Markdown",
+                        )
+                except Exception as e:
+                    logger.exception("Failed to send map image, will send URL as text: %s", e)
+                    await message.answer(
+                        f"Не удалось загрузить изображение карты. Вот URL для проверки:\n{map_url}"
                     )
-
-                inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-
-                # Отправляем карту с краткой подписью
-                await message.answer_photo(
-                    map_url,
-                    caption=short_caption,
-                    reply_markup=inline_kb,
-                    parse_mode="HTML",
-                )
-
-                # Отправляем компактный список событий отдельным сообщением
+            else:
+                # Если карта не сгенерировалась, отправляем только список событий
                 try:
                     await send_compact_events_list(message, events, lat, lng, page=0)
-                    logger.info("✅ Компактный список событий отправлен")
+                    logger.info("✅ Компактный список событий отправлен (без карты)")
                 except Exception as e:
                     logger.error(f"❌ Ошибка отправки компактного списка: {e}")
                     # Fallback - отправляем краткий список
                     await message.answer(
                         f"📋 **Все {len(events)} событий:**\n\n"
-                        f"💡 Нажми кнопку '🗺️ Открыть в Google Maps с событиями' выше "
-                        f"чтобы увидеть полную информацию о каждом событии!",
+                        f"💡 К сожалению, карта не загрузилась, но все события найдены!",
                         parse_mode="Markdown",
                     )
-            except Exception as e:
-                logger.exception("Failed to send map image, will send URL as text: %s", e)
-                await message.answer(
-                    f"Не удалось загрузить изображение карты. Вот URL для проверки:\n{map_url}"
-                )
-        else:
-            # Если карта не сгенерировалась, отправляем только список событий
-            try:
-                await send_compact_events_list(message, events, lat, lng, page=0)
-                logger.info("✅ Компактный список событий отправлен (без карты)")
-            except Exception as e:
-                logger.error(f"❌ Ошибка отправки компактного списка: {e}")
-                # Fallback - отправляем краткий список
-                await message.answer(
-                    f"📋 **Все {len(events)} событий:**\n\n"
-                    f"💡 К сожалению, карта не загрузилась, но все события найдены!",
-                    parse_mode="Markdown",
-                )
+
+        except Exception:
+            logger.exception("❌ Ошибка в конвейере обработки событий")
+            await message.answer(
+                "Упс, не получилось обработать события. Попробуй ещё раз или расширь радиус до 10–15 км.",
+                reply_markup=main_menu_kb(),
+            )
 
     except Exception as e:
         logger.error(f"Ошибка при поиске событий: {e}")
@@ -1114,6 +1141,11 @@ async def handle_pagination(callback: types.CallbackQuery):
             disable_web_page_preview=True,
             reply_markup=kb_pager(page, total_pages),
         )
+
+        # Обновляем состояние
+        state["page"] = page
+        user_state[callback.message.chat.id] = state
+
         await callback.answer()
 
     except (ValueError, IndexError) as e:
@@ -1172,6 +1204,8 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             "counts": counts,
             "lat": lat,
             "lng": lng,
+            "radius": new_radius,
+            "page": 1,
         }
 
         # Рендерим первую страницу
@@ -1227,9 +1261,36 @@ async def main():
     except Exception as e:
         logger.warning(f"Не удалось установить команды бота: {e}")
 
-    # Запускаем бота
+    # Определяем режим запуска
+    RUN_MODE = os.getenv("BOT_RUN_MODE", "polling")
+    logger.info(f"Режим запуска: {RUN_MODE}")
+
+    # Запускаем бота в зависимости от режима
     try:
-        await dp.start_polling(bot)
+        if RUN_MODE == "webhook":
+            # Webhook режим для Railway
+            WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+            if not WEBHOOK_URL:
+                logger.error("WEBHOOK_URL не установлен для webhook режима")
+                return
+
+            # Гарантированно выключаем getUpdates на стороне Telegram
+            await bot.delete_webhook(drop_pending_updates=True)
+            await bot.set_webhook(url=WEBHOOK_URL)
+            logger.info(f"Webhook установлен: {WEBHOOK_URL}")
+
+            # Здесь можно добавить aiohttp/fastapi сервер для webhook
+            # await start_webhook(app, dp)
+            logger.info("Webhook режим активирован")
+
+        else:
+            # Polling режим для локальной разработки
+            # Перед стартом снимаем вебхук
+            await bot.delete_webhook(drop_pending_updates=True)
+            logger.info("Webhook удален, запускаем polling")
+
+            await dp.start_polling(bot)
+
     except KeyboardInterrupt:
         logger.info("Бот остановлен")
     finally:
