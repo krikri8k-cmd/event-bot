@@ -732,12 +732,12 @@ async def on_location(message: types.Message):
         events = sort_events_by_time(events)
         logger.info("📅 События отсортированы по времени")
 
-        # Формируем краткую подпись для карты с короткими ссылками
-        events[:12]  # Показываем до 12 событий на карте
-
         # Создаем краткую подпись для карты с правильным отчётом
         # 1) сначала фильтруем и группируем (после всех проверок publishable)
         prepared = prepare_events_for_feed(events)
+
+        # Формируем краткую подпись для карты с короткими ссылками
+        events_to_show = prepared[:12]  # Показываем до 12 отфильтрованных событий на карте
 
         # Обогащаем события названиями мест
         for event in prepared:
@@ -783,7 +783,7 @@ async def on_location(message: types.Message):
 
         # Создаём карту с нумерованными метками
         points = []
-        for i, event in enumerate(prepared[:12], 1):  # Используем отфильтрованные события
+        for i, event in enumerate(events_to_show, 1):  # Используем отфильтрованные события
             event_lat = event.get("lat")
             event_lng = event.get("lng")
 
@@ -819,17 +819,33 @@ async def on_location(message: types.Message):
                 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
                 # Создаем расширенную ссылку на Google Maps с информацией о событиях
-                maps_url = create_enhanced_google_maps_url(lat, lng, prepared)
+                maps_url = create_enhanced_google_maps_url(lat, lng, events_to_show)
 
-                inline_kb = InlineKeyboardMarkup(
-                    inline_keyboard=[
+                # Создаем кнопки для расширения радиуса, если событий мало
+                keyboard_buttons = [
+                    [InlineKeyboardButton(text="🗺️ Открыть в Google Maps с событиями", url=maps_url)]
+                ]
+
+                # Добавляем кнопки расширения радиуса, если событий меньше 3
+                if len(prepared) < 3:
+                    keyboard_buttons.append(
                         [
                             InlineKeyboardButton(
-                                text="🗺️ Открыть в Google Maps с событиями", url=maps_url
+                                text="🔍 Расширить поиск до 10 км",
+                                callback_data=f"expand_radius:{lat}:{lng}:10",
                             )
                         ]
-                    ]
-                )
+                    )
+                    keyboard_buttons.append(
+                        [
+                            InlineKeyboardButton(
+                                text="🔍 Расширить поиск до 15 км",
+                                callback_data=f"expand_radius:{lat}:{lng}:15",
+                            )
+                        ]
+                    )
+
+                inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
                 # Отправляем карту с краткой подписью
                 await message.answer_photo(
@@ -1151,6 +1167,48 @@ async def handle_pagination(callback: types.CallbackQuery):
         await callback.answer("Ошибка обработки запроса")
     except Exception as e:
         logger.error(f"❌ Неожиданная ошибка в пагинации: {e}")
+        await callback.answer("Произошла ошибка")
+
+
+@dp.callback_query(F.data.startswith("expand_radius:"))
+async def handle_expand_radius(callback: types.CallbackQuery):
+    """Обработчик расширения радиуса поиска"""
+
+    try:
+        # Извлекаем параметры из callback_data: expand_radius:lat:lng:radius
+        parts = callback.data.split(":")
+        if len(parts) != 4:
+            await callback.answer("Ошибка параметров")
+            return
+
+        lat = float(parts[1])
+        lng = float(parts[2])
+        radius = int(parts[3])
+
+        logger.info(f"🔍 Расширяем поиск до {radius} км от ({lat}, {lng})")
+
+        # Ищем события с расширенным радиусом
+        try:
+            events = await enhanced_search_events(lat, lng, radius_km=radius)
+            events = sort_events_by_time(events)
+        except Exception as e:
+            logger.error(f"❌ Ошибка при расширенном поиске: {e}")
+            await callback.answer("Ошибка при поиске событий")
+            return
+
+        if not events:
+            await callback.answer("События не найдены даже в расширенном радиусе")
+            return
+
+        # Отправляем новый список событий
+        await send_compact_events_list(callback.message, events, lat, lng, page=0)
+        await callback.answer(f"Поиск расширен до {radius} км")
+
+    except (ValueError, IndexError) as e:
+        logger.error(f"❌ Ошибка обработки расширения радиуса: {e}")
+        await callback.answer("Ошибка обработки запроса")
+    except Exception as e:
+        logger.error(f"❌ Неожиданная ошибка в расширении радиуса: {e}")
         await callback.answer("Произошла ошибка")
 
 
