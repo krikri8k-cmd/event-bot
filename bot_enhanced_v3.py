@@ -733,7 +733,7 @@ async def on_location(message: types.Message):
         logger.info("📅 События отсортированы по времени")
 
         # Формируем краткую подпись для карты с короткими ссылками
-        events_to_show = events[:12]  # Показываем до 12 событий на карте
+        events[:12]  # Показываем до 12 событий на карте
 
         # Создаем краткую подпись для карты с правильным отчётом
         # 1) сначала фильтруем и группируем (после всех проверок publishable)
@@ -766,25 +766,24 @@ async def on_location(message: types.Message):
 
         short_caption = "\n".join(header_lines) + "\n\n"
 
-        # Добавляем краткую информацию о событиях с короткими ссылками
-        for i, event in enumerate(events_to_show[:3], 1):  # Показываем только первые 3
-            distance = haversine_km(lat, lng, event["lat"], event["lng"])
-            time_part = f" {event['time_local']}" if event.get("time_local") else ""
-            title = event["title"][:20] + "..." if len(event["title"]) > 20 else event["title"]
+        # Добавляем краткую информацию о событиях с HTML-рендерингом
+        for i, event in enumerate(prepared[:3], 1):  # Показываем только первые 3 отфильтрованных
+            # Обогащаем событие
+            enrich_venue_name(event)
+            event["distance_km"] = haversine_km(lat, lng, event["lat"], event["lng"])
 
-            # Короткая ссылка на источник
-            short_link = get_short_source_link(event)
+            # Рендерим карточку в HTML
+            card_html = render_event_html(event, i)
+            short_caption += card_html + "\n"
 
-            short_caption += f"<b>{i}) {title}</b>{time_part} • {distance:.1f}км {short_link}\n"
-
-        if len(events) > 3:
-            short_caption += f"\n... и еще {len(events) - 3} событий"
+        if len(prepared) > 3:
+            short_caption += f"\n... и еще {len(prepared) - 3} событий"
 
         short_caption += "\n\n💡 <b>Нажми кнопку ниже для Google Maps!</b>"
 
         # Создаём карту с нумерованными метками
         points = []
-        for i, event in enumerate(events_to_show, 1):  # Используем те же события
+        for i, event in enumerate(prepared[:12], 1):  # Используем отфильтрованные события
             event_lat = event.get("lat")
             event_lng = event.get("lng")
 
@@ -820,7 +819,7 @@ async def on_location(message: types.Message):
                 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
                 # Создаем расширенную ссылку на Google Maps с информацией о событиях
-                maps_url = create_enhanced_google_maps_url(lat, lng, events_to_show)
+                maps_url = create_enhanced_google_maps_url(lat, lng, prepared)
 
                 inline_kb = InlineKeyboardMarkup(
                     inline_keyboard=[
