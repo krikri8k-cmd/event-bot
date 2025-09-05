@@ -117,15 +117,15 @@ def create_google_maps_url(event: dict) -> str:
     if not event.get("lat") or not event.get("lng"):
         return "https://maps.google.com"
 
-    # Используем название места или адрес для поиска
-    location_name = event.get("location_name", "")
-    if not location_name:
-        location_name = event.get("address", "")
+    # Приоритет: venue_name -> location_name -> address -> координаты
+    location_name = (
+        event.get("venue_name") or event.get("location_name") or event.get("address") or ""
+    )
 
-    if location_name:
+    if location_name and location_name.strip():
         # Формируем ссылку с названием места
-        query = location_name.replace(" ", "+")
-        return f"https://www.google.com/maps/search/?api=1&query={query}&query_place_id={event['lat']:.6f},{event['lng']:.6f}"
+        query = location_name.strip().replace(" ", "+")
+        return f"https://www.google.com/maps/search/?api=1&query={query}"
     else:
         # Fallback на координаты
         return (
@@ -138,6 +138,7 @@ def get_source_url(event: dict) -> str:
     Возвращает URL источника события
     """
     source = event.get("source", "")
+    event_type = event.get("type", "")
 
     # Если есть прямая ссылка на источник
     if event.get("source_url"):
@@ -151,8 +152,24 @@ def get_source_url(event: dict) -> str:
     if event.get("website"):
         return event["website"]
 
-    # Fallback для разных источников
-    if source == "ai_generated":
+    # Если есть location_url
+    if event.get("location_url"):
+        return event["location_url"]
+
+    # Fallback для разных типов событий
+    if event_type == "user":
+        # Для пользовательских событий - ссылка на профиль автора
+        organizer_id = event.get("organizer_id")
+        if organizer_id:
+            return f"https://t.me/user{organizer_id}"
+        return "https://t.me/EventAroundBot"
+    elif event_type == "moment":
+        # Для мгновенных событий - ссылка на создателя
+        creator_id = event.get("creator_id")
+        if creator_id:
+            return f"https://t.me/user{creator_id}"
+        return "https://t.me/EventAroundBot"
+    elif source == "ai_generated":
         return "https://t.me/EventAroundBot"  # Ссылка на бота
     elif source == "popular_places":
         return "https://maps.google.com"  # Ссылка на карты
@@ -164,6 +181,48 @@ def get_source_url(event: dict) -> str:
         return "https://t.me/EventAroundBot"  # Fallback на бота
 
 
+def get_venue_name(event: dict) -> str:
+    """
+    Возвращает название места для события
+    """
+    # Приоритет: venue_name -> location_name -> address
+    venue_name = (
+        event.get("venue_name")
+        or event.get("location_name")
+        or event.get("address")
+        or "Место не указано"
+    )
+
+    # Ограничиваем длину для компактности
+    if len(venue_name) > 30:
+        return venue_name[:27] + "..."
+
+    return venue_name
+
+
+def get_event_type_info(event: dict) -> tuple[str, str]:
+    """
+    Возвращает информацию о типе события (emoji, название)
+    """
+    source = event.get("source", "")
+    event_type = event.get("type", "")
+
+    if event_type == "user":
+        return "👥", "Пользовательские"
+    elif event_type == "moment":
+        return "⚡", "Мгновенные"
+    elif source == "ai_generated":
+        return "🤖", "AI генерация"
+    elif source == "popular_places":
+        return "🏛️", "Популярные места"
+    elif source == "event_calendars":
+        return "📅", "Календари"
+    elif source == "social_media":
+        return "📱", "Социальные сети"
+    else:
+        return "📌", "Другие"
+
+
 def create_event_links(event: dict) -> str:
     """
     Создает кликабельные ссылки для события (устаревшая функция, используется для совместимости)
@@ -173,6 +232,49 @@ def create_event_links(event: dict) -> str:
 
     links = [f"🗺️ [Маршрут]({maps_url})", f"🔗 [Источник]({source_url})"]
     return " | ".join(links)
+
+
+def group_events_by_type(events: list) -> dict[str, list]:
+    """
+    Группирует события по типам
+    """
+    groups = {
+        "sources": [],  # Из источников (календари, соцсети)
+        "users": [],  # От пользователей
+        "moments": [],  # Мгновенные события
+    }
+
+    for event in events:
+        event_type = event.get("type", "")
+        event.get("source", "")
+
+        if event_type == "user":
+            groups["users"].append(event)
+        elif event_type == "moment":
+            groups["moments"].append(event)
+        else:
+            # Все остальные считаем источниками
+            groups["sources"].append(event)
+
+    return groups
+
+
+def create_events_summary(events: list) -> str:
+    """
+    Создает сводку по типам событий
+    """
+    groups = group_events_by_type(events)
+
+    summary_lines = [f"🗺 Найдено {len(events)} событий рядом!"]
+
+    if groups["sources"]:
+        summary_lines.append(f"• Из источников: {len(groups['sources'])}")
+    if groups["users"]:
+        summary_lines.append(f"• От пользователей: {len(groups['users'])}")
+    if groups["moments"]:
+        summary_lines.append(f"• Мгновенные ⚡: {len(groups['moments'])}")
+
+    return "\n".join(summary_lines)
 
 
 async def send_compact_events_list(
@@ -195,11 +297,8 @@ async def send_compact_events_list(
     end_idx = min(start_idx + events_per_page, len(events))
     page_events = events[start_idx:end_idx]
 
-    # Формируем заголовок с датой
-    from datetime import datetime
-
-    datetime.now().strftime("%Y-%m-%d")
-    header = f"📅 Сегодня ({len(events)} событий рядом)\n\n"
+    # Формируем заголовок со сводкой по типам
+    header = create_events_summary(events) + "\n\n"
 
     # Формируем компактные карточки событий
     lines = []
@@ -207,24 +306,20 @@ async def send_compact_events_list(
         distance = haversine_km(user_lat, user_lng, event["lat"], event["lng"])
         time_part = f" — {event['time_local']}" if event.get("time_local") else ""
 
-        # Эмодзи для источника
-        source_emoji = {
-            "ai_generated": "🤖",
-            "popular_places": "🏛️",
-            "event_calendars": "📅",
-            "social_media": "📱",
-        }.get(event.get("source", ""), "📌")
+        # Получаем эмодзи и название типа
+        type_emoji, type_name = get_event_type_info(event)
 
-        # Ограничиваем длину названия и места
-        title = event["title"][:30] + "..." if len(event["title"]) > 30 else event["title"]
-        location = event.get("location_name", "Место не указано")
-        location = location[:25] + "..." if len(location) > 25 else location
+        # Получаем название места
+        venue_name = get_venue_name(event)
 
-        # Компактный формат карточки
+        # Ограничиваем длину названия
+        title = event["title"][:25] + "..." if len(event["title"]) > 25 else event["title"]
+
+        # Компактный формат карточки согласно ТЗ
         lines.append(
-            f"**{i}) {title}**{time_part} ({distance:.1f} км)\n"
-            f"📍 {location}\n"
-            f"{source_emoji} {event.get('source', 'unknown')}\n"
+            f"{type_emoji} **{title}**{time_part} ({distance:.1f} км)\n"
+            f"📍 {venue_name}\n"
+            f"🔗 [Источник]  🚗 [Маршрут]\n"
         )
 
     text = header + "\n".join(lines)
@@ -237,10 +332,11 @@ async def send_compact_events_list(
         maps_url = create_google_maps_url(event)
         source_url = get_source_url(event)
 
+        # Кнопки рядом с событием
         keyboard.append(
             [
-                InlineKeyboardButton(text=f"🗺️ {i}", url=maps_url),
-                InlineKeyboardButton(text=f"🔗 {i}", url=source_url),
+                InlineKeyboardButton(text="🔗 Источник", url=source_url),
+                InlineKeyboardButton(text="🚗 Маршрут", url=maps_url),
             ]
         )
 
@@ -258,11 +354,6 @@ async def send_compact_events_list(
 
         if pagination_buttons:
             keyboard.append(pagination_buttons)
-
-        # Добавляем индикатор страницы
-        keyboard.append(
-            [InlineKeyboardButton(text=f"📄 {page + 1}/{total_pages}", callback_data="page_info")]
-        )
 
     inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
@@ -666,6 +757,64 @@ async def on_share(message: types.Message):
     await message.answer(text, reply_markup=main_menu_kb())
 
 
+@dp.message(Command("admin_event"))
+async def on_admin_event(message: types.Message):
+    """Обработчик команды /admin_event для диагностики событий"""
+    # Проверяем, что это админ (можно добавить проверку по user_id)
+    try:
+        # Извлекаем ID события из команды
+        command_parts = message.text.split()
+        if len(command_parts) < 2:
+            await message.answer("Использование: /admin_event <id_события>")
+            return
+
+        event_id = int(command_parts[1])
+
+        # Ищем событие в БД
+        with get_session() as session:
+            event = session.get(Event, event_id)
+            if not event:
+                await message.answer(f"Событие с ID {event_id} не найдено")
+                return
+
+            # Формируем диагностическую информацию
+            info_lines = [
+                f"🔍 **Диагностика события #{event_id}**",
+                f"**Название:** {event.title}",
+                f"**Описание:** {event.description or 'Не указано'}",
+                f"**Время:** {event.time_local or 'Не указано'}",
+                f"**Место:** {event.location_name or 'Не указано'}",
+                f"**Адрес:** {getattr(event, 'address', 'Не указано')}",
+                f"**Координаты:** {event.lat}, {event.lng}",
+                f"**URL события:** {event.url or 'Не указано'}",
+                f"**URL места:** {event.location_url or 'Не указано'}",
+                f"**Источник:** {event.source or 'Не указано'}",
+                f"**Организатор:** {event.organizer_username or 'Не указано'}",
+                f"**AI генерация:** {'Да' if event.is_generated_by_ai else 'Нет'}",
+            ]
+
+            # Проверяем наличие venue_name
+            if not hasattr(event, "venue_name") or not getattr(event, "venue_name", None):
+                info_lines.append("⚠️ **ПРЕДУПРЕЖДЕНИЕ:** venue_name отсутствует!")
+                logger.warning(f"Событие {event_id}: venue_name отсутствует")
+
+            # Проверяем publishable
+            is_publishable = bool(event.url or event.location_url)
+            info_lines.append(f"**Публикуемо:** {'Да' if is_publishable else 'Нет'}")
+
+            if not is_publishable:
+                info_lines.append("⚠️ **ПРЕДУПРЕЖДЕНИЕ:** Нет source_url для публикации!")
+
+            text = "\n".join(info_lines)
+            await message.answer(text, parse_mode="Markdown")
+
+    except ValueError:
+        await message.answer("ID события должен быть числом")
+    except Exception as e:
+        logger.error(f"Ошибка в команде admin_event: {e}")
+        await message.answer("Произошла ошибка при получении информации о событии")
+
+
 @dp.message(Command("help"))
 @dp.message(F.text == "❓ Помощь")
 async def on_help(message: types.Message):
@@ -769,6 +918,9 @@ async def main():
                 types.BotCommand(command="create", description="➕ Создать событие"),
                 types.BotCommand(command="myevents", description="📋 Мои события"),
                 types.BotCommand(command="share", description="🔗 Поделиться ботом"),
+                types.BotCommand(
+                    command="admin_event", description="🔍 Диагностика события (админ)"
+                ),
             ]
         )
         logger.info("Команды бота установлены")
