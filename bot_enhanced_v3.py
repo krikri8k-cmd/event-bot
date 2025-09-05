@@ -407,10 +407,9 @@ def render_event_html(e: dict, idx: int = None) -> str:
     dist = f"{e.get('distance_km', 0):.1f} км" if e.get("distance_km") else ""
     venue = html.escape(e.get("venue_name") or e.get("address") or "Локация уточняется")
 
-    src_url = e.get("source_url")
-    src_link = (
-        f'<a href="{html.escape(src_url)}">Источник</a>' if src_url else "Источник недоступен"
-    )
+    # Используем функцию get_source_url для получения правильной ссылки
+    src_url = get_source_url(e)
+    src_link = f'<a href="{html.escape(src_url)}">Источник</a>'
     map_link = f'<a href="{build_maps_url(e)}">Маршрут</a>'
 
     # Добавляем номер события если указан
