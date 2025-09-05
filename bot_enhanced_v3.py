@@ -201,12 +201,36 @@ def get_venue_name(event: dict) -> str:
     Возвращает название места для события
     """
     # Приоритет: venue_name -> location_name -> address
-    venue_name = (
-        event.get("venue_name")
-        or event.get("location_name")
-        or event.get("address")
-        or "Место не указано"
-    )
+    venue_name = event.get("venue_name") or event.get("location_name") or event.get("address") or ""
+
+    # Фильтруем мусорные названия
+    if venue_name in ["Место проведения", "Место не указано", "Локация", ""]:
+        venue_name = ""
+
+    # Если название пустое, пытаемся извлечь из описания
+    if not venue_name and event.get("description"):
+        description = event.get("description", "")
+        # Простые регулярки для извлечения места
+        import re
+
+        # Ищем паттерны типа "в Canggu Studio", "at Museum", "@Place"
+        patterns = [
+            r"в\s+([^,.\n]+)",
+            r"at\s+([^,.\n]+)",
+            r"@([^\s,.\n]+)",
+            r"место:\s*([^,.\n]+)",
+            r"адрес:\s*([^,.\n]+)",
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, description, re.IGNORECASE)
+            if match:
+                venue_name = match.group(1).strip()
+                break
+
+    # Если всё ещё пустое, используем fallback
+    if not venue_name:
+        venue_name = "📍 Локация уточняется"
 
     # Ограничиваем длину для компактности
     if len(venue_name) > 30:
@@ -274,6 +298,24 @@ def group_events_by_type(events: list) -> dict[str, list]:
     return groups
 
 
+def is_m垃圾_url(url: str) -> bool:
+    """
+    Проверяет, является ли URL мусорным (пустые ссылки на Google Calendar и т.д.)
+    """
+    if not url or not url.strip():
+        return True
+
+    # Проверяем на пустые ссылки Google Calendar
+    if url.strip() in ["https://calendar.google.com/", "https://calendar.google.com"]:
+        return True
+
+    # Проверяем на неполные ссылки
+    if url.startswith("https://calendar.google.com/") and len(url) < 50:
+        return True
+
+    return False
+
+
 def prepare_events_for_feed(events: list[dict]) -> list[dict]:
     """
     Фильтрует события для показа в ленте
@@ -286,13 +328,16 @@ def prepare_events_for_feed(events: list[dict]) -> list[dict]:
         # Для событий из источников проверяем source_url
         if event_type == "source" or source in ["event_calendars", "social_media"]:
             source_url = event.get("source_url") or event.get("url")
-            if not is_valid_url(source_url):
+
+            # Проверяем на мусорные ссылки
+            if is_m垃圾_url(source_url) or not is_valid_url(source_url):
                 event["is_publishable"] = False
                 logger.warning(
-                    "skip source w/o url: id=%s title=%s source=%s",
+                    "WARNING skip source_url: id=%s title=%s source=%s url=%s",
                     event.get("id", "unknown"),
                     event.get("title", "unknown"),
                     source,
+                    source_url or "empty",
                 )
                 continue
 
@@ -343,7 +388,7 @@ def render_header_html(counts: dict) -> str:
     lines = [f"🗺 Найдено рядом: <b>{counts['all']}</b>"]
 
     if counts.get("moments", 0):
-        lines.append(f"• ⚡ Моменты: {counts['moments']}")
+        lines.append(f"• ⚡ Мгновенные моменты: {counts['moments']}")
     if counts.get("users", 0):
         lines.append(f"• 👥 От пользователей: {counts['users']}")
     if counts.get("sources", 0):
@@ -411,7 +456,7 @@ async def send_compact_events_list(
 
     text = header + "\n".join(event_lines)
 
-    # Создаем inline клавиатуру только с пагинацией
+    # Создаем inline клавиатуру с пагинацией и индикатором
     keyboard = []
 
     # Добавляем кнопки пагинации
@@ -429,6 +474,11 @@ async def send_compact_events_list(
         if pagination_buttons:
             keyboard.append(pagination_buttons)
 
+        # Добавляем индикатор страницы
+        keyboard.append(
+            [InlineKeyboardButton(text=f"Стр. {page + 1}/{total_pages}", callback_data="page_info")]
+        )
+
     inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard) if keyboard else None
 
     try:
@@ -443,6 +493,82 @@ async def send_compact_events_list(
         await message.answer(
             f"📋 События (страница {page + 1} из {total_pages}):\n\n{text}", reply_markup=inline_kb
         )
+
+
+async def edit_events_list_message(
+    message: types.Message, events: list, user_lat: float, user_lng: float, page: int = 0
+):
+    """
+    Редактирует сообщение со списком событий (для пагинации)
+    """
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    # Фильтруем события для показа в ленте
+    filtered_events = prepare_events_for_feed(events)
+
+    # Настройки пагинации
+    events_per_page = 4
+    total_pages = (len(filtered_events) + events_per_page - 1) // events_per_page
+
+    # Ограничиваем номер страницы
+    page = max(0, min(page, total_pages - 1))
+
+    # Получаем события для текущей страницы
+    start_idx = page * events_per_page
+    end_idx = min(start_idx + events_per_page, len(filtered_events))
+    page_events = filtered_events[start_idx:end_idx]
+
+    # Формируем заголовок с подсчетом по типам
+    groups = group_events_by_type(filtered_events)
+    counts = {
+        "all": len(filtered_events),
+        "moments": len(groups["moments"]),
+        "users": len(groups["users"]),
+        "sources": len(groups["sources"]),
+    }
+    header = render_header_html(counts) + "\n\n"
+
+    # Формируем HTML карточки событий
+    event_lines = []
+    for event in page_events:
+        event_html = render_event_html(event, user_lat, user_lng)
+        event_lines.append(event_html)
+
+    text = header + "\n".join(event_lines)
+
+    # Создаем inline клавиатуру с пагинацией и индикатором
+    keyboard = []
+
+    # Добавляем кнопки пагинации
+    if total_pages > 1:
+        pagination_buttons = []
+        if page > 0:
+            pagination_buttons.append(
+                InlineKeyboardButton(text="◀️ Назад", callback_data=f"page_{page-1}")
+            )
+        if page < total_pages - 1:
+            pagination_buttons.append(
+                InlineKeyboardButton(text="Вперёд ▶️", callback_data=f"page_{page+1}")
+            )
+
+        if pagination_buttons:
+            keyboard.append(pagination_buttons)
+
+        # Добавляем индикатор страницы
+        keyboard.append(
+            [InlineKeyboardButton(text=f"Стр. {page + 1}/{total_pages}", callback_data="page_info")]
+        )
+
+    inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard) if keyboard else None
+
+    try:
+        # Редактируем сообщение
+        await message.edit_text(
+            text, reply_markup=inline_kb, parse_mode="HTML", disable_web_page_preview=True
+        )
+        logger.info(f"✅ Страница {page + 1} событий отредактирована (HTML)")
+    except Exception as e:
+        logger.error(f"❌ Ошибка редактирования страницы {page + 1}: {e}")
 
 
 async def send_detailed_events_list(
@@ -964,8 +1090,8 @@ async def handle_pagination(callback: types.CallbackQuery):
             await callback.answer("События не найдены")
             return
 
-        # Отправляем новую страницу
-        await send_compact_events_list(callback.message, events, user_lat, user_lng, page)
+        # Редактируем сообщение с новой страницей
+        await edit_events_list_message(callback.message, events, user_lat, user_lng, page)
         await callback.answer()
 
     except (ValueError, IndexError) as e:
