@@ -4,8 +4,10 @@
 """
 
 import asyncio
+import html
 import logging
 from datetime import UTC, datetime
+from urllib.parse import quote_plus, urlparse
 
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
@@ -22,6 +24,17 @@ from config import load_settings
 from database import Event, User, create_all, get_session, init_engine
 from enhanced_event_search import enhanced_search_events
 from utils.geo_utils import haversine_km, static_map_url
+
+
+def is_valid_url(url: str) -> bool:
+    """
+    Проверяет, является ли строка валидным URL
+    """
+    try:
+        parsed = urlparse(url)
+        return parsed.scheme in ("http", "https") and bool(parsed.netloc)
+    except Exception:
+        return False
 
 
 def get_source_link(event: dict) -> str:
@@ -110,27 +123,29 @@ def sort_events_by_time(events: list) -> list:
     return sorted(events, key=get_event_time)
 
 
+def build_maps_url(event: dict) -> str:
+    """
+    Создает корректную ссылку на Google Maps с названием места
+    """
+    name = (event.get("venue_name") or "").strip()
+    addr = (event.get("address") or "").strip()
+    lat, lng = event.get("lat"), event.get("lng")
+
+    if name:
+        return f"https://www.google.com/maps/search/?api=1&query={quote_plus(name)}"
+    if addr:
+        return f"https://www.google.com/maps/search/?api=1&query={quote_plus(addr)}"
+    if lat and lng:
+        return f"https://www.google.com/maps/search/?api=1&query={lat},{lng}"
+    # гарантированно кликабельно, но без гео
+    return "https://www.google.com/maps"
+
+
 def create_google_maps_url(event: dict) -> str:
     """
-    Создает ссылку на Google Maps с названием места
+    Создает ссылку на Google Maps с названием места (устаревшая функция)
     """
-    if not event.get("lat") or not event.get("lng"):
-        return "https://maps.google.com"
-
-    # Приоритет: venue_name -> location_name -> address -> координаты
-    location_name = (
-        event.get("venue_name") or event.get("location_name") or event.get("address") or ""
-    )
-
-    if location_name and location_name.strip():
-        # Формируем ссылку с названием места
-        query = location_name.strip().replace(" ", "+")
-        return f"https://www.google.com/maps/search/?api=1&query={query}"
-    else:
-        # Fallback на координаты
-        return (
-            f"https://www.google.com/maps/search/?api=1&query={event['lat']:.6f},{event['lng']:.6f}"
-        )
+    return build_maps_url(event)
 
 
 def get_source_url(event: dict) -> str:
@@ -259,9 +274,87 @@ def group_events_by_type(events: list) -> dict[str, list]:
     return groups
 
 
+def prepare_events_for_feed(events: list[dict]) -> list[dict]:
+    """
+    Фильтрует события для показа в ленте
+    """
+    prepared = []
+    for event in events:
+        event_type = event.get("type", "")
+        source = event.get("source", "")
+
+        # Для событий из источников проверяем source_url
+        if event_type == "source" or source in ["event_calendars", "social_media"]:
+            source_url = event.get("source_url") or event.get("url")
+            if not is_valid_url(source_url):
+                event["is_publishable"] = False
+                logger.warning(
+                    "skip source w/o url: id=%s title=%s source=%s",
+                    event.get("id", "unknown"),
+                    event.get("title", "unknown"),
+                    source,
+                )
+                continue
+
+        prepared.append(event)
+
+    return prepared
+
+
+def render_event_html(event: dict, user_lat: float, user_lng: float) -> str:
+    """
+    Рендерит событие в HTML формате с кликабельными ссылками
+    """
+    title = html.escape(event["title"])
+    time_part = f" — {event['time_local']}" if event.get("time_local") else ""
+    distance = haversine_km(user_lat, user_lng, event["lat"], event["lng"])
+    dist_str = f"{distance:.1f} км"
+
+    # Получаем название места
+    venue_name = get_venue_name(event)
+    venue = html.escape(venue_name)
+
+    # Получаем ссылки
+    source_url = get_source_url(event)
+    maps_url = build_maps_url(event)
+
+    # Формируем кликабельные ссылки
+    if is_valid_url(source_url):
+        src_link = f'<a href="{html.escape(source_url)}">Источник</a>'
+    else:
+        src_link = "Источник недоступен"
+
+    map_link = f'<a href="{html.escape(maps_url)}">Маршрут</a>'
+
+    # Получаем эмодзи типа
+    type_emoji, _ = get_event_type_info(event)
+
+    return (
+        f"{type_emoji} <b>{title}</b>{time_part} ({dist_str})\n"
+        f"📍 {venue}\n"
+        f"🔗 {src_link}  🚗 {map_link}\n"
+    )
+
+
+def render_header_html(counts: dict) -> str:
+    """
+    Рендерит заголовок с подсчетом событий по типам
+    """
+    lines = [f"🗺 Найдено рядом: <b>{counts['all']}</b>"]
+
+    if counts.get("moments", 0):
+        lines.append(f"• ⚡ Моменты: {counts['moments']}")
+    if counts.get("users", 0):
+        lines.append(f"• 👥 От пользователей: {counts['users']}")
+    if counts.get("sources", 0):
+        lines.append(f"• 🌐 Из источников: {counts['sources']}")
+
+    return "\n".join(lines)
+
+
 def create_events_summary(events: list) -> str:
     """
-    Создает сводку по типам событий
+    Создает сводку по типам событий (устаревшая функция)
     """
     groups = group_events_by_type(events)
 
@@ -281,64 +374,45 @@ async def send_compact_events_list(
     message: types.Message, events: list, user_lat: float, user_lng: float, page: int = 0
 ):
     """
-    Отправляет компактный список событий с пагинацией
+    Отправляет компактный список событий с пагинацией в HTML формате
     """
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+    # Фильтруем события для показа в ленте
+    filtered_events = prepare_events_for_feed(events)
+
     # Настройки пагинации
     events_per_page = 4
-    total_pages = (len(events) + events_per_page - 1) // events_per_page
+    total_pages = (len(filtered_events) + events_per_page - 1) // events_per_page
 
     # Ограничиваем номер страницы
     page = max(0, min(page, total_pages - 1))
 
     # Получаем события для текущей страницы
     start_idx = page * events_per_page
-    end_idx = min(start_idx + events_per_page, len(events))
-    page_events = events[start_idx:end_idx]
+    end_idx = min(start_idx + events_per_page, len(filtered_events))
+    page_events = filtered_events[start_idx:end_idx]
 
-    # Формируем заголовок со сводкой по типам
-    header = create_events_summary(events) + "\n\n"
+    # Формируем заголовок с подсчетом по типам
+    groups = group_events_by_type(filtered_events)
+    counts = {
+        "all": len(filtered_events),
+        "moments": len(groups["moments"]),
+        "users": len(groups["users"]),
+        "sources": len(groups["sources"]),
+    }
+    header = render_header_html(counts) + "\n\n"
 
-    # Формируем компактные карточки событий
-    lines = []
-    for i, event in enumerate(page_events, start_idx + 1):
-        distance = haversine_km(user_lat, user_lng, event["lat"], event["lng"])
-        time_part = f" — {event['time_local']}" if event.get("time_local") else ""
+    # Формируем HTML карточки событий
+    event_lines = []
+    for event in page_events:
+        event_html = render_event_html(event, user_lat, user_lng)
+        event_lines.append(event_html)
 
-        # Получаем эмодзи и название типа
-        type_emoji, type_name = get_event_type_info(event)
+    text = header + "\n".join(event_lines)
 
-        # Получаем название места
-        venue_name = get_venue_name(event)
-
-        # Ограничиваем длину названия
-        title = event["title"][:25] + "..." if len(event["title"]) > 25 else event["title"]
-
-        # Компактный формат карточки согласно ТЗ
-        lines.append(
-            f"{type_emoji} **{title}**{time_part} ({distance:.1f} км)\n"
-            f"📍 {venue_name}\n"
-            f"🔗 [Источник]  🚗 [Маршрут]\n"
-        )
-
-    text = header + "\n".join(lines)
-
-    # Создаем inline клавиатуру с кнопками для каждого события
+    # Создаем inline клавиатуру только с пагинацией
     keyboard = []
-
-    # Добавляем кнопки для каждого события на странице
-    for i, event in enumerate(page_events, start_idx + 1):
-        maps_url = create_google_maps_url(event)
-        source_url = get_source_url(event)
-
-        # Кнопки рядом с событием
-        keyboard.append(
-            [
-                InlineKeyboardButton(text="🔗 Источник", url=source_url),
-                InlineKeyboardButton(text="🚗 Маршрут", url=maps_url),
-            ]
-        )
 
     # Добавляем кнопки пагинации
     if total_pages > 1:
@@ -355,16 +429,14 @@ async def send_compact_events_list(
         if pagination_buttons:
             keyboard.append(pagination_buttons)
 
-    inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard)
+    inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard) if keyboard else None
 
     try:
-        # Отправляем компактный список событий
+        # Отправляем компактный список событий в HTML формате
         await message.answer(
-            text,
-            reply_markup=inline_kb,
-            parse_mode="Markdown",
+            text, reply_markup=inline_kb, parse_mode="HTML", disable_web_page_preview=True
         )
-        logger.info(f"✅ Страница {page + 1} событий отправлена")
+        logger.info(f"✅ Страница {page + 1} событий отправлена (HTML)")
     except Exception as e:
         logger.error(f"❌ Ошибка отправки страницы {page + 1}: {e}")
         # Fallback - отправляем без форматирования
@@ -777,36 +849,45 @@ async def on_admin_event(message: types.Message):
                 await message.answer(f"Событие с ID {event_id} не найдено")
                 return
 
-            # Формируем диагностическую информацию
+            # Формируем диагностическую информацию в HTML
+            title = html.escape(event.title)
+            description = html.escape(event.description or "Не указано")
+            location = html.escape(event.location_name or "Не указано")
+            address = html.escape(getattr(event, "address", "Не указано"))
+            url = html.escape(event.url or "Не указано")
+            location_url = html.escape(event.location_url or "Не указано")
+            source = html.escape(event.source or "Не указано")
+            organizer = html.escape(event.organizer_username or "Не указано")
+
             info_lines = [
-                f"🔍 **Диагностика события #{event_id}**",
-                f"**Название:** {event.title}",
-                f"**Описание:** {event.description or 'Не указано'}",
-                f"**Время:** {event.time_local or 'Не указано'}",
-                f"**Место:** {event.location_name or 'Не указано'}",
-                f"**Адрес:** {getattr(event, 'address', 'Не указано')}",
-                f"**Координаты:** {event.lat}, {event.lng}",
-                f"**URL события:** {event.url or 'Не указано'}",
-                f"**URL места:** {event.location_url or 'Не указано'}",
-                f"**Источник:** {event.source or 'Не указано'}",
-                f"**Организатор:** {event.organizer_username or 'Не указано'}",
-                f"**AI генерация:** {'Да' if event.is_generated_by_ai else 'Нет'}",
+                f"🔍 <b>Диагностика события #{event_id}</b>",
+                f"<b>Название:</b> {title}",
+                f"<b>Описание:</b> {description}",
+                f"<b>Время:</b> {event.time_local or 'Не указано'}",
+                f"<b>Место:</b> {location}",
+                f"<b>Адрес:</b> {address}",
+                f"<b>Координаты:</b> {event.lat}, {event.lng}",
+                f"<b>URL события:</b> {url}",
+                f"<b>URL места:</b> {location_url}",
+                f"<b>Источник:</b> {source}",
+                f"<b>Организатор:</b> {organizer}",
+                f"<b>AI генерация:</b> {'Да' if event.is_generated_by_ai else 'Нет'}",
             ]
 
             # Проверяем наличие venue_name
             if not hasattr(event, "venue_name") or not getattr(event, "venue_name", None):
-                info_lines.append("⚠️ **ПРЕДУПРЕЖДЕНИЕ:** venue_name отсутствует!")
+                info_lines.append("⚠️ <b>ПРЕДУПРЕЖДЕНИЕ:</b> venue_name отсутствует!")
                 logger.warning(f"Событие {event_id}: venue_name отсутствует")
 
             # Проверяем publishable
             is_publishable = bool(event.url or event.location_url)
-            info_lines.append(f"**Публикуемо:** {'Да' if is_publishable else 'Нет'}")
+            info_lines.append(f"<b>Публикуемо:</b> {'Да' if is_publishable else 'Нет'}")
 
             if not is_publishable:
-                info_lines.append("⚠️ **ПРЕДУПРЕЖДЕНИЕ:** Нет source_url для публикации!")
+                info_lines.append("⚠️ <b>ПРЕДУПРЕЖДЕНИЕ:</b> Нет source_url для публикации!")
 
             text = "\n".join(info_lines)
-            await message.answer(text, parse_mode="Markdown")
+            await message.answer(text, parse_mode="HTML", disable_web_page_preview=True)
 
     except ValueError:
         await message.answer("ID события должен быть числом")
