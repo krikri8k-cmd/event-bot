@@ -369,7 +369,22 @@ def prepare_events_for_feed(events: list[dict]) -> list[dict]:
     """
     out = []
     for e in events:
-        if e["type"] == "source" and not is_valid_source_url(e.get("source_url")):
+        # Определяем тип события по источнику
+        source = e.get("source", "")
+        event_type = "source"  # по умолчанию
+
+        if source == "ai_generated":
+            event_type = "moment"
+        elif source in ["user_created", "user"]:
+            event_type = "user"
+        elif source in ["event_calendars", "social_media", "popular_places"]:
+            event_type = "source"
+
+        # Добавляем поле type в событие
+        e["type"] = event_type
+
+        # Для событий из источников проверяем source_url
+        if event_type == "source" and not is_valid_source_url(e.get("source_url")):
             # не публикуем источник без валидной ссылки
             e["is_publishable"] = False
             logger.warning(
