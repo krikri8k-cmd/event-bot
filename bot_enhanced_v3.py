@@ -7,6 +7,7 @@ import asyncio
 import html
 import logging
 from datetime import UTC, datetime
+from math import ceil
 from urllib.parse import quote_plus, urlparse
 
 from aiogram import Bot, Dispatcher, F, types
@@ -15,6 +16,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
     KeyboardButton,
     ReplyKeyboardMarkup,
 )
@@ -160,76 +163,11 @@ def enrich_venue_name(e: dict) -> dict:
     return e
 
 
-def build_maps_url(event: dict) -> str:
-    """
-    Создает корректную ссылку на Google Maps с названием места
-    """
-    name = (event.get("venue_name") or "").strip()
-    addr = (event.get("address") or "").strip()
-    lat, lng = event.get("lat"), event.get("lng")
-
-    if name:
-        return f"https://www.google.com/maps/search/?api=1&query={quote_plus(name)}"
-    if addr:
-        return f"https://www.google.com/maps/search/?api=1&query={quote_plus(addr)}"
-    if lat and lng:
-        return f"https://www.google.com/maps/search/?api=1&query={lat},{lng}"
-    return "https://www.google.com/maps"
-
-
 def create_google_maps_url(event: dict) -> str:
     """
     Создает ссылку на Google Maps с названием места (устаревшая функция)
     """
     return build_maps_url(event)
-
-
-def get_source_url(event: dict) -> str:
-    """
-    Возвращает URL источника события
-    """
-    source = event.get("source", "")
-    event_type = event.get("type", "")
-
-    # Если есть прямая ссылка на источник
-    if event.get("source_url"):
-        return event["source_url"]
-
-    # Если есть URL события
-    if event.get("url"):
-        return event["url"]
-
-    # Если есть website
-    if event.get("website"):
-        return event["website"]
-
-    # Если есть location_url
-    if event.get("location_url"):
-        return event["location_url"]
-
-    # Fallback для разных типов событий
-    if event_type == "user":
-        # Для пользовательских событий - ссылка на профиль автора
-        organizer_id = event.get("organizer_id")
-        if organizer_id:
-            return f"https://t.me/user{organizer_id}"
-        return "https://t.me/EventAroundBot"
-    elif event_type == "moment":
-        # Для мгновенных событий - ссылка на создателя
-        creator_id = event.get("creator_id")
-        if creator_id:
-            return f"https://t.me/user{creator_id}"
-        return "https://t.me/EventAroundBot"
-    elif source == "ai_generated":
-        return "https://t.me/EventAroundBot"  # Ссылка на бота
-    elif source == "popular_places":
-        return "https://maps.google.com"  # Ссылка на карты
-    elif source == "event_calendars":
-        return "https://calendar.google.com"  # Ссылка на календарь
-    elif source == "social_media":
-        return "https://t.me/EventAroundBot"  # Ссылка на бота
-    else:
-        return "https://t.me/EventAroundBot"  # Fallback на бота
 
 
 def get_venue_name(event: dict) -> str:
@@ -398,60 +336,6 @@ def prepare_events_for_feed(events: list[dict]) -> list[dict]:
     return out
 
 
-def render_event_html(e: dict, idx: int = None) -> str:
-    """
-    Рендерит событие в HTML формате с кликабельными ссылками
-    """
-    title = html.escape(e["title"])
-    when = e.get("when_str", e.get("time_local", ""))
-    dist = f"{e.get('distance_km', 0):.1f} км" if e.get("distance_km") else ""
-    venue = html.escape(e.get("venue_name") or e.get("address") or "Локация уточняется")
-
-    # Используем функцию get_source_url для получения правильной ссылки
-    src_url = get_source_url(e)
-    src_link = f'<a href="{html.escape(src_url)}">Источник</a>'
-    map_link = f'<a href="{build_maps_url(e)}">Маршрут</a>'
-
-    # Добавляем номер события если указан
-    prefix = f"{idx}) " if idx is not None else ""
-
-    return f"{prefix}🏷 <b>{title}</b> — {when} ({dist})\n📍 {venue}\n🔗 {src_link}  🚗 {map_link}"
-
-
-def render_header(counts: dict) -> str:
-    """
-    Рендерит заголовок с подсчетом событий по типам
-    """
-    lines = [f"🗺 Найдено рядом: <b>{counts['all']}</b>"]
-    if counts["moments"]:
-        lines.append(f"• ⚡ Мгновенные: {counts['moments']}")
-    if counts["user"]:
-        lines.append(f"• 👥 От пользователей: {counts['user']}")
-    if counts["sources"]:
-        lines.append(f"• 🌐 Из источников: {counts['sources']}")
-    return "\n".join(lines)
-
-
-def kb_pager(page: int, total_pages: int):
-    """
-    Создает клавиатуру пагинации
-    """
-    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-
-    prev_cb = f"pg:{page-1}" if page > 1 else "pg:noop"
-    next_cb = f"pg:{page+1}" if page < total_pages else "pg:noop"
-
-    buttons = [
-        [
-            InlineKeyboardButton(text="◀️ Назад", callback_data=prev_cb),
-            InlineKeyboardButton(text="Вперёд ▶️", callback_data=next_cb),
-        ],
-        [InlineKeyboardButton(text=f"Стр. {page}/{total_pages}", callback_data="pg:noop")],
-    ]
-
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
-
-
 def create_events_summary(events: list) -> str:
     """
     Создает сводку по типам событий (устаревшая функция)
@@ -476,49 +360,32 @@ async def send_compact_events_list(
     """
     Отправляет компактный список событий с пагинацией в HTML формате
     """
-    # 1) сначала фильтруем и группируем (после всех проверок publishable)
+    # 1) Сначала фильтруем и группируем (после всех проверок publishable)
     prepared = prepare_events_for_feed(events)
 
-    # Обогащаем события названиями мест
+    # Обогащаем события названиями мест и расстояниями
     for event in prepared:
         enrich_venue_name(event)
-        # Добавляем расстояние
         event["distance_km"] = haversine_km(user_lat, user_lng, event["lat"], event["lng"])
 
-    groups = {
-        "moment": [e for e in prepared if e["type"] == "moment"],
-        "user": [e for e in prepared if e["type"] == "user"],
-        "source": [e for e in prepared if e["type"] == "source"],
+    # 2) Группируем и считаем
+    groups = group_by_type(prepared)
+    counts = make_counts(groups)
+
+    # 3) Сохраняем состояние для пагинации
+    user_state[message.chat.id] = {
+        "prepared": prepared,
+        "counts": counts,
+        "lat": user_lat,
+        "lng": user_lng,
     }
-    counts = {
-        "all": len(prepared),
-        "moments": len(groups["moment"]),
-        "user": len(groups["user"]),
-        "sources": len(groups["source"]),
-    }
 
-    # Настройки пагинации
-    events_per_page = 4
-    total_pages = (len(prepared) + events_per_page - 1) // events_per_page
-    page = max(0, min(page, total_pages - 1))
-
-    # Получаем события для текущей страницы
-    start_idx = page * events_per_page
-    end_idx = min(start_idx + events_per_page, len(prepared))
-    page_events = prepared[start_idx:end_idx]
-
-    # Формируем заголовок
+    # 4) Рендерим страницу
     header_html = render_header(counts)
+    page_html, total_pages = render_page(prepared, page=page + 1, page_size=5)
+    text = header_html + "\n\n" + page_html
 
-    # Формируем HTML карточки событий
-    event_lines = []
-    for idx, event in enumerate(page_events, start=start_idx + 1):
-        event_html = render_event_html(event, idx)
-        event_lines.append(event_html)
-
-    text = header_html + "\n\n" + "\n".join(event_lines)
-
-    # Создаем клавиатуру пагинации
+    # 5) Создаем клавиатуру пагинации
     inline_kb = kb_pager(page + 1, total_pages) if total_pages > 1 else None
 
     try:
@@ -610,9 +477,131 @@ async def send_detailed_events_list(
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# --- Эталонные функции для рендеринга ---
+
+
+def build_maps_url(e: dict) -> str:
+    """Создает URL для Google Maps с приоритетом venue_name > address > coordinates"""
+    name = (e.get("venue_name") or "").strip()
+    addr = (e.get("address") or "").strip()
+    lat, lng = e.get("lat"), e.get("lng")
+    if name:
+        return f"https://www.google.com/maps/search/?api=1&query={quote_plus(name)}"
+    if addr:
+        return f"https://www.google.com/maps/search/?api=1&query={quote_plus(addr)}"
+    if lat and lng:
+        return f"https://www.google.com/maps/search/?api=1&query={lat},{lng}"
+    return "https://www.google.com/maps"
+
+
+def get_source_url(e: dict) -> str | None:
+    """Единая точка истины для получения URL источника"""
+    t = e.get("type")
+    if t == "source":
+        return e.get("source_url")
+    if t == "user":
+        return e.get("author_url") or e.get("chat_url")
+    if t in ("ai", "ai_generated", "moment"):
+        return e.get("location_url") or "https://t.me/EventAroundBot"
+    return None
+
+
+def render_event_html(e: dict, idx: int) -> str:
+    """Рендерит одну карточку события в HTML"""
+    title = html.escape(e.get("title", "Событие"))
+    when = e.get("when_str", "")
+    dist = f"{e['distance_km']:.1f} км" if e.get("distance_km") is not None else ""
+    venue = html.escape(e.get("venue_name") or e.get("address") or "Локация уточняется")
+
+    src = get_source_url(e)
+    src_link = f'<a href="{html.escape(src)}">Источник</a>' if src else "Источник недоступен"
+    map_link = f'<a href="{build_maps_url(e)}">Маршрут</a>'
+
+    return (
+        f"{idx}) <b>{title}</b> — {when} ({dist})\n"
+        f"📍 {venue}\n"
+        f"🔗 {src_link}  🚗 {map_link}\n"
+    )
+
+
+def render_page(events: list[dict], page: int, page_size: int = 5) -> tuple[str, int]:
+    """
+    Рендерит страницу событий
+    events — уже отфильтрованные prepared (publishable) и отсортированные по distance/time
+    page    — 1..N
+    return: (html_text, total_pages)
+    """
+    if not events:
+        return "Поблизости пока ничего не нашли.", 1
+
+    total_pages = max(1, ceil(len(events) / page_size))
+    page = max(1, min(page, total_pages))
+    start = (page - 1) * page_size
+    end = start + page_size
+
+    parts = []
+    for idx, e in enumerate(events[start:end], start=start + 1):
+        parts.append(render_event_html(e, idx))
+
+    return "\n".join(parts).strip(), total_pages
+
+
+def kb_pager(page: int, total: int) -> InlineKeyboardMarkup:
+    """Создает клавиатуру пагинации"""
+    prev_cb = f"pg:{page-1}" if page > 1 else "pg:noop"
+    next_cb = f"pg:{page+1}" if page < total else "pg:noop"
+
+    buttons = [
+        [
+            InlineKeyboardButton(text="◀️ Назад", callback_data=prev_cb),
+            InlineKeyboardButton(text="Вперёд ▶️", callback_data=next_cb),
+        ],
+        [InlineKeyboardButton(text=f"Стр. {page}/{total}", callback_data="pg:noop")],
+    ]
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def group_by_type(events):
+    """Группирует события по типам"""
+    return {
+        "moment": [e for e in events if e["type"] == "moment"],
+        "user": [e for e in events if e["type"] == "user"],
+        "source": [e for e in events if e["type"] == "source"],
+    }
+
+
+def make_counts(groups):
+    """Создает счетчики по группам"""
+    total = sum(len(v) for v in groups.values())
+    return {
+        "all": total,
+        "moments": len(groups["moment"]),
+        "user": len(groups["user"]),
+        "sources": len(groups["source"]),
+    }
+
+
+def render_header(counts) -> str:
+    """Рендерит заголовок с счетчиками (только ненулевые)"""
+    lines = [f"🗺 Найдено рядом: <b>{counts['all']}</b>"]
+    if counts["moments"]:
+        lines.append(f"• ⚡ Мгновенные: {counts['moments']}")
+    if counts["user"]:
+        lines.append(f"• 👥 От пользователей: {counts['user']}")
+    if counts["sources"]:
+        lines.append(f"• 🌐 Из источников: {counts['sources']}")
+    return "\n".join(lines)
+
+
+# --- /Эталонные функции ---
+
 # Загружаем настройки
 # Для бота — токен обязателен
 settings = load_settings(require_bot=True)
+
+# Хранилище состояния для сохранения prepared событий по chat_id
+user_state = {}
 
 # Инициализация базы данных
 init_engine(settings.database_url)
@@ -732,58 +721,41 @@ async def on_location(message: types.Message):
         events = sort_events_by_time(events)
         logger.info("📅 События отсортированы по времени")
 
-        # Создаем краткую подпись для карты с правильным отчётом
-        # 1) сначала фильтруем и группируем (после всех проверок publishable)
+        # 1) Сначала фильтруем и группируем (после всех проверок publishable)
         prepared = prepare_events_for_feed(events)
 
-        # Формируем краткую подпись для карты с короткими ссылками
-        events_to_show = prepared[:12]  # Показываем до 12 отфильтрованных событий на карте
-
-        # Обогащаем события названиями мест
+        # Обогащаем события названиями мест и расстояниями
         for event in prepared:
-            enrich_venue_name(event)
-
-        groups = {
-            "moment": [e for e in prepared if e["type"] == "moment"],
-            "user": [e for e in prepared if e["type"] == "user"],
-            "source": [e for e in prepared if e["type"] == "source"],
-        }
-        counts = {
-            "all": len(prepared),
-            "moments": len(groups["moment"]),
-            "user": len(groups["user"]),
-            "sources": len(groups["source"]),
-        }
-
-        # Формируем заголовок с правильным отчётом
-        header_lines = [f"🗺 Найдено рядом: <b>{counts['all']}</b>"]
-        if counts["moments"]:
-            header_lines.append(f"• ⚡ Мгновенные: {counts['moments']}")
-        if counts["user"]:
-            header_lines.append(f"• 👥 От пользователей: {counts['user']}")
-        if counts["sources"]:
-            header_lines.append(f"• 🌐 Из источников: {counts['sources']}")
-
-        short_caption = "\n".join(header_lines) + "\n\n"
-
-        # Добавляем краткую информацию о событиях с HTML-рендерингом
-        for i, event in enumerate(prepared[:3], 1):  # Показываем только первые 3 отфильтрованных
-            # Обогащаем событие
             enrich_venue_name(event)
             event["distance_km"] = haversine_km(lat, lng, event["lat"], event["lng"])
 
-            # Рендерим карточку в HTML
-            card_html = render_event_html(event, i)
-            short_caption += card_html + "\n"
+        # 2) Группируем и считаем
+        groups = group_by_type(prepared)
+        counts = make_counts(groups)
+
+        # 3) Сохраняем состояние для пагинации
+        user_state[message.chat.id] = {
+            "prepared": prepared,
+            "counts": counts,
+            "lat": lat,
+            "lng": lng,
+        }
+
+        # 4) Формируем заголовок с правильным отчётом
+        header_html = render_header(counts)
+
+        # 5) Рендерим первые 3 события для карты
+        page_html, _ = render_page(prepared, page=1, page_size=3)
+        short_caption = header_html + "\n\n" + page_html
 
         if len(prepared) > 3:
-            short_caption += f"\n... и еще {len(prepared) - 3} событий"
+            short_caption += f"\n\n... и еще {len(prepared) - 3} событий"
 
         short_caption += "\n\n💡 <b>Нажми кнопку ниже для Google Maps!</b>"
 
         # Создаём карту с нумерованными метками
         points = []
-        for i, event in enumerate(events_to_show, 1):  # Используем отфильтрованные события
+        for i, event in enumerate(prepared[:12], 1):  # Используем отфильтрованные события
             event_lat = event.get("lat")
             event_lng = event.get("lng")
 
@@ -819,7 +791,7 @@ async def on_location(message: types.Message):
                 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
                 # Создаем расширенную ссылку на Google Maps с информацией о событиях
-                maps_url = create_enhanced_google_maps_url(lat, lng, events_to_show)
+                maps_url = create_enhanced_google_maps_url(lat, lng, prepared[:12])
 
                 # Создаем кнопки для расширения радиуса, если событий мало
                 keyboard_buttons = [
@@ -829,20 +801,10 @@ async def on_location(message: types.Message):
                 # Добавляем кнопки расширения радиуса, если событий меньше 3
                 if len(prepared) < 3:
                     keyboard_buttons.append(
-                        [
-                            InlineKeyboardButton(
-                                text="🔍 Расширить поиск до 10 км",
-                                callback_data=f"expand_radius:{lat}:{lng}:10",
-                            )
-                        ]
+                        [InlineKeyboardButton(text="🔍 Расширить до 10 км", callback_data="rx:10")]
                     )
                     keyboard_buttons.append(
-                        [
-                            InlineKeyboardButton(
-                                text="🔍 Расширить поиск до 15 км",
-                                callback_data=f"expand_radius:{lat}:{lng}:15",
-                            )
-                        ]
+                        [InlineKeyboardButton(text="🔍 Расширить до 15 км", callback_data="rx:15")]
                     )
 
                 inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -1126,40 +1088,32 @@ async def handle_pagination(callback: types.CallbackQuery):
 
     try:
         # Извлекаем номер страницы из callback_data
-        data = callback.data.split(":")[1]
-        if data == "noop":
+        token = callback.data.split(":", 1)[1]
+        if token == "noop":
             await callback.answer("Это крайняя страница")
             return
 
-        page = int(data) - 1  # конвертируем в 0-based индекс
+        page = int(token)
 
-        # Получаем геолокацию пользователя из БД
-        with get_session() as session:
-            user = session.get(User, callback.from_user.id)
-            if not user or not user.last_lat or not user.last_lng:
-                await callback.answer("Геолокация не найдена. Отправьте новую геолокацию.")
-                return
-
-            user_lat = user.last_lat
-            user_lng = user.last_lng
-
-        # Ищем события заново
-        try:
-            events = await enhanced_search_events(
-                user_lat, user_lng, radius_km=int(settings.default_radius_km)
-            )
-            events = sort_events_by_time(events)
-        except Exception as e:
-            logger.error(f"❌ Ошибка при поиске событий для пагинации: {e}")
-            await callback.answer("Ошибка при загрузке событий")
+        # Получаем сохраненное состояние
+        state = user_state.get(callback.message.chat.id)
+        if not state:
+            await callback.answer("Состояние не найдено. Отправьте новую геолокацию.")
             return
 
-        if not events:
-            await callback.answer("События не найдены")
-            return
+        prepared = state["prepared"]
+        counts = state["counts"]
 
-        # Редактируем сообщение с новой страницей
-        await edit_events_list_message(callback.message, events, user_lat, user_lng, page)
+        # Рендерим страницу
+        page_html, total_pages = render_page(prepared, page, page_size=5)
+
+        # Обновляем сообщение
+        await callback.message.edit_text(
+            render_header(counts) + "\n\n" + page_html,
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+            reply_markup=kb_pager(page, total_pages),
+        )
         await callback.answer()
 
     except (ValueError, IndexError) as e:
@@ -1170,26 +1124,28 @@ async def handle_pagination(callback: types.CallbackQuery):
         await callback.answer("Произошла ошибка")
 
 
-@dp.callback_query(F.data.startswith("expand_radius:"))
+@dp.callback_query(F.data.startswith("rx:"))
 async def handle_expand_radius(callback: types.CallbackQuery):
     """Обработчик расширения радиуса поиска"""
 
     try:
-        # Извлекаем параметры из callback_data: expand_radius:lat:lng:radius
-        parts = callback.data.split(":")
-        if len(parts) != 4:
-            await callback.answer("Ошибка параметров")
+        # Извлекаем новый радиус из callback_data: rx:radius
+        new_radius = int(callback.data.split(":")[1])
+
+        # Получаем сохраненное состояние
+        state = user_state.get(callback.message.chat.id)
+        if not state:
+            await callback.answer("Состояние не найдено. Отправьте новую геолокацию.")
             return
 
-        lat = float(parts[1])
-        lng = float(parts[2])
-        radius = int(parts[3])
+        lat = state["lat"]
+        lng = state["lng"]
 
-        logger.info(f"🔍 Расширяем поиск до {radius} км от ({lat}, {lng})")
+        logger.info(f"🔍 Расширяем поиск до {new_radius} км от ({lat}, {lng})")
 
         # Ищем события с расширенным радиусом
         try:
-            events = await enhanced_search_events(lat, lng, radius_km=radius)
+            events = await enhanced_search_events(lat, lng, radius_km=new_radius)
             events = sort_events_by_time(events)
         except Exception as e:
             logger.error(f"❌ Ошибка при расширенном поиске: {e}")
@@ -1200,9 +1156,36 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             await callback.answer("События не найдены даже в расширенном радиусе")
             return
 
-        # Отправляем новый список событий
-        await send_compact_events_list(callback.message, events, lat, lng, page=0)
-        await callback.answer(f"Поиск расширен до {radius} км")
+        # Фильтруем и обогащаем события
+        prepared = prepare_events_for_feed(events)
+        for event in prepared:
+            enrich_venue_name(event)
+            event["distance_km"] = haversine_km(lat, lng, event["lat"], event["lng"])
+
+        # Группируем и считаем
+        groups = group_by_type(prepared)
+        counts = make_counts(groups)
+
+        # Обновляем состояние
+        user_state[callback.message.chat.id] = {
+            "prepared": prepared,
+            "counts": counts,
+            "lat": lat,
+            "lng": lng,
+        }
+
+        # Рендерим первую страницу
+        header_html = render_header(counts)
+        page_html, total_pages = render_page(prepared, page=1, page_size=5)
+
+        # Обновляем сообщение
+        await callback.message.edit_text(
+            header_html + "\n\n" + page_html,
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+            reply_markup=kb_pager(1, total_pages),
+        )
+        await callback.answer(f"Радиус расширен до {new_radius} км")
 
     except (ValueError, IndexError) as e:
         logger.error(f"❌ Ошибка обработки расширения радиуса: {e}")
