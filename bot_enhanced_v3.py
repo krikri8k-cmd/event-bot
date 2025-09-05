@@ -127,23 +127,34 @@ def enrich_venue_name(e: dict) -> dict:
     """
     Обогащает событие названием места, если его нет
     """
-    if e.get("venue_name"):
+    if e.get("venue_name") and e.get("venue_name") not in [
+        "",
+        "Место проведения",
+        "Место не указано",
+    ]:
         return e
 
     # 1) из title/description
     import re
 
-    VENUE_RX = r"(?:в|at|@)\s*([A-Za-zА-Яа-я0-9''\-&\.\s]+)$"
+    VENUE_RX = r"(?:в|at|@)\s+([A-Za-zА-Яа-я0-9''\-&\.\s]+)$"
 
     for field in ("title", "description"):
         v = (e.get(field) or "").strip()
         m = re.search(VENUE_RX, v)
         if m:
-            e["venue_name"] = m.group(1).strip()
-            return e
+            venue_name = m.group(1).strip()
+            # Проверяем, что это не просто часть названия события
+            if len(venue_name) > 3 and venue_name not in ["момент", "событие", "встреча"]:
+                e["venue_name"] = venue_name
+                return e
 
     # 2) если всё ещё пустое, используем fallback
-    if not e.get("venue_name"):
+    if not e.get("venue_name") or e.get("venue_name") in [
+        "",
+        "Место проведения",
+        "Место не указано",
+    ]:
         e["venue_name"] = "📍 Локация уточняется"
 
     return e
@@ -372,13 +383,13 @@ def prepare_events_for_feed(events: list[dict]) -> list[dict]:
     return out
 
 
-def render_event_html(e: dict) -> str:
+def render_event_html(e: dict, idx: int = None) -> str:
     """
     Рендерит событие в HTML формате с кликабельными ссылками
     """
     title = html.escape(e["title"])
     when = e.get("when_str", e.get("time_local", ""))
-    dist = f"{e['distance_km']:.1f} км"
+    dist = f"{e.get('distance_km', 0):.1f} км" if e.get("distance_km") else ""
     venue = html.escape(e.get("venue_name") or e.get("address") or "Локация уточняется")
 
     src_url = e.get("source_url")
@@ -387,7 +398,10 @@ def render_event_html(e: dict) -> str:
     )
     map_link = f'<a href="{build_maps_url(e)}">Маршрут</a>'
 
-    return f"🏷 <b>{title}</b> — {when} ({dist})\n📍 {venue}\n🔗 {src_link}  🚗 {map_link}"
+    # Добавляем номер события если указан
+    prefix = f"{idx}) " if idx is not None else ""
+
+    return f"{prefix}🏷 <b>{title}</b> — {when} ({dist})\n📍 {venue}\n🔗 {src_link}  🚗 {map_link}"
 
 
 def render_header(counts: dict) -> str:
@@ -484,8 +498,8 @@ async def send_compact_events_list(
 
     # Формируем HTML карточки событий
     event_lines = []
-    for event in page_events:
-        event_html = render_event_html(event)
+    for idx, event in enumerate(page_events, start=start_idx + 1):
+        event_html = render_event_html(event, idx)
         event_lines.append(event_html)
 
     text = header_html + "\n\n" + "\n".join(event_lines)
@@ -549,8 +563,8 @@ async def edit_events_list_message(
 
     # Формируем HTML карточки событий
     event_lines = []
-    for event in page_events:
-        event_html = render_event_html(event)
+    for idx, event in enumerate(page_events, start=start_idx + 1):
+        event_html = render_event_html(event, idx)
         event_lines.append(event_html)
 
     text = header_html + "\n\n" + "\n".join(event_lines)
