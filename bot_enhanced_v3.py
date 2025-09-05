@@ -110,105 +110,186 @@ def sort_events_by_time(events: list) -> list:
     return sorted(events, key=get_event_time)
 
 
-def create_event_links(event: dict) -> str:
+def create_google_maps_url(event: dict) -> str:
     """
-    Создает кликабельные ссылки для события
+    Создает ссылку на Google Maps с названием места
     """
-    links = []
+    if not event.get("lat") or not event.get("lng"):
+        return "https://maps.google.com"
 
-    # Ссылка на Google Maps
-    if event.get("lat") and event.get("lng"):
-        maps_url = (
+    # Используем название места или адрес для поиска
+    location_name = event.get("location_name", "")
+    if not location_name:
+        location_name = event.get("address", "")
+
+    if location_name:
+        # Формируем ссылку с названием места
+        query = location_name.replace(" ", "+")
+        return f"https://www.google.com/maps/search/?api=1&query={query}&query_place_id={event['lat']:.6f},{event['lng']:.6f}"
+    else:
+        # Fallback на координаты
+        return (
             f"https://www.google.com/maps/search/?api=1&query={event['lat']:.6f},{event['lng']:.6f}"
         )
-        links.append(f"🗺️ [Google Maps]({maps_url})")
 
-    # Ссылка на сайт места (если есть)
+
+def get_source_url(event: dict) -> str:
+    """
+    Возвращает URL источника события
+    """
+    source = event.get("source", "")
+
+    # Если есть прямая ссылка на источник
+    if event.get("source_url"):
+        return event["source_url"]
+
+    # Если есть URL события
+    if event.get("url"):
+        return event["url"]
+
+    # Если есть website
     if event.get("website"):
-        links.append(f"🌐 [Сайт]({event['website']})")
+        return event["website"]
 
-    # Ссылка на бронирование (если есть)
-    if event.get("booking_url"):
-        links.append(f"📅 [Забронировать]({event['booking_url']})")
+    # Fallback для разных источников
+    if source == "ai_generated":
+        return "https://t.me/EventAroundBot"  # Ссылка на бота
+    elif source == "popular_places":
+        return "https://maps.google.com"  # Ссылка на карты
+    elif source == "event_calendars":
+        return "https://calendar.google.com"  # Ссылка на календарь
+    elif source == "social_media":
+        return "https://t.me/EventAroundBot"  # Ссылка на бота
+    else:
+        return "https://t.me/EventAroundBot"  # Fallback на бота
 
-    return " | ".join(links) if links else "🔗 [Google Maps](https://maps.google.com)"
+
+def create_event_links(event: dict) -> str:
+    """
+    Создает кликабельные ссылки для события (устаревшая функция, используется для совместимости)
+    """
+    maps_url = create_google_maps_url(event)
+    source_url = get_source_url(event)
+
+    links = [f"🗺️ [Маршрут]({maps_url})", f"🔗 [Источник]({source_url})"]
+    return " | ".join(links)
+
+
+async def send_compact_events_list(
+    message: types.Message, events: list, user_lat: float, user_lng: float, page: int = 0
+):
+    """
+    Отправляет компактный список событий с пагинацией
+    """
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    # Настройки пагинации
+    events_per_page = 4
+    total_pages = (len(events) + events_per_page - 1) // events_per_page
+
+    # Ограничиваем номер страницы
+    page = max(0, min(page, total_pages - 1))
+
+    # Получаем события для текущей страницы
+    start_idx = page * events_per_page
+    end_idx = min(start_idx + events_per_page, len(events))
+    page_events = events[start_idx:end_idx]
+
+    # Формируем заголовок с датой
+    from datetime import datetime
+
+    datetime.now().strftime("%Y-%m-%d")
+    header = f"📅 Сегодня ({len(events)} событий рядом)\n\n"
+
+    # Формируем компактные карточки событий
+    lines = []
+    for i, event in enumerate(page_events, start_idx + 1):
+        distance = haversine_km(user_lat, user_lng, event["lat"], event["lng"])
+        time_part = f" — {event['time_local']}" if event.get("time_local") else ""
+
+        # Эмодзи для источника
+        source_emoji = {
+            "ai_generated": "🤖",
+            "popular_places": "🏛️",
+            "event_calendars": "📅",
+            "social_media": "📱",
+        }.get(event.get("source", ""), "📌")
+
+        # Ограничиваем длину названия и места
+        title = event["title"][:30] + "..." if len(event["title"]) > 30 else event["title"]
+        location = event.get("location_name", "Место не указано")
+        location = location[:25] + "..." if len(location) > 25 else location
+
+        # Компактный формат карточки
+        lines.append(
+            f"**{i}) {title}**{time_part} ({distance:.1f} км)\n"
+            f"📍 {location}\n"
+            f"{source_emoji} {event.get('source', 'unknown')}\n"
+        )
+
+    text = header + "\n".join(lines)
+
+    # Создаем inline клавиатуру с кнопками для каждого события
+    keyboard = []
+
+    # Добавляем кнопки для каждого события на странице
+    for i, event in enumerate(page_events, start_idx + 1):
+        maps_url = create_google_maps_url(event)
+        source_url = get_source_url(event)
+
+        keyboard.append(
+            [
+                InlineKeyboardButton(text=f"🗺️ {i}", url=maps_url),
+                InlineKeyboardButton(text=f"🔗 {i}", url=source_url),
+            ]
+        )
+
+    # Добавляем кнопки пагинации
+    if total_pages > 1:
+        pagination_buttons = []
+        if page > 0:
+            pagination_buttons.append(
+                InlineKeyboardButton(text="◀️ Назад", callback_data=f"page_{page-1}")
+            )
+        if page < total_pages - 1:
+            pagination_buttons.append(
+                InlineKeyboardButton(text="Вперёд ▶️", callback_data=f"page_{page+1}")
+            )
+
+        if pagination_buttons:
+            keyboard.append(pagination_buttons)
+
+        # Добавляем индикатор страницы
+        keyboard.append(
+            [InlineKeyboardButton(text=f"📄 {page + 1}/{total_pages}", callback_data="page_info")]
+        )
+
+    inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+    try:
+        # Отправляем компактный список событий
+        await message.answer(
+            text,
+            reply_markup=inline_kb,
+            parse_mode="Markdown",
+        )
+        logger.info(f"✅ Страница {page + 1} событий отправлена")
+    except Exception as e:
+        logger.error(f"❌ Ошибка отправки страницы {page + 1}: {e}")
+        # Fallback - отправляем без форматирования
+        await message.answer(
+            f"📋 События (страница {page + 1} из {total_pages}):\n\n{text}", reply_markup=inline_kb
+        )
 
 
 async def send_detailed_events_list(
     message: types.Message, events: list, user_lat: float, user_lng: float
 ):
     """
-    Отправляет детальный список событий отдельным сообщением
+    Отправляет детальный список событий отдельным сообщением (устаревшая функция)
     """
-    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-
-    # Разбиваем события на части (Telegram лимит ~4096 символов)
-    events_per_message = 5
-    total_parts = (len(events) + events_per_message - 1) // events_per_message
-
-    for part in range(total_parts):
-        start_idx = part * events_per_message
-        end_idx = min(start_idx + events_per_message, len(events))
-        part_events = events[start_idx:end_idx]
-
-        # Формируем текст для части
-        lines = []
-        for i, event in enumerate(part_events, start_idx + 1):
-            distance = haversine_km(user_lat, user_lng, event["lat"], event["lng"])
-            time_part = f" — {event['time_local']}" if event.get("time_local") else ""
-
-            # Эмодзи для источника
-            source_emoji = {
-                "ai_generated": "🤖",
-                "popular_places": "🏛️",
-                "event_calendars": "📅",
-                "social_media": "📱",
-            }.get(event.get("source", ""), "📌")
-
-            # Кликабельные ссылки для события
-            event_links = create_event_links(event)
-
-            # Ограничиваем длину названия и места
-            title = event["title"][:50] + "..." if len(event["title"]) > 50 else event["title"]
-            location = event.get("location_name", "Место не указано")
-            location = location[:40] + "..." if len(location) > 40 else location
-
-            lines.append(
-                f"**{i}) {title}**{time_part}\n"
-                f"📍 {location}\n"
-                f"📏 {distance:.1f} км\n"
-                f"{source_emoji} {event.get('source', 'unknown')}\n"
-                f"{event_links}\n"
-            )
-
-        text = "\n".join(lines)
-
-        # Добавляем заголовок части
-        if total_parts > 1:
-            text = f"📋 **События (часть {part + 1} из {total_parts}):**\n\n{text}"
-        else:
-            text = f"📋 **Все найденные события:**\n\n{text}"
-
-            # Создаем инлайн клавиатуру для перехода в Google Maps
-        maps_url = f"https://www.google.com/maps/search/?api=1&query={user_lat:.6f},{user_lng:.6f}"
-        inline_kb = InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text="🗺️ Открыть в Google Maps", url=maps_url)]]
-        )
-
-        try:
-            # Отправляем часть событий
-            await message.answer(
-                text,
-                reply_markup=inline_kb,
-                parse_mode="Markdown",
-            )
-            logger.info(f"✅ Часть {part + 1} событий отправлена")
-        except Exception as e:
-            logger.error(f"❌ Ошибка отправки части {part + 1}: {e}")
-            # Fallback - отправляем без форматирования
-            await message.answer(
-                f"📋 События (часть {part + 1} из {total_parts}):\n\n{text}", reply_markup=inline_kb
-            )
+    # Используем новую компактную функцию
+    await send_compact_events_list(message, events, user_lat, user_lng, page=0)
 
 
 # Настройка логирования
@@ -417,12 +498,12 @@ async def on_location(message: types.Message):
                     parse_mode="Markdown",
                 )
 
-                # Отправляем детальный список событий отдельным сообщением
+                # Отправляем компактный список событий отдельным сообщением
                 try:
-                    await send_detailed_events_list(message, events, lat, lng)
-                    logger.info("✅ Детальный список событий отправлен")
+                    await send_compact_events_list(message, events, lat, lng, page=0)
+                    logger.info("✅ Компактный список событий отправлен")
                 except Exception as e:
-                    logger.error(f"❌ Ошибка отправки детального списка: {e}")
+                    logger.error(f"❌ Ошибка отправки компактного списка: {e}")
                     # Fallback - отправляем краткий список
                     await message.answer(
                         f"📋 **Все {len(events)} событий:**\n\n"
@@ -438,10 +519,10 @@ async def on_location(message: types.Message):
         else:
             # Если карта не сгенерировалась, отправляем только список событий
             try:
-                await send_detailed_events_list(message, events, lat, lng)
-                logger.info("✅ Детальный список событий отправлен (без карты)")
+                await send_compact_events_list(message, events, lat, lng, page=0)
+                logger.info("✅ Компактный список событий отправлен (без карты)")
             except Exception as e:
-                logger.error(f"❌ Ошибка отправки детального списка: {e}")
+                logger.error(f"❌ Ошибка отправки компактного списка: {e}")
                 # Fallback - отправляем краткий список
                 await message.answer(
                     f"📋 **Все {len(events)} событий:**\n\n"
@@ -613,6 +694,56 @@ async def on_help(message: types.Message):
 async def echo_message(message: types.Message):
     """Обработчик всех остальных сообщений"""
     await message.answer("Используйте кнопки меню для навигации:", reply_markup=main_menu_kb())
+
+
+@dp.callback_query(F.data.startswith("page_"))
+async def handle_pagination(callback: types.CallbackQuery):
+    """Обработчик пагинации событий"""
+
+    try:
+        # Извлекаем номер страницы из callback_data
+        page_str = callback.data.split("_")[1]
+        if page_str == "info":
+            await callback.answer("Информация о странице")
+            return
+
+        page = int(page_str)
+
+        # Получаем геолокацию пользователя из БД
+        with get_session() as session:
+            user = session.get(User, callback.from_user.id)
+            if not user or not user.last_lat or not user.last_lng:
+                await callback.answer("Геолокация не найдена. Отправьте новую геолокацию.")
+                return
+
+            user_lat = user.last_lat
+            user_lng = user.last_lng
+
+        # Ищем события заново
+        try:
+            events = await enhanced_search_events(
+                user_lat, user_lng, radius_km=int(settings.default_radius_km)
+            )
+            events = sort_events_by_time(events)
+        except Exception as e:
+            logger.error(f"❌ Ошибка при поиске событий для пагинации: {e}")
+            await callback.answer("Ошибка при загрузке событий")
+            return
+
+        if not events:
+            await callback.answer("События не найдены")
+            return
+
+        # Отправляем новую страницу
+        await send_compact_events_list(callback.message, events, user_lat, user_lng, page)
+        await callback.answer()
+
+    except (ValueError, IndexError) as e:
+        logger.error(f"❌ Ошибка обработки пагинации: {e}")
+        await callback.answer("Ошибка обработки запроса")
+    except Exception as e:
+        logger.error(f"❌ Неожиданная ошибка в пагинации: {e}")
+        await callback.answer("Произошла ошибка")
 
 
 async def main():
