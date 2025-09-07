@@ -1408,7 +1408,7 @@ async def main():
             await bot.set_webhook(url=WEBHOOK_URL)
             logger.info(f"Webhook установлен: {WEBHOOK_URL}")
 
-            # Запускаем webhook сервер
+            # Запускаем webhook сервер на отдельном порту
             from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
             from aiohttp import web
 
@@ -1426,10 +1426,10 @@ async def main():
             # Настраиваем приложение
             setup_application(app, dp, bot=bot)
 
-            # Запускаем сервер на порту Railway
-            port = int(os.getenv("PORT", "8000"))
-            logger.info(f"Запуск webhook сервера на порту {port}")
-            await web._run_app(app, host="0.0.0.0", port=port)
+            # Запускаем webhook сервер на порту 8001 (отдельно от health check)
+            webhook_port = int(os.getenv("WEBHOOK_PORT", "8001"))
+            logger.info(f"Запуск webhook сервера на порту {webhook_port}")
+            await web._run_app(app, host="0.0.0.0", port=webhook_port)
 
             logger.info("Webhook режим активирован")
 
