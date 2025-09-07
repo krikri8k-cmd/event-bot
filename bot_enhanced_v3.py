@@ -8,14 +8,11 @@ import html
 import logging
 import os
 import re
-import ssl
 from datetime import UTC, datetime
 from math import ceil
 from urllib.parse import quote_plus, urlparse
 
-import certifi
 from aiogram import Bot, Dispatcher, F, types
-from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -26,7 +23,6 @@ from aiogram.types import (
     KeyboardButton,
     ReplyKeyboardMarkup,
 )
-from aiohttp import TCPConnector
 
 from bot_health import health_server
 from config import load_settings
@@ -666,13 +662,8 @@ def sanitize_url(u: str | None) -> str | None:
 init_engine(settings.database_url)
 create_all()
 
-# Создание SSL контекста и connector для корректной работы с Telegram API
-ssl_context = ssl.create_default_context(cafile=certifi.where())
-connector = TCPConnector(ssl=ssl_context)
-
-# Создание бота и диспетчера с SSL connector
-session = AiohttpSession(connector=connector)
-bot = Bot(token=settings.telegram_token, session=session)
+# Создание бота и диспетчера
+bot = Bot(token=settings.telegram_token)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
@@ -1367,6 +1358,8 @@ async def handle_expand_radius(callback: types.CallbackQuery):
 async def main():
     """Главная функция"""
     logger.info("Запуск улучшенного EventBot (aiogram 3.x)...")
+
+    # SSL контекст создается автоматически, дополнительная настройка не требуется
 
     # Запускаем health check сервер для Railway (только в polling режиме)
     RUN_MODE = os.getenv("BOT_RUN_MODE", "polling")
