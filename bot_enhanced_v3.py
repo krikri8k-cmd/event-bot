@@ -278,15 +278,42 @@ def is_m垃圾_url(url: str) -> bool:
     return sanitize_url(url) is None
 
 
+def is_blacklisted_url(url: str) -> bool:
+    """
+    Проверяет, является ли URL в черном списке доменов
+    """
+    if not url:
+        return True
+    try:
+        from urllib.parse import urlparse
+
+        p = urlparse(url)
+        host = p.netloc.lower()
+        return any(host == d or host.endswith("." + d) for d in BLACKLIST_DOMAINS)
+    except Exception:
+        return True
+
+
 def prepare_events_for_feed(
-    events: list[dict], with_diag: bool = False
+    events: list[dict],
+    user_point: tuple[float, float] = None,
+    radius_km: float = None,
+    with_diag: bool = False,
 ) -> tuple[list[dict], dict] | list[dict]:
     """
-    Фильтрует события для показа в ленте
+    Фильтрует события для показа в ленте с улучшенной диагностикой
     """
-    kept, dropped = [], []
+    from logging_helpers import DropStats
+    from venue_enrich import enrich_venue_from_text
+
+    drop = DropStats()
+    kept = []
+    kept_by_type = {"ai": 0, "user": 0, "source": 0}
 
     for e in events:
+        # 0) Сначала обогащаем локацию из текста
+        e = enrich_venue_from_text(e)
+
         # Определяем тип события по источнику
         source = e.get("source", "")
         event_type = "source"  # по умолчанию
@@ -301,63 +328,83 @@ def prepare_events_for_feed(
         # Добавляем поле type в событие
         e["type"] = event_type
 
-        # Для событий из источников проверяем минимальный контракт
-        if event_type == "source":
-            u = sanitize_url(e.get("source_url"))
+        title = (e.get("title") or "").strip() or "—"
 
-            # Проверяем наличие локации (новая структура venue или старая)
+        # 1) Проверяем URL
+        url = get_source_url(e)
+        if not url:
+            drop.add("no_url", title)
+            continue
+
+        # 2) Проверяем наличие локации (venue_name ИЛИ address ИЛИ coords)
+        venue = e.get("venue", {})
+        has_loc = any(
+            [
+                venue.get("name"),
+                venue.get("address"),
+                (venue.get("lat") is not None and venue.get("lon") is not None),
+                e.get("venue_name"),
+                e.get("address"),
+                (e.get("lat") is not None and e.get("lng") is not None),
+            ]
+        )
+
+        if not has_loc:
+            drop.add("no_venue_or_location", title)
+            continue
+
+        # 3) Проверяем радиус (если указан user_point и radius_km)
+        if user_point and radius_km is not None:
+            # Получаем координаты события
+            event_lat = None
+            event_lng = None
+
+            # Проверяем новую структуру venue
             venue = e.get("venue", {})
-            has_loc = any(
-                [
-                    venue.get("name"),
-                    venue.get("address"),
-                    (venue.get("lat") is not None and venue.get("lon") is not None),
-                    e.get("venue_name"),
-                    e.get("address"),
-                    (e.get("lat") is not None and e.get("lng") is not None),
-                ]
-            )
+            if venue.get("lat") is not None and venue.get("lon") is not None:
+                event_lat = venue.get("lat")
+                event_lng = venue.get("lon")
+            # Проверяем старую структуру
+            elif e.get("lat") is not None and e.get("lng") is not None:
+                event_lat = e.get("lat")
+                event_lng = e.get("lng")
 
-            # Новое правило: пропускаем если есть валидный URL ИЛИ валидная локация
-            if not u and not has_loc:
-                dropped.append((e, "source_without_url_and_location"))
-                logger.warning(
-                    "skip source invalid | title=%s url=%s have_url=%s have_loc=%s reason=%s",
-                    e.get("title"),
-                    e.get("source_url"),
-                    bool(u),
-                    has_loc,
-                    "source_without_url_and_location",
-                )
-                continue
-            e["source_url"] = u  # может быть None
+            if event_lat is not None and event_lng is not None:
+                # Вычисляем расстояние
+                from utils.geo_utils import haversine_km
 
-        kept.append(enrich_venue_name(e))
+                distance = haversine_km(user_point[0], user_point[1], event_lat, event_lng)
+                if distance > radius_km:
+                    drop.add("out_of_radius", title)
+                    continue
+                # Добавляем расстояние к событию
+                e["distance_km"] = round(distance, 2)
 
-    # Детальная диагностика по типам
-    kept_by_type = {"ai": 0, "user": 0, "source": 0}
-    for e in kept:
-        event_type = e.get("type", "unknown")
-        if event_type == "moment":
-            kept_by_type["ai"] += 1
-        elif event_type == "user":
-            kept_by_type["user"] += 1
-        elif event_type == "source":
-            kept_by_type["source"] += 1
+        # 4) Проверяем доменные/спам-правила
+        if is_blacklisted_url(url):
+            drop.add("blacklist_domain", title)
+            continue
 
-    # Топ-3 причины отбраковки
-    from collections import Counter
+        # OK — оставляем событие
+        e = enrich_venue_name(e)
+        kept.append(e)
+        kept_by_type[event_type] = kept_by_type.get(event_type, 0) + 1
 
-    reason_counts = Counter([r for _, r in dropped])
-    reasons_top3 = [f"{reason}({count})" for reason, count in reason_counts.most_common(3)]
+    # Логируем сводку
+    radius_info = (
+        f"radius_km={radius_km}, user_point=({user_point[0]:.4f},{user_point[1]:.4f})"
+        if user_point and radius_km is not None
+        else "no_radius_filter"
+    )
+    logger.info(f"{drop.summary(kept_by_type=kept_by_type, total=len(events))} | {radius_info}")
 
     diag = {
         "in": len(events),
         "kept": len(kept),
-        "dropped": len(dropped),
+        "dropped": sum(drop.reasons.values()),
         "kept_by_type": kept_by_type,
-        "reasons": [r for _, r in dropped],
-        "reasons_top3": reasons_top3,
+        "reasons": list(drop.reasons.keys()),
+        "reasons_top3": [f"{r}({n})" for r, n in drop.reasons.most_common(3)],
     }
 
     return (kept, diag) if with_diag else kept
@@ -388,7 +435,9 @@ async def send_compact_events_list(
     Отправляет компактный список событий с пагинацией в HTML формате
     """
     # 1) Сначала фильтруем и группируем (после всех проверок publishable)
-    prepared, diag = prepare_events_for_feed(events, with_diag=True)
+    prepared, diag = prepare_events_for_feed(
+        events, user_point=(user_lat, user_lng), with_diag=True
+    )
     logger.info(
         f"prepared: kept={diag['kept']} dropped={diag['dropped']} reasons_top3={diag['reasons_top3']}"
     )
@@ -445,7 +494,7 @@ async def edit_events_list_message(
     Редактирует сообщение со списком событий (для пагинации)
     """
     # 1) сначала фильтруем и группируем (после всех проверок publishable)
-    prepared = prepare_events_for_feed(events)
+    prepared = prepare_events_for_feed(events, user_point=(user_lat, user_lng))
 
     # Обогащаем события названиями мест
     for event in prepared:
@@ -540,19 +589,20 @@ def get_source_url(e: dict) -> str | None:
     candidates: list[str | None] = []
 
     if t == "source":
-        candidates = [e.get("source_url")]
+        candidates = [e.get("source_url"), e.get("url"), e.get("link")]
     elif t == "user":
         candidates = [e.get("author_url"), e.get("chat_url")]
     elif t in ("ai", "ai_generated", "moment"):
         # НЕ используем location_url, если это placeholder / example.*
         candidates = [e.get("location_url")]
     else:
-        candidates = [e.get("source_url")]
+        candidates = [e.get("source_url"), e.get("url"), e.get("link")]
 
     for u in candidates:
-        u = sanitize_url(u)
         if u:
-            return u
+            sanitized = sanitize_url(u)
+            if sanitized:
+                return sanitized
     return None  # нет реального источника — лучше не показывать ссылку
 
 
@@ -567,6 +617,7 @@ def render_event_html(e: dict, idx: int) -> str:
     venue_name = venue.get("name") or e.get("venue_name")
     venue_address = venue.get("address") or e.get("address")
 
+    # Приоритет: venue_name → address → coords
     if venue_name:
         venue_display = html.escape(venue_name)
     elif venue_address:
@@ -574,16 +625,19 @@ def render_event_html(e: dict, idx: int) -> str:
     elif e.get("lat") and e.get("lng"):
         venue_display = f"координаты ({e['lat']:.4f}, {e['lng']:.4f})"
     else:
-        venue_display = "Локация уточняется"
+        venue_display = "📍 Локация уточняется"
 
+    # Источник с правильной обработкой
     src = get_source_url(e)
     src_part = f'🔗 <a href="{html.escape(src)}">Источник</a>' if src else "ℹ️ Источник не указан"
-    map_part = f'<a href="{build_maps_url(e)}">Маршрут</a>'
+
+    # Маршрут с приоритетом venue_name → address → coords
+    map_part = f'🚗 <a href="{build_maps_url(e)}">Маршрут</a>'
 
     return (
         f"{idx}) <b>{title}</b> — {when} ({dist})\n"
         f"📍 {venue_display}\n"
-        f"{src_part}  🚗 {map_part}\n"
+        f"{src_part}  {map_part}\n"
     )
 
 
@@ -700,8 +754,12 @@ def sanitize_url(u: str | None) -> str | None:
     host = p.netloc.lower()
     if any(host == d or host.endswith("." + d) for d in BLACKLIST_DOMAINS):
         return None
-    # глушим общий календарь без конкретного события
-    if "calendar.google.com" in host and "eid=" not in u:
+    # Разрешаем Google Calendar ссылки с параметрами события
+    if "calendar.google.com" in host:
+        # Проверяем наличие параметров события
+        if any(param in u for param in ["eid=", "event=", "cid="]):
+            return u
+        # Отбрасываем пустые календарные ссылки
         return None
     return u
 
@@ -829,7 +887,9 @@ async def on_location(message: types.Message):
 
         # Единый конвейер: prepared → groups → counts → render
         try:
-            prepared, diag = prepare_events_for_feed(events, with_diag=True)
+            prepared, diag = prepare_events_for_feed(
+                events, user_point=(lat, lng), radius_km=settings.default_radius_km, with_diag=True
+            )
             logger.info(
                 f"prepared: kept={diag['kept']} dropped={diag['dropped']} reasons_top3={diag['reasons_top3']}"
             )
@@ -837,10 +897,9 @@ async def on_location(message: types.Message):
                 f"kept_by_type: ai={diag['kept_by_type']['ai']} user={diag['kept_by_type']['user']} source={diag['kept_by_type']['source']}"
             )
 
-            # Обогащаем события названиями мест и расстояниями
+            # Обогащаем события названиями мест (расстояния уже вычислены в prepare_events_for_feed)
             for event in prepared:
                 enrich_venue_name(event)
-                event["distance_km"] = haversine_km(lat, lng, event["lat"], event["lng"])
 
             # Группируем и считаем
             groups = group_by_type(prepared)
@@ -922,20 +981,22 @@ async def on_location(message: types.Message):
 
                     # Добавляем кнопки расширения радиуса, если событий меньше 3
                     if counts["all"] < 3:
-                        keyboard_buttons.append(
-                            [
-                                InlineKeyboardButton(
-                                    text="🔍 Расширить до 10 км", callback_data="rx:10"
-                                )
-                            ]
-                        )
-                        keyboard_buttons.append(
-                            [
-                                InlineKeyboardButton(
-                                    text="🔍 Расширить до 15 км", callback_data="rx:15"
-                                )
-                            ]
-                        )
+                        current_radius = int(settings.default_radius_km)
+                        radius_step = int(settings.radius_step_km)
+                        max_radius = int(settings.max_radius_km)
+
+                        # Создаем кнопки для расширения радиуса
+                        next_radius = current_radius + radius_step
+                        while next_radius <= max_radius:
+                            keyboard_buttons.append(
+                                [
+                                    InlineKeyboardButton(
+                                        text=f"🔍 Расширить до {next_radius} км",
+                                        callback_data=f"rx:{next_radius}",
+                                    )
+                                ]
+                            )
+                            next_radius += radius_step
 
                     inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
@@ -1206,7 +1267,7 @@ async def on_diag_webhook(message: types.Message):
         webhook_info = await bot.get_webhook_info()
 
         # Получаем переменные окружения
-        run_mode = os.getenv("BOT_RUN_MODE", "polling")
+        run_mode = os.getenv("BOT_RUN_MODE", "webhook")
         webhook_url = os.getenv("WEBHOOK_URL", "не установлен")
 
         info_lines = [
@@ -1286,6 +1347,80 @@ async def on_diag_last(message: types.Message):
     except Exception as e:
         logger.error(f"Ошибка в команде diag_last: {e}")
         await message.answer("Произошла ошибка при получении диагностики")
+
+
+@dp.message(Command("diag_search"))
+async def on_diag_search(message: types.Message):
+    """Обработчик команды /diag_search для диагностики поиска"""
+    try:
+        # Получаем состояние последнего запроса
+        state = user_state.get(message.chat.id)
+        if not state:
+            await message.answer("Нет данных о последнем запросе. Отправьте геолокацию.")
+            return
+
+        # Формируем диагностическую информацию
+        diag = state.get("diag", {})
+        counts = state.get("counts", {})
+        prepared = state.get("prepared", [])
+
+        # Получаем информацию о пользователе
+        lat = state.get("lat", "N/A")
+        lng = state.get("lng", "N/A")
+        radius = state.get("radius", "N/A")
+
+        # Формируем информацию о найденных событиях
+        kept_by_type = diag.get("kept_by_type", {})
+        reasons_top3 = diag.get("reasons_top3", [])
+
+        info_lines = [
+            "<b>🔍 Диагностика поиска</b>",
+            f"<b>user_point=</b>({lat}, {lng}) <b>radius_km=</b>{radius}",
+            f"<b>found_total=</b>{diag.get('in', 0)}",
+            f"<b>kept_by_type:</b> ai={kept_by_type.get('ai', 0)} user={kept_by_type.get('user', 0)} source={kept_by_type.get('source', 0)}",
+            f"<b>dropped=</b>{diag.get('dropped', 0)} <b>reasons_top3=</b>{reasons_top3}",
+            "",
+            "<b>📊 Детали по типам:</b>",
+            f"• AI события: {kept_by_type.get('ai', 0)}",
+            f"• Пользовательские: {kept_by_type.get('user', 0)}",
+            f"• Внешние источники: {kept_by_type.get('source', 0)}",
+            "",
+            "<b>📈 Итоговые счетчики:</b>",
+            f"• Всего: {counts.get('all', 0)}",
+            f"• Мгновенные: {counts.get('moments', 0)}",
+            f"• Пользовательские: {counts.get('user', 0)}",
+            f"• Внешние: {counts.get('sources', 0)}",
+        ]
+
+        # Добавляем информацию о причинах отбраковки
+        if reasons_top3:
+            info_lines.extend(
+                [
+                    "",
+                    "<b>🚫 Топ причины отбраковки:</b>",
+                ]
+            )
+            for reason in reasons_top3:
+                info_lines.append(f"• {reason}")
+
+        # Добавляем примеры отброшенных событий
+        if prepared:
+            info_lines.extend(
+                [
+                    "",
+                    "<b>✅ Примеры сохраненных событий:</b>",
+                ]
+            )
+            for i, event in enumerate(prepared[:3], 1):
+                title = event.get("title", "Без названия")[:50]
+                distance = event.get("distance_km", "N/A")
+                info_lines.append(f"• {i}) {title} ({distance} км)")
+
+        await message.answer("\n".join(info_lines), parse_mode="HTML")
+
+    except Exception as e:
+        logger.error(f"Ошибка в команде diag_search: {e}")
+        await message.answer("Произошла ошибка при получении диагностики поиска")
 
 
 @dp.message(Command("help"))
@@ -1398,7 +1533,9 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             return
 
         # Фильтруем и обогащаем события
-        prepared, diag = prepare_events_for_feed(events, with_diag=True)
+        prepared, diag = prepare_events_for_feed(
+            events, user_point=(lat, lng), radius_km=new_radius, with_diag=True
+        )
         logger.info(
             f"prepared: kept={diag['kept']} dropped={diag['dropped']} reasons_top3={diag['reasons_top3']}"
         )
@@ -1408,7 +1545,6 @@ async def handle_expand_radius(callback: types.CallbackQuery):
 
         for event in prepared:
             enrich_venue_name(event)
-            event["distance_km"] = haversine_km(lat, lng, event["lat"], event["lng"])
 
         # Группируем и считаем
         groups = group_by_type(prepared)
@@ -1451,7 +1587,7 @@ async def main():
     logger.info("Запуск улучшенного EventBot (aiogram 3.x)...")
 
     # Читаем переменные окружения
-    RUN_MODE = os.getenv("BOT_RUN_MODE", "polling")
+    RUN_MODE = os.getenv("BOT_RUN_MODE", "webhook")
     WEBHOOK_URL = os.getenv("WEBHOOK_URL")
     int(os.getenv("PORT", "8000"))
 
@@ -1486,6 +1622,9 @@ async def main():
                 types.BotCommand(
                     command="diag_last", description="📊 Диагностика последнего запроса"
                 ),
+                types.BotCommand(
+                    command="diag_search", description="🔍 Диагностика поиска событий"
+                ),
                 types.BotCommand(command="diag_webhook", description="🔗 Диагностика webhook"),
             ]
         )
@@ -1494,7 +1633,7 @@ async def main():
         logger.warning(f"Не удалось установить команды бота: {e}")
 
     # Определяем режим запуска
-    RUN_MODE = os.getenv("BOT_RUN_MODE", "polling")
+    RUN_MODE = os.getenv("BOT_RUN_MODE", "webhook")
     logger.info(f"Режим запуска: {RUN_MODE}")
 
     # Запускаем бота в зависимости от режима

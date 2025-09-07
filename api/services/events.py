@@ -3,7 +3,6 @@
 Сервис для поиска событий по локации и радиусу
 """
 
-import json
 import logging
 import os
 from datetime import datetime, timedelta
@@ -13,23 +12,17 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import text
 
 from database import get_session
-from utils.geo import bbox_around, find_user_region, haversine_km, inside_bbox, validate_coordinates
+from utils.geo import bbox_around, haversine_km, validate_coordinates
 
 logger = logging.getLogger(__name__)
 
 # Загружаем настройки
 DEFAULT_RADIUS = float(os.getenv("DEFAULT_RADIUS_KM", "5"))
-MAX_RADIUS = float(os.getenv("MAX_RADIUS_KM", "30"))
-STRICT_REGION_FILTER = os.getenv("STRICT_REGION_FILTER", "0") in ("1", "true", "True")
+MAX_RADIUS = float(os.getenv("MAX_RADIUS_KM", "15"))
+RADIUS_STEP = float(os.getenv("RADIUS_STEP_KM", "5"))
 BALI_TZ = ZoneInfo(os.getenv("DEFAULT_TZ", "Asia/Makassar"))  # UTC+8
 NEARBY_DAYS_AHEAD = int(os.getenv("NEARBY_DAYS_AHEAD", "0"))
 EXTENDED_DAYS_AHEAD = int(os.getenv("EXTENDED_DAYS_AHEAD", "0"))
-
-try:
-    GEO_BBOXES = json.loads(os.getenv("GEO_REGION_BBOXES", "{}"))
-except json.JSONDecodeError:
-    logger.warning("Неверный формат GEO_REGION_BBOXES, используем пустой словарь")
-    GEO_BBOXES = {}
 
 
 def get_events_nearby(
@@ -95,24 +88,6 @@ def get_events_nearby(
 
             enriched.sort(key=lambda x: x["distance_km"])
 
-            # 3) Жёсткий фильтр по региону (если включено)
-            if STRICT_REGION_FILTER and GEO_BBOXES:
-                region = find_user_region(lat, lon, GEO_BBOXES)
-                if region != "unknown" and enriched:
-                    logger.info(f"Применяем региональный фильтр для региона: {region}")
-                    bb = GEO_BBOXES[region]
-                    original_count = len(enriched)
-                    enriched = [
-                        e
-                        for e in enriched
-                        if e["lat"] is not None
-                        and e["lng"] is not None
-                        and inside_bbox(e["lat"], e["lng"], bb)
-                    ]
-                    filtered_count = original_count - len(enriched)
-                    if filtered_count > 0:
-                        logger.info(f"Отфильтровано {filtered_count} событий вне региона {region}")
-
             logger.info(
                 f"Найдено {len(enriched)} событий в радиусе {radius_km} км от ({lat}, {lon})"
             )
@@ -120,49 +95,6 @@ def get_events_nearby(
 
     except Exception as e:
         logger.error(f"Ошибка при поиске событий: {e}")
-        return []
-
-
-def get_events_by_region(region: str, limit: int = 50) -> list[dict[str, Any]]:
-    """Получает события по региону."""
-    if region not in GEO_BBOXES:
-        logger.warning(f"Неизвестный регион: {region}")
-        return []
-
-    bb = GEO_BBOXES[region]
-
-    try:
-        with get_session() as session:
-            rows = (
-                session.execute(
-                    text("""
-                SELECT id, title, description, time_utc, starts_at,
-                       lat, lng, location_name, source, url,
-                       status, created_at_utc, updated_at_utc,
-                       city, country, organizer_id, organizer_url
-                FROM events
-                WHERE lat IS NOT NULL AND lng IS NOT NULL
-                  AND lat BETWEEN :min_lat AND :max_lat
-                  AND lng BETWEEN :min_lon AND :max_lon
-                ORDER BY created_at_utc DESC
-                LIMIT :lim
-                """),
-                    dict(
-                        min_lat=bb["min_lat"],
-                        max_lat=bb["max_lat"],
-                        min_lon=bb["min_lon"],
-                        max_lon=bb["max_lon"],
-                        lim=limit,
-                    ),
-                )
-                .mappings()
-                .all()
-            )
-
-            return [dict(row) for row in rows]
-
-    except Exception as e:
-        logger.error(f"Ошибка при получении событий по региону {region}: {e}")
         return []
 
 
@@ -263,24 +195,6 @@ def get_events_nearby_today(
             # Сортировка по времени, затем по расстоянию
             filtered.sort(key=lambda x: (x[0]["time_utc"], x[1]))
 
-            # 3) Жёсткий фильтр по региону (если включено)
-            if STRICT_REGION_FILTER and GEO_BBOXES:
-                region = find_user_region(lat, lon, GEO_BBOXES)
-                if region != "unknown" and filtered:
-                    logger.info(f"Применяем региональный фильтр для региона: {region}")
-                    bb = GEO_BBOXES[region]
-                    original_count = len(filtered)
-                    filtered = [
-                        (e, d)
-                        for e, d in filtered
-                        if e["lat"] is not None
-                        and e["lng"] is not None
-                        and inside_bbox(e["lat"], e["lng"], bb)
-                    ]
-                    filtered_count = original_count - len(filtered)
-                    if filtered_count > 0:
-                        logger.info(f"Отфильтровано {filtered_count} событий вне региона {region}")
-
             # Пагинация
             total = len(filtered)
             page = filtered[offset : offset + limit]
@@ -320,38 +234,6 @@ def get_cities_with_counts_today() -> list[dict[str, Any]]:
                 .mappings()
                 .all()
             )
-
-            # Фильтр по региону Бали (если включено)
-            if STRICT_REGION_FILTER and GEO_BBOXES and "bali" in GEO_BBOXES:
-                bb = GEO_BBOXES["bali"]
-                filtered_cities = []
-                for row in rows:
-                    # Проверяем, есть ли события в этом городе в рамках Бали
-                    city_events = session.execute(
-                        text("""
-                        SELECT COUNT(*) as cnt
-                        FROM events
-                        WHERE city = :city
-                          AND lat IS NOT NULL AND lng IS NOT NULL
-                          AND lat BETWEEN :min_lat AND :max_lat
-                          AND lng BETWEEN :min_lon AND :max_lon
-                          AND time_utc >= :start_utc AND time_utc < :end_utc
-                        """),
-                        dict(
-                            city=row["city"],
-                            min_lat=bb["min_lat"],
-                            max_lat=bb["max_lat"],
-                            min_lon=bb["min_lon"],
-                            max_lon=bb["max_lon"],
-                            start_utc=start.astimezone(ZoneInfo("UTC")),
-                            end_utc=end.astimezone(ZoneInfo("UTC")),
-                        ),
-                    ).scalar()
-
-                    if city_events > 0:
-                        filtered_cities.append({"city": row["city"], "cnt": city_events})
-
-                return filtered_cities
 
             return [dict(row) for row in rows]
 

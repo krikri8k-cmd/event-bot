@@ -17,8 +17,8 @@ env_file = os.getenv("ENV_FILE")
 if env_file:
     _load_dotenv_with_bom(Path(env_file))
 
-# Then load .env.local and .env
-for fn in (".env.local", ".env"):
+# Then load .env.local, app.local.env and .env
+for fn in (".env.local", "app.local.env", ".env"):
     _load_dotenv_with_bom(_BASE_DIR / fn)
 
 
@@ -32,6 +32,8 @@ class Settings:
     meetup_api_key: str | None
     google_maps_api_key: str | None
     default_radius_km: float
+    radius_step_km: float
+    max_radius_km: float
     admin_ids: set[int]
     google_application_credentials: str | None
     env_file: str | None
@@ -64,12 +66,24 @@ def load_settings(require_bot: bool = False) -> Settings:
     meetup_api_key = os.getenv("MEETUP_API_KEY")
     google_maps_api_key = os.getenv("GOOGLE_MAPS_API_KEY")
     default_radius_km_str = (os.getenv("DEFAULT_RADIUS_KM") or "5").strip()
+    radius_step_km_str = (os.getenv("RADIUS_STEP_KM") or "5").strip()
+    max_radius_km_str = (os.getenv("MAX_RADIUS_KM") or "15").strip()
     admin_ids = _parse_admin_ids(os.getenv("ADMIN_IDS"))
 
     try:
         default_radius_km = float(default_radius_km_str)
     except ValueError:
         default_radius_km = 4.0
+
+    try:
+        radius_step_km = float(radius_step_km_str)
+    except ValueError:
+        radius_step_km = 5.0
+
+    try:
+        max_radius_km = float(max_radius_km_str)
+    except ValueError:
+        max_radius_km = 15.0
 
     # Требовать токен только в режиме бота
     if require_bot and not telegram_token:
@@ -90,6 +104,8 @@ def load_settings(require_bot: bool = False) -> Settings:
         meetup_api_key=meetup_api_key,
         google_maps_api_key=google_maps_api_key,
         default_radius_km=default_radius_km,
+        radius_step_km=radius_step_km,
+        max_radius_km=max_radius_km,
         admin_ids=admin_ids,
         google_application_credentials=gcp_path,
         env_file=env_file,
