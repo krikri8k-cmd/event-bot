@@ -26,6 +26,7 @@ from aiogram.types import (
     KeyboardButton,
     ReplyKeyboardMarkup,
 )
+from aiohttp import TCPConnector
 
 from bot_health import health_server
 from config import load_settings
@@ -665,11 +666,12 @@ def sanitize_url(u: str | None) -> str | None:
 init_engine(settings.database_url)
 create_all()
 
-# Создание SSL контекста для корректной работы с Telegram API
+# Создание SSL контекста и connector для корректной работы с Telegram API
 ssl_context = ssl.create_default_context(cafile=certifi.where())
+connector = TCPConnector(ssl=ssl_context)
 
-# Создание бота и диспетчера с SSL контекстом
-session = AiohttpSession(context=ssl_context)
+# Создание бота и диспетчера с SSL connector
+session = AiohttpSession(connector=connector)
 bot = Bot(token=settings.telegram_token, session=session)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
@@ -1466,10 +1468,22 @@ async def main():
 
             await dp.start_polling(bot)
 
+    except asyncio.CancelledError:
+        # Штатная отмена задач при завершении — не шумим
+        logger.info("Polling cancelled (shutdown).")
     except KeyboardInterrupt:
-        logger.info("Бот остановлен")
+        logger.info("Остановлено пользователем (KeyboardInterrupt).")
     finally:
-        await bot.session.close()
+        # Закрыть сетевые коннекторы аккуратно
+        try:
+            await dp.storage.close()
+        except Exception:
+            pass
+        try:
+            await bot.session.close()
+        except Exception:
+            pass
+        logger.info("Бот остановлен корректно.")
 
 
 if __name__ == "__main__":
