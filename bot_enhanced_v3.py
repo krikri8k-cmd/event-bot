@@ -24,7 +24,6 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
 )
 
-from bot_health import health_server
 from config import load_settings
 from database import Event, User, create_all, get_session, init_engine
 from enhanced_event_search import enhanced_search_events
@@ -1199,6 +1198,35 @@ async def on_admin_event(message: types.Message):
         await message.answer("Произошла ошибка при получении информации о событии")
 
 
+@dp.message(Command("diag_webhook"))
+async def on_diag_webhook(message: types.Message):
+    """Диагностика webhook"""
+    try:
+        # Получаем информацию о webhook
+        webhook_info = await bot.get_webhook_info()
+
+        # Получаем переменные окружения
+        run_mode = os.getenv("BOT_RUN_MODE", "polling")
+        webhook_url = os.getenv("WEBHOOK_URL", "не установлен")
+
+        info_lines = [
+            "🔗 <b>Диагностика Webhook</b>",
+            "",
+            f"<b>Режим запуска:</b> {run_mode}",
+            f"<b>WEBHOOK_URL:</b> {webhook_url}",
+            f"<b>Текущий webhook:</b> {webhook_info.url or 'пустой'}",
+            f"<b>Pending updates:</b> {webhook_info.pending_update_count}",
+            f"<b>Has custom certificate:</b> {webhook_info.has_custom_certificate}",
+            f"<b>Allowed updates:</b> {', '.join(webhook_info.allowed_updates) if webhook_info.allowed_updates else 'все'}",
+        ]
+
+        await message.answer("\n".join(info_lines), parse_mode="HTML")
+
+    except Exception as e:
+        logger.error(f"Ошибка в диагностике webhook: {e}")
+        await message.answer(f"❌ Ошибка диагностики: {e}")
+
+
 @dp.message(Command("diag_last"))
 async def on_diag_last(message: types.Message):
     """Обработчик команды /diag_last для диагностики последнего запроса"""
@@ -1422,18 +1450,25 @@ async def main():
     """Главная функция"""
     logger.info("Запуск улучшенного EventBot (aiogram 3.x)...")
 
-    # SSL контекст создается автоматически, дополнительная настройка не требуется
-
-    # Запускаем health check сервер для Railway (только в polling режиме)
+    # Читаем переменные окружения
     RUN_MODE = os.getenv("BOT_RUN_MODE", "polling")
-    if RUN_MODE != "webhook":
-        try:
-            if health_server.start():
-                logger.info("Health check сервер запущен")
-            else:
-                logger.warning("Не удалось запустить health check сервер")
-        except Exception as e:
-            logger.warning(f"Ошибка запуска health check сервера: {e}")
+    WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+    int(os.getenv("PORT", "8000"))
+
+    # Логируем конфигурацию
+    logger.info(f"Режим запуска: {RUN_MODE}")
+    if WEBHOOK_URL:
+        logger.info(f"WEBHOOK_URL: {WEBHOOK_URL}")
+    else:
+        logger.info("WEBHOOK_URL не установлен")
+
+    # Проверяем текущий webhook
+    try:
+        webhook_info = await bot.get_webhook_info()
+        logger.info(f"Текущий webhook: {webhook_info.url or 'пустой'}")
+        logger.info(f"Pending updates: {webhook_info.pending_update_count}")
+    except Exception as e:
+        logger.warning(f"Ошибка получения webhook info: {e}")
 
     # Устанавливаем команды бота для удобства пользователей
     try:
@@ -1451,6 +1486,7 @@ async def main():
                 types.BotCommand(
                     command="diag_last", description="📊 Диагностика последнего запроса"
                 ),
+                types.BotCommand(command="diag_webhook", description="🔗 Диагностика webhook"),
             ]
         )
         logger.info("Команды бота установлены")
