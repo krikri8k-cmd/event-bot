@@ -18,6 +18,20 @@ from config import load_settings
 # Настройка логирования
 logger = logging.getLogger(__name__)
 
+
+def safe_json_dumps(obj):
+    """Безопасная сериализация в JSON с обработкой datetime"""
+    import json
+    from datetime import datetime
+
+    def json_serializer(obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
+    return json.dumps(obj, ensure_ascii=False, default=json_serializer)
+
+
 # Хелперы для нормализации источников
 VENUE_RX = r"(?:в|at|in)\s+([A-ZА-ЯЁ][\w\s'&.-]{2,})"  # примитив: «в Кафе Ромашка»
 ADDR_RX = r"((?:Jl\.|Jalan|ул\.|улица|street|st\.|road|rd\.|avenue|ave\.)[^\n,;]{5,80})"
@@ -102,9 +116,7 @@ def normalize_source_event(e: dict) -> dict:
             e["when_str"] = start_time
 
     # 6) Логируем результат нормализации
-    import json
-
-    logger.debug("norm.source=%s", json.dumps(e, ensure_ascii=False))
+    logger.debug("norm.source=%s", safe_json_dumps(e))
 
     return e
 
@@ -144,11 +156,7 @@ class EventSearchEngine:
             if popular_events:
                 logger.info(f"   ✅ Найдено {len(popular_events)} событий в популярных местах")
                 # Сырая диагностика
-                import json
-
-                logger.debug(
-                    "raw.popular[:3]=%s", json.dumps(popular_events[:3], ensure_ascii=False)
-                )
+                logger.debug("raw.popular[:3]=%s", safe_json_dumps(popular_events[:3]))
                 all_events.extend(popular_events)
         except Exception as e:
             logger.error(f"   ❌ Ошибка при поиске в популярных местах: {e}")
@@ -160,9 +168,7 @@ class EventSearchEngine:
             if calendar_events:
                 logger.info(f"   ✅ Найдено {len(calendar_events)} событий в календарях")
                 # Сырая диагностика
-                import json
-
-                logger.debug("raw.cals[:3]=%s", json.dumps(calendar_events[:3], ensure_ascii=False))
+                logger.debug("raw.cals[:3]=%s", safe_json_dumps(calendar_events[:3]))
                 all_events.extend(calendar_events)
         except Exception as e:
             logger.error(f"   ❌ Ошибка при поиске в календарях: {e}")
@@ -174,9 +180,7 @@ class EventSearchEngine:
             if social_events:
                 logger.info(f"   ✅ Найдено {len(social_events)} событий в соцсетях")
                 # Сырая диагностика
-                import json
-
-                logger.debug("raw.social[:3]=%s", json.dumps(social_events[:3], ensure_ascii=False))
+                logger.debug("raw.social[:3]=%s", safe_json_dumps(social_events[:3]))
                 all_events.extend(social_events)
         except Exception as e:
             logger.error(f"   ❌ Ошибка при поиске в соцсетях: {e}")
