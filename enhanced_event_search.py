@@ -6,15 +6,78 @@
 import asyncio
 import logging
 import random
+import re
 from datetime import datetime
 from math import cos, radians
 from typing import Any
+from urllib.parse import urlparse
 
 from ai_utils import fetch_ai_events_nearby
 from config import load_settings
 
 # Настройка логирования
 logger = logging.getLogger(__name__)
+
+# Хелперы для нормализации источников
+VENUE_RX = r"(?:в|at|in)\s+([A-ZА-ЯЁ][\w\s'&.-]{2,})"  # примитив: «в Кафе Ромашка»
+ADDR_RX = r"((?:Jl\.|Jalan|ул\.|улица|street|st\.|road|rd\.|avenue|ave\.)[^\n,;]{5,80})"
+
+
+def extract_venue_from_text(title: str, desc: str) -> str | None:
+    """Извлекает название места из текста"""
+    for txt in (title, desc):
+        if not txt:
+            continue
+        m = re.search(VENUE_RX, txt, flags=re.I)
+        if m:
+            return m.group(1).strip()[:80]
+    return None
+
+
+def extract_address_from_text(desc: str) -> str | None:
+    """Извлекает адрес из текста"""
+    if not desc:
+        return None
+    m = re.search(ADDR_RX, desc, flags=re.I)
+    return m.group(1).strip()[:120] if m else None
+
+
+def sanitize_url(u: str | None) -> str | None:
+    """Санитизирует URL, отбрасывая невалидные"""
+    if not u:
+        return None
+    u = u.strip()
+    p = urlparse(u)
+    if p.scheme not in ("http", "https") or not p.netloc:
+        return None
+    host = p.netloc.lower()
+    if host.endswith(("example.com", "example.org", "example.net")):
+        return None
+    if "calendar.google.com" in host and "eid=" not in u:
+        return None
+    return u
+
+
+def normalize_source_event(e: dict) -> dict:
+    """Нормализует событие из источника"""
+    title = e.get("title", "")
+    desc = e.get("description", "")
+
+    # 1) Название места из текста
+    e["venue_name"] = e.get("venue_name") or extract_venue_from_text(title, desc)
+
+    # 2) Адрес из текста
+    e["address"] = e.get("address") or extract_address_from_text(desc)
+
+    # 3) Источник-URL (пока заглушка)
+    e["source_url"] = sanitize_url(e.get("source_url") or e.get("url") or e.get("link"))
+
+    # 4) Логируем результат нормализации
+    import json
+
+    logger.debug("norm.source=%s", json.dumps(e, ensure_ascii=False))
+
+    return e
 
 
 class EventSearchEngine:
@@ -51,6 +114,12 @@ class EventSearchEngine:
             popular_events = await self._search_popular_places(lat, lng, radius_km)
             if popular_events:
                 logger.info(f"   ✅ Найдено {len(popular_events)} событий в популярных местах")
+                # Сырая диагностика
+                import json
+
+                logger.debug(
+                    "raw.popular[:3]=%s", json.dumps(popular_events[:3], ensure_ascii=False)
+                )
                 all_events.extend(popular_events)
         except Exception as e:
             logger.error(f"   ❌ Ошибка при поиске в популярных местах: {e}")
@@ -61,6 +130,10 @@ class EventSearchEngine:
             calendar_events = await self._search_event_calendars(lat, lng, radius_km)
             if calendar_events:
                 logger.info(f"   ✅ Найдено {len(calendar_events)} событий в календарях")
+                # Сырая диагностика
+                import json
+
+                logger.debug("raw.cals[:3]=%s", json.dumps(calendar_events[:3], ensure_ascii=False))
                 all_events.extend(calendar_events)
         except Exception as e:
             logger.error(f"   ❌ Ошибка при поиске в календарях: {e}")
@@ -71,6 +144,10 @@ class EventSearchEngine:
             social_events = await self._search_social_media(lat, lng, radius_km)
             if social_events:
                 logger.info(f"   ✅ Найдено {len(social_events)} событий в соцсетях")
+                # Сырая диагностика
+                import json
+
+                logger.debug("raw.social[:3]=%s", json.dumps(social_events[:3], ensure_ascii=False))
                 all_events.extend(social_events)
         except Exception as e:
             logger.error(f"   ❌ Ошибка при поиске в соцсетях: {e}")
@@ -184,41 +261,41 @@ class EventSearchEngine:
 
         # Генерируем события на основе типа места
         if place["type"] == "restaurant":
-            events.append(
-                {
-                    "title": f"Ужин в {place['name']}",
-                    "description": "Отличная кухня и атмосфера",
-                    "time_local": f"{datetime.now().strftime('%Y-%m-%d')} 19:00",
-                    "location_name": place["name"],
-                    "lat": place["lat"],
-                    "lng": place["lng"],
-                    "source": "popular_places",
-                }
-            )
+            event = {
+                "title": f"Ужин в {place['name']}",
+                "description": "Отличная кухня и атмосфера в ресторане",
+                "time_local": f"{datetime.now().strftime('%Y-%m-%d')} 19:00",
+                "location_name": place["name"],
+                "lat": place["lat"],
+                "lng": place["lng"],
+                "source": "popular_places",
+            }
+            event = normalize_source_event(event)
+            events.append(event)
         elif place["type"] == "park":
-            events.append(
-                {
-                    "title": f"Прогулка в {place['name']}",
-                    "description": "Приятная прогулка на свежем воздухе",
-                    "time_local": f"{datetime.now().strftime('%Y-%m-%d')} 16:00",
-                    "location_name": place["name"],
-                    "lat": place["lat"],
-                    "lng": place["lng"],
-                    "source": "popular_places",
-                }
-            )
+            event = {
+                "title": f"Прогулка в {place['name']}",
+                "description": "Приятная прогулка на свежем воздухе в парке",
+                "time_local": f"{datetime.now().strftime('%Y-%m-%d')} 16:00",
+                "location_name": place["name"],
+                "lat": place["lat"],
+                "lng": place["lng"],
+                "source": "popular_places",
+            }
+            event = normalize_source_event(event)
+            events.append(event)
         elif place["type"] == "museum":
-            events.append(
-                {
-                    "title": f"Посещение {place['name']}",
-                    "description": "Интересные экспонаты и выставки",
-                    "time_local": f"{datetime.now().strftime('%Y-%m-%d')} 14:00",
-                    "location_name": place["name"],
-                    "lat": place["lat"],
-                    "lng": place["lng"],
-                    "source": "popular_places",
-                }
-            )
+            event = {
+                "title": f"Посещение {place['name']}",
+                "description": "Интересные экспонаты и выставки в музее",
+                "time_local": f"{datetime.now().strftime('%Y-%m-%d')} 14:00",
+                "location_name": place["name"],
+                "lat": place["lat"],
+                "lng": place["lng"],
+                "source": "popular_places",
+            }
+            event = normalize_source_event(event)
+            events.append(event)
 
         return events
 
@@ -276,13 +353,15 @@ class EventSearchEngine:
 
             event = {
                 "title": f"{random.choice(event_types)} в {hour}:00",
-                "description": f"Интересное событие в {hour}:00",
+                "description": f"Интересное событие в {hour}:00 в центре города",
                 "time_local": f"{today.strftime('%Y-%m-%d')} {hour:02d}:00",
                 "location_name": "Место проведения",
                 "lat": event_lat,
                 "lng": event_lng,
             }
 
+            # Нормализуем событие
+            event = normalize_source_event(event)
             events.append(event)
 
         return events
@@ -351,13 +430,15 @@ class EventSearchEngine:
 
             event = {
                 "title": activity,
-                "description": "Популярная активность в соцсетях",
+                "description": "Популярная активность в соцсетях в парке",
                 "time_local": f"{datetime.now().strftime('%Y-%m-%d')} {time}",
                 "location_name": f"Место для {activity.lower()}",
                 "lat": event_lat,
                 "lng": event_lng,
             }
 
+            # Нормализуем событие
+            event = normalize_source_event(event)
             events.append(event)
 
         return events
