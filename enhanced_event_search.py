@@ -63,16 +63,37 @@ def normalize_source_event(e: dict) -> dict:
     title = e.get("title", "")
     desc = e.get("description", "")
 
-    # 1) Название места из текста
-    e["venue_name"] = e.get("venue_name") or extract_venue_from_text(title, desc)
+    # 1) Обеспечиваем минимальный контракт
+    if "type" not in e:
+        e["type"] = "source"
 
-    # 2) Адрес из текста
-    e["address"] = e.get("address") or extract_address_from_text(desc)
+    # 2) Нормализуем venue если есть
+    if "venue" in e and isinstance(e["venue"], dict):
+        venue = e["venue"]
+        # Извлекаем venue_name и address из текста если нет
+        if not venue.get("name"):
+            venue["name"] = extract_venue_from_text(title, desc)
+        if not venue.get("address"):
+            venue["address"] = extract_address_from_text(desc)
+    else:
+        # Создаем venue из старых полей
+        e["venue"] = {
+            "name": e.get("venue_name") or extract_venue_from_text(title, desc),
+            "address": e.get("address") or extract_address_from_text(desc),
+            "lat": e.get("lat"),
+            "lon": e.get("lng"),
+        }
 
-    # 3) Источник-URL (пока заглушка)
+    # 3) Санитизируем URL
     e["source_url"] = sanitize_url(e.get("source_url") or e.get("url") or e.get("link"))
 
-    # 4) Логируем результат нормализации
+    # 4) Обеспечиваем совместимость со старыми полями
+    if "venue_name" not in e and e.get("venue", {}).get("name"):
+        e["venue_name"] = e["venue"]["name"]
+    if "address" not in e and e.get("venue", {}).get("address"):
+        e["address"] = e["venue"]["address"]
+
+    # 5) Логируем результат нормализации
     import json
 
     logger.debug("norm.source=%s", json.dumps(e, ensure_ascii=False))
@@ -262,10 +283,20 @@ class EventSearchEngine:
         # Генерируем события на основе типа места
         if place["type"] == "restaurant":
             event = {
+                "type": "source",
                 "title": f"Ужин в {place['name']}",
                 "description": "Отличная кухня и атмосфера в ресторане",
                 "time_local": f"{datetime.now().strftime('%Y-%m-%d')} 19:00",
-                "location_name": place["name"],
+                "start_time": datetime.strptime(
+                    f"{datetime.now().strftime('%Y-%m-%d')} 19:00", "%Y-%m-%d %H:%M"
+                ),
+                "venue": {
+                    "name": place["name"],
+                    "address": "Ресторанный район",
+                    "lat": place["lat"],
+                    "lon": place["lng"],
+                },
+                "source_url": f"https://restaurants.com/{place['name'].lower().replace(' ', '-')}",
                 "lat": place["lat"],
                 "lng": place["lng"],
                 "source": "popular_places",
@@ -274,10 +305,20 @@ class EventSearchEngine:
             events.append(event)
         elif place["type"] == "park":
             event = {
+                "type": "source",
                 "title": f"Прогулка в {place['name']}",
                 "description": "Приятная прогулка на свежем воздухе в парке",
                 "time_local": f"{datetime.now().strftime('%Y-%m-%d')} 16:00",
-                "location_name": place["name"],
+                "start_time": datetime.strptime(
+                    f"{datetime.now().strftime('%Y-%m-%d')} 16:00", "%Y-%m-%d %H:%M"
+                ),
+                "venue": {
+                    "name": place["name"],
+                    "address": "Парковая зона",
+                    "lat": place["lat"],
+                    "lon": place["lng"],
+                },
+                "source_url": f"https://parks.com/{place['name'].lower().replace(' ', '-')}",
                 "lat": place["lat"],
                 "lng": place["lng"],
                 "source": "popular_places",
@@ -286,10 +327,20 @@ class EventSearchEngine:
             events.append(event)
         elif place["type"] == "museum":
             event = {
+                "type": "source",
                 "title": f"Посещение {place['name']}",
                 "description": "Интересные экспонаты и выставки в музее",
                 "time_local": f"{datetime.now().strftime('%Y-%m-%d')} 14:00",
-                "location_name": place["name"],
+                "start_time": datetime.strptime(
+                    f"{datetime.now().strftime('%Y-%m-%d')} 14:00", "%Y-%m-%d %H:%M"
+                ),
+                "venue": {
+                    "name": place["name"],
+                    "address": "Культурный район",
+                    "lat": place["lat"],
+                    "lon": place["lng"],
+                },
+                "source_url": f"https://museums.com/{place['name'].lower().replace(' ', '-')}",
                 "lat": place["lat"],
                 "lng": place["lng"],
                 "source": "popular_places",
@@ -352,10 +403,20 @@ class EventSearchEngine:
             event_types = ["Встреча", "Мастер-класс", "Презентация", "Семинар", "Воркшоп"]
 
             event = {
+                "type": "source",
                 "title": f"{random.choice(event_types)} в {hour}:00",
                 "description": f"Интересное событие в {hour}:00 в центре города",
                 "time_local": f"{today.strftime('%Y-%m-%d')} {hour:02d}:00",
-                "location_name": "Место проведения",
+                "start_time": datetime.strptime(
+                    f"{today.strftime('%Y-%m-%d')} {hour:02d}:00", "%Y-%m-%d %H:%M"
+                ),
+                "venue": {
+                    "name": "Центр города",
+                    "address": "Центральная площадь",
+                    "lat": event_lat,
+                    "lon": event_lng,
+                },
+                "source_url": f"https://example-calendar.com/event/{hour}",
                 "lat": event_lat,
                 "lng": event_lng,
             }
@@ -429,10 +490,20 @@ class EventSearchEngine:
                 time = f"{16 + i}:00"
 
             event = {
+                "type": "source",
                 "title": activity,
                 "description": "Популярная активность в соцсетях в парке",
                 "time_local": f"{datetime.now().strftime('%Y-%m-%d')} {time}",
-                "location_name": f"Место для {activity.lower()}",
+                "start_time": datetime.strptime(
+                    f"{datetime.now().strftime('%Y-%m-%d')} {time}", "%Y-%m-%d %H:%M"
+                ),
+                "venue": {
+                    "name": f"Парк для {activity.lower()}",
+                    "address": "Городской парк",
+                    "lat": event_lat,
+                    "lon": event_lng,
+                },
+                "source_url": f"https://social-events.com/activity/{i}",
                 "lat": event_lat,
                 "lng": event_lng,
             }

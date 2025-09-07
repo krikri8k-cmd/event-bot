@@ -302,26 +302,32 @@ def prepare_events_for_feed(
         # Добавляем поле type в событие
         e["type"] = event_type
 
-        # Для событий из источников проверяем source_url
+        # Для событий из источников проверяем минимальный контракт
         if event_type == "source":
             u = sanitize_url(e.get("source_url"))
+
+            # Проверяем наличие локации (новая структура venue или старая)
+            venue = e.get("venue", {})
             has_loc = any(
                 [
+                    venue.get("name"),
+                    venue.get("address"),
+                    (venue.get("lat") is not None and venue.get("lon") is not None),
                     e.get("venue_name"),
                     e.get("address"),
                     (e.get("lat") is not None and e.get("lng") is not None),
                 ]
             )
-            has_time = bool(e.get("when_str"))
 
-            # Согласно ТЗ: НЕ удалять события source, даже если нет source_url,
-            # при наличии venue/address/coords + when
-            if not u and not (has_loc and has_time):
+            # Новое правило: пропускаем если есть валидный URL ИЛИ валидная локация
+            if not u and not has_loc:
                 dropped.append((e, "source_without_url_and_location"))
                 logger.warning(
-                    "skip source invalid | title=%s url=%s reason=%s",
+                    "skip source invalid | title=%s url=%s have_url=%s have_loc=%s reason=%s",
                     e.get("title"),
                     e.get("source_url"),
+                    bool(u),
+                    has_loc,
                     "source_without_url_and_location",
                 )
                 continue
@@ -513,9 +519,13 @@ logger = logging.getLogger(__name__)
 
 def build_maps_url(e: dict) -> str:
     """Создает URL для Google Maps с приоритетом venue_name > address > coordinates"""
-    name = (e.get("venue_name") or "").strip()
-    addr = (e.get("address") or "").strip()
-    lat, lng = e.get("lat"), e.get("lng")
+    # Поддерживаем новую структуру venue и старую
+    venue = e.get("venue", {})
+    name = (venue.get("name") or e.get("venue_name") or "").strip()
+    addr = (venue.get("address") or e.get("address") or "").strip()
+    lat = venue.get("lat") or e.get("lat")
+    lng = venue.get("lon") or e.get("lng")
+
     if name:
         return f"https://www.google.com/maps/search/?api=1&query={quote_plus(name)}"
     if addr:
@@ -552,14 +562,29 @@ def render_event_html(e: dict, idx: int) -> str:
     title = html.escape(e.get("title", "Событие"))
     when = e.get("when_str", "")
     dist = f"{e['distance_km']:.1f} км" if e.get("distance_km") is not None else ""
-    venue = html.escape(e.get("venue_name") or e.get("address") or "Локация уточняется")
+
+    # Поддерживаем новую структуру venue и старую
+    venue = e.get("venue", {})
+    venue_name = venue.get("name") or e.get("venue_name")
+    venue_address = venue.get("address") or e.get("address")
+
+    if venue_name:
+        venue_display = html.escape(venue_name)
+    elif venue_address:
+        venue_display = html.escape(venue_address)
+    elif e.get("lat") and e.get("lng"):
+        venue_display = f"координаты ({e['lat']:.4f}, {e['lng']:.4f})"
+    else:
+        venue_display = "Локация уточняется"
 
     src = get_source_url(e)
     src_part = f'🔗 <a href="{html.escape(src)}">Источник</a>' if src else "ℹ️ Источник не указан"
     map_part = f'<a href="{build_maps_url(e)}">Маршрут</a>'
 
     return (
-        f"{idx}) <b>{title}</b> — {when} ({dist})\n" f"📍 {venue}\n" f"{src_part}  🚗 {map_part}\n"
+        f"{idx}) <b>{title}</b> — {when} ({dist})\n"
+        f"📍 {venue_display}\n"
+        f"{src_part}  🚗 {map_part}\n"
     )
 
 
