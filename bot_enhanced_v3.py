@@ -314,6 +314,8 @@ def prepare_events_for_feed(
             )
             has_time = bool(e.get("when_str"))
 
+            # Согласно ТЗ: НЕ удалять события source, даже если нет source_url,
+            # при наличии venue/address/coords + when
             if not u and not (has_loc and has_time):
                 dropped.append((e, "source_without_url_and_location"))
                 logger.warning(
@@ -327,11 +329,30 @@ def prepare_events_for_feed(
 
         kept.append(enrich_venue_name(e))
 
+    # Детальная диагностика по типам
+    kept_by_type = {"ai": 0, "user": 0, "source": 0}
+    for e in kept:
+        event_type = e.get("type", "unknown")
+        if event_type == "moment":
+            kept_by_type["ai"] += 1
+        elif event_type == "user":
+            kept_by_type["user"] += 1
+        elif event_type == "source":
+            kept_by_type["source"] += 1
+
+    # Топ-3 причины отбраковки
+    from collections import Counter
+
+    reason_counts = Counter([r for _, r in dropped])
+    reasons_top3 = [f"{reason}({count})" for reason, count in reason_counts.most_common(3)]
+
     diag = {
         "in": len(events),
         "kept": len(kept),
         "dropped": len(dropped),
+        "kept_by_type": kept_by_type,
         "reasons": [r for _, r in dropped],
+        "reasons_top3": reasons_top3,
     }
 
     return (kept, diag) if with_diag else kept
@@ -364,7 +385,10 @@ async def send_compact_events_list(
     # 1) Сначала фильтруем и группируем (после всех проверок publishable)
     prepared, diag = prepare_events_for_feed(events, with_diag=True)
     logger.info(
-        f"diag: in={diag['in']} kept={diag['kept']} dropped={diag['dropped']} reasons={diag['reasons']}"
+        f"prepared: kept={diag['kept']} dropped={diag['dropped']} reasons_top3={diag['reasons_top3']}"
+    )
+    logger.info(
+        f"kept_by_type: ai={diag['kept_by_type']['ai']} user={diag['kept_by_type']['user']} source={diag['kept_by_type']['source']}"
     )
 
     # Обогащаем события названиями мест и расстояниями
@@ -783,7 +807,10 @@ async def on_location(message: types.Message):
         try:
             prepared, diag = prepare_events_for_feed(events, with_diag=True)
             logger.info(
-                f"diag: in={diag['in']} kept={diag['kept']} dropped={diag['dropped']} reasons={diag['reasons']}"
+                f"prepared: kept={diag['kept']} dropped={diag['dropped']} reasons_top3={diag['reasons_top3']}"
+            )
+            logger.info(
+                f"kept_by_type: ai={diag['kept_by_type']['ai']} user={diag['kept_by_type']['user']} source={diag['kept_by_type']['source']}"
             )
 
             # Обогащаем события названиями мест и расстояниями
@@ -1181,16 +1208,24 @@ async def on_diag_last(message: types.Message):
             f"• Из источников: {counts.get('sources', 0)}",
         ]
 
-        # Показываем первые 5 событий
+        # Показываем первые 5 событий с детальной диагностикой
         if prepared:
             info_lines.extend(["", f"<b>📋 Первые {min(5, len(prepared))} событий:</b>"])
             for i, event in enumerate(prepared[:5], 1):
                 event_type = event.get("type", "unknown")
                 title = html.escape(event.get("title", "Без названия"))
                 has_url = bool(get_source_url(event))
-                info_lines.append(
-                    f"{i}) <b>{title}</b> (тип: {event_type}, URL: {'да' if has_url else 'нет'})"
-                )
+                venue = event.get("venue_name", "Не указано")
+                when = event.get("when_str", "Не указано")
+                info_lines.append(f"{i}) <b>{title}</b>")
+                info_lines.append(f"   Тип: {event_type} | URL: {'да' if has_url else 'нет'}")
+                info_lines.append(f"   Место: {venue} | Время: {when}")
+
+        # Показываем первое отброшенное source событие для диагностики
+        if diag.get("dropped", 0) > 0:
+            info_lines.extend(["", "<b>🔍 Диагностика отброшенных событий:</b>"])
+            # Здесь можно добавить логику для показа первого отброшенного события
+            info_lines.append("• Проверьте логи для детальной информации об отброшенных событиях")
 
         text = "\n".join(info_lines)
         await message.answer(text, parse_mode="HTML", disable_web_page_preview=True)
@@ -1312,7 +1347,10 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         # Фильтруем и обогащаем события
         prepared, diag = prepare_events_for_feed(events, with_diag=True)
         logger.info(
-            f"diag: in={diag['in']} kept={diag['kept']} dropped={diag['dropped']} reasons={diag['reasons']}"
+            f"prepared: kept={diag['kept']} dropped={diag['dropped']} reasons_top3={diag['reasons_top3']}"
+        )
+        logger.info(
+            f"kept_by_type: ai={diag['kept_by_type']['ai']} user={diag['kept_by_type']['user']} source={diag['kept_by_type']['source']}"
         )
 
         for event in prepared:

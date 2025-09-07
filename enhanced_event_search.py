@@ -75,7 +75,20 @@ class EventSearchEngine:
         except Exception as e:
             logger.error(f"   ❌ Ошибка при поиске в соцсетях: {e}")
 
+        # Диагностика: считаем события по типам источников
+        ai_count = sum(1 for e in all_events if e.get("source") == "ai_generated")
+        user_count = sum(1 for e in all_events if e.get("source") in ["user_created", "user"])
+        source_count = sum(
+            1
+            for e in all_events
+            if e.get("source") in ["event_calendars", "social_media", "popular_places"]
+        )
+
         logger.info(f"🎯 Всего найдено: {len(all_events)} событий")
+        logger.info(
+            f"📊 Диагностика источников: ai={ai_count}, user={user_count}, source={source_count}"
+        )
+
         return all_events
 
     async def _search_popular_places(
