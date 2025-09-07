@@ -93,7 +93,15 @@ def normalize_source_event(e: dict) -> dict:
     if "address" not in e and e.get("venue", {}).get("address"):
         e["address"] = e["venue"]["address"]
 
-    # 5) Логируем результат нормализации
+    # 5) Формируем when_str из start_time для совместимости
+    if "start_time" in e and "when_str" not in e:
+        start_time = e["start_time"]
+        if isinstance(start_time, datetime):
+            e["when_str"] = start_time.strftime("%Y-%m-%d %H:%M")
+        elif isinstance(start_time, str):
+            e["when_str"] = start_time
+
+    # 6) Логируем результат нормализации
     import json
 
     logger.debug("norm.source=%s", json.dumps(e, ensure_ascii=False))
