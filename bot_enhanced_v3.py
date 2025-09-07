@@ -875,9 +875,42 @@ async def on_location(message: types.Message):
 
         if not events:
             logger.info("📭 События не найдены")
+
+            # Создаем кнопки расширения радиуса
+            keyboard_buttons = []
+            current_radius = int(settings.default_radius_km)
+            radius_step = int(settings.radius_step_km)
+            max_radius = int(settings.max_radius_km)
+
+            # Добавляем кнопки расширения радиуса
+            next_radius = current_radius + radius_step
+            while next_radius <= max_radius:
+                keyboard_buttons.append(
+                    [
+                        InlineKeyboardButton(
+                            text=f"🔍 Расширить поиск до {next_radius} км",
+                            callback_data=f"rx:{next_radius}",
+                        )
+                    ]
+                )
+                next_radius += radius_step
+
+            # Добавляем кнопку создания события
+            keyboard_buttons.append(
+                [
+                    InlineKeyboardButton(
+                        text="➕ Создать событие",
+                        callback_data="create_event",
+                    )
+                ]
+            )
+
+            inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+
             await message.answer(
-                "Пока ничего не нашла. Попробуй позже или создай своё событие через '➕ Создать'.",
-                reply_markup=main_menu_kb(),
+                "📅 Событий на сегодня не найдено в радиусе 5 км.\n\n"
+                "Попробуй расширить поиск или создай своё событие:",
+                reply_markup=inline_kb,
             )
             return
 
@@ -965,7 +998,6 @@ async def on_location(message: types.Message):
             if map_url and map_url.startswith("http"):
                 try:
                     # Создаем инлайн клавиатуру с ссылкой на Google Maps
-                    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
                     # Создаем расширенную ссылку на Google Maps с информацией о событиях
                     maps_url = create_enhanced_google_maps_url(lat, lng, prepared[:12])
@@ -979,7 +1011,7 @@ async def on_location(message: types.Message):
                         ]
                     ]
 
-                    # Добавляем кнопки расширения радиуса, если событий меньше 3
+                    # Добавляем кнопки расширения радиуса, если событий меньше 3 или их нет
                     if counts["all"] < 3:
                         current_radius = int(settings.default_radius_km)
                         radius_step = int(settings.radius_step_km)
@@ -1579,6 +1611,78 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         await callback.answer("Ошибка обработки запроса")
     except Exception as e:
         logger.error(f"❌ Неожиданная ошибка в расширении радиуса: {e}")
+        await callback.answer("Произошла ошибка")
+
+
+@dp.callback_query(F.data == "create_event")
+async def handle_create_event(callback: types.CallbackQuery):
+    """Обработчик кнопки создания события"""
+    try:
+        # Отправляем сообщение с инструкциями по созданию события
+        await callback.message.edit_text(
+            "➕ <b>Создание события</b>\n\n"
+            "Чтобы создать событие, используйте команду /create или нажмите кнопку '➕ Создать' в главном меню.\n\n"
+            "Вы сможете указать:\n"
+            "• Название события\n"
+            "• Описание\n"
+            "• Время проведения\n"
+            "• Место проведения\n"
+            "• Ссылку на событие",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="➕ Создать событие", callback_data="start_create")],
+                    [
+                        InlineKeyboardButton(
+                            text="🔙 Назад к поиску", callback_data="back_to_search"
+                        )
+                    ],
+                ]
+            ),
+        )
+        await callback.answer()
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка в обработчике создания события: {e}")
+        await callback.answer("Произошла ошибка")
+
+
+@dp.callback_query(F.data == "start_create")
+async def handle_start_create(callback: types.CallbackQuery):
+    """Обработчик начала создания события"""
+    try:
+        # Перенаправляем на команду создания события
+        await callback.message.edit_text(
+            "➕ <b>Создание события</b>\n\n"
+            "Используйте команду /create для создания нового события.",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_search")]
+                ]
+            ),
+        )
+        await callback.answer("Используйте команду /create")
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка в обработчике начала создания: {e}")
+        await callback.answer("Произошла ошибка")
+
+
+@dp.callback_query(F.data == "back_to_search")
+async def handle_back_to_search(callback: types.CallbackQuery):
+    """Обработчик возврата к поиску"""
+    try:
+        # Возвращаемся к главному меню
+        await callback.message.edit_text(
+            "🔍 <b>Поиск событий</b>\n\n" "Отправьте геолокацию, чтобы найти события рядом с вами.",
+            parse_mode="HTML",
+            reply_markup=main_menu_kb(),
+        )
+        await callback.answer()
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка в обработчике возврата к поиску: {e}")
         await callback.answer("Произошла ошибка")
 
 
