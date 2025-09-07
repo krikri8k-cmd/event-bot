@@ -1359,14 +1359,16 @@ async def main():
     """Главная функция"""
     logger.info("Запуск улучшенного EventBot (aiogram 3.x)...")
 
-    # Запускаем health check сервер для Railway
-    try:
-        if health_server.start():
-            logger.info("Health check сервер запущен")
-        else:
-            logger.warning("Не удалось запустить health check сервер")
-    except Exception as e:
-        logger.warning(f"Ошибка запуска health check сервера: {e}")
+    # Запускаем health check сервер для Railway (только в polling режиме)
+    RUN_MODE = os.getenv("BOT_RUN_MODE", "polling")
+    if RUN_MODE != "webhook":
+        try:
+            if health_server.start():
+                logger.info("Health check сервер запущен")
+            else:
+                logger.warning("Не удалось запустить health check сервер")
+        except Exception as e:
+            logger.warning(f"Ошибка запуска health check сервера: {e}")
 
     # Устанавливаем команды бота для удобства пользователей
     try:
@@ -1426,10 +1428,26 @@ async def main():
             # Настраиваем приложение
             setup_application(app, dp, bot=bot)
 
-            # Запускаем webhook сервер на порту 8001 (отдельно от health check)
-            webhook_port = int(os.getenv("WEBHOOK_PORT", "8001"))
-            logger.info(f"Запуск webhook сервера на порту {webhook_port}")
-            await web._run_app(app, host="0.0.0.0", port=webhook_port)
+            # Добавляем health check endpoint в webhook сервер
+            import time
+
+            async def health_check(request):
+                return web.json_response(
+                    {
+                        "status": "healthy",
+                        "service": "EventBot Telegram Bot",
+                        "timestamp": time.time(),
+                        "uptime": "running",
+                    }
+                )
+
+            app.router.add_get("/health", health_check)
+            app.router.add_get("/", health_check)
+
+            # Запускаем объединенный сервер (webhook + health check)
+            port = int(os.getenv("PORT", "8000"))
+            logger.info(f"Запуск объединенного сервера (webhook + health) на порту {port}")
+            await web._run_app(app, host="0.0.0.0", port=port)
 
             logger.info("Webhook режим активирован")
 
