@@ -7,6 +7,7 @@ import asyncio
 import html
 import logging
 import os
+import re
 from datetime import UTC, datetime
 from math import ceil
 from urllib.parse import quote_plus, urlparse
@@ -139,9 +140,8 @@ def enrich_venue_name(e: dict) -> dict:
         return e
 
     # 1) из title/description
-    import re
 
-    VENUE_RX = r"(?:в|at|@)\s+([A-Za-zА-Яа-я0-9''\-&\.\s]+)$"
+    VENUE_RX = r"(?:в|at|@)\s+([A-Za-zА-Яа-я0-9''&\s.-]+)$"
 
     for field in ("title", "description"):
         v = (e.get(field) or "").strip()
@@ -186,7 +186,6 @@ def get_venue_name(event: dict) -> str:
     if not venue_name and event.get("description"):
         description = event.get("description", "")
         # Простые регулярки для извлечения места
-        import re
 
         # Ищем паттерны типа "в Canggu Studio", "at Museum", "@Place"
         patterns = [
@@ -273,40 +272,21 @@ def group_events_by_type(events: list) -> dict[str, list]:
     return groups
 
 
-def is_valid_source_url(u: str | None) -> bool:
-    """
-    Проверяет, является ли source_url валидным
-    """
-    if not u:
-        return False
-
-    import re
-    from urllib.parse import urlparse
-
-    p = urlparse(u)
-    if p.scheme not in ("http", "https") or not p.netloc:
-        return False
-
-    # Если домен calendar.google.com — должен быть конкретный эвент
-    if p.netloc.endswith("calendar.google.com"):
-        GCAL_OK = re.compile(r"^https?://calendar\.google\.com/.*(event\?eid=|r/eventedit)", re.I)
-        return bool(GCAL_OK.search(u))
-
-    return True
-
-
 def is_m垃圾_url(url: str) -> bool:
     """
     Проверяет, является ли URL мусорным (пустые ссылки на Google Calendar и т.д.)
     """
-    return not is_valid_source_url(url)
+    return sanitize_url(url) is None
 
 
-def prepare_events_for_feed(events: list[dict]) -> list[dict]:
+def prepare_events_for_feed(
+    events: list[dict], with_diag: bool = False
+) -> tuple[list[dict], dict] | list[dict]:
     """
     Фильтрует события для показа в ленте
     """
-    out = []
+    kept, dropped = [], []
+
     for e in events:
         # Определяем тип события по источнику
         source = e.get("source", "")
@@ -323,18 +303,38 @@ def prepare_events_for_feed(events: list[dict]) -> list[dict]:
         e["type"] = event_type
 
         # Для событий из источников проверяем source_url
-        if event_type == "source" and not is_valid_source_url(e.get("source_url")):
-            # не публикуем источник без валидной ссылки
-            e["is_publishable"] = False
-            logger.warning(
-                "skip source without valid url | id=%s title=%s url=%s",
-                e.get("id"),
-                e.get("title"),
-                e.get("source_url"),
+        if event_type == "source":
+            u = sanitize_url(e.get("source_url"))
+            has_loc = any(
+                [
+                    e.get("venue_name"),
+                    e.get("address"),
+                    (e.get("lat") is not None and e.get("lng") is not None),
+                ]
             )
-            continue
-        out.append(e)
-    return out
+            has_time = bool(e.get("when_str"))
+
+            if not u and not (has_loc and has_time):
+                dropped.append((e, "source_without_url_and_location"))
+                logger.warning(
+                    "skip source invalid | title=%s url=%s reason=%s",
+                    e.get("title"),
+                    e.get("source_url"),
+                    "source_without_url_and_location",
+                )
+                continue
+            e["source_url"] = u  # может быть None
+
+        kept.append(enrich_venue_name(e))
+
+    diag = {
+        "in": len(events),
+        "kept": len(kept),
+        "dropped": len(dropped),
+        "reasons": [r for _, r in dropped],
+    }
+
+    return (kept, diag) if with_diag else kept
 
 
 def create_events_summary(events: list) -> str:
@@ -362,7 +362,10 @@ async def send_compact_events_list(
     Отправляет компактный список событий с пагинацией в HTML формате
     """
     # 1) Сначала фильтруем и группируем (после всех проверок publishable)
-    prepared = prepare_events_for_feed(events)
+    prepared, diag = prepare_events_for_feed(events, with_diag=True)
+    logger.info(
+        f"diag: in={diag['in']} kept={diag['kept']} dropped={diag['dropped']} reasons={diag['reasons']}"
+    )
 
     # Обогащаем события названиями мест и расстояниями
     for event in prepared:
@@ -381,6 +384,7 @@ async def send_compact_events_list(
         "lng": user_lng,
         "radius": int(settings.default_radius_km),
         "page": 1,
+        "diag": diag,
     }
 
     # 4) Рендерим страницу
@@ -500,13 +504,23 @@ def build_maps_url(e: dict) -> str:
 def get_source_url(e: dict) -> str | None:
     """Единая точка истины для получения URL источника"""
     t = e.get("type")
+    candidates: list[str | None] = []
+
     if t == "source":
-        return e.get("source_url")
-    if t == "user":
-        return e.get("author_url") or e.get("chat_url")
-    if t in ("ai", "ai_generated", "moment"):
-        return e.get("location_url") or "https://t.me/EventAroundBot"
-    return None
+        candidates = [e.get("source_url")]
+    elif t == "user":
+        candidates = [e.get("author_url"), e.get("chat_url")]
+    elif t in ("ai", "ai_generated", "moment"):
+        # НЕ используем location_url, если это placeholder / example.*
+        candidates = [e.get("location_url")]
+    else:
+        candidates = [e.get("source_url")]
+
+    for u in candidates:
+        u = sanitize_url(u)
+        if u:
+            return u
+    return None  # нет реального источника — лучше не показывать ссылку
 
 
 def render_event_html(e: dict, idx: int) -> str:
@@ -517,13 +531,28 @@ def render_event_html(e: dict, idx: int) -> str:
     venue = html.escape(e.get("venue_name") or e.get("address") or "Локация уточняется")
 
     src = get_source_url(e)
-    src_link = f'<a href="{html.escape(src)}">Источник</a>' if src else "Источник недоступен"
-    map_link = f'<a href="{build_maps_url(e)}">Маршрут</a>'
+    src_part = f'🔗 <a href="{html.escape(src)}">Источник</a>' if src else "ℹ️ Источник не указан"
+    map_part = f'<a href="{build_maps_url(e)}">Маршрут</a>'
 
     return (
-        f"{idx}) <b>{title}</b> — {when} ({dist})\n"
-        f"📍 {venue}\n"
-        f"🔗 {src_link}  🚗 {map_link}\n"
+        f"{idx}) <b>{title}</b> — {when} ({dist})\n" f"📍 {venue}\n" f"{src_part}  🚗 {map_part}\n"
+    )
+
+
+def render_fallback(lat: float, lng: float) -> str:
+    """Fallback страница при ошибках в пайплайне"""
+    return (
+        f"🗺 <b>Найдено рядом: 0</b>\n"
+        f"• ⚡ Мгновенные: 0\n\n"
+        f"1) <b>Попробуйте расширить поиск</b> — (0.0 км)\n"
+        f"📍 Локация уточняется\n"
+        f'ℹ️ Источник не указан  🚗 <a href="https://www.google.com/maps/search/?api=1&query={lat},{lng}">Маршрут</a>\n\n'
+        f"2) <b>Создайте своё событие</b> — (0.0 км)\n"
+        f"📍 Локация уточняется\n"
+        f'ℹ️ Источник не указан  🚗 <a href="https://www.google.com/maps/search/?api=1&query={lat},{lng}">Маршрут</a>\n\n'
+        f"3) <b>Проверьте позже</b> — (0.0 км)\n"
+        f"📍 Локация уточняется\n"
+        f'ℹ️ Источник не указан  🚗 <a href="https://www.google.com/maps/search/?api=1&query={lat},{lng}">Маршрут</a>'
     )
 
 
@@ -605,6 +634,29 @@ settings = load_settings(require_bot=True)
 
 # Хранилище состояния для сохранения prepared событий по chat_id
 user_state = {}
+
+# ---------- URL helpers ----------
+BLACKLIST_DOMAINS = {"example.com", "example.org", "example.net"}
+
+
+def sanitize_url(u: str | None) -> str | None:
+    """Фильтрует мусорные URL включая example.com"""
+    if not u:
+        return None
+    try:
+        p = urlparse(u)
+    except Exception:
+        return None
+    if p.scheme not in ("http", "https") or not p.netloc:
+        return None
+    host = p.netloc.lower()
+    if any(host == d or host.endswith("." + d) for d in BLACKLIST_DOMAINS):
+        return None
+    # глушим общий календарь без конкретного события
+    if "calendar.google.com" in host and "eid=" not in u:
+        return None
+    return u
+
 
 # Инициализация базы данных
 init_engine(settings.database_url)
@@ -706,8 +758,11 @@ async def on_location(message: types.Message):
             logger.info(f"✅ Поиск завершен, найдено {len(events)} событий")
         except Exception:
             logger.exception("❌ Ошибка при поиске событий")
+            fallback = render_fallback(lat, lng)
             await message.answer(
-                "Упс, не получилось загрузить события. Попробуй ещё раз или расширь радиус до 10–15 км.",
+                fallback,
+                parse_mode="HTML",
+                disable_web_page_preview=True,
                 reply_markup=main_menu_kb(),
             )
             return
@@ -726,7 +781,10 @@ async def on_location(message: types.Message):
 
         # Единый конвейер: prepared → groups → counts → render
         try:
-            prepared = prepare_events_for_feed(events)
+            prepared, diag = prepare_events_for_feed(events, with_diag=True)
+            logger.info(
+                f"diag: in={diag['in']} kept={diag['kept']} dropped={diag['dropped']} reasons={diag['reasons']}"
+            )
 
             # Обогащаем события названиями мест и расстояниями
             for event in prepared:
@@ -745,6 +803,7 @@ async def on_location(message: types.Message):
                 "lng": lng,
                 "radius": int(settings.default_radius_km),
                 "page": 1,
+                "diag": diag,
             }
 
             # 4) Формируем заголовок с правильным отчётом
@@ -870,9 +929,18 @@ async def on_location(message: types.Message):
                     )
 
         except Exception:
-            logger.exception("❌ Ошибка в конвейере обработки событий")
+            logger.exception(
+                "nearby_pipeline_failed | chat=%s lat=%s lng=%s r=%s",
+                message.chat.id,
+                lat,
+                lng,
+                int(settings.default_radius_km),
+            )
+            fallback = render_fallback(lat, lng)
             await message.answer(
-                "Упс, не получилось обработать события. Попробуй ещё раз или расширь радиус до 10–15 км.",
+                fallback,
+                parse_mode="HTML",
+                disable_web_page_preview=True,
                 reply_markup=main_menu_kb(),
             )
 
@@ -1079,6 +1147,59 @@ async def on_admin_event(message: types.Message):
         await message.answer("Произошла ошибка при получении информации о событии")
 
 
+@dp.message(Command("diag_last"))
+async def on_diag_last(message: types.Message):
+    """Обработчик команды /diag_last для диагностики последнего запроса"""
+    try:
+        # Получаем состояние последнего запроса
+        state = user_state.get(message.chat.id)
+        if not state:
+            await message.answer("Нет данных о последнем запросе. Отправьте геолокацию.")
+            return
+
+        # Формируем диагностическую информацию
+        diag = state.get("diag", {})
+        counts = state.get("counts", {})
+        prepared = state.get("prepared", [])
+
+        info_lines = [
+            "<b>🔍 Диагностика последнего запроса</b>",
+            f"<b>Координаты:</b> {state.get('lat', 'N/A')}, {state.get('lng', 'N/A')}",
+            f"<b>Радиус:</b> {state.get('radius', 'N/A')} км",
+            f"<b>Страница:</b> {state.get('page', 'N/A')}",
+            "",
+            "<b>📊 Статистика обработки:</b>",
+            f"• Входных событий: {diag.get('in', 0)}",
+            f"• Сохранено: {diag.get('kept', 0)}",
+            f"• Отброшено: {diag.get('dropped', 0)}",
+            f"• Причины отбраковки: {', '.join(diag.get('reasons', []))}",
+            "",
+            "<b>📈 Итоговые счетчики:</b>",
+            f"• Всего: {counts.get('all', 0)}",
+            f"• Мгновенные: {counts.get('moments', 0)}",
+            f"• От пользователей: {counts.get('user', 0)}",
+            f"• Из источников: {counts.get('sources', 0)}",
+        ]
+
+        # Показываем первые 5 событий
+        if prepared:
+            info_lines.extend(["", f"<b>📋 Первые {min(5, len(prepared))} событий:</b>"])
+            for i, event in enumerate(prepared[:5], 1):
+                event_type = event.get("type", "unknown")
+                title = html.escape(event.get("title", "Без названия"))
+                has_url = bool(get_source_url(event))
+                info_lines.append(
+                    f"{i}) <b>{title}</b> (тип: {event_type}, URL: {'да' if has_url else 'нет'})"
+                )
+
+        text = "\n".join(info_lines)
+        await message.answer(text, parse_mode="HTML", disable_web_page_preview=True)
+
+    except Exception as e:
+        logger.error(f"Ошибка в команде diag_last: {e}")
+        await message.answer("Произошла ошибка при получении диагностики")
+
+
 @dp.message(Command("help"))
 @dp.message(F.text == "❓ Помощь")
 async def on_help(message: types.Message):
@@ -1189,7 +1310,11 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             return
 
         # Фильтруем и обогащаем события
-        prepared = prepare_events_for_feed(events)
+        prepared, diag = prepare_events_for_feed(events, with_diag=True)
+        logger.info(
+            f"diag: in={diag['in']} kept={diag['kept']} dropped={diag['dropped']} reasons={diag['reasons']}"
+        )
+
         for event in prepared:
             enrich_venue_name(event)
             event["distance_km"] = haversine_km(lat, lng, event["lat"], event["lng"])
@@ -1206,6 +1331,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             "lng": lng,
             "radius": new_radius,
             "page": 1,
+            "diag": diag,
         }
 
         # Рендерим первую страницу
@@ -1255,6 +1381,9 @@ async def main():
                 types.BotCommand(
                     command="admin_event", description="🔍 Диагностика события (админ)"
                 ),
+                types.BotCommand(
+                    command="diag_last", description="📊 Диагностика последнего запроса"
+                ),
             ]
         )
         logger.info("Команды бота установлены")
@@ -1279,8 +1408,29 @@ async def main():
             await bot.set_webhook(url=WEBHOOK_URL)
             logger.info(f"Webhook установлен: {WEBHOOK_URL}")
 
-            # Здесь можно добавить aiohttp/fastapi сервер для webhook
-            # await start_webhook(app, dp)
+            # Запускаем webhook сервер
+            from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+            from aiohttp import web
+
+            # Создаем aiohttp приложение
+            app = web.Application()
+
+            # Настраиваем webhook handler
+            webhook_path = "/webhook"
+            webhook_handler = SimpleRequestHandler(
+                dispatcher=dp,
+                bot=bot,
+            )
+            webhook_handler.register(app, path=webhook_path)
+
+            # Настраиваем приложение
+            setup_application(app, dp, bot=bot)
+
+            # Запускаем сервер на порту Railway
+            port = int(os.getenv("PORT", "8000"))
+            logger.info(f"Запуск webhook сервера на порту {port}")
+            await web._run_app(app, host="0.0.0.0", port=port)
+
             logger.info("Webhook режим активирован")
 
         else:
