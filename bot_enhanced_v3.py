@@ -8,11 +8,14 @@ import html
 import logging
 import os
 import re
+import ssl
 from datetime import UTC, datetime
 from math import ceil
 from urllib.parse import quote_plus, urlparse
 
+import certifi
 from aiogram import Bot, Dispatcher, F, types
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -662,8 +665,12 @@ def sanitize_url(u: str | None) -> str | None:
 init_engine(settings.database_url)
 create_all()
 
-# Создание бота и диспетчера
-bot = Bot(token=settings.telegram_token)
+# Создание SSL контекста для корректной работы с Telegram API
+ssl_context = ssl.create_default_context(cafile=certifi.where())
+
+# Создание бота и диспетчера с SSL контекстом
+session = AiohttpSession(context=ssl_context)
+bot = Bot(token=settings.telegram_token, session=session)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
