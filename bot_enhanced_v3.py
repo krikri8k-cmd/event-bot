@@ -1121,18 +1121,7 @@ async def cleanup_expired_moments():
 init_engine(settings.database_url)
 create_all()
 
-# Инициализация health check сервера для Railway
-try:
-    from bot_health import health_server
-    import os
-    
-    port = int(os.getenv("PORT", "8000"))
-    if health_server.start():
-        logger.info(f"✅ Health check сервер запущен на порту {port}")
-    else:
-        logger.warning("⚠️ Не удалось запустить health check сервер")
-except Exception as e:
-    logger.error(f"❌ Ошибка запуска health check сервера: {e}")
+# Health check сервер будет запущен в main() вместе с webhook
 
 # Создание бота и диспетчера
 bot = Bot(token=settings.telegram_token)
@@ -2502,6 +2491,13 @@ async def handle_location_redo(callback: types.CallbackQuery, state: FSMContext)
 async def handle_ttl_selection(callback: types.CallbackQuery, state: FSMContext):
     """Обработка выбора TTL - Step 3"""
     ttl_minutes = int(callback.data[7:])  # убираем "m:ttl:"
+    
+    # Валидация TTL - только разрешенные значения
+    allowed_ttl = [30, 60, 120]
+    if ttl_minutes not in allowed_ttl:
+        await callback.answer("Выберите длительность из предложенных вариантов.", show_alert=True)
+        return
+    
     await state.update_data(ttl_minutes=ttl_minutes)
 
     # Получаем данные для предпросмотра
