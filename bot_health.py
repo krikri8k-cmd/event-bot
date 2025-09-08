@@ -6,6 +6,7 @@
 
 import json
 import logging
+import os
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -92,7 +93,9 @@ class BotHealthServer:
 
 
 # Глобальный экземпляр для использования в основном боте
-health_server = BotHealthServer()
+# Используем PORT из окружения или дефолтный 8000
+port = int(os.getenv("PORT", "8000"))
+health_server = BotHealthServer(port=port)
 
 if __name__ == "__main__":
     # Тестовый запуск

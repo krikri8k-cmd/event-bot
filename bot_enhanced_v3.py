@@ -1093,15 +1093,28 @@ async def cleanup_expired_moments():
     """Очищает истекшие моменты"""
     from datetime import UTC, datetime
 
-    with get_session() as session:
-        # Деактивируем истекшие моменты
-        expired_count = (
-            session.query(Moment)
-            .filter(Moment.is_active is True, Moment.expires_at < datetime.now(UTC))
-            .update({"is_active": False})
-        )
-        session.commit()
-        return expired_count
+    try:
+        with get_session() as session:
+            # Проверяем существование поля is_active
+            try:
+                # Деактивируем истекшие моменты
+                expired_count = (
+                    session.query(Moment)
+                    .filter(Moment.is_active == True, Moment.expires_at < datetime.now(UTC))
+                    .update({"is_active": False})
+                )
+                session.commit()
+                logger.info(f"Очистка моментов: деактивировано {expired_count}")
+                return expired_count
+            except Exception as e:
+                if "column" in str(e) and "is_active" in str(e):
+                    logger.warning("⚠️ Поле is_active не существует, пропускаем очистку")
+                    return 0
+                else:
+                    raise
+    except Exception as e:
+        logger.error(f"❌ Ошибка очистки моментов: {e}")
+        return 0
 
 
 # Инициализация базы данных
@@ -1111,9 +1124,11 @@ create_all()
 # Инициализация health check сервера для Railway
 try:
     from bot_health import health_server
-
+    import os
+    
+    port = int(os.getenv("PORT", "8000"))
     if health_server.start():
-        logger.info("✅ Health check сервер запущен на порту 8000")
+        logger.info(f"✅ Health check сервер запущен на порту {port}")
     else:
         logger.warning("⚠️ Не удалось запустить health check сервер")
 except Exception as e:

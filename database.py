@@ -107,12 +107,10 @@ class Moment(Base):
     title: Mapped[str] = mapped_column(String(120), nullable=False)  # название момента
     location_lat: Mapped[float] = mapped_column(Float, nullable=False)  # широта
     location_lng: Mapped[float] = mapped_column(Float, nullable=False)  # долгота
-    created_at: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     expires_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)  # активен/нет
-    
+
     # Legacy поля для совместимости
     template: Mapped[str | None] = mapped_column(String(64))
     text: Mapped[str | None] = mapped_column(String(200))
