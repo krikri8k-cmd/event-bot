@@ -135,19 +135,22 @@ class EventSearchEngine:
 
         logger.info(f"🔍 Ищем события в радиусе {radius_km} км от ({lat}, {lng})")
 
-        # 1. AI генерация событий
-        logger.info("🤖 Генерируем AI события...")
-        try:
-            ai_events = await fetch_ai_events_nearby(lat, lng)
-            if ai_events:
-                logger.info(f"   ✅ AI сгенерировал {len(ai_events)} событий")
-                for event in ai_events:
-                    event["source"] = "ai_generated"
-                    all_events.append(event)
-            else:
-                logger.info("   ⚠️ AI не сгенерировал события")
-        except Exception as e:
-            logger.error(f"   ❌ Ошибка при AI генерации: {e}")
+        # 1. AI генерация событий (только если разрешено)
+        if self.settings.ai_generate_synthetic:
+            logger.info("🤖 Генерируем AI события...")
+            try:
+                ai_events = await fetch_ai_events_nearby(lat, lng)
+                if ai_events:
+                    logger.info(f"   ✅ AI сгенерировал {len(ai_events)} событий")
+                    for event in ai_events:
+                        event["source"] = "ai_generated"
+                        all_events.append(event)
+                else:
+                    logger.info("   ⚠️ AI не сгенерировал события")
+            except Exception as e:
+                logger.error(f"   ❌ Ошибка при AI генерации: {e}")
+        else:
+            logger.info("🤖 AI генерация отключена (AI_GENERATE_SYNTHETIC=0)")
 
         # 2. Поиск в популярных местах (парки, музеи, театры)
         logger.info("🏛️ Ищем события в популярных местах...")
