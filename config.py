@@ -37,6 +37,15 @@ class Settings:
     admin_ids: set[int]
     google_application_credentials: str | None
     env_file: str | None
+    # Moments settings
+    moments_enable: bool
+    moment_ttl_options: list[int]
+    moment_daily_limit: int
+    moment_max_radius_km: float
+    # AI settings
+    ai_parse_enable: bool
+    ai_generate_synthetic: bool
+    strict_source_only: bool
 
 
 def _parse_admin_ids(value: str | None) -> set[int]:
@@ -69,6 +78,23 @@ def load_settings(require_bot: bool = False) -> Settings:
     radius_step_km_str = (os.getenv("RADIUS_STEP_KM") or "5").strip()
     max_radius_km_str = (os.getenv("MAX_RADIUS_KM") or "15").strip()
     admin_ids = _parse_admin_ids(os.getenv("ADMIN_IDS"))
+    
+    # Moments settings
+    moments_enable = os.getenv("MOMENTS_ENABLE", "0").strip() == "1"
+    
+    # Парсим TTL опции
+    ttl_options_str = os.getenv("MOMENT_TTL_OPTIONS", "30,60,120").strip()
+    moment_ttl_options = [int(x.strip()) for x in ttl_options_str.split(",") if x.strip().isdigit()]
+    if not moment_ttl_options:
+        moment_ttl_options = [30, 60, 120]  # дефолт
+    
+    moment_daily_limit = int(os.getenv("MOMENT_DAILY_LIMIT", "2").strip())
+    moment_max_radius_km = float(os.getenv("MOMENT_MAX_RADIUS_KM", "20").strip())
+    
+    # AI settings
+    ai_parse_enable = os.getenv("AI_PARSE_ENABLE", "0").strip() == "1"
+    ai_generate_synthetic = os.getenv("AI_GENERATE_SYNTHETIC", "0").strip() == "1"
+    strict_source_only = os.getenv("STRICT_SOURCE_ONLY", "0").strip() == "1"
 
     try:
         default_radius_km = float(default_radius_km_str)
@@ -109,4 +135,13 @@ def load_settings(require_bot: bool = False) -> Settings:
         admin_ids=admin_ids,
         google_application_credentials=gcp_path,
         env_file=env_file,
+        # Moments settings
+        moments_enable=moments_enable,
+        moment_ttl_options=moment_ttl_options,
+        moment_daily_limit=moment_daily_limit,
+        moment_max_radius_km=moment_max_radius_km,
+        # AI settings
+        ai_parse_enable=ai_parse_enable,
+        ai_generate_synthetic=ai_generate_synthetic,
+        strict_source_only=strict_source_only,
     )

@@ -103,18 +103,24 @@ class Moment(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
-    template: Mapped[str | None] = mapped_column(String(64))
-    text: Mapped[str | None] = mapped_column(String(200))
-    location_url: Mapped[str | None] = mapped_column(Text)
-    lat: Mapped[float | None] = mapped_column(Float)
-    lng: Mapped[float | None] = mapped_column(Float)
-    created_utc: Mapped[DateTime] = mapped_column(
+    username: Mapped[str | None] = mapped_column(String(255))  # username создателя
+    title: Mapped[str] = mapped_column(String(120), nullable=False)  # название момента
+    location_lat: Mapped[float] = mapped_column(Float, nullable=False)  # широта
+    location_lng: Mapped[float] = mapped_column(Float, nullable=False)  # долгота
+    created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-    expires_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True))
-    status: Mapped[str] = mapped_column(String(16), default="open")
-    event_tz: Mapped[str | None] = mapped_column(String(64))
-    participants_ids: Mapped[str | None] = mapped_column(Text)
+    expires_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)  # активен/нет
+    
+    # Legacy поля для совместимости
+    template: Mapped[str | None] = mapped_column(String(64))
+    text: Mapped[str | None] = mapped_column(String(200))
+    lat: Mapped[float | None] = mapped_column(Float)
+    lng: Mapped[float | None] = mapped_column(Float)
+    created_utc: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+    expires_utc: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str | None] = mapped_column(String(16))
 
 
 class Report(Base):

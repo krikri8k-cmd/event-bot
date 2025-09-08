@@ -22,5 +22,8 @@ RUN python -m pip install --upgrade pip wheel setuptools \
 # Копируем проект
 COPY . .
 
-# Запускаем Telegram бота напрямую
-CMD ["python", "bot_enhanced_v3.py"]
+# Делаем скрипт запуска исполняемым
+RUN chmod +x railway-bot-start.sh
+
+# Запускаем Telegram бота через скрипт с keep-alive
+CMD ["./railway-bot-start.sh"]
