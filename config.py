@@ -46,6 +46,12 @@ class Settings:
     ai_parse_enable: bool
     ai_generate_synthetic: bool
     strict_source_only: bool
+    
+    # Event sources
+    enable_meetup_api: bool
+    enable_ics_feeds: bool
+    enable_eventbrite_api: bool
+    ics_feeds: list[str]
 
 
 def _parse_admin_ids(value: str | None) -> set[int]:
@@ -95,6 +101,12 @@ def load_settings(require_bot: bool = False) -> Settings:
     ai_parse_enable = os.getenv("AI_PARSE_ENABLE", "0").strip() == "1"
     ai_generate_synthetic = os.getenv("AI_GENERATE_SYNTHETIC", "0").strip() == "1"
     strict_source_only = os.getenv("STRICT_SOURCE_ONLY", "0").strip() == "1"
+    
+    # Event sources
+    enable_meetup_api = os.getenv("ENABLE_MEETUP_API", "0").strip() == "1"
+    enable_ics_feeds = os.getenv("ENABLE_ICS_FEEDS", "0").strip() == "1"
+    enable_eventbrite_api = os.getenv("ENABLE_EVENTBRITE_API", "0").strip() == "1"
+    ics_feeds = [url.strip() for url in (os.getenv("ICS_FEEDS") or "").split(",") if url.strip()]
 
     try:
         default_radius_km = float(default_radius_km_str)
@@ -144,4 +156,10 @@ def load_settings(require_bot: bool = False) -> Settings:
         ai_parse_enable=ai_parse_enable,
         ai_generate_synthetic=ai_generate_synthetic,
         strict_source_only=strict_source_only,
+        
+        # Event sources
+        enable_meetup_api=enable_meetup_api,
+        enable_ics_feeds=enable_ics_feeds,
+        enable_eventbrite_api=enable_eventbrite_api,
+        ics_feeds=ics_feeds,
     )

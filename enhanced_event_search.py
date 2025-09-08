@@ -152,41 +152,92 @@ class EventSearchEngine:
         else:
             logger.info("🤖 AI генерация отключена (AI_GENERATE_SYNTHETIC=0)")
 
-        # 2. Поиск в популярных местах (парки, музеи, театры)
-        logger.info("🏛️ Ищем события в популярных местах...")
-        try:
-            popular_events = await self._search_popular_places(lat, lng, radius_km)
-            if popular_events:
-                logger.info(f"   ✅ Найдено {len(popular_events)} событий в популярных местах")
-                # Сырая диагностика
-                logger.debug("raw.popular[:3]=%s", safe_json_dumps(popular_events[:3]))
-                all_events.extend(popular_events)
-        except Exception as e:
-            logger.error(f"   ❌ Ошибка при поиске в популярных местах: {e}")
+        # 2. Поиск в Meetup API
+        if self.settings.enable_meetup_api:
+            logger.info("🤝 Ищем события в Meetup...")
+            try:
+                from sources.meetup import fetch as fetch_meetup
+                meetup_events = await fetch_meetup(lat, lng, radius_km)
+                if meetup_events:
+                    logger.info(f"   ✅ Найдено {len(meetup_events)} событий в Meetup")
+                    # Конвертируем RawEvent в наш формат
+                    for event in meetup_events:
+                        all_events.append({
+                            "type": "source",
+                            "title": event.title,
+                            "description": event.description or "",
+                            "time_local": event.start_time.strftime("%Y-%m-%d %H:%M"),
+                            "start_time": event.start_time,
+                            "venue": {
+                                "name": event.venue_name or "",
+                                "address": event.address or "",
+                                "lat": event.lat,
+                                "lon": event.lng,
+                            },
+                            "source_url": event.url or "",
+                            "lat": event.lat,
+                            "lng": event.lng,
+                        })
+                else:
+                    logger.info("   ⚠️ Meetup не вернул события")
+            except Exception as e:
+                logger.error(f"   ❌ Ошибка при поиске в Meetup: {e}")
+        else:
+            logger.info("🤝 Meetup API отключен")
 
-        # 3. Поиск в календарях событий
-        logger.info("📅 Ищем в календарях событий...")
-        try:
-            calendar_events = await self._search_event_calendars(lat, lng, radius_km)
-            if calendar_events:
-                logger.info(f"   ✅ Найдено {len(calendar_events)} событий в календарях")
-                # Сырая диагностика
-                logger.debug("raw.cals[:3]=%s", safe_json_dumps(calendar_events[:3]))
-                all_events.extend(calendar_events)
-        except Exception as e:
-            logger.error(f"   ❌ Ошибка при поиске в календарях: {e}")
+        # 3. Поиск в ICS календарях
+        if self.settings.enable_ics_feeds and self.settings.ics_feeds:
+            logger.info("📅 Ищем в ICS календарях...")
+            try:
+                from sources.ics import fetch_ics
+                
+                for feed_url in self.settings.ics_feeds:
+                    try:
+                        response = fetch_ics(feed_url)
+                        if response.status_code == 200:
+                            # Парсим ICS (упрощенная версия)
+                            from icalendar import Calendar
+                            cal = Calendar.from_ical(response.content)
+                            ics_count = 0
+                            for component in cal.walk('VEVENT'):
+                                title = str(component.get('SUMMARY', '')).strip()
+                                if title:
+                                    all_events.append({
+                                        "type": "source",
+                                        "title": title,
+                                        "description": str(component.get('DESCRIPTION', '')),
+                                        "time_local": str(component.get('DTSTART', '')),
+                                        "venue": {
+                                            "name": str(component.get('LOCATION', '')),
+                                            "address": str(component.get('LOCATION', '')),
+                                        },
+                                        "source_url": str(component.get('URL', '')),
+                                        "lat": lat,  # Упрощение - используем координаты пользователя
+                                        "lng": lng,
+                                    })
+                                    ics_count += 1
+                            if ics_count > 0:
+                                logger.info(f"   ✅ Найдено {ics_count} событий в ICS календаре")
+                    except Exception as e:
+                        logger.warning(f"   ⚠️ Ошибка при загрузке ICS {feed_url}: {e}")
+            except Exception as e:
+                logger.error(f"   ❌ Ошибка при поиске в ICS календарях: {e}")
+        else:
+            logger.info("📅 ICS календари отключены")
 
-        # 4. Поиск в социальных сетях (симуляция)
-        logger.info("📱 Ищем в социальных сетях...")
-        try:
-            social_events = await self._search_social_media(lat, lng, radius_km)
-            if social_events:
-                logger.info(f"   ✅ Найдено {len(social_events)} событий в соцсетях")
-                # Сырая диагностика
-                logger.debug("raw.social[:3]=%s", safe_json_dumps(social_events[:3]))
-                all_events.extend(social_events)
-        except Exception as e:
-            logger.error(f"   ❌ Ошибка при поиске в соцсетях: {e}")
+        # 4. Поиск в Eventbrite API (если настроен)
+        if self.settings.enable_eventbrite_api:
+            logger.info("🎫 Ищем события в Eventbrite...")
+            try:
+                if self.settings.eventbrite_api_key:
+                    # Здесь можно добавить Eventbrite API
+                    logger.info("   ⚠️ Eventbrite API не реализован")
+                else:
+                    logger.info("   ⚠️ EVENTBRITE_API_KEY не настроен")
+            except Exception as e:
+                logger.error(f"   ❌ Ошибка при поиске в Eventbrite: {e}")
+        else:
+            logger.info("🎫 Eventbrite API отключен")
 
         # Диагностика: считаем события по типам источников
         ai_count = sum(1 for e in all_events if e.get("source") == "ai_generated")
