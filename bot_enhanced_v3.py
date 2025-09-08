@@ -519,13 +519,12 @@ async def send_compact_events_list(
     settings = load_settings()
 
     # Используем радиус пользователя или дефолтный
-    if user_radius is None:
-        user_radius = settings.default_radius_km
+    radius = get_user_radius(message.from_user.id, settings.default_radius_km)
 
     # Добавляем моменты к списку событий, если включены
     if settings.moments_enable:
         try:
-            moments = await get_active_moments_nearby(user_lat, user_lng, user_radius)
+            moments = await get_active_moments_nearby(user_lat, user_lng, radius)
             events.extend(moments)
             logger.info(
                 f"Добавлено {len(moments)} моментов к {len(events) - len(moments)} событиям"
@@ -562,7 +561,7 @@ async def send_compact_events_list(
         "counts": counts,
         "lat": user_lat,
         "lng": user_lng,
-        "radius": int(user_radius),
+        "radius": int(radius),
         "page": 1,
         "diag": diag,
     }
@@ -573,7 +572,7 @@ async def send_compact_events_list(
     text = header_html + "\n\n" + page_html
 
     # 5) Создаем клавиатуру пагинации с кнопками расширения радиуса
-    inline_kb = kb_pager(page + 1, total_pages, int(user_radius)) if total_pages > 1 else None
+    inline_kb = kb_pager(page + 1, total_pages, int(radius)) if total_pages > 1 else None
 
     try:
         # Отправляем компактный список событий в HTML формате
@@ -595,6 +594,9 @@ async def edit_events_list_message(
     """
     Редактирует сообщение со списком событий (для пагинации)
     """
+    # Получаем радиус пользователя
+    radius = get_user_radius(message.from_user.id, settings.default_radius_km)
+
     # 1) сначала фильтруем и группируем (после всех проверок publishable)
     prepared = prepare_events_for_feed(events, user_point=(user_lat, user_lng))
 
@@ -638,7 +640,7 @@ async def edit_events_list_message(
     text = header_html + "\n\n" + "\n".join(event_lines)
 
     # Создаем клавиатуру пагинации с кнопками расширения радиуса
-    inline_kb = kb_pager(page + 1, total_pages, int(user_radius)) if total_pages > 1 else None
+    inline_kb = kb_pager(page + 1, total_pages, int(radius)) if total_pages > 1 else None
 
     try:
         # Редактируем сообщение
@@ -910,6 +912,27 @@ settings = load_settings(require_bot=True)
 # Хранилище состояния для сохранения prepared событий по chat_id
 user_state = {}
 
+# ---------- Радиус поиска ----------
+RADIUS_OPTIONS = (5, 10, 15, 20)
+CB_RADIUS_PREFIX = "rx:"  # callback_data вроде "rx:10"
+RADIUS_KEY = "radius_km"
+
+
+def get_user_radius(user_id: int, default_km: int) -> int:
+    """Получает радиус пользователя из состояния или возвращает дефолтный"""
+    state = user_state.get(user_id) or {}
+    value = state.get(RADIUS_KEY)
+    return (
+        int(value) if isinstance(value, int | float | str) and str(value).isdigit() else default_km
+    )
+
+
+def set_user_radius(user_id: int, radius_km: int) -> None:
+    """Устанавливает радиус пользователя в состоянии"""
+    st = user_state.setdefault(user_id, {})
+    st[RADIUS_KEY] = int(radius_km)
+
+
 # ---------- URL helpers ----------
 BLACKLIST_DOMAINS = {"example.com", "example.org", "example.net"}
 
@@ -1144,8 +1167,18 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
+def kb_radius(current: int | None = None) -> InlineKeyboardMarkup:
+    """Создаёт клавиатуру выбора радиуса поиска с выделением текущего"""
+    buttons = []
+    for km in RADIUS_OPTIONS:
+        label = f"{'✅ ' if km == current else ''}{km} км"
+        buttons.append(InlineKeyboardButton(text=label, callback_data=f"{CB_RADIUS_PREFIX}{km}"))
+    # одна строка из 4 кнопок
+    return InlineKeyboardMarkup(inline_keyboard=[buttons])
+
+
 def radius_selection_kb() -> InlineKeyboardMarkup:
-    """Создаёт клавиатуру выбора радиуса поиска"""
+    """Создаёт клавиатуру выбора радиуса поиска (legacy)"""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -1163,17 +1196,15 @@ async def cmd_radius_settings(message: types.Message):
     """Обработчик настройки радиуса поиска"""
     user_id = message.from_user.id
 
-    # Получаем текущий радиус пользователя
-    with get_session() as session:
-        user = session.get(User, user_id)
-        current_radius = user.default_radius_km if user else 5
+    # Получаем текущий радиус пользователя из состояния или БД
+    current_radius = get_user_radius(user_id, settings.default_radius_km)
 
     await message.answer(
         f"🔧 **Настройки радиуса поиска**\n\n"
         f"Текущий радиус: **{current_radius} км**\n\n"
         f"Выбери новый радиус для поиска событий:",
         parse_mode="Markdown",
-        reply_markup=radius_selection_kb(),
+        reply_markup=kb_radius(current_radius),
     )
 
 
@@ -1232,22 +1263,21 @@ async def on_location(message: types.Message):
 
     try:
         # Обновляем геолокацию пользователя и получаем его радиус
-        user_radius = settings.default_radius_km
+        radius = get_user_radius(message.from_user.id, settings.default_radius_km)
         with get_session() as session:
             user = session.get(User, message.from_user.id)
             if user:
                 user.last_lat = lat
                 user.last_lng = lng
                 user.last_geo_at_utc = datetime.now(UTC)
-                user_radius = user.default_radius_km  # Используем радиус пользователя
                 session.commit()
 
         # Ищем события из всех источников
         try:
             logger.info(
-                f"🔍 Начинаем поиск событий для координат ({lat}, {lng}) с радиусом {user_radius} км"
+                f"🔍 Начинаем поиск событий для координат ({lat}, {lng}) с радиусом {radius} км"
             )
-            events = await enhanced_search_events(lat, lng, radius_km=int(user_radius))
+            events = await enhanced_search_events(lat, lng, radius_km=int(radius))
             logger.info(f"✅ Поиск завершен, найдено {len(events)} событий")
         except Exception:
             logger.exception("❌ Ошибка при поиске событий")
@@ -1344,7 +1374,7 @@ async def on_location(message: types.Message):
                 "counts": counts,
                 "lat": lat,
                 "lng": lng,
-                "radius": int(user_radius),
+                "radius": int(radius),
                 "page": 1,
                 "diag": diag,
             }
@@ -1443,7 +1473,7 @@ async def on_location(message: types.Message):
                     # Отправляем компактный список событий отдельным сообщением
                     try:
                         await send_compact_events_list(
-                            message, events, lat, lng, page=0, user_radius=user_radius
+                            message, events, lat, lng, page=0, user_radius=radius
                         )
                         logger.info("✅ Компактный список событий отправлен")
                     except Exception as e:
@@ -1464,7 +1494,7 @@ async def on_location(message: types.Message):
                 # Если карта не сгенерировалась, отправляем только список событий
                 try:
                     await send_compact_events_list(
-                        message, events, lat, lng, page=0, user_radius=user_radius
+                        message, events, lat, lng, page=0, user_radius=radius
                     )
                     logger.info("✅ Компактный список событий отправлен (без карты)")
                 except Exception as e:
@@ -2642,6 +2672,26 @@ async def handle_cancel_moment(callback: types.CallbackQuery, state: FSMContext)
 
 
 # Обработчики для выбора радиуса
+@dp.callback_query(F.data.startswith(CB_RADIUS_PREFIX))
+async def on_radius_change(cb: types.CallbackQuery) -> None:
+    """Обработчик выбора радиуса через новые кнопки"""
+    try:
+        km = int(cb.data.split(":", 1)[1])
+    except Exception:
+        await cb.answer("Некорректный радиус", show_alert=True)
+        return
+
+    if km not in RADIUS_OPTIONS:
+        await cb.answer("Недоступный радиус", show_alert=True)
+        return
+
+    set_user_radius(cb.from_user.id, km)
+    await cb.answer(f"Радиус: {km} км")
+
+    # Обновляем клавиатуру с новым выбранным радиусом
+    await cb.message.edit_reply_markup(reply_markup=kb_radius(km))
+
+
 @dp.callback_query(F.data.startswith("radius:"))
 async def handle_radius_selection(callback: types.CallbackQuery):
     """Обработчик выбора радиуса поиска"""
