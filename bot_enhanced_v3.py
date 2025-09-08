@@ -885,9 +885,9 @@ def make_counts(groups):
     total = sum(len(v) for v in groups.values())
     return {
         "all": total,
-        "moments": len(groups["moment"]),
-        "user": len(groups["user"]),
-        "sources": len(groups["source"]),
+        "moments": len(groups.get("user", [])),  # Моменты хранятся в ключе "user"
+        "user": len(groups.get("user", [])),
+        "sources": len(groups.get("source", [])),
     }
 
 
