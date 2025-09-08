@@ -543,7 +543,7 @@ async def send_compact_events_list(
         f"found_by_stream: source={diag['found_by_stream']['source']} ai_parsed={diag['found_by_stream']['ai_parsed']} moments={diag['found_by_stream']['moments']}"
     )
     logger.info(
-        f"kept_by_type: source={diag['kept_by_type']['source']} user={diag['kept_by_type']['user']} ai_parsed={diag['kept_by_type']['ai_parsed']}"
+        f"kept_by_type: source={diag['kept_by_type'].get('source', 0)} user={diag['kept_by_type'].get('user', 0)} ai_parsed={diag['kept_by_type'].get('ai_parsed', 0)}"
     )
 
     # Обогащаем события названиями мест и расстояниями
@@ -1361,7 +1361,7 @@ async def on_location(message: types.Message):
                 f"prepared: kept={diag['kept']} dropped={diag['dropped']} reasons_top3={diag['reasons_top3']}"
             )
             logger.info(
-                f"kept_by_type: ai={diag['kept_by_type']['ai']} user={diag['kept_by_type']['user']} source={diag['kept_by_type']['source']}"
+                f"kept_by_type: ai={diag['kept_by_type'].get('ai_parsed', 0)} user={diag['kept_by_type'].get('user', 0)} source={diag['kept_by_type'].get('source', 0)}"
             )
 
             # Обогащаем события названиями мест (расстояния уже вычислены в prepare_events_for_feed)
@@ -1784,7 +1784,7 @@ async def on_diag_last(message: types.Message):
             "",
             "<b>📊 Статистика по потокам:</b>",
             f"• found_by_stream: source={found_by_stream.get('source', 0)}, ai_parsed={found_by_stream.get('ai_parsed', 0)}, moments={found_by_stream.get('moments', 0)}",
-            f"• kept_by_type: source={kept_by_type.get('source', 0)}, ai={kept_by_type.get('ai_parsed', 0)}, user={kept_by_type.get('user', 0)}",
+            f"• kept_by_type: source={kept_by_type.get('source', 0)}, ai_parsed={kept_by_type.get('ai_parsed', 0)}, user={kept_by_type.get('user', 0)}",
             f"• dropped: {diag.get('dropped', 0)}, top_reasons={diag.get('reasons_top3', [])}",
             "",
         ]
@@ -1921,11 +1921,11 @@ async def on_diag_search(message: types.Message):
             "<b>🔍 Диагностика поиска</b>",
             f"<b>user_point=</b>({lat}, {lng}) <b>radius_km=</b>{radius}",
             f"<b>found_total=</b>{diag.get('in', 0)}",
-            f"<b>kept_by_type:</b> ai={kept_by_type.get('ai', 0)} user={kept_by_type.get('user', 0)} source={kept_by_type.get('source', 0)}",
+            f"<b>kept_by_type:</b> ai_parsed={kept_by_type.get('ai_parsed', 0)} user={kept_by_type.get('user', 0)} source={kept_by_type.get('source', 0)}",
             f"<b>dropped=</b>{diag.get('dropped', 0)} <b>reasons_top3=</b>{reasons_top3}",
             "",
             "<b>📊 Детали по типам:</b>",
-            f"• AI события: {kept_by_type.get('ai', 0)}",
+            f"• AI события: {kept_by_type.get('ai_parsed', 0)}",
             f"• Пользовательские: {kept_by_type.get('user', 0)}",
             f"• Внешние источники: {kept_by_type.get('source', 0)}",
             "",
@@ -2085,7 +2085,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             f"prepared: kept={diag['kept']} dropped={diag['dropped']} reasons_top3={diag['reasons_top3']}"
         )
         logger.info(
-            f"kept_by_type: ai={diag['kept_by_type']['ai']} user={diag['kept_by_type']['user']} source={diag['kept_by_type']['source']}"
+            f"kept_by_type: ai_parsed={diag['kept_by_type'].get('ai_parsed', 0)} user={diag['kept_by_type'].get('user', 0)} source={diag['kept_by_type'].get('source', 0)}"
         )
 
         for event in prepared:

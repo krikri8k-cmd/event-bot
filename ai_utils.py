@@ -45,8 +45,12 @@ async def fetch_ai_events_nearby(lat: float, lng: float) -> list[dict[str, Any]]
     - community_name (str?)
     - community_link (str?)
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     client = _make_client()
     if client is None:
+        logger.warning("⚠️ OpenAI API ключ не настроен, пропускаем AI поиск")
         return []
 
     prompt = (
@@ -56,14 +60,20 @@ async def fetch_ai_events_nearby(lat: float, lng: float) -> list[dict[str, Any]]
         f"Координаты: lat={lat:.6f}, lng={lng:.6f}. Время локальное формата 'YYYY-MM-DD HH:MM'."
     )
 
-    completion = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "Return ONLY valid JSON array."},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.5,
-    )
+    try:
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Return ONLY valid JSON array."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.5,
+            timeout=15,  # Добавляем timeout
+        )
+        logger.info("✅ AI вернул ответ успешно")
+    except Exception as e:
+        logger.warning(f"⚠️ Ошибка при генерации AI: {e}. Fallback → пустой список.")
+        return []
 
     content = completion.choices[0].message.content or "[]"
     # Lazy import to avoid heavyweight dep if unused
