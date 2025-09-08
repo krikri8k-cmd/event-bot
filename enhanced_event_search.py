@@ -311,7 +311,7 @@ class EventSearchEngine:
                     "lat": place["lat"],
                     "lon": place["lng"],
                 },
-                "source_url": f"https://restaurants.com/{place['name'].lower().replace(' ', '-')}",
+                "source_url": "",  # Убираем фейковые URL
                 "lat": place["lat"],
                 "lng": place["lng"],
                 "source": "popular_places",
@@ -333,7 +333,7 @@ class EventSearchEngine:
                     "lat": place["lat"],
                     "lon": place["lng"],
                 },
-                "source_url": f"https://parks.com/{place['name'].lower().replace(' ', '-')}",
+                "source_url": "",  # Убираем фейковые URL
                 "lat": place["lat"],
                 "lng": place["lng"],
                 "source": "popular_places",
@@ -355,7 +355,7 @@ class EventSearchEngine:
                     "lat": place["lat"],
                     "lon": place["lng"],
                 },
-                "source_url": f"https://museums.com/{place['name'].lower().replace(' ', '-')}",
+                "source_url": "",  # Убираем фейковые URL
                 "lat": place["lat"],
                 "lng": place["lng"],
                 "source": "popular_places",
@@ -431,7 +431,7 @@ class EventSearchEngine:
                     "lat": event_lat,
                     "lon": event_lng,
                 },
-                "source_url": f"https://example-calendar.com/event/{hour}",
+                "source_url": "",  # Убираем фейковые URL
                 "lat": event_lat,
                 "lng": event_lng,
             }
@@ -518,7 +518,7 @@ class EventSearchEngine:
                     "lat": event_lat,
                     "lon": event_lng,
                 },
-                "source_url": f"https://social-events.com/activity/{i}",
+                "source_url": "",  # Убираем фейковые URL
                 "lat": event_lat,
                 "lng": event_lng,
             }
