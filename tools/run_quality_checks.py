@@ -148,14 +148,16 @@ async def main():
         (
             "Тест haversine",
             run_command(
-                "python -c \"from utils.geo_utils import haversine_km; print('✅ haversine_km работает:', haversine_km(-8.65, 115.22, -8.65, 115.22))\"",
+                'python -c "from utils.geo_utils import haversine_km; '
+                "print('✅ haversine_km работает:', haversine_km(-8.65, 115.22, -8.65, 115.22))\"",
                 "Тест haversine_km",
             ),
         ),
         (
             "Тест конфигурации",
             run_command(
-                "python -c \"from config import load_settings; s=load_settings(); print('✅ Конфигурация загружается:', s.default_radius_km)\"",
+                'python -c "from config import load_settings; s=load_settings(); '
+                "print('✅ Конфигурация загружается:', s.default_radius_km)\"",
                 "Тест загрузки конфигурации",
             ),
         ),
