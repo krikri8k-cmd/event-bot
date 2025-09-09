@@ -136,8 +136,7 @@ def test_counts_and_grouping_on_prepared():
     counts = make_counts(groups)
 
     assert counts["all"] == 4
-    # Все события получают тип "source" в prepare_events_for_feed
-    assert counts["sources"] == 4  # все 4 события
-    assert counts["user"] == 0
-    assert counts["moments"] == 0  # мы их не добавляли
-    # make_counts не включает ключ "ai"
+    # 2 source + 1 ai_generated = 3 источника, 1 user событие
+    assert counts["sources"] == 3  # 2 source + 1 ai_generated
+    assert counts["user"] == 1  # 1 user событие
+    assert counts["moments"] == 1  # моменты = user события

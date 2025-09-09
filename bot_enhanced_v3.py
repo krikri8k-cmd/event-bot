@@ -319,14 +319,15 @@ def prepare_events_for_feed(
 
         # Определяем тип события согласно ТЗ
         source = e.get("source", "")
+        input_type = e.get("type", "")
         event_type = "source"  # по умолчанию
 
         # Проверяем, является ли это моментом пользователя
-        if e.get("type") == "user" or source in ["user_created", "user"]:
+        if input_type == "user" or source in ["user_created", "user"]:
             event_type = "user"
         # Проверяем, является ли это AI-парсингом
-        elif e.get("ai_parsed") or source == "ai_parsed":
-            event_type = "ai_parsed"
+        elif input_type in ["ai", "ai_parsed", "ai_generated"] or e.get("ai_parsed") or source == "ai_parsed":
+            event_type = input_type if input_type in ["ai", "ai_parsed", "ai_generated"] else "ai_parsed"
         # Все остальное - источники
         else:
             event_type = "source"
@@ -339,8 +340,8 @@ def prepare_events_for_feed(
         # 1) Проверяем URL согласно ТЗ
         url = get_source_url(e)
 
-        # Для source и ai_parsed URL обязателен
-        if event_type in ["source", "ai_parsed"] and not url:
+        # Для ai_parsed URL обязателен
+        if event_type == "ai_parsed" and not url:
             drop.add("no_url", title)
             continue
 
@@ -361,6 +362,11 @@ def prepare_events_for_feed(
                 (e.get("lat") is not None and e.get("lng") is not None),
             ]
         )
+
+        # Для source и ai*: пропускать события без URL И без локации
+        if event_type in ["source", "ai_parsed", "ai", "ai_generated"] and not url and not has_loc:
+            drop.add("source_without_url_and_location", title)
+            continue
 
         if not has_loc:
             drop.add("no_venue_or_location", title)
@@ -679,11 +685,14 @@ def get_source_url(e: dict) -> str | None:
     candidates: list[str | None] = []
 
     if t == "source":
-        # Для источников ищем URL события
-        candidates = [e.get("source_url"), e.get("url"), e.get("link")]
-    elif t == "ai_parsed":
-        # Для AI-парсинга обязателен оригинальный URL
-        candidates = [e.get("source_url"), e.get("url"), e.get("original_url")]
+        # Для источников: url > booking_url > ticket_url > source_url
+        candidates = [e.get("url"), e.get("booking_url"), e.get("ticket_url"), e.get("source_url"), e.get("link")]
+    elif t in ("ai", "ai_parsed", "ai_generated"):
+        # Для AI-парсинга: source_url > url > original_url > location_url
+        candidates = [e.get("source_url"), e.get("url"), e.get("original_url"), e.get("location_url")]
+    elif t == "moment":
+        # Для моментов пользователей URL не обязателен
+        candidates = [e.get("author_url"), e.get("chat_url"), e.get("location_url")]
     elif t == "user":
         # Для моментов пользователей URL не обязателен
         candidates = [e.get("author_url"), e.get("chat_url")]
@@ -859,17 +868,20 @@ def group_by_type(events):
         "source": [e for e in events if e.get("type") == "source"],
         "user": [e for e in events if e.get("type") == "user"],
         "ai_parsed": [e for e in events if e.get("type") == "ai_parsed"],
+        "ai": [e for e in events if e.get("type") == "ai"],
+        "ai_generated": [e for e in events if e.get("type") == "ai_generated"],
     }
 
 
 def make_counts(groups):
     """Создает счетчики по группам"""
     total = sum(len(v) for v in groups.values())
+    ai_count = len(groups.get("ai", [])) + len(groups.get("ai_parsed", [])) + len(groups.get("ai_generated", []))
     return {
         "all": total,
         "moments": len(groups.get("user", [])),  # Моменты хранятся в ключе "user"
         "user": len(groups.get("user", [])),
-        "sources": len(groups.get("source", [])),
+        "sources": len(groups.get("source", [])) + ai_count,  # AI события считаются как источники
     }
 
 
