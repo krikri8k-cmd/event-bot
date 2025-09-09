@@ -5,7 +5,7 @@
 
 import pytest
 
-from utils.geo import bbox_around, haversine_km, inside_bbox
+from utils.geo_utils import bbox_around, haversine_km, inside_bbox
 
 
 def test_haversine_zero():

@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import text
 
 from database import get_session
-from utils.geo import bbox_around, haversine_km, validate_coordinates
+from utils.geo_utils import bbox_around, haversine_km, validate_coordinates
 
 logger = logging.getLogger(__name__)
 

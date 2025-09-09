@@ -10,7 +10,8 @@ from config import load_settings
 
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    R = 6371.0
+    """Точная дистанция по сфере между двумя точками в километрах."""
+    R = 6371.0088  # Более точное значение радиуса Земли
     phi1 = math.radians(lat1)
     phi2 = math.radians(lat2)
     dphi = math.radians(lat2 - lat1)
@@ -193,3 +194,30 @@ async def search_events_places(lat: float, lng: float, radius_km: int = 5) -> li
         all_places.extend(places)
 
     return all_places
+
+
+def bbox_around(lat: float, lon: float, radius_km: float) -> tuple[float, float, float, float]:
+    """Грубая рамка вокруг точки для первичного отбора (ускоряет запрос)."""
+    lat_delta = radius_km / 110.574  # км в градусах широты
+    lon_delta = radius_km / (111.320 * math.cos(math.radians(lat)) or 1e-9)
+    return (lat - lat_delta, lat + lat_delta, lon - lon_delta, lon + lon_delta)
+
+
+def inside_bbox(lat: float, lon: float, bbox: dict[str, float]) -> bool:
+    """Проверяет, находится ли точка внутри bounding box."""
+    return (bbox["min_lat"] <= lat <= bbox["max_lat"]) and (
+        bbox["min_lon"] <= lon <= bbox["max_lon"]
+    )
+
+
+def find_user_region(lat: float, lon: float, geo_bboxes: dict[str, dict[str, float]]) -> str:
+    """Определяет регион пользователя по координатам."""
+    for name, bb in geo_bboxes.items():
+        if inside_bbox(lat, lon, bb):
+            return name
+    return "unknown"
+
+
+def validate_coordinates(lat: float, lon: float) -> bool:
+    """Проверяет корректность координат."""
+    return -90 <= lat <= 90 and -180 <= lon <= 180

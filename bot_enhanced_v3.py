@@ -1100,7 +1100,7 @@ async def cleanup_expired_moments():
                 # Деактивируем истекшие моменты
                 expired_count = (
                     session.query(Moment)
-                    .filter(Moment.is_active == True, Moment.expires_at < datetime.now(UTC))
+                    .filter(Moment.is_active is True, Moment.expires_at < datetime.now(UTC))
                     .update({"is_active": False})
                 )
                 session.commit()
@@ -1893,6 +1893,116 @@ async def on_diag_last(message: types.Message):
         await message.answer("Произошла ошибка при получении диагностики")
 
 
+@dp.message(Command("diag_all"))
+async def on_diag_all(message: types.Message):
+    """Обработчик команды /diag_all для полной диагностики системы"""
+    try:
+        with get_session() as session:
+            # Получаем статистику событий за последние 24 часа
+            from datetime import UTC, datetime, timedelta
+
+            now = datetime.now(UTC)
+            yesterday = now - timedelta(hours=24)
+
+            # События по типам за 24ч
+            source_events = (
+                session.query(Event)
+                .filter(Event.created_at_utc >= yesterday, Event.source.isnot(None))
+                .count()
+            )
+
+            user_events = (
+                session.query(Event)
+                .filter(
+                    Event.created_at_utc >= yesterday,
+                    Event.source.is_(None),
+                    Event.organizer_id.isnot(None),
+                )
+                .count()
+            )
+
+            ai_events = (
+                session.query(Event)
+                .filter(Event.created_at_utc >= yesterday, Event.is_generated_by_ai is True)
+                .count()
+            )
+
+            # Активные моменты
+            active_moments = (
+                session.query(Moment)
+                .filter(Moment.is_active is True, Moment.expires_at > now)
+                .count()
+            )
+
+            # Истекшие моменты
+            expired_moments = (
+                session.query(Moment)
+                .filter(Moment.is_active is True, Moment.expires_at <= now)
+                .count()
+            )
+
+            # Общее количество событий
+            total_events = session.query(Event).count()
+            total_moments = session.query(Moment).count()
+
+            # Получаем список активных источников
+            sources = session.query(Event.source).filter(Event.source.isnot(None)).distinct().all()
+
+            source_list = [s[0] for s in sources if s[0]]
+
+            # Формируем диагностическую информацию
+            info_lines = [
+                "<b>🔍 Полная диагностика системы</b>",
+                "",
+                "<b>📊 События за последние 24ч:</b>",
+                f"• Внешние источники: {source_events}",
+                f"• Пользовательские: {user_events}",
+                f"• AI-сгенерированные: {ai_events}",
+                f"• Всего: {source_events + user_events + ai_events}",
+                "",
+                "<b>⚡ Моменты:</b>",
+                f"• Активные: {active_moments}",
+                f"• Истекшие (требуют очистки): {expired_moments}",
+                f"• Всего в БД: {total_moments}",
+                "",
+                "<b>📈 Общая статистика:</b>",
+                f"• Всего событий в БД: {total_events}",
+                f"• Всего моментов в БД: {total_moments}",
+                "",
+                "<b>🔗 Активные источники:</b>",
+            ]
+
+            if source_list:
+                for source in sorted(source_list)[:10]:  # Показываем первые 10
+                    info_lines.append(f"• {source}")
+                if len(source_list) > 10:
+                    info_lines.append(f"• ... и еще {len(source_list) - 10}")
+            else:
+                info_lines.append("• Нет активных источников")
+
+            # Добавляем информацию о конфигурации
+            settings = load_settings()
+            info_lines.extend(
+                [
+                    "",
+                    "<b>⚙️ Конфигурация:</b>",
+                    f"• Моменты включены: {'✅' if settings.moments_enable else '❌'}",
+                    f"• AI парсинг: {'✅' if settings.ai_parse_enable else '❌'}",
+                    f"• Meetup API: {'✅' if settings.enable_meetup_api else '❌'}",
+                    f"• ICS календари: {'✅' if settings.enable_ics_feeds else '❌'}",
+                    f"• Eventbrite API: {'✅' if settings.enable_eventbrite_api else '❌'}",
+                    f"• Радиус по умолчанию: {settings.default_radius_km}км",
+                    f"• Макс. радиус: {settings.max_radius_km}км",
+                ]
+            )
+
+            await message.answer("\n".join(info_lines))
+
+    except Exception as e:
+        logger.error(f"Ошибка в команде diag_all: {e}")
+        await message.answer("Произошла ошибка при получении диагностики")
+
+
 @dp.message(Command("diag_search"))
 async def on_diag_search(message: types.Message):
     """Обработчик команды /diag_search для диагностики поиска"""
@@ -2491,13 +2601,13 @@ async def handle_location_redo(callback: types.CallbackQuery, state: FSMContext)
 async def handle_ttl_selection(callback: types.CallbackQuery, state: FSMContext):
     """Обработка выбора TTL - Step 3"""
     ttl_minutes = int(callback.data[7:])  # убираем "m:ttl:"
-    
+
     # Валидация TTL - только разрешенные значения
     allowed_ttl = [30, 60, 120]
     if ttl_minutes not in allowed_ttl:
         await callback.answer("Выберите длительность из предложенных вариантов.", show_alert=True)
         return
-    
+
     await state.update_data(ttl_minutes=ttl_minutes)
 
     # Получаем данные для предпросмотра
