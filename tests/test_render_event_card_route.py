@@ -43,9 +43,7 @@ class TestRenderEventCardRoute:
 
     def test_route_with_address(self):
         """Тест B: Нет venue, но есть address"""
-        event = self.base_event(
-            venue_name=None, address="Jl. Danau Tamblingan 80, Sanur", coords=None
-        )
+        event = self.base_event(venue_name=None, address="Jl. Danau Tamblingan 80, Sanur", coords=None)
 
         html = render_event_html(event, 1)
 
@@ -82,9 +80,7 @@ class TestRenderEventCardRoute:
 
     def test_route_priority_venue_over_address(self):
         """Тест приоритета: venue_name > address"""
-        event = self.base_event(
-            venue_name="Cafe Moka", address="Jl. Danau Tamblingan 80, Sanur", coords=None
-        )
+        event = self.base_event(venue_name="Cafe Moka", address="Jl. Danau Tamblingan 80, Sanur", coords=None)
 
         html = render_event_html(event, 1)
 
@@ -94,9 +90,7 @@ class TestRenderEventCardRoute:
 
     def test_route_priority_address_over_coords(self):
         """Тест приоритета: address > coords"""
-        event = self.base_event(
-            venue_name=None, address="Jl. Danau Tamblingan 80, Sanur", lat=-8.67, lng=115.25
-        )
+        event = self.base_event(venue_name=None, address="Jl. Danau Tamblingan 80, Sanur", lat=-8.67, lng=115.25)
 
         html = render_event_html(event, 1)
 

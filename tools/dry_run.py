@@ -20,15 +20,11 @@ from enhanced_event_search import enhanced_search_events
 from utils.geo_utils import haversine_km
 
 # Настройка логирования
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
-async def dry_run_search(
-    lat: float, lng: float, radius_km: float, when: str = "today", verbose: bool = False
-):
+async def dry_run_search(lat: float, lng: float, radius_km: float, when: str = "today", verbose: bool = False):
     """Выполняет dry-run поиск событий"""
 
     print("🔍 Dry-run поиск событий")
@@ -56,9 +52,7 @@ async def dry_run_search(
         start_time = now
         end_time = now + timedelta(days=1)
 
-    print(
-        f"⏰ Временной диапазон: {start_time.strftime('%Y-%m-%d %H:%M')} - {end_time.strftime('%Y-%m-%d %H:%M')}"
-    )
+    print(f"⏰ Временной диапазон: {start_time.strftime('%Y-%m-%d %H:%M')} - {end_time.strftime('%Y-%m-%d %H:%M')}")
 
     try:
         # Выполняем поиск
@@ -150,12 +144,8 @@ async def main():
     parser = argparse.ArgumentParser(description="Dry-run тестирование системы парсинга событий")
     parser.add_argument("--lat", type=float, default=-8.5069, help="Широта (по умолчанию: Бали)")
     parser.add_argument("--lng", type=float, default=115.2625, help="Долгота (по умолчанию: Бали)")
-    parser.add_argument(
-        "--radius", type=float, default=10.0, help="Радиус поиска в км (по умолчанию: 10)"
-    )
-    parser.add_argument(
-        "--when", choices=["today", "tomorrow", "week"], default="today", help="Временной диапазон"
-    )
+    parser.add_argument("--radius", type=float, default=10.0, help="Радиус поиска в км (по умолчанию: 10)")
+    parser.add_argument("--when", choices=["today", "tomorrow", "week"], default="today", help="Временной диапазон")
     parser.add_argument("--verbose", action="store_true", help="Подробные логи")
 
     args = parser.parse_args()

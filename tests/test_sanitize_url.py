@@ -64,9 +64,7 @@ class TestSanitizeUrl:
     def test_sanitize_url(self, input_url, expected):
         """Тестирует sanitize_url с различными входными данными"""
         result = sanitize_url(input_url)
-        assert (
-            result == expected
-        ), f"Для URL '{input_url}' ожидался '{expected}', получен '{result}'"
+        assert result == expected, f"Для URL '{input_url}' ожидался '{expected}', получен '{result}'"
 
     def test_blacklist_domains_comprehensive(self):
         """Дополнительные тесты для blacklist доменов"""

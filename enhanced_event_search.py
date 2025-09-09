@@ -125,9 +125,7 @@ class EventSearchEngine:
     def __init__(self):
         self.settings = load_settings()
 
-    async def search_all_sources(
-        self, lat: float, lng: float, radius_km: int = 5
-    ) -> list[dict[str, Any]]:
+    async def search_all_sources(self, lat: float, lng: float, radius_km: int = 5) -> list[dict[str, Any]]:
         """
         Ищет события из всех доступных источников
         """
@@ -157,27 +155,30 @@ class EventSearchEngine:
             logger.info("🤝 Ищем события в Meetup...")
             try:
                 from sources.meetup import fetch as fetch_meetup
+
                 meetup_events = await fetch_meetup(lat, lng, radius_km)
                 if meetup_events:
                     logger.info(f"   ✅ Найдено {len(meetup_events)} событий в Meetup")
                     # Конвертируем RawEvent в наш формат
                     for event in meetup_events:
-                        all_events.append({
-                            "type": "source",
-                            "title": event.title,
-                            "description": event.description or "",
-                            "time_local": event.start_time.strftime("%Y-%m-%d %H:%M"),
-                            "start_time": event.start_time,
-                            "venue": {
-                                "name": event.venue_name or "",
-                                "address": event.address or "",
+                        all_events.append(
+                            {
+                                "type": "source",
+                                "title": event.title,
+                                "description": event.description or "",
+                                "time_local": event.start_time.strftime("%Y-%m-%d %H:%M"),
+                                "start_time": event.start_time,
+                                "venue": {
+                                    "name": event.venue_name or "",
+                                    "address": event.address or "",
+                                    "lat": event.lat,
+                                    "lon": event.lng,
+                                },
+                                "source_url": event.url or "",
                                 "lat": event.lat,
-                                "lon": event.lng,
-                            },
-                            "source_url": event.url or "",
-                            "lat": event.lat,
-                            "lng": event.lng,
-                        })
+                                "lng": event.lng,
+                            }
+                        )
                 else:
                     logger.info("   ⚠️ Meetup не вернул события")
             except Exception as e:
@@ -190,31 +191,34 @@ class EventSearchEngine:
             logger.info("📅 Ищем в ICS календарях...")
             try:
                 from sources.ics import fetch_ics
-                
+
                 for feed_url in self.settings.ics_feeds:
                     try:
                         response = fetch_ics(feed_url)
                         if response.status_code == 200:
                             # Парсим ICS (упрощенная версия)
                             from icalendar import Calendar
+
                             cal = Calendar.from_ical(response.content)
                             ics_count = 0
-                            for component in cal.walk('VEVENT'):
-                                title = str(component.get('SUMMARY', '')).strip()
+                            for component in cal.walk("VEVENT"):
+                                title = str(component.get("SUMMARY", "")).strip()
                                 if title:
-                                    all_events.append({
-                                        "type": "source",
-                                        "title": title,
-                                        "description": str(component.get('DESCRIPTION', '')),
-                                        "time_local": str(component.get('DTSTART', '')),
-                                        "venue": {
-                                            "name": str(component.get('LOCATION', '')),
-                                            "address": str(component.get('LOCATION', '')),
-                                        },
-                                        "source_url": str(component.get('URL', '')),
-                                        "lat": lat,  # Упрощение - используем координаты пользователя
-                                        "lng": lng,
-                                    })
+                                    all_events.append(
+                                        {
+                                            "type": "source",
+                                            "title": title,
+                                            "description": str(component.get("DESCRIPTION", "")),
+                                            "time_local": str(component.get("DTSTART", "")),
+                                            "venue": {
+                                                "name": str(component.get("LOCATION", "")),
+                                                "address": str(component.get("LOCATION", "")),
+                                            },
+                                            "source_url": str(component.get("URL", "")),
+                                            "lat": lat,  # Упрощение - используем координаты пользователя
+                                            "lng": lng,
+                                        }
+                                    )
                                     ics_count += 1
                             if ics_count > 0:
                                 logger.info(f"   ✅ Найдено {ics_count} событий в ICS календаре")
@@ -243,21 +247,15 @@ class EventSearchEngine:
         ai_count = sum(1 for e in all_events if e.get("source") == "ai_generated")
         user_count = sum(1 for e in all_events if e.get("source") in ["user_created", "user"])
         source_count = sum(
-            1
-            for e in all_events
-            if e.get("source") in ["event_calendars", "social_media", "popular_places"]
+            1 for e in all_events if e.get("source") in ["event_calendars", "social_media", "popular_places"]
         )
 
         logger.info(f"🎯 Всего найдено: {len(all_events)} событий")
-        logger.info(
-            f"📊 Диагностика источников: ai={ai_count}, user={user_count}, source={source_count}"
-        )
+        logger.info(f"📊 Диагностика источников: ai={ai_count}, user={user_count}, source={source_count}")
 
         return all_events
 
-    async def _search_popular_places(
-        self, lat: float, lng: float, radius_km: int
-    ) -> list[dict[str, Any]]:
+    async def _search_popular_places(self, lat: float, lng: float, radius_km: int) -> list[dict[str, Any]]:
         """
         Ищет реальные события в популярных местах
         """
@@ -309,9 +307,7 @@ class EventSearchEngine:
 
         return places
 
-    async def _find_place_by_type(
-        self, lat: float, lng: float, place_type: str, radius_km: int
-    ) -> dict:
+    async def _find_place_by_type(self, lat: float, lng: float, place_type: str, radius_km: int) -> dict:
         """
         Ищет место определенного типа поблизости
         """
@@ -353,9 +349,7 @@ class EventSearchEngine:
                 "title": f"Ужин в {place['name']}",
                 "description": "Отличная кухня и атмосфера в ресторане",
                 "time_local": f"{datetime.now().strftime('%Y-%m-%d')} 19:00",
-                "start_time": datetime.strptime(
-                    f"{datetime.now().strftime('%Y-%m-%d')} 19:00", "%Y-%m-%d %H:%M"
-                ),
+                "start_time": datetime.strptime(f"{datetime.now().strftime('%Y-%m-%d')} 19:00", "%Y-%m-%d %H:%M"),
                 "venue": {
                     "name": place["name"],
                     "address": "Ресторанный район",
@@ -375,9 +369,7 @@ class EventSearchEngine:
                 "title": f"Прогулка в {place['name']}",
                 "description": "Приятная прогулка на свежем воздухе в парке",
                 "time_local": f"{datetime.now().strftime('%Y-%m-%d')} 16:00",
-                "start_time": datetime.strptime(
-                    f"{datetime.now().strftime('%Y-%m-%d')} 16:00", "%Y-%m-%d %H:%M"
-                ),
+                "start_time": datetime.strptime(f"{datetime.now().strftime('%Y-%m-%d')} 16:00", "%Y-%m-%d %H:%M"),
                 "venue": {
                     "name": place["name"],
                     "address": "Парковая зона",
@@ -397,9 +389,7 @@ class EventSearchEngine:
                 "title": f"Посещение {place['name']}",
                 "description": "Интересные экспонаты и выставки в музее",
                 "time_local": f"{datetime.now().strftime('%Y-%m-%d')} 14:00",
-                "start_time": datetime.strptime(
-                    f"{datetime.now().strftime('%Y-%m-%d')} 14:00", "%Y-%m-%d %H:%M"
-                ),
+                "start_time": datetime.strptime(f"{datetime.now().strftime('%Y-%m-%d')} 14:00", "%Y-%m-%d %H:%M"),
                 "venue": {
                     "name": place["name"],
                     "address": "Культурный район",
@@ -416,9 +406,7 @@ class EventSearchEngine:
 
         return events
 
-    async def _search_event_calendars(
-        self, lat: float, lng: float, radius_km: int
-    ) -> list[dict[str, Any]]:
+    async def _search_event_calendars(self, lat: float, lng: float, radius_km: int) -> list[dict[str, Any]]:
         """
         Ищет реальные события в календарях
         """
@@ -450,9 +438,7 @@ class EventSearchEngine:
 
         return events
 
-    async def _generate_calendar_events(
-        self, lat: float, lng: float, today: datetime
-    ) -> list[dict]:
+    async def _generate_calendar_events(self, lat: float, lng: float, today: datetime) -> list[dict]:
         """
         Генерирует события календаря на основе времени и места
         """
@@ -473,9 +459,7 @@ class EventSearchEngine:
                 "title": f"{random.choice(event_types)} в {hour}:00",
                 "description": f"Интересное событие в {hour}:00 в центре города",
                 "time_local": f"{today.strftime('%Y-%m-%d')} {hour:02d}:00",
-                "start_time": datetime.strptime(
-                    f"{today.strftime('%Y-%m-%d')} {hour:02d}:00", "%Y-%m-%d %H:%M"
-                ),
+                "start_time": datetime.strptime(f"{today.strftime('%Y-%m-%d')} {hour:02d}:00", "%Y-%m-%d %H:%M"),
                 "venue": {
                     "name": "Центр города",
                     "address": "Центральная площадь",
@@ -493,9 +477,7 @@ class EventSearchEngine:
 
         return events
 
-    async def _search_social_media(
-        self, lat: float, lng: float, radius_km: int
-    ) -> list[dict[str, Any]]:
+    async def _search_social_media(self, lat: float, lng: float, radius_km: int) -> list[dict[str, Any]]:
         """
         Ищет реальные события в социальных сетях
         """
@@ -560,9 +542,7 @@ class EventSearchEngine:
                 "title": activity,
                 "description": "Популярная активность в соцсетях в парке",
                 "time_local": f"{datetime.now().strftime('%Y-%m-%d')} {time}",
-                "start_time": datetime.strptime(
-                    f"{datetime.now().strftime('%Y-%m-%d')} {time}", "%Y-%m-%d %H:%M"
-                ),
+                "start_time": datetime.strptime(f"{datetime.now().strftime('%Y-%m-%d')} {time}", "%Y-%m-%d %H:%M"),
                 "venue": {
                     "name": f"Парк для {activity.lower()}",
                     "address": "Городской парк",
@@ -595,9 +575,7 @@ class EventSearchEngine:
 
 
 # Функция для использования в боте
-async def enhanced_search_events(
-    lat: float, lng: float, radius_km: int = 5
-) -> list[dict[str, Any]]:
+async def enhanced_search_events(lat: float, lng: float, radius_km: int = 5) -> list[dict[str, Any]]:
     """
     Улучшенный поиск событий из всех источников
     """

@@ -43,9 +43,7 @@ class MeetupOAuth:
     def __init__(self) -> None:
         self.client_id = os.getenv("MEETUP_CLIENT_ID", "")
         self.client_secret = os.getenv("MEETUP_CLIENT_SECRET", "")
-        self.redirect_uri = os.getenv(
-            "MEETUP_REDIRECT_URI", "http://localhost:8000/oauth/meetup/callback"
-        )
+        self.redirect_uri = os.getenv("MEETUP_REDIRECT_URI", "http://localhost:8000/oauth/meetup/callback")
 
         self._bundle: TokenBundle | None = None
         if os.getenv("MEETUP_ACCESS_TOKEN"):

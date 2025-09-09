@@ -36,12 +36,7 @@ def prepare_events_for_feed(events, user_point=(0, 0)):
             continue
 
         # Проверяем локацию
-        if not (
-            e.get("venue_name")
-            or e.get("address")
-            or e.get("coords")
-            or (e.get("lat") and e.get("lng"))
-        ):
+        if not (e.get("venue_name") or e.get("address") or e.get("coords") or (e.get("lat") and e.get("lng"))):
             drop.add("no_venue_or_location", title)
             continue
 

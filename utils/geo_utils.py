@@ -127,9 +127,7 @@ async def search_nearby_places(
 
     try:
         async with httpx.AsyncClient(timeout=15) as client:
-            r = await client.get(
-                "https://maps.googleapis.com/maps/api/place/nearbysearch/json", params=params
-            )
+            r = await client.get("https://maps.googleapis.com/maps/api/place/nearbysearch/json", params=params)
             r.raise_for_status()
             data = r.json()
 
@@ -205,9 +203,7 @@ def bbox_around(lat: float, lon: float, radius_km: float) -> tuple[float, float,
 
 def inside_bbox(lat: float, lon: float, bbox: dict[str, float]) -> bool:
     """Проверяет, находится ли точка внутри bounding box."""
-    return (bbox["min_lat"] <= lat <= bbox["max_lat"]) and (
-        bbox["min_lon"] <= lon <= bbox["max_lon"]
-    )
+    return (bbox["min_lat"] <= lat <= bbox["max_lat"]) and (bbox["min_lon"] <= lon <= bbox["max_lon"])
 
 
 def find_user_region(lat: float, lon: float, geo_bboxes: dict[str, dict[str, float]]) -> str:

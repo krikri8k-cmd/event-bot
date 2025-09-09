@@ -46,8 +46,9 @@ async def fetch_ai_events_nearby(lat: float, lng: float) -> list[dict[str, Any]]
     - community_link (str?)
     """
     import logging
+
     logger = logging.getLogger(__name__)
-    
+
     client = _make_client()
     if client is None:
         logger.warning("⚠️ OpenAI API ключ не настроен, пропускаем AI поиск")
@@ -100,12 +101,21 @@ async def fetch_ai_events_nearby(lat: float, lng: float) -> list[dict[str, Any]]
             lng_i = float(item.get("lng")) if item.get("lng") is not None else None
             if lat_i is None or lng_i is None:
                 continue
-            
+
             # Валидация URL - отфильтровываем фейковые ссылки
             location_url = item.get("location_url") or ""
             if location_url:
                 # Проверяем, что это не фейковая ссылка
-                if any(fake in location_url.lower() for fake in ["example.com", "example.org", "example.net", "test.com", "demo.com"]):
+                if any(
+                    fake in location_url.lower()
+                    for fake in [
+                        "example.com",
+                        "example.org",
+                        "example.net",
+                        "test.com",
+                        "demo.com",
+                    ]
+                ):
                     logger.warning(f"⚠️ Отфильтрован фейковый URL: {location_url}")
                     continue
 

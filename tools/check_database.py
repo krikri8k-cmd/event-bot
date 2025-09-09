@@ -83,9 +83,7 @@ def check_database():
 
             # AI события
             ai_events = (
-                session.query(Event)
-                .filter(Event.created_at_utc >= yesterday, Event.is_generated_by_ai is True)
-                .count()
+                session.query(Event).filter(Event.created_at_utc >= yesterday, Event.is_generated_by_ai is True).count()
             )
             print(f"  • AI-сгенерированные: {ai_events}")
             print()
@@ -132,17 +130,9 @@ def check_database():
 
             # Статистика моментов
             print("⚡ Статистика моментов:")
-            active_moments = (
-                session.query(Moment)
-                .filter(Moment.is_active is True, Moment.expires_at > now)
-                .count()
-            )
+            active_moments = session.query(Moment).filter(Moment.is_active is True, Moment.expires_at > now).count()
 
-            expired_moments = (
-                session.query(Moment)
-                .filter(Moment.is_active is True, Moment.expires_at <= now)
-                .count()
-            )
+            expired_moments = session.query(Moment).filter(Moment.is_active is True, Moment.expires_at <= now).count()
 
             print(f"  • Активных: {active_moments}")
             print(f"  • Истекших (требуют очистки): {expired_moments}")
@@ -151,9 +141,7 @@ def check_database():
 
             # Проверяем события без координат
             print("📍 События без координат:")
-            events_without_coords = (
-                session.query(Event).filter(Event.lat.is_(None) | Event.lng.is_(None)).count()
-            )
+            events_without_coords = session.query(Event).filter(Event.lat.is_(None) | Event.lng.is_(None)).count()
             print(f"  • Без координат: {events_without_coords}")
 
             if events_without_coords > 0:
@@ -162,9 +150,7 @@ def check_database():
 
             # Проверяем события без ссылок
             print("🔗 События без ссылок:")
-            events_without_url = (
-                session.query(Event).filter(Event.url.is_(None) | (Event.url == "")).count()
-            )
+            events_without_url = session.query(Event).filter(Event.url.is_(None) | (Event.url == "")).count()
             print(f"  • Без ссылок: {events_without_url}")
 
             if events_without_url > 0:

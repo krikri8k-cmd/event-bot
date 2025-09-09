@@ -14,9 +14,7 @@ def apply_migration():
         sql = f.read()
 
     # Разбиваем на отдельные команды
-    commands = [
-        cmd.strip() for cmd in sql.split(";") if cmd.strip() and not cmd.strip().startswith("--")
-    ]
+    commands = [cmd.strip() for cmd in sql.split(";") if cmd.strip() and not cmd.strip().startswith("--")]
 
     with engine.connect() as conn:
         for command in commands:

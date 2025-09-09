@@ -10,11 +10,7 @@ def add_composite_index():
     engine = create_engine(config.DATABASE_URL)
 
     with engine.connect() as conn:
-        conn.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS idx_events_city_country ON events (LOWER(city), country)"
-            )
-        )
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_events_city_country ON events (LOWER(city), country)"))
         conn.commit()
         print("Composite index created successfully")
 

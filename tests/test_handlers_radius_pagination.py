@@ -70,12 +70,8 @@ def test_expand_radius_really_refetches(monkeypatch, memory_state):
                 venue_name="Dojo",
                 source_url="https://dojobali.org/e/1",
             ),
-            _mk_event(
-                "user", "Иду пить кофе", 6.0, venue_name="Revolver", author_url="https://t.me/u"
-            ),
-            _mk_event(
-                "ai_generated", "Йога на пляже", 9.0, venue_name="Sanur Beach", location_url=None
-            ),
+            _mk_event("user", "Иду пить кофе", 6.0, venue_name="Revolver", author_url="https://t.me/u"),
+            _mk_event("ai_generated", "Йога на пляже", 9.0, venue_name="Sanur Beach", location_url=None),
         ]
 
     # Стартовое состояние: положим туда результаты r=5 как будто их только что показали
@@ -100,9 +96,7 @@ def test_expand_radius_really_refetches(monkeypatch, memory_state):
     raw10 = fetch_r10(st["lat"], st["lng"], radius_km=10)
     prepared10, _ = prepare_events_for_feed(raw10, with_diag=True)
     counts10 = make_counts(group_by_type(prepared10))
-    memory_state.set(
-        chat_id, {**st, "radius": 10, "prepared": prepared10, "counts": counts10, "page": 1}
-    )
+    memory_state.set(chat_id, {**st, "radius": 10, "prepared": prepared10, "counts": counts10, "page": 1})
 
     # Проверки
     assert len(prepared5) == 1
@@ -129,9 +123,7 @@ def test_pagination_uses_prepared_only(monkeypatch, memory_state):
         _mk_event("source", "S3", 0.7, source_url=None),  # плохое — без локации и урла
         _mk_event("user", "U1", 0.8, venue_name="C", author_url="https://t.me/u1"),
         _mk_event("ai_generated", "AI1", 1.0, venue_name="D"),
-        _mk_event(
-            "source", "S4", 1.2, source_url="https://calendar.google.com/"
-        ),  # плохое — пустой календарь
+        _mk_event("source", "S4", 1.2, source_url="https://calendar.google.com/"),  # плохое — пустой календарь
         _mk_event("source", "S5", 1.3, venue_name="E", source_url="https://s/e"),
         _mk_event(
             "ai_generated", "AI2", 1.4, venue_name="F", location_url="https://example.com/x"

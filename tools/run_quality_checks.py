@@ -76,12 +76,8 @@ async def main():
     print("1️⃣ ПРОВЕРКА ЛИНТЕРОВ")
     print("-" * 30)
 
-    checks.append(
-        ("Линтер ruff", run_command("python -m ruff check . --select=E,W,F", "Проверка ruff"))
-    )
-    checks.append(
-        ("Форматирование black", run_command("python -m black . --check", "Проверка black"))
-    )
+    checks.append(("Линтер ruff", run_command("python -m ruff check . --select=E,W,F", "Проверка ruff")))
+    checks.append(("Форматирование black", run_command("python -m black . --check", "Проверка black")))
 
     print()
 

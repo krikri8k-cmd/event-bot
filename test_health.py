@@ -58,7 +58,7 @@ def test_keep_alive():
     print("\n🔄 Тестирую keep-alive механизм...")
 
     for i in range(3):
-        print(f"   Ping {i+1}/3: {time.strftime('%H:%M:%S')}")
+        print(f"   Ping {i + 1}/3: {time.strftime('%H:%M:%S')}")
         time.sleep(2)
 
     print("✅ Keep-alive тест завершен")

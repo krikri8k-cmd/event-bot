@@ -103,9 +103,7 @@ def create_app() -> FastAPI:
         return {"db": "ok", "value": int(val)}
 
     @app.get("/events/nearby")
-    def events_nearby(
-        lat: float, lng: float, radius_km: float = 5, limit: int = 50, offset: int = Query(0, ge=0)
-    ):
+    def events_nearby(lat: float, lng: float, radius_km: float = 5, limit: int = 50, offset: int = Query(0, ge=0)):
         """Поиск событий в радиусе от координат с точным расстоянием"""
         # Валидация входных данных
         if not (-90 <= lat <= 90):

@@ -29,9 +29,7 @@ def reverse_geocode(lat: float, lon: float) -> dict[str, str | None]:
         r.raise_for_status()
         data = r.json()
         addr = data.get("address", {})
-        city = (
-            addr.get("city") or addr.get("town") or addr.get("village") or addr.get("municipality")
-        )
+        city = addr.get("city") or addr.get("town") or addr.get("village") or addr.get("municipality")
         country = addr.get("country_code")  # двухбуквенный код
         return {"city": city, "country": country.upper() if country else None}
     except Exception:

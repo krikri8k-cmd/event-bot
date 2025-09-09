@@ -30,20 +30,31 @@ dev = [
 
 [tool.ruff]
 target-version = "py312"
-line-length = 100
+line-length = 120
 
 [tool.ruff.format]
 line-ending = "lf"
 
 [tool.ruff.lint]
-select = ["E", "F", "UP", "I"]
+select = ["E", "F", "UP", "I", "W"]
 fixable = ["ALL"]
 extend-unsafe-fixes = ["ALL"]
-ignore = ["E501"]
+ignore = []
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "tests/test_events_nearby.py" = ["UP017"]
+# Миграционные скрипты (у них часто "неидеальные" импорты/строки)
+"apply_*_migration.py" = ["E402", "F401", "I001", "UP015", "W291", "E501"]
+"migrations/**" = ["E402", "F401", "I001", "UP015", "W291", "E501"]
+# Скрипты проверки и диагностики
+"check_*.py" = ["W291", "E501"]
+"add_test_events.py" = ["W291"]
+"test_migration.py" = ["W291"]
+"smart_ai_generator.py" = ["W291", "E501"]
+# Длинные строки в диагностических сообщениях
+"bot_enhanced_v3.py" = ["E501"]
+"tools/run_quality_checks.py" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

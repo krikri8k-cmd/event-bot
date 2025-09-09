@@ -526,19 +526,13 @@ async def send_compact_events_list(
         try:
             moments = await get_active_moments_nearby(user_lat, user_lng, radius)
             events.extend(moments)
-            logger.info(
-                f"Добавлено {len(moments)} моментов к {len(events) - len(moments)} событиям"
-            )
+            logger.info(f"Добавлено {len(moments)} моментов к {len(events) - len(moments)} событиям")
         except Exception as e:
             logger.error(f"Ошибка загрузки моментов: {e}")
 
     # 1) Сначала фильтруем и группируем (после всех проверок publishable)
-    prepared, diag = prepare_events_for_feed(
-        events, user_point=(user_lat, user_lng), with_diag=True
-    )
-    logger.info(
-        f"prepared: kept={diag['kept']} dropped={diag['dropped']} reasons_top3={diag['reasons_top3']}"
-    )
+    prepared, diag = prepare_events_for_feed(events, user_point=(user_lat, user_lng), with_diag=True)
+    logger.info(f"prepared: kept={diag['kept']} dropped={diag['dropped']} reasons_top3={diag['reasons_top3']}")
     logger.info(
         f"found_by_stream: source={diag['found_by_stream']['source']} ai_parsed={diag['found_by_stream']['ai_parsed']} moments={diag['found_by_stream']['moments']}"
     )
@@ -576,16 +570,12 @@ async def send_compact_events_list(
 
     try:
         # Отправляем компактный список событий в HTML формате
-        await message.answer(
-            text, reply_markup=inline_kb, parse_mode="HTML", disable_web_page_preview=True
-        )
+        await message.answer(text, reply_markup=inline_kb, parse_mode="HTML", disable_web_page_preview=True)
         logger.info(f"✅ Страница {page + 1} событий отправлена (HTML)")
     except Exception as e:
         logger.error(f"❌ Ошибка отправки страницы {page + 1}: {e}")
         # Fallback - отправляем без форматирования
-        await message.answer(
-            f"📋 События (страница {page + 1} из {total_pages}):\n\n{text}", reply_markup=inline_kb
-        )
+        await message.answer(f"📋 События (страница {page + 1} из {total_pages}):\n\n{text}", reply_markup=inline_kb)
 
 
 async def edit_events_list_message(
@@ -644,17 +634,13 @@ async def edit_events_list_message(
 
     try:
         # Редактируем сообщение
-        await message.edit_text(
-            text, reply_markup=inline_kb, parse_mode="HTML", disable_web_page_preview=True
-        )
+        await message.edit_text(text, reply_markup=inline_kb, parse_mode="HTML", disable_web_page_preview=True)
         logger.info(f"✅ Страница {page + 1} событий отредактирована (HTML)")
     except Exception as e:
         logger.error(f"❌ Ошибка редактирования страницы {page + 1}: {e}")
 
 
-async def send_detailed_events_list(
-    message: types.Message, events: list, user_lat: float, user_lng: float
-):
+async def send_detailed_events_list(message: types.Message, events: list, user_lat: float, user_lng: float):
     """
     Отправляет детальный список событий отдельным сообщением (устаревшая функция)
     """
@@ -785,11 +771,7 @@ def render_event_html(e: dict, idx: int) -> str:
             except Exception:
                 pass
 
-    return (
-        f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n"
-        f"📍 {venue_display}\n"
-        f"{src_part}  {map_part}\n"
-    )
+    return f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n📍 {venue_display}\n{src_part}  {map_part}\n"
 
 
 def render_fallback(lat: float, lng: float) -> str:
@@ -837,8 +819,8 @@ def kb_pager(page: int, total: int, current_radius: int = None) -> InlineKeyboar
 
     settings = load_settings()
 
-    prev_cb = f"pg:{page-1}" if page > 1 else "pg:noop"
-    next_cb = f"pg:{page+1}" if page < total else "pg:noop"
+    prev_cb = f"pg:{page - 1}" if page > 1 else "pg:noop"
+    next_cb = f"pg:{page + 1}" if page < total else "pg:noop"
 
     buttons = [
         [
@@ -922,9 +904,7 @@ def get_user_radius(user_id: int, default_km: int) -> int:
     """Получает радиус пользователя из состояния или возвращает дефолтный"""
     state = user_state.get(user_id) or {}
     value = state.get(RADIUS_KEY)
-    return (
-        int(value) if isinstance(value, int | float | str) and str(value).isdigit() else default_km
-    )
+    return int(value) if isinstance(value, int | float | str) and str(value).isdigit() else default_km
 
 
 def set_user_radius(user_id: int, radius_km: int) -> None:
@@ -987,9 +967,7 @@ async def check_daily_limit(user_id: int) -> tuple[bool, int]:
         return count < settings.moment_daily_limit, count
 
 
-async def create_moment(
-    user_id: int, username: str, title: str, lat: float, lng: float, ttl_minutes: int
-) -> Moment:
+async def create_moment(user_id: int, username: str, title: str, lat: float, lng: float, ttl_minutes: int) -> Moment:
     """Создает новый момент пользователя с проверкой лимитов"""
     from datetime import UTC, datetime, timedelta
 
@@ -1041,11 +1019,7 @@ async def get_active_moments_nearby(lat: float, lng: float, radius_km: float = N
 
     with get_session() as session:
         # Получаем все активные моменты
-        moments = (
-            session.query(Moment)
-            .filter(Moment.is_active is True, Moment.expires_at > datetime.now(UTC))
-            .all()
-        )
+        moments = session.query(Moment).filter(Moment.is_active is True, Moment.expires_at > datetime.now(UTC)).all()
 
         # Фильтруем по радиусу и конвертируем в формат событий
         nearby_moments = []
@@ -1278,9 +1252,7 @@ async def on_location(message: types.Message):
 
         # Ищем события из всех источников
         try:
-            logger.info(
-                f"🔍 Начинаем поиск событий для координат ({lat}, {lng}) с радиусом {radius} км"
-            )
+            logger.info(f"🔍 Начинаем поиск событий для координат ({lat}, {lng}) с радиусом {radius} км")
             events = await enhanced_search_events(lat, lng, radius_km=int(radius))
             logger.info(f"✅ Поиск завершен, найдено {len(events)} событий")
         except Exception:
@@ -1357,9 +1329,7 @@ async def on_location(message: types.Message):
             prepared, diag = prepare_events_for_feed(
                 events, user_point=(lat, lng), radius_km=settings.default_radius_km, with_diag=True
             )
-            logger.info(
-                f"prepared: kept={diag['kept']} dropped={diag['dropped']} reasons_top3={diag['reasons_top3']}"
-            )
+            logger.info(f"prepared: kept={diag['kept']} dropped={diag['dropped']} reasons_top3={diag['reasons_top3']}")
             logger.info(
                 f"kept_by_type: ai={diag['kept_by_type'].get('ai_parsed', 0)} user={diag['kept_by_type'].get('user', 0)} source={diag['kept_by_type'].get('source', 0)}"
             )
@@ -1405,13 +1375,9 @@ async def on_location(message: types.Message):
                 if event_lat is not None and event_lng is not None:
                     if -90 <= event_lat <= 90 and -180 <= event_lng <= 180:
                         points.append((str(i), event_lat, event_lng))  # Метки 1, 2, 3
-                        logger.info(
-                            f"Событие {i}: {event['title']} - координаты ({event_lat:.6f}, {event_lng:.6f})"
-                        )
+                        logger.info(f"Событие {i}: {event['title']} - координаты ({event_lat:.6f}, {event_lng:.6f})")
                     else:
-                        logger.warning(
-                            f"Событие {i}: неверные координаты ({event_lat}, {event_lng})"
-                        )
+                        logger.warning(f"Событие {i}: неверные координаты ({event_lat}, {event_lng})")
                 else:
                     logger.warning(f"Событие {i}: отсутствуют координаты")
 
@@ -1438,11 +1404,7 @@ async def on_location(message: types.Message):
 
                     # Создаем кнопки для расширения радиуса, если событий мало
                     keyboard_buttons = [
-                        [
-                            InlineKeyboardButton(
-                                text="🗺️ Открыть в Google Maps с событиями", url=maps_url
-                            )
-                        ]
+                        [InlineKeyboardButton(text="🗺️ Открыть в Google Maps с событиями", url=maps_url)]
                     ]
 
                     # Добавляем кнопки расширения радиуса, если событий меньше 3 или их нет
@@ -1476,9 +1438,7 @@ async def on_location(message: types.Message):
 
                     # Отправляем компактный список событий отдельным сообщением
                     try:
-                        await send_compact_events_list(
-                            message, events, lat, lng, page=0, user_radius=radius
-                        )
+                        await send_compact_events_list(message, events, lat, lng, page=0, user_radius=radius)
                         logger.info("✅ Компактный список событий отправлен")
                     except Exception as e:
                         logger.error(f"❌ Ошибка отправки компактного списка: {e}")
@@ -1491,15 +1451,11 @@ async def on_location(message: types.Message):
                         )
                 except Exception as e:
                     logger.exception("Failed to send map image, will send URL as text: %s", e)
-                    await message.answer(
-                        f"Не удалось загрузить изображение карты. Вот URL для проверки:\n{map_url}"
-                    )
+                    await message.answer(f"Не удалось загрузить изображение карты. Вот URL для проверки:\n{map_url}")
             else:
                 # Если карта не сгенерировалась, отправляем только список событий
                 try:
-                    await send_compact_events_list(
-                        message, events, lat, lng, page=0, user_radius=radius
-                    )
+                    await send_compact_events_list(message, events, lat, lng, page=0, user_radius=radius)
                     logger.info("✅ Компактный список событий отправлен (без карты)")
                 except Exception as e:
                     logger.error(f"❌ Ошибка отправки компактного списка: {e}")
@@ -1528,9 +1484,7 @@ async def on_location(message: types.Message):
 
     except Exception as e:
         logger.error(f"Ошибка при поиске событий: {e}")
-        await message.answer(
-            "Произошла ошибка при поиске событий. Попробуйте позже.", reply_markup=main_menu_kb()
-        )
+        await message.answer("Произошла ошибка при поиске событий. Попробуйте позже.", reply_markup=main_menu_kb())
 
 
 @dp.message(Command("create"))
@@ -1540,9 +1494,7 @@ async def on_create(message: types.Message):
     await dp.storage.set_state(message.from_user.id, EventCreation.waiting_for_title)
     await message.answer(
         "Создаём новое событие! 📝\n\nВведите название события:",
-        reply_markup=types.ReplyKeyboardMarkup(
-            keyboard=[[KeyboardButton(text="❌ Отмена")]], resize_keyboard=True
-        ),
+        reply_markup=types.ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="❌ Отмена")]], resize_keyboard=True),
     )
 
 
@@ -1606,8 +1558,7 @@ async def process_location(message: types.Message, state: FSMContext):
 
     await state.clear()
     await message.answer(
-        f"✅ Событие '{data['title']}' создано!\n\n"
-        f"Теперь другие пользователи смогут найти его через '📍 Что рядом'.",
+        f"✅ Событие '{data['title']}' создано!\n\nТеперь другие пользователи смогут найти его через '📍 Что рядом'.",
         reply_markup=main_menu_kb(),
     )
 
@@ -1643,9 +1594,7 @@ async def on_my_events(message: types.Message):
         )
 
     text = "\n\n".join(lines)
-    await message.answer(
-        f"📋 Ваши события:\n\n{text}", reply_markup=main_menu_kb(), parse_mode="Markdown"
-    )
+    await message.answer(f"📋 Ваши события:\n\n{text}", reply_markup=main_menu_kb(), parse_mode="Markdown")
 
 
 @dp.message(Command("share"))
@@ -1801,9 +1750,7 @@ async def on_diag_last(message: types.Message):
                 if event_type == "user":
                     # Для моментов показываем автора
                     author_username = event.get("creator_username")
-                    source_info = (
-                        f"автор-юзер @{author_username}" if author_username else "автор-юзер"
-                    )
+                    source_info = f"автор-юзер @{author_username}" if author_username else "автор-юзер"
                 else:
                     # Для источников и AI - домен источника
                     url = get_source_url(event)
@@ -1875,9 +1822,7 @@ async def on_diag_last(message: types.Message):
 
                     lat = moment.get("lat", 0)
                     lng = moment.get("lng", 0)
-                    info_lines.append(
-                        f'👤 @{author} | "{title}" | ещё {time_left} | ({lat:.4f}, {lng:.4f})'
-                    )
+                    info_lines.append(f'👤 @{author} | "{title}" | ещё {time_left} | ({lat:.4f}, {lng:.4f})')
 
         # Показываем первое отброшенное source событие для диагностики
         if diag.get("dropped", 0) > 0:
@@ -1906,9 +1851,7 @@ async def on_diag_all(message: types.Message):
 
             # События по типам за 24ч
             source_events = (
-                session.query(Event)
-                .filter(Event.created_at_utc >= yesterday, Event.source.isnot(None))
-                .count()
+                session.query(Event).filter(Event.created_at_utc >= yesterday, Event.source.isnot(None)).count()
             )
 
             user_events = (
@@ -1922,24 +1865,14 @@ async def on_diag_all(message: types.Message):
             )
 
             ai_events = (
-                session.query(Event)
-                .filter(Event.created_at_utc >= yesterday, Event.is_generated_by_ai is True)
-                .count()
+                session.query(Event).filter(Event.created_at_utc >= yesterday, Event.is_generated_by_ai is True).count()
             )
 
             # Активные моменты
-            active_moments = (
-                session.query(Moment)
-                .filter(Moment.is_active is True, Moment.expires_at > now)
-                .count()
-            )
+            active_moments = session.query(Moment).filter(Moment.is_active is True, Moment.expires_at > now).count()
 
             # Истекшие моменты
-            expired_moments = (
-                session.query(Moment)
-                .filter(Moment.is_active is True, Moment.expires_at <= now)
-                .count()
-            )
+            expired_moments = session.query(Moment).filter(Moment.is_active is True, Moment.expires_at <= now).count()
 
             # Общее количество событий
             total_events = session.query(Event).count()
@@ -2188,12 +2121,8 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             return
 
         # Фильтруем и обогащаем события
-        prepared, diag = prepare_events_for_feed(
-            events, user_point=(lat, lng), radius_km=new_radius, with_diag=True
-        )
-        logger.info(
-            f"prepared: kept={diag['kept']} dropped={diag['dropped']} reasons_top3={diag['reasons_top3']}"
-        )
+        prepared, diag = prepare_events_for_feed(events, user_point=(lat, lng), radius_km=new_radius, with_diag=True)
+        logger.info(f"prepared: kept={diag['kept']} dropped={diag['dropped']} reasons_top3={diag['reasons_top3']}")
         logger.info(
             f"kept_by_type: ai_parsed={diag['kept_by_type'].get('ai_parsed', 0)} user={diag['kept_by_type'].get('user', 0)} source={diag['kept_by_type'].get('source', 0)}"
         )
@@ -2255,11 +2184,7 @@ async def handle_create_event(callback: types.CallbackQuery):
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[
                     [InlineKeyboardButton(text="➕ Создать событие", callback_data="start_create")],
-                    [
-                        InlineKeyboardButton(
-                            text="🔙 Назад к поиску", callback_data="back_to_search"
-                        )
-                    ],
+                    [InlineKeyboardButton(text="🔙 Назад к поиску", callback_data="back_to_search")],
                 ]
             ),
         )
@@ -2276,13 +2201,10 @@ async def handle_start_create(callback: types.CallbackQuery):
     try:
         # Перенаправляем на команду создания события
         await callback.message.edit_text(
-            "➕ <b>Создание события</b>\n\n"
-            "Используйте команду /create для создания нового события.",
+            "➕ <b>Создание события</b>\n\nИспользуйте команду /create для создания нового события.",
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_search")]
-                ]
+                inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_search")]]
             ),
         )
         await callback.answer("Используйте команду /create")
@@ -2298,7 +2220,7 @@ async def handle_back_to_search(callback: types.CallbackQuery):
     try:
         # Возвращаемся к главному меню
         await callback.message.edit_text(
-            "🔍 <b>Поиск событий</b>\n\n" "Отправьте геолокацию, чтобы найти события рядом с вами.",
+            "🔍 <b>Поиск событий</b>\n\nОтправьте геолокацию, чтобы найти события рядом с вами.",
             parse_mode="HTML",
             reply_markup=main_menu_kb(),
         )
@@ -2333,7 +2255,7 @@ async def start_moment_creation(message: types.Message, state: FSMContext):
     ]
 
     await message.answer(
-        "**Создадим Момент — быструю встречу рядом.**\n" "Выбери шаблон или задай свой вариант.",
+        "**Создадим Момент — быструю встречу рядом.**\nВыбери шаблон или задай свой вариант.",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
     )
@@ -2355,8 +2277,7 @@ async def handle_template_selection(callback: types.CallbackQuery, state: FSMCon
 
     if template_data == "custom":
         await callback.message.edit_text(
-            "Введи короткое название Момента (до 40 символов):\n"
-            "*пример: «кофе у Marina», «пробежка в парке»*",
+            "Введи короткое название Момента (до 40 символов):\n*пример: «кофе у Marina», «пробежка в парке»*",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="m:cancel")]]
@@ -2369,16 +2290,11 @@ async def handle_template_selection(callback: types.CallbackQuery, state: FSMCon
 
         # Переходим к локации
         await callback.message.edit_text(
-            "Отправь геолокацию (📎 → Location)\n"
-            "или напиши адрес: *«Jl. Danau Tamblingan 80, Sanur»*",
+            "Отправь геолокацию (📎 → Location)\nили напиши адрес: *«Jl. Danau Tamblingan 80, Sanur»*",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[
-                    [
-                        InlineKeyboardButton(
-                            text="📍 Использовать мою текущую гео", callback_data="m:loc:ask"
-                        )
-                    ],
+                    [InlineKeyboardButton(text="📍 Использовать мою текущую гео", callback_data="m:loc:ask")],
                     [InlineKeyboardButton(text="❌ Отмена", callback_data="m:cancel")],
                 ]
             ),
@@ -2426,16 +2342,11 @@ async def handle_custom_title(message: types.Message, state: FSMContext):
 
     # Переходим к локации
     await message.answer(
-        "Отправь геолокацию (📎 → Location)\n"
-        "или напиши адрес: *«Jl. Danau Tamblingan 80, Sanur»*",
+        "Отправь геолокацию (📎 → Location)\nили напиши адрес: *«Jl. Danau Tamblingan 80, Sanur»*",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="📍 Использовать мою текущую гео", callback_data="m:loc:ask"
-                    )
-                ],
+                [InlineKeyboardButton(text="📍 Использовать мою текущую гео", callback_data="m:loc:ask")],
                 [InlineKeyboardButton(text="❌ Отмена", callback_data="m:cancel")],
             ]
         ),
@@ -2473,7 +2384,7 @@ async def handle_moment_location(message: types.Message, state: FSMContext):
 
         # Показываем предпросмотр локации
         await message.answer(
-            f"📍 **Локация принята:**\n" f"({lat:.4f}, {lng:.4f})",
+            f"📍 **Локация принята:**\n({lat:.4f}, {lng:.4f})",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[
@@ -2507,9 +2418,7 @@ async def handle_moment_address(message: types.Message, state: FSMContext):
             await message.answer(
                 "📍 Нужна локация. Отправь карту-пин или напиши адрес.",
                 reply_markup=InlineKeyboardMarkup(
-                    inline_keyboard=[
-                        [InlineKeyboardButton(text="❌ Отмена", callback_data="m:cancel")]
-                    ]
+                    inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="m:cancel")]]
                 ),
             )
             return
@@ -2520,9 +2429,7 @@ async def handle_moment_address(message: types.Message, state: FSMContext):
             await message.answer(
                 "😕 Не нашёл такой адрес. Отправь карта-пин (📎 → Location) или уточни адрес.",
                 reply_markup=InlineKeyboardMarkup(
-                    inline_keyboard=[
-                        [InlineKeyboardButton(text="❌ Отмена", callback_data="m:cancel")]
-                    ]
+                    inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="m:cancel")]]
                 ),
             )
             return
@@ -2534,7 +2441,7 @@ async def handle_moment_address(message: types.Message, state: FSMContext):
 
         # Показываем предпросмотр локации
         await message.answer(
-            f"📍 **Локация принята:**\n" f"*{address}*\n" f"({lat:.4f}, {lng:.4f})",
+            f"📍 **Локация принята:**\n*{address}*\n({lat:.4f}, {lng:.4f})",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[
@@ -2579,16 +2486,11 @@ async def handle_location_confirmed(callback: types.CallbackQuery, state: FSMCon
 async def handle_location_redo(callback: types.CallbackQuery, state: FSMContext):
     """Повторный ввод локации"""
     await callback.message.edit_text(
-        "Отправь геолокацию (📎 → Location)\n"
-        "или напиши адрес: *«Jl. Danau Tamblingan 80, Sanur»*",
+        "Отправь геолокацию (📎 → Location)\nили напиши адрес: *«Jl. Danau Tamblingan 80, Sanur»*",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="📍 Использовать мою текущую гео", callback_data="m:loc:ask"
-                    )
-                ],
+                [InlineKeyboardButton(text="📍 Использовать мою текущую гео", callback_data="m:loc:ask")],
                 [InlineKeyboardButton(text="❌ Отмена", callback_data="m:cancel")],
             ]
         ),
@@ -2635,7 +2537,7 @@ async def handle_ttl_selection(callback: types.CallbackQuery, state: FSMContext)
         short_address = f"({lat:.4f}, {lng:.4f})"
 
     await callback.message.edit_text(
-        f"**Проверь:**\n" f"✨ *{title}*\n" f"📍 *{short_address}*\n" f"⏳ *{ttl_human}*",
+        f"**Проверь:**\n✨ *{title}*\n📍 *{short_address}*\n⏳ *{ttl_human}*",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
@@ -2653,16 +2555,11 @@ async def handle_ttl_selection(callback: types.CallbackQuery, state: FSMContext)
 async def handle_back_to_location(callback: types.CallbackQuery, state: FSMContext):
     """Возврат к выбору локации"""
     await callback.message.edit_text(
-        "Отправь геолокацию (📎 → Location)\n"
-        "или напиши адрес: *«Jl. Danau Tamblingan 80, Sanur»*",
+        "Отправь геолокацию (📎 → Location)\nили напиши адрес: *«Jl. Danau Tamblingan 80, Sanur»*",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="📍 Использовать мою текущую гео", callback_data="m:loc:ask"
-                    )
-                ],
+                [InlineKeyboardButton(text="📍 Использовать мою текущую гео", callback_data="m:loc:ask")],
                 [InlineKeyboardButton(text="❌ Отмена", callback_data="m:cancel")],
             ]
         ),
@@ -2704,9 +2601,7 @@ async def handle_create_moment(callback: types.CallbackQuery, state: FSMContext)
             await callback.message.edit_text(
                 f"❌ Ты уже создал {current_count} Момента сегодня. Попробуй завтра.",
                 reply_markup=InlineKeyboardMarkup(
-                    inline_keyboard=[
-                        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="m:cancel")]
-                    ]
+                    inline_keyboard=[[InlineKeyboardButton(text="🏠 Главное меню", callback_data="m:cancel")]]
                 ),
             )
             await state.clear()
@@ -2756,9 +2651,7 @@ async def handle_create_moment(callback: types.CallbackQuery, state: FSMContext)
             f"🚗 [Маршрут]({route_url})",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text="🏠 Главное меню", callback_data="m:cancel")]
-                ]
+                inline_keyboard=[[InlineKeyboardButton(text="🏠 Главное меню", callback_data="m:cancel")]]
             ),
         )
 
@@ -2770,9 +2663,7 @@ async def handle_create_moment(callback: types.CallbackQuery, state: FSMContext)
         await callback.message.edit_text(
             "Произошла ошибка при создании момента. Попробуйте еще раз.",
             reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text="🏠 Главное меню", callback_data="m:cancel")]
-                ]
+                inline_keyboard=[[InlineKeyboardButton(text="🏠 Главное меню", callback_data="m:cancel")]]
             ),
         )
         await state.clear()
@@ -2783,8 +2674,7 @@ async def handle_create_moment(callback: types.CallbackQuery, state: FSMContext)
 async def handle_cancel_moment(callback: types.CallbackQuery, state: FSMContext):
     """Отмена создания момента"""
     await callback.message.edit_text(
-        "Ок, отменил создание Момента.\n"
-        "(подсказка) В любой момент жми **➕ Момент**, чтобы попробовать снова.",
+        "Ок, отменил создание Момента.\n(подсказка) В любой момент жми **➕ Момент**, чтобы попробовать снова.",
         parse_mode="Markdown",
         reply_markup=main_menu_kb(),
     )
@@ -2818,9 +2708,7 @@ async def handle_radius_selection(callback: types.CallbackQuery):
     """Обработчик выбора радиуса поиска"""
     try:
         if callback.data == "radius:cancel":
-            await callback.message.edit_text(
-                "Настройки радиуса отменены.", reply_markup=main_menu_kb()
-            )
+            await callback.message.edit_text("Настройки радиуса отменены.", reply_markup=main_menu_kb())
             await callback.answer()
             return
 
@@ -2926,15 +2814,9 @@ async def main():
             [
                 types.BotCommand(command="myevents", description="📋 Мои события"),
                 types.BotCommand(command="share", description="🔗 Поделиться ботом"),
-                types.BotCommand(
-                    command="admin_event", description="🔍 Диагностика события (админ)"
-                ),
-                types.BotCommand(
-                    command="diag_last", description="📊 Диагностика последнего запроса"
-                ),
-                types.BotCommand(
-                    command="diag_search", description="🔍 Диагностика поиска событий"
-                ),
+                types.BotCommand(command="admin_event", description="🔍 Диагностика события (админ)"),
+                types.BotCommand(command="diag_last", description="📊 Диагностика последнего запроса"),
+                types.BotCommand(command="diag_search", description="🔍 Диагностика поиска событий"),
                 types.BotCommand(command="diag_webhook", description="🔗 Диагностика webhook"),
             ]
         )

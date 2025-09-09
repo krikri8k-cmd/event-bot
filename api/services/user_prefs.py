@@ -20,7 +20,8 @@ def get_user_prefs(telegram_user_id: int) -> dict[str, Any] | None:
             row = (
                 session.execute(
                     text(
-                        "SELECT telegram_user_id, lat, lon, radius_km, city, country FROM user_prefs WHERE telegram_user_id = :uid"
+                        "SELECT telegram_user_id, lat, lon, radius_km, city, country "
+                        "FROM user_prefs WHERE telegram_user_id = :uid"
                     ),
                     {"uid": telegram_user_id},
                 )
@@ -36,9 +37,7 @@ def get_user_prefs(telegram_user_id: int) -> dict[str, Any] | None:
         return None
 
 
-def upsert_user_location(
-    telegram_user_id: int, lat: float, lon: float, city: str = None, country: str = None
-) -> bool:
+def upsert_user_location(telegram_user_id: int, lat: float, lon: float, city: str = None, country: str = None) -> bool:
     """Обновляет или создает локацию пользователя."""
     try:
         with get_session() as session:
@@ -47,8 +46,8 @@ def upsert_user_location(
                 INSERT INTO user_prefs(telegram_user_id, lat, lon, city, country)
                 VALUES (:uid, :lat, :lon, :city, :country)
                 ON CONFLICT (telegram_user_id) DO UPDATE SET
-                  lat = EXCLUDED.lat, 
-                  lon = EXCLUDED.lon, 
+                  lat = EXCLUDED.lat,
+                  lon = EXCLUDED.lon,
                   city = EXCLUDED.city,
                   country = EXCLUDED.country,
                   updated_at = NOW()
@@ -72,7 +71,7 @@ def set_user_radius(telegram_user_id: int, radius_km: float) -> bool:
                 INSERT INTO user_prefs(telegram_user_id, radius_km)
                 VALUES (:uid, :r)
                 ON CONFLICT (telegram_user_id) DO UPDATE SET
-                  radius_km = EXCLUDED.radius_km, 
+                  radius_km = EXCLUDED.radius_km,
                   updated_at = NOW()
             """),
                 {"uid": telegram_user_id, "r": float(radius_km)},

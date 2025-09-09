@@ -117,9 +117,7 @@ def test_nearby_pagination(api_client, api_engine, db_clean):
     for title, lat, lng in events_data:
         with api_engine.begin() as c:
             c.execute(
-                text(
-                    "INSERT INTO events (title, lat, lng, starts_at) VALUES (:t, :lat, :lng, :ts)"
-                ),
+                text("INSERT INTO events (title, lat, lng, starts_at) VALUES (:t, :lat, :lng, :ts)"),
                 {
                     "t": title,
                     "lat": float(lat),

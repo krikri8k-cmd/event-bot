@@ -119,12 +119,7 @@ def test_full_pipeline_with_geocoding():
                 continue
 
             # Проверяем локацию (теперь с геокодированием!)
-            if not (
-                e.get("venue_name")
-                or e.get("address")
-                or e.get("coords")
-                or (e.get("lat") and e.get("lng"))
-            ):
+            if not (e.get("venue_name") or e.get("address") or e.get("coords") or (e.get("lat") and e.get("lng"))):
                 drop.add("no_venue_or_location", title)
                 continue
 

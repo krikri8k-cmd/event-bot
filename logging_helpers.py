@@ -24,8 +24,7 @@ class DropStats:
         top3 = self.reasons.most_common(3)
         top_show = ", ".join(f"{r}={n}" for r, n in top3) or "-"
         lines = [
-            f"found_total={total} | kept_by_type: "
-            + " ".join(f"{k}={v}" for k, v in kept_by_type.items()),
+            f"found_total={total} | kept_by_type: " + " ".join(f"{k}={v}" for k, v in kept_by_type.items()),
             f"dropped={sum(self.reasons.values())} reasons_top3=[{top_show}]",
         ]
         for reason, _ in top3:

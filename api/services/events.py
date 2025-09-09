@@ -25,9 +25,7 @@ NEARBY_DAYS_AHEAD = int(os.getenv("NEARBY_DAYS_AHEAD", "0"))
 EXTENDED_DAYS_AHEAD = int(os.getenv("EXTENDED_DAYS_AHEAD", "0"))
 
 
-def get_events_nearby(
-    lat: float, lon: float, radius_km: float = None, limit: int = 50
-) -> list[dict[str, Any]]:
+def get_events_nearby(lat: float, lon: float, radius_km: float = None, limit: int = 50) -> list[dict[str, Any]]:
     """
     Находит события рядом с указанной точкой.
 
@@ -88,9 +86,7 @@ def get_events_nearby(
 
             enriched.sort(key=lambda x: x["distance_km"])
 
-            logger.info(
-                f"Найдено {len(enriched)} событий в радиусе {radius_km} км от ({lat}, {lon})"
-            )
+            logger.info(f"Найдено {len(enriched)} событий в радиусе {radius_km} км от ({lat}, {lon})")
             return enriched[:limit]
 
     except Exception as e:
@@ -104,9 +100,7 @@ def get_events_stats() -> dict[str, Any]:
         with get_session() as session:
             total = session.execute(text("SELECT COUNT(*) as count FROM events")).scalar()
             with_coords = session.execute(
-                text(
-                    "SELECT COUNT(*) as count FROM events WHERE lat IS NOT NULL AND lng IS NOT NULL"
-                )
+                text("SELECT COUNT(*) as count FROM events WHERE lat IS NOT NULL AND lng IS NOT NULL")
             ).scalar()
 
             return {
@@ -199,9 +193,7 @@ def get_events_nearby_today(
             total = len(filtered)
             page = filtered[offset : offset + limit]
 
-            logger.info(
-                f"Найдено {total} событий на сегодня в радиусе {radius_km} км от ({lat}, {lon})"
-            )
+            logger.info(f"Найдено {total} событий на сегодня в радиусе {radius_km} км от ({lat}, {lon})")
             return [event for event, _ in page], total
 
     except Exception as e:

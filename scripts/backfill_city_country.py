@@ -38,9 +38,7 @@ def backfill_city_country():
                         text("UPDATE events SET city=%s, country=%s WHERE id=%s"),
                         (geo.get("city"), geo.get("country"), _id),
                     )
-                    print(
-                        f"Updated event {_id}: city={geo.get('city')}, country={geo.get('country')}"
-                    )
+                    print(f"Updated event {_id}: city={geo.get('city')}, country={geo.get('country')}")
 
                 time.sleep(1.1)  # не спамить Nominatim
 
