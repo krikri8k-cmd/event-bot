@@ -57,9 +57,7 @@ def _extract_json_from_text(s: str) -> list[dict]:
     return []
 
 
-def call_openai_for_events(
-    text: str, *, source_url: str | None = None, model: str | None = None
-) -> list[dict]:
+def call_openai_for_events(text: str, *, source_url: str | None = None, model: str | None = None) -> list[dict]:
     """
     Call OpenAI to extract events. If no OPENAI_API_KEY is set, returns [] so CI doesn't fail.
     """

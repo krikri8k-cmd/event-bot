@@ -25,7 +25,10 @@ engine = create_engine(settings.database_url, pool_pre_ping=True, future=True)
 
 def canonical_key(e: dict[str, Any]) -> str:
     """Создает канонический ключ для дедупликации."""
-    base = f"{(e.get('title') or '').strip().lower()}|{(e.get('start') or '').strip()}|{(e.get('venue_name') or '').strip().lower()}"
+    title = (e.get("title") or "").strip().lower()
+    start = (e.get("start") or "").strip()
+    venue = (e.get("venue_name") or "").strip().lower()
+    base = f"{title}|{start}|{venue}"
     return hashlib.sha256(base.encode("utf-8")).hexdigest()
 
 
@@ -38,9 +41,7 @@ def upsert_event(conn, e: dict[str, Any], url: str):
     lat = e.get("lat")
     lon = e.get("lon")
     if not lat or not lon:
-        q = " ".join(
-            filter(None, [e.get("venue_name"), e.get("address"), e.get("city"), e.get("country")])
-        )
+        q = " ".join(filter(None, [e.get("venue_name"), e.get("address"), e.get("city"), e.get("country")]))
         lat, lon = geocode_one(q)
 
     conn.execute(

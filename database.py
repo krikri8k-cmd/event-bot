@@ -42,9 +42,7 @@ class User(Base):
     last_lat: Mapped[float | None] = mapped_column(Float)
     last_lng: Mapped[float | None] = mapped_column(Float)
     last_geo_at_utc: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
-    created_at_utc: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at_utc: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -59,22 +57,14 @@ class Event(Base):
     source: Mapped[str | None] = mapped_column(
         String(64), index=True
     )  # источник события (ics.bali, nexudus.jakarta, etc)
-    external_id: Mapped[str | None] = mapped_column(
-        String(64), index=True
-    )  # уникальный ID из источника
+    external_id: Mapped[str | None] = mapped_column(String(64), index=True)  # уникальный ID из источника
     title: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     time_local: Mapped[str | None] = mapped_column(String(16))  # YYYY-MM-DD HH:MM
     event_tz: Mapped[str | None] = mapped_column(String(64))
-    time_utc: Mapped[DateTime | None] = mapped_column(
-        DateTime(timezone=True)
-    )  # legacy, используем starts_at
-    starts_at: Mapped[DateTime | None] = mapped_column(
-        DateTime(timezone=True)
-    )  # время начала события
-    ends_at: Mapped[DateTime | None] = mapped_column(
-        DateTime(timezone=True)
-    )  # время окончания события
+    time_utc: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))  # legacy, используем starts_at
+    starts_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))  # время начала события
+    ends_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))  # время окончания события
     url: Mapped[str | None] = mapped_column(Text)  # ссылка на событие
     location_name: Mapped[str | None] = mapped_column(String(255))
     location_url: Mapped[str | None] = mapped_column(Text)
@@ -86,9 +76,7 @@ class Event(Base):
     participants_ids: Mapped[str | None] = mapped_column(Text)
     current_participants: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[str] = mapped_column(String(16), default="draft")
-    created_at_utc: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at_utc: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -103,18 +91,22 @@ class Moment(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
+    username: Mapped[str | None] = mapped_column(String(255))  # username создателя
+    title: Mapped[str] = mapped_column(String(120), nullable=False)  # название момента
+    location_lat: Mapped[float] = mapped_column(Float, nullable=False)  # широта
+    location_lng: Mapped[float] = mapped_column(Float, nullable=False)  # долгота
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)  # активен/нет
+
+    # Legacy поля для совместимости
     template: Mapped[str | None] = mapped_column(String(64))
     text: Mapped[str | None] = mapped_column(String(200))
-    location_url: Mapped[str | None] = mapped_column(Text)
     lat: Mapped[float | None] = mapped_column(Float)
     lng: Mapped[float | None] = mapped_column(Float)
-    created_utc: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    expires_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True))
-    status: Mapped[str] = mapped_column(String(16), default="open")
-    event_tz: Mapped[str | None] = mapped_column(String(64))
-    participants_ids: Mapped[str | None] = mapped_column(Text)
+    created_utc: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+    expires_utc: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str | None] = mapped_column(String(16))
 
 
 class Report(Base):
@@ -127,9 +119,7 @@ class Report(Base):
     context_id: Mapped[int] = mapped_column(Integer)
     reason: Mapped[str | None] = mapped_column(String(64))
     comment: Mapped[str | None] = mapped_column(Text)
-    created_at_utc: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     status: Mapped[str] = mapped_column(String(16), default="new")
 
 

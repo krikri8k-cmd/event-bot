@@ -84,9 +84,7 @@ async def fetch(lat: float, lng: float, radius_km: float = 5.0) -> list[RawEvent
             elif e.response.status_code >= 500:  # Server error
                 if attempt < max_retries - 1:
                     delay = base_delay * (2**attempt)
-                    print(
-                        f"⚠️ Server error {e.response.status_code}, retry {attempt + 1}/{max_retries} через {delay}s"
-                    )
+                    print(f"⚠️ Server error {e.response.status_code}, retry {attempt + 1}/{max_retries} через {delay}s")
                     await asyncio.sleep(delay)
                     continue
             print(f"❌ HTTP ошибка Meetup API: {e}")

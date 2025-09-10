@@ -64,9 +64,7 @@ def ingest_once():
     for src in _due_sources(eng):
         try:
             if src["type"] == "ics":
-                resp = fetch_ics(
-                    src["url"], etag=src.get("etag"), last_modified=src.get("last_modified")
-                )
+                resp = fetch_ics(src["url"], etag=src.get("etag"), last_modified=src.get("last_modified"))
                 if resp.status_code == 304:
                     _update_source_meta(eng, src["id"], status=304, ok=True)
                     continue
@@ -109,17 +107,13 @@ def ingest_once():
             else:
                 _update_source_meta(eng, src["id"], status=400, ok=False)
         except requests.HTTPError as e:
-            _update_source_meta(
-                eng, src["id"], status=e.response.status_code if e.response else 500, ok=False
-            )
+            _update_source_meta(eng, src["id"], status=e.response.status_code if e.response else 500, ok=False)
         except Exception:
             _update_source_meta(eng, src["id"], status=500, ok=False)
 
 
 def start_scheduler():
     sched = BackgroundScheduler(timezone="UTC")
-    sched.add_job(
-        ingest_once, "interval", minutes=5, id="ingest-cycle", max_instances=1, coalesce=True
-    )
+    sched.add_job(ingest_once, "interval", minutes=5, id="ingest-cycle", max_instances=1, coalesce=True)
     sched.start()
     return sched

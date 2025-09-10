@@ -14,9 +14,7 @@ def test_migration():
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
         print("❌ DATABASE_URL не найден в переменных окружения")
-        print(
-            "   Установи: export DATABASE_URL='postgresql://user:pass@host:port/db?sslmode=require'"
-        )
+        print("   Установи: export DATABASE_URL='postgresql://user:pass@host:port/db?sslmode=require'")
         return False
 
     sql_file = "sql/2025_ics_sources_and_indexes.sql"

@@ -10,7 +10,8 @@ from config import load_settings
 
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    R = 6371.0
+    """Точная дистанция по сфере между двумя точками в километрах."""
+    R = 6371.0088  # Более точное значение радиуса Земли
     phi1 = math.radians(lat1)
     phi2 = math.radians(lat2)
     dphi = math.radians(lat2 - lat1)
@@ -67,18 +68,31 @@ def static_map_url(
     user_lng: float,
     points: list[tuple[str, float, float]],
     zoom: int = 15,
-    size: str = "600x400",
+    size: str = "800x600",
 ) -> str | None:
     settings = load_settings()
     if not settings.google_maps_api_key:
         return None
     key = settings.google_maps_api_key
+
+    # Автоматически рассчитываем оптимальный зум на основе количества событий
+    if len(points) > 12:
+        zoom = max(11, zoom - 3)  # Уменьшаем зум для большого количества событий
+    elif len(points) > 8:
+        zoom = max(12, zoom - 2)  # Уменьшаем зум для большего количества событий
+    elif len(points) > 4:
+        zoom = max(13, zoom - 1)  # Немного уменьшаем зум
+
+    # Пользователь (синяя метка с U)
     markers = [f"markers=color:blue%7Clabel:U%7C{user_lat:.6f},{user_lng:.6f}"]
-    label_ord = ord("A")
+
+    # События (красные метки с номерами)
     for label, lat, lng in points:
-        safe_label = label or chr(label_ord)
-        markers.append(f"markers=color:red%7Clabel:{safe_label}%7C{lat:.6f},{lng:.6f}")
-        label_ord += 1
+        # Проверяем что координаты валидные
+        if -90 <= lat <= 90 and -180 <= lng <= 180:
+            safe_label = str(label) if label else "?"
+            markers.append(f"markers=color:red%7Clabel:{safe_label}%7C{lat:.6f},{lng:.6f}")
+
     markers_str = "&".join(markers)
     return f"https://maps.googleapis.com/maps/api/staticmap?size={size}&zoom={zoom}&{markers_str}&key={key}"
 
@@ -113,9 +127,7 @@ async def search_nearby_places(
 
     try:
         async with httpx.AsyncClient(timeout=15) as client:
-            r = await client.get(
-                "https://maps.googleapis.com/maps/api/place/nearbysearch/json", params=params
-            )
+            r = await client.get("https://maps.googleapis.com/maps/api/place/nearbysearch/json", params=params)
             r.raise_for_status()
             data = r.json()
 
@@ -180,3 +192,28 @@ async def search_events_places(lat: float, lng: float, radius_km: int = 5) -> li
         all_places.extend(places)
 
     return all_places
+
+
+def bbox_around(lat: float, lon: float, radius_km: float) -> tuple[float, float, float, float]:
+    """Грубая рамка вокруг точки для первичного отбора (ускоряет запрос)."""
+    lat_delta = radius_km / 110.574  # км в градусах широты
+    lon_delta = radius_km / (111.320 * math.cos(math.radians(lat)) or 1e-9)
+    return (lat - lat_delta, lat + lat_delta, lon - lon_delta, lon + lon_delta)
+
+
+def inside_bbox(lat: float, lon: float, bbox: dict[str, float]) -> bool:
+    """Проверяет, находится ли точка внутри bounding box."""
+    return (bbox["min_lat"] <= lat <= bbox["max_lat"]) and (bbox["min_lon"] <= lon <= bbox["max_lon"])
+
+
+def find_user_region(lat: float, lon: float, geo_bboxes: dict[str, dict[str, float]]) -> str:
+    """Определяет регион пользователя по координатам."""
+    for name, bb in geo_bboxes.items():
+        if inside_bbox(lat, lon, bb):
+            return name
+    return "unknown"
+
+
+def validate_coordinates(lat: float, lon: float) -> bool:
+    """Проверяет корректность координат."""
+    return -90 <= lat <= 90 and -180 <= lon <= 180

@@ -45,25 +45,39 @@ async def fetch_ai_events_nearby(lat: float, lng: float) -> list[dict[str, Any]]
     - community_name (str?)
     - community_link (str?)
     """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
     client = _make_client()
     if client is None:
+        logger.warning("⚠️ OpenAI API ключ не настроен, пропускаем AI поиск")
         return []
 
     prompt = (
-        "Ты помощник, который предлагает офлайн события рядом с координатами. "
-        "Верни до 5 коротких карточек JSON-списком, без комментариев. Каждый объект: "
+        "Ты помощник для парсинга реальных событий из существующих источников. "
+        "НЕ ПРИДУМЫВАЙ события! Только парси реальные события из известных источников. "
+        "Если нет реальных событий - верни пустой массив []. "
+        "Каждый объект должен иметь ВАЛИДНЫЙ URL источника: "
         "{title, description, time_local, location_name, location_url, lat, lng, community_name, community_link}. "
-        f"Координаты: lat={lat:.6f}, lng={lng:.6f}. Время локальное формата 'YYYY-MM-DD HH:MM'."
+        f"Координаты: lat={lat:.6f}, lng={lng:.6f}. Время локальное формата 'YYYY-MM-DD HH:MM'. "
+        "ВАЖНО: location_url должен быть реальным URL существующего источника, НЕ example.com!"
     )
 
-    completion = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "Return ONLY valid JSON array."},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.5,
-    )
+    try:
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Return ONLY valid JSON array."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.5,
+            timeout=15,  # Добавляем timeout
+        )
+        logger.info("✅ AI вернул ответ успешно")
+    except Exception as e:
+        logger.warning(f"⚠️ Ошибка при генерации AI: {e}. Fallback → пустой список.")
+        return []
 
     content = completion.choices[0].message.content or "[]"
     # Lazy import to avoid heavyweight dep if unused
@@ -87,6 +101,23 @@ async def fetch_ai_events_nearby(lat: float, lng: float) -> list[dict[str, Any]]
             lng_i = float(item.get("lng")) if item.get("lng") is not None else None
             if lat_i is None or lng_i is None:
                 continue
+
+            # Валидация URL - отфильтровываем фейковые ссылки
+            location_url = item.get("location_url") or ""
+            if location_url:
+                # Проверяем, что это не фейковая ссылка
+                if any(
+                    fake in location_url.lower()
+                    for fake in [
+                        "example.com",
+                        "example.org",
+                        "example.net",
+                        "test.com",
+                        "demo.com",
+                    ]
+                ):
+                    logger.warning(f"⚠️ Отфильтрован фейковый URL: {location_url}")
+                    continue
 
             normalized.append(
                 {

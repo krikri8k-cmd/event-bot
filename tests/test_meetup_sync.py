@@ -20,9 +20,7 @@ def test_sync_meetup_smoke(api_client, api_engine, db_clean):
     lat, lng = -8.6501, 115.2166
 
     # Вызываем синк
-    response = api_client.post(
-        "/events/sources/meetup/sync", params={"lat": lat, "lng": lng, "radius_km": 5.0}
-    )
+    response = api_client.post("/events/sources/meetup/sync", params={"lat": lat, "lng": lng, "radius_km": 5.0})
 
     # Проверяем статус и структуру ответа
     assert response.status_code == 200
@@ -45,15 +43,11 @@ def test_sync_meetup_then_nearby(api_client, api_engine, db_clean):
     lat, lng = -8.6501, 115.2166
 
     # Сначала синкаем события
-    sync_response = api_client.post(
-        "/events/sources/meetup/sync", params={"lat": lat, "lng": lng, "radius_km": 5.0}
-    )
+    sync_response = api_client.post("/events/sources/meetup/sync", params={"lat": lat, "lng": lng, "radius_km": 5.0})
     assert sync_response.status_code == 200
 
     # Затем ищем события поблизости
-    nearby_response = api_client.get(
-        "/events/nearby", params={"lat": lat, "lng": lng, "radius_km": 5.0}
-    )
+    nearby_response = api_client.get("/events/nearby", params={"lat": lat, "lng": lng, "radius_km": 5.0})
     assert nearby_response.status_code == 200
 
     data = nearby_response.json()
@@ -78,15 +72,11 @@ def test_sync_meetup_boundary_5km(api_client, api_engine, db_clean):
     lat, lng = -8.6501, 115.2166
 
     # Синкаем события с радиусом 5 км
-    sync_response = api_client.post(
-        "/events/sources/meetup/sync", params={"lat": lat, "lng": lng, "radius_km": 5.0}
-    )
+    sync_response = api_client.post("/events/sources/meetup/sync", params={"lat": lat, "lng": lng, "radius_km": 5.0})
     assert sync_response.status_code == 200
 
     # Ищем события с радиусом 5 км
-    nearby_response = api_client.get(
-        "/events/nearby", params={"lat": lat, "lng": lng, "radius_km": 5.0}
-    )
+    nearby_response = api_client.get("/events/nearby", params={"lat": lat, "lng": lng, "radius_km": 5.0})
     assert nearby_response.status_code == 200
 
     data = nearby_response.json()
@@ -95,9 +85,7 @@ def test_sync_meetup_boundary_5km(api_client, api_engine, db_clean):
     # Проверяем что все события в пределах 5 км
     for event in events:
         distance = event["distance_km"]
-        assert (
-            distance <= 5.0
-        ), f"Событие {event['title']} на расстоянии {distance} км превышает радиус 5 км"
+        assert distance <= 5.0, f"Событие {event['title']} на расстоянии {distance} км превышает радиус 5 км"
 
     # Проверяем сортировку по расстоянию
     distances = [event["distance_km"] for event in events]

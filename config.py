@@ -4,12 +4,22 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Load .env.local and .env files (first .env.local, then .env)
+
+def _load_dotenv_with_bom(path: Path):
+    """Load .env file with BOM handling"""
+    if path and path.exists():
+        load_dotenv(dotenv_path=path, encoding="utf-8-sig", override=True)
+
+
+# Load environment files with priority: ENV_FILE > .env.local > .env
 _BASE_DIR = Path(__file__).resolve().parent
-for fn in (".env.local", ".env"):
-    env_file = _BASE_DIR / fn
-    if env_file.exists():
-        load_dotenv(env_file, override=False, encoding="utf-8-sig")
+env_file = os.getenv("ENV_FILE")
+if env_file:
+    _load_dotenv_with_bom(Path(env_file))
+
+# Then load .env.local, app.local.env and .env
+for fn in (".env.local", "app.local.env", ".env"):
+    _load_dotenv_with_bom(_BASE_DIR / fn)
 
 
 @dataclass
@@ -22,8 +32,26 @@ class Settings:
     meetup_api_key: str | None
     google_maps_api_key: str | None
     default_radius_km: float
+    radius_step_km: float
+    max_radius_km: float
     admin_ids: set[int]
     google_application_credentials: str | None
+    env_file: str | None
+    # Moments settings
+    moments_enable: bool
+    moment_ttl_options: list[int]
+    moment_daily_limit: int
+    moment_max_radius_km: float
+    # AI settings
+    ai_parse_enable: bool
+    ai_generate_synthetic: bool
+    strict_source_only: bool
+
+    # Event sources
+    enable_meetup_api: bool
+    enable_ics_feeds: bool
+    enable_eventbrite_api: bool
+    ics_feeds: list[str]
 
 
 def _parse_admin_ids(value: str | None) -> set[int]:
@@ -42,8 +70,8 @@ def _parse_admin_ids(value: str | None) -> set[int]:
 
 
 def load_settings(require_bot: bool = False) -> Settings:
-    # Ensure .env.local is loaded even if called from different CWD
-    load_dotenv(_BASE_DIR / ".env.local", encoding="utf-8-sig")
+    # Environment files are already loaded at module level
+    # Just get the current ENV_FILE value for reference
 
     telegram_token = (os.getenv("TELEGRAM_TOKEN") or "").strip()
     database_url = (os.getenv("DATABASE_URL") or "").strip()
@@ -53,12 +81,47 @@ def load_settings(require_bot: bool = False) -> Settings:
     meetup_api_key = os.getenv("MEETUP_API_KEY")
     google_maps_api_key = os.getenv("GOOGLE_MAPS_API_KEY")
     default_radius_km_str = (os.getenv("DEFAULT_RADIUS_KM") or "5").strip()
+    radius_step_km_str = (os.getenv("RADIUS_STEP_KM") or "5").strip()
+    max_radius_km_str = (os.getenv("MAX_RADIUS_KM") or "15").strip()
     admin_ids = _parse_admin_ids(os.getenv("ADMIN_IDS"))
+
+    # Moments settings
+    moments_enable = os.getenv("MOMENTS_ENABLE", "0").strip() == "1"
+
+    # Парсим TTL опции
+    ttl_options_str = os.getenv("MOMENT_TTL_OPTIONS", "30,60,120").strip()
+    moment_ttl_options = [int(x.strip()) for x in ttl_options_str.split(",") if x.strip().isdigit()]
+    if not moment_ttl_options:
+        moment_ttl_options = [30, 60, 120]  # дефолт
+
+    moment_daily_limit = int(os.getenv("MOMENT_DAILY_LIMIT", "2").strip())
+    moment_max_radius_km = float(os.getenv("MOMENT_MAX_RADIUS_KM", "20").strip())
+
+    # AI settings
+    ai_parse_enable = os.getenv("AI_PARSE_ENABLE", "0").strip() == "1"
+    ai_generate_synthetic = os.getenv("AI_GENERATE_SYNTHETIC", "0").strip() == "1"
+    strict_source_only = os.getenv("STRICT_SOURCE_ONLY", "0").strip() == "1"
+
+    # Event sources
+    enable_meetup_api = os.getenv("ENABLE_MEETUP_API", "0").strip() == "1"
+    enable_ics_feeds = os.getenv("ENABLE_ICS_FEEDS", "0").strip() == "1"
+    enable_eventbrite_api = os.getenv("ENABLE_EVENTBRITE_API", "0").strip() == "1"
+    ics_feeds = [url.strip() for url in (os.getenv("ICS_FEEDS") or "").split(",") if url.strip()]
 
     try:
         default_radius_km = float(default_radius_km_str)
     except ValueError:
         default_radius_km = 4.0
+
+    try:
+        radius_step_km = float(radius_step_km_str)
+    except ValueError:
+        radius_step_km = 5.0
+
+    try:
+        max_radius_km = float(max_radius_km_str)
+    except ValueError:
+        max_radius_km = 15.0
 
     # Требовать токен только в режиме бота
     if require_bot and not telegram_token:
@@ -79,6 +142,23 @@ def load_settings(require_bot: bool = False) -> Settings:
         meetup_api_key=meetup_api_key,
         google_maps_api_key=google_maps_api_key,
         default_radius_km=default_radius_km,
+        radius_step_km=radius_step_km,
+        max_radius_km=max_radius_km,
         admin_ids=admin_ids,
         google_application_credentials=gcp_path,
+        env_file=env_file,
+        # Moments settings
+        moments_enable=moments_enable,
+        moment_ttl_options=moment_ttl_options,
+        moment_daily_limit=moment_daily_limit,
+        moment_max_radius_km=moment_max_radius_km,
+        # AI settings
+        ai_parse_enable=ai_parse_enable,
+        ai_generate_synthetic=ai_generate_synthetic,
+        strict_source_only=strict_source_only,
+        # Event sources
+        enable_meetup_api=enable_meetup_api,
+        enable_ics_feeds=enable_ics_feeds,
+        enable_eventbrite_api=enable_eventbrite_api,
+        ics_feeds=ics_feeds,
     )

@@ -19,6 +19,4 @@ MEETUP_MOCK = os.getenv("MEETUP_MOCK", "0") == "1"
 # Опциональная OAuth-конфигурация (не обязательна при выключенном флаге)
 MEETUP_CLIENT_ID = os.getenv("MEETUP_CLIENT_ID")
 MEETUP_CLIENT_SECRET = os.getenv("MEETUP_CLIENT_SECRET")
-MEETUP_REDIRECT_URI = os.getenv(
-    "MEETUP_REDIRECT_URI", "http://localhost:8000/oauth/meetup/callback"
-)
+MEETUP_REDIRECT_URI = os.getenv("MEETUP_REDIRECT_URI", "http://localhost:8000/oauth/meetup/callback")

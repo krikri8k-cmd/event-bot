@@ -38,11 +38,7 @@ def discover_event_ics_links(list_url: str, *, per_page_delay=1.0) -> list[str]:
         # ищем .ics
         for a in ss.find_all("a", href=True):
             href = a["href"]
-            if (
-                href.endswith(".ics")
-                or "format=ical" in href
-                or "calendar" in a.get_text("", strip=True).lower()
-            ):
+            if href.endswith(".ics") or "format=ical" in href or "calendar" in a.get_text("", strip=True).lower():
                 if href.startswith("http"):
                     ics_links.append(href)
                 else:

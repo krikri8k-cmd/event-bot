@@ -26,6 +26,28 @@ jobs:
 
     env:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/testdb
+      # Фейковые/безопасные значения только для CI:
+      TELEGRAM_TOKEN: "1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi"
+      GOOGLE_MAPS_API_KEY: "test-key"
+      OPENAI_API_KEY: "test-key"
+      OPENAI_ORGANIZATION: "test-org"
+      EVENTBRITE_API_KEY: "test-key"
+      MEETUP_API_KEY: "test-key"
+      # Настройки по умолчанию
+      DEFAULT_RADIUS_KM: "5"
+      RADIUS_STEP_KM: "5"
+      MAX_RADIUS_KM: "15"
+      BOT_RUN_MODE: "polling"
+      # Отключаем все внешние сервисы в тестах
+      MOMENTS_ENABLE: "0"
+      AI_PARSE_ENABLE: "0"
+      AI_GENERATE_SYNTHETIC: "0"
+      STRICT_SOURCE_ONLY: "0"
+      ENABLE_MEETUP_API: "0"
+      ENABLE_ICS_FEEDS: "0"
+      ENABLE_EVENTBRITE_API: "0"
+      # Убеждаемся что CI не читает локальные файлы
+      ENV_FILE: ""
 
     steps:
       - uses: actions/checkout@v4

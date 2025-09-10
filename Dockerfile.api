@@ -1,0 +1,31 @@
+# Используем тонкий образ Python
+FROM python:3.12-slim
+
+# Настройки Python
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PORT=8000
+
+# Рабочая директория
+WORKDIR /app
+
+# Системные зависимости (минимум; psycopg2-binary не требует компиляции)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# Обновим pip и установим зависимости
+COPY requirements.txt ./requirements.txt
+RUN python -m pip install --upgrade pip wheel setuptools \
+ && pip install -r requirements.txt
+
+# Копируем проект
+COPY . .
+
+# Экспортируем порт (для локальных запусков; на Railway достаточно CMD)
+EXPOSE ${PORT}
+
+# Старт — Uvicorn с FastAPI
+# Если приложение в api/app.py: app
+CMD ["bash", "-lc", "uvicorn api.app:app --host 0.0.0.0 --port ${PORT}"]
