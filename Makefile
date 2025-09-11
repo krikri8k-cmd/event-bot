@@ -1,44 +1,54 @@
-.PHONY: db-apply db-apply-file test-db test-migration
+# Makefile для удобного запуска EventBot
 
-# Применить главный скрипт (читает DATABASE_URL из окружения)
-db-apply:
-	python scripts/apply_sql.py sql/2025_ics_sources_and_indexes.sql
+.PHONY: help dev api test clean install
 
-# Применить любой указанный файл: make db-apply-file FILE=path/to.sql
-db-apply-file:
-	python scripts/apply_sql.py $(FILE)
+# Показать справку
+help:
+	@echo "🚀 EventBot - Команды для разработки"
+	@echo ""
+	@echo "📋 Доступные команды:"
+	@echo "  make dev     - Запустить бота в dev режиме (автоматический порт)"
+	@echo "  make api     - Запустить API сервер (автоматический порт)"
+	@echo "  make test    - Запустить тесты Baliforum"
+	@echo "  make clean   - Очистить зависшие процессы"
+	@echo "  make install - Установить зависимости"
+	@echo ""
+	@echo "💡 Все команды автоматически находят свободный порт!"
 
-# Тест подключения к БД
-test-db:
-	python test_db_connection.py
+# Запуск бота в dev режиме
+dev:
+	@echo "🤖 Запуск бота в dev режиме..."
+	powershell -ExecutionPolicy Bypass -File scripts/start-dev.ps1
 
-# Тест миграции
-test-migration:
-	python test_migration.py
+# Запуск API сервера
+api:
+	@echo "🌐 Запуск API сервера..."
+	powershell -ExecutionPolicy Bypass -File scripts/start-api.ps1
 
-# Запуск Telegram бота
-run-bot:
+# Тестирование Baliforum
+test:
+	@echo "🧪 Запуск тестов Baliforum..."
+	python test_baliforum_simple.py
+
+# Очистка зависших процессов
+clean:
+	@echo "🧹 Очистка зависших процессов..."
+	powershell -Command "Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force"
+	@echo "✅ Готово!"
+
+# Установка зависимостей
+install:
+	@echo "📦 Установка зависимостей..."
+	pip install -r requirements.txt
+	@echo "✅ Готово!"
+
+# Запуск с Python утилитой (альтернатива)
+dev-python:
+	@echo "🐍 Запуск через Python утилиту..."
+	python utils/port_manager.py bot
 	python bot_enhanced_v3.py
 
-# Запуск бота в Docker
-run-bot-docker:
-	docker build -f Dockerfile.bot -t event-bot .
-	docker run -p 8000:8000 --env-file .env event-bot
-
-# Деплой на Railway
-deploy-railway:
-	@echo "🚀 Деплой на Railway..."
-	git add .
-	git commit -m "feat: update bot deployment"
-	git push
-	@echo "✅ Код запушен! Теперь настрой Railway UI"
-
-# Тестировать health check
-test-health:
-	python test_health.py
-
-# Очистка
-clean:
-	find . -type f -name "*.pyc" -delete
-	find . -type d -name "__pycache__" -delete
-	rm -rf *.egg-info
+api-python:
+	@echo "🐍 Запуск API через Python утилиту..."
+	python utils/port_manager.py api
+	python start_server.py

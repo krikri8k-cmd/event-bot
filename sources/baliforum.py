@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import requests
@@ -49,7 +49,14 @@ MAP_RE = re.compile(r"/@(?P<lat>-?\d+\.\d+),(?P<lng>-?\d+\.\d+)|query=(?P<lat2>-
 
 
 def _parse_time(s: str) -> tuple[int, int] | None:
-    """Парсит время в формате HH:MM"""
+    """Парсит время в формате HH:MM или диапазон HH:MM-HH:MM (берет начало)"""
+    # Сначала ищем диапазон времени
+    range_match = re.search(r"(\d{1,2}):(\d{2})[–-](\d{1,2}):(\d{2})", s)
+    if range_match:
+        # Берем начало диапазона
+        return int(range_match.group(1)), int(range_match.group(2))
+
+    # Обычное время
     m = TIME_RE.search(s)
     if not m:
         return None
@@ -61,6 +68,8 @@ def _ru_date_to_dt(label: str, now: datetime, tz: ZoneInfo) -> tuple[datetime | 
     Принимает строки вида:
     'Сегодня с 09:00 до 21:00', 'Завтра с 18:00', '8 сент., с 20:00 до 01:00', 'Сегодня весь день'
     Возвращает (start_dt, end_dt) в tz.
+
+    ВАЖНО: Если нет точного времени - возвращает None (событие пропускается)
     """
     try:
         label = label.strip().lower()
@@ -73,7 +82,10 @@ def _ru_date_to_dt(label: str, now: datetime, tz: ZoneInfo) -> tuple[datetime | 
             day = (now + timedelta(days=1)).date()
             label = label.replace("завтра", "").strip()
         else:
-            # '8 сент., с 20:00 до 01:00' / '8 сентября'
+            # Пробуем разные форматы дат
+            day = None
+
+            # 1. '8 сент., с 20:00 до 01:00' / '8 сентября'
             parts = label.split(",")[0].split()
             if len(parts) >= 2:
                 d = int(re.sub(r"[^\d]", "", parts[0]))
@@ -81,7 +93,36 @@ def _ru_date_to_dt(label: str, now: datetime, tz: ZoneInfo) -> tuple[datetime | 
                 if mon:
                     year = now.year
                     day = datetime(year, mon, d, tzinfo=tz).date()
-            label[label.find(",") + 1 :] if "," in label else ""
+                    # Если дата в прошлом, переносим на следующий год
+                    if day < now.date():
+                        day = datetime(year + 1, mon, d, tzinfo=tz).date()
+
+            # 2. '10.09 20:15' (день.месяц)
+            if not day:
+                dot_match = re.search(r"(\d{1,2})\.(\d{1,2})", label)
+                if dot_match:
+                    d = int(dot_match.group(1))
+                    mon = int(dot_match.group(2))
+                    if 1 <= mon <= 12:
+                        year = now.year
+                        day = datetime(year, mon, d, tzinfo=tz).date()
+                        if day < now.date():
+                            day = datetime(year + 1, mon, d, tzinfo=tz).date()
+
+            # 3. День недели 'чт 19:30'
+            if not day:
+                weekday_map = {"пн": 0, "вт": 1, "ср": 2, "чт": 3, "пт": 4, "сб": 5, "вс": 6}
+                for wd_name, wd_num in weekday_map.items():
+                    if wd_name in label:
+                        # Находим ближайший такой день недели в течение следующих 7 дней
+                        for i in range(1, 8):
+                            future_date = now.date() + timedelta(days=i)
+                            if future_date.weekday() == wd_num:
+                                day = future_date
+                                break
+                        break
+
+            label = label[label.find(",") + 1 :] if "," in label else ""
 
         start_dt = end_dt = None
 
@@ -90,12 +131,24 @@ def _ru_date_to_dt(label: str, now: datetime, tz: ZoneInfo) -> tuple[datetime | 
                 start_dt = datetime.combine(day, datetime.min.time(), tz)
                 end_dt = start_dt + timedelta(hours=23, minutes=59)
             else:
-                # 'с 09:00 до 21:00' / 'с 19:00'
+                # Ищем время в разных форматах
+                time_found = False
+
+                # 1. 'с 09:00 до 21:00' / 'с 19:00'
                 if "с " in label:
                     t1 = _parse_time(label.split("с", 1)[1])
                     if t1:
                         start_dt = datetime(day.year, day.month, day.day, t1[0], t1[1], tzinfo=tz)
+                        time_found = True
 
+                # 2. Если не нашли через "с ", ищем время напрямую
+                if not time_found:
+                    t1 = _parse_time(label)
+                    if t1:
+                        start_dt = datetime(day.year, day.month, day.day, t1[0], t1[1], tzinfo=tz)
+                        time_found = True
+
+                # 3. Ищем время "до" для end_dt
                 if "до " in label:
                     t2 = _parse_time(label.split("до", 1)[1])
                     if t2 and start_dt:
@@ -104,9 +157,10 @@ def _ru_date_to_dt(label: str, now: datetime, tz: ZoneInfo) -> tuple[datetime | 
                         if end_dt <= start_dt:
                             end_dt += timedelta(days=1)
 
-                # Если нет времени, устанавливаем время по умолчанию
-                if not start_dt:
-                    start_dt = datetime(day.year, day.month, day.day, 18, 0, tzinfo=tz)  # 18:00 по умолчанию
+                # КРИТИЧНО: Если нет времени - НЕ устанавливаем дефолтное время!
+                # Событие должно быть пропущено
+                if not time_found:
+                    return None, None
 
         return start_dt, end_dt
     except (ValueError, KeyError):
@@ -137,12 +191,20 @@ def _fetch(url: str, timeout=15) -> str:
 
 def fetch_baliforum_events(limit: int = 100) -> list[dict]:
     """Основная функция парсинга событий с baliforum.ru"""
+    import logging
+
+    logging.getLogger(__name__)
+
     html = _fetch(LIST_URL)
     soup = BeautifulSoup(html, "html.parser")
 
     # Ищем карточки событий
     cards = soup.select("div.event-card, article.event") or soup.select("li.event-item")
     events: list[dict] = []
+
+    parsed_count = 0
+    skipped_no_time = 0
+    errors = 0
 
     for card in cards[:limit]:
         # Ищем все ссылки в карточке
@@ -170,18 +232,23 @@ def fetch_baliforum_events(limit: int = 100) -> list[dict]:
         date_text = ""
         all_text = card.get_text()
 
-        # Ищем паттерны дат
+        # Ищем паттерны дат с приоритетом по точности
         import re
 
         date_patterns = [
+            # Точные паттерны с временем (высший приоритет)
             r"Сегодня с \d{1,2}:\d{2}(?: до \d{1,2}:\d{2})?",
             r"Завтра с \d{1,2}:\d{2}(?: до \d{1,2}:\d{2})?",
             r"\d{1,2} (?:янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|дек)[а-я]*,? "
             r"с \d{1,2}:\d{2}(?: до \d{1,2}:\d{2})?",
-            # Добавляем более гибкие паттерны
-            r"Сегодня",
-            r"Завтра",
-            r"\d{1,2} (?:янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|дек)[а-я]*",
+            # Паттерны с временем без "с"
+            r"Сегодня \d{1,2}:\d{2}",
+            r"Завтра \d{1,2}:\d{2}",
+            r"\d{1,2} (?:янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|дек)[а-я]* \d{1,2}:\d{2}",
+            # Диапазоны времени
+            r"\d{1,2}:\d{2}[–-]\d{1,2}:\d{2}",
+            # Только время (если есть контекст дня)
+            r"\d{1,2}:\d{2}",
         ]
 
         for pattern in date_patterns:
@@ -195,9 +262,17 @@ def fetch_baliforum_events(limit: int = 100) -> list[dict]:
         now = datetime.now(tz)
         start, end = _ru_date_to_dt(date_text, now, tz)
 
-        # Отладочная информация
+        # Конвертируем в UTC для хранения в БД
+        if start:
+            start = start.astimezone(UTC)
+        if end:
+            end = end.astimezone(UTC)
+
+        # Пропускаем события без точного времени
         if not start:
-            print(f"DEBUG: Не удалось распарсить дату '{date_text}' для события '{title}'")
+            print(f"DEBUG: baliforum: skip (no time): url={url}, title={title}, date_text='{date_text}'")
+            skipped_no_time += 1
+            continue
 
         # Детальная страница
         venue = None
@@ -218,27 +293,41 @@ def fetch_baliforum_events(limit: int = 100) -> list[dict]:
                 if lat and lng:
                     break
 
-        events.append(
-            {
-                "source": "baliforum",
-                "title": title or "Событие",
-                "start_time": start,
-                "end_time": end,
-                "venue": venue,
-                "address": venue,  # пусть address=venue для начала
-                "lat": lat,
-                "lng": lng,
-                "url": url,
-                "source_url": url,
-                "booking_url": None,
-                "ticket_url": None,
-                "raw": {"date_text": date_text},
-            }
-        )
+        # Создаем стабильный external_id
+        import hashlib
+
+        normalized_url = url.split("?")[0].split("#")[0]  # Убираем UTM и якоря
+        external_id = hashlib.sha1(f"baliforum|{normalized_url}".encode()).hexdigest()[:16]
+
+        try:
+            events.append(
+                {
+                    "source": "baliforum",
+                    "title": title or "Событие",
+                    "start_time": start,
+                    "end_time": end,
+                    "venue": venue,
+                    "address": venue,  # пусть address=venue для начала
+                    "lat": lat,
+                    "lng": lng,
+                    "url": url,
+                    "source_url": url,
+                    "booking_url": None,
+                    "ticket_url": None,
+                    "external_id": external_id,
+                    "raw": {"date_text": date_text},
+                }
+            )
+            parsed_count += 1
+        except Exception as e:
+            print(f"ERROR: baliforum: error processing event '{title}': {e}")
+            errors += 1
 
         # Rate limiting
         time.sleep(0.3)
 
+    # Логируем сводку
+    print(f"INFO baliforum: parsed={parsed_count}, skipped_no_time={skipped_no_time}, errors={errors}")
     return events
 
 
@@ -249,8 +338,8 @@ def fetch(limit: int = 100) -> list[RawEvent]:
     # Конвертируем в RawEvent объекты
     raw_events = []
     for event in events:
-        # Извлекаем external_id из URL
-        external_id = event["url"].rstrip("/").split("/")[-1]
+        # Используем стабильный external_id из парсера
+        external_id = event.get("external_id", event["url"].rstrip("/").split("/")[-1])
 
         # Парсим дату если есть
         starts_at = event["start_time"]
