@@ -29,15 +29,20 @@ def get_engine() -> Engine:
 
 
 def create_app() -> FastAPI:
+    logger.info("🚀 Creating FastAPI application...")
     app = FastAPI(title="EventBot API (CI)")
 
     # Загружаем настройки
+    logger.info("📋 Loading settings...")
     settings = load_settings()
+    logger.info("✅ Settings loaded successfully")
 
     # Админ роутер для управления источниками
+    logger.info("🔧 Mounting admin router...")
     from api.admin import router as admin_router
 
     app.include_router(admin_router, prefix="/admin", tags=["admin"])
+    logger.info("✅ Admin router mounted")
 
     # Meetup OAuth роутер (только если включен)
     if settings.enable_meetup_api:
@@ -98,6 +103,7 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     def health():
+        logger.info("🏥 Health check requested")
         return {"status": "ok"}
 
     @app.get("/db/ping")
@@ -227,6 +233,8 @@ def create_app() -> FastAPI:
             except Exception as e:
                 return {"error": str(e), "inserted": 0}
 
+    logger.info("✅ FastAPI application created successfully")
+    logger.info("🏥 Health endpoint mounted at /health")
     return app
 
 
