@@ -161,14 +161,35 @@ def fetch_baliforum_events(limit: int = 100) -> list[dict]:
             url = BASE + url
 
         title = a.get_text(strip=True).strip()
-        date_text = (
-            (card.select_one(".date, time") or {}).get_text(strip=True) if card.select_one(".date, time") else ""
-        )
+
+        # Ищем дату в тексте карточки
+        date_text = ""
+        all_text = card.get_text()
+
+        # Ищем паттерны дат
+        import re
+
+        date_patterns = [
+            r"Сегодня с \d{1,2}:\d{2}(?: до \d{1,2}:\d{2})?",
+            r"Завтра с \d{1,2}:\d{2}(?: до \d{1,2}:\d{2})?",
+            r"\d{1,2} (?:янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|дек)[а-я]*,? "
+            r"с \d{1,2}:\d{2}(?: до \d{1,2}:\d{2})?",
+        ]
+
+        for pattern in date_patterns:
+            match = re.search(pattern, all_text)
+            if match:
+                date_text = match.group(0)
+                break
 
         # Парсим дату
         tz = ZoneInfo("Asia/Makassar")
         now = datetime.now(tz)
         start, end = _ru_date_to_dt(date_text, now, tz)
+
+        # Отладочная информация
+        if not start:
+            print(f"DEBUG: Не удалось распарсить дату '{date_text}' для события '{title}'")
 
         # Детальная страница
         venue = None
@@ -193,8 +214,8 @@ def fetch_baliforum_events(limit: int = 100) -> list[dict]:
             {
                 "source": "baliforum",
                 "title": title or "Событие",
-                "start_time": start.isoformat() if start else None,
-                "end_time": end.isoformat() if end else None,
+                "start_time": start,
+                "end_time": end,
                 "venue": venue,
                 "address": venue,  # пусть address=venue для начала
                 "lat": lat,
@@ -224,14 +245,7 @@ def fetch(limit: int = 100) -> list[RawEvent]:
         external_id = event["url"].rstrip("/").split("/")[-1]
 
         # Парсим дату если есть
-        starts_at = None
-        if event["start_time"]:
-            try:
-                from datetime import datetime
-
-                starts_at = datetime.fromisoformat(event["start_time"].replace("Z", "+00:00"))
-            except Exception:
-                starts_at = None
+        starts_at = event["start_time"]
 
         raw_event = RawEvent(
             title=event["title"],

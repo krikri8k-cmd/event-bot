@@ -30,21 +30,16 @@ def upsert_events(events: list[RawEvent], engine: Engine) -> int:
                     # Создаём уникальный идентификатор
                     unique_id = fingerprint(event)
 
-                    # Вставляем событие с ON CONFLICT DO UPDATE
+                    # Вставляем событие
                     conn.execute(
                         text("""
                             INSERT INTO events (
-                                title, lat, lng, starts_at, source, external_id, url
+                                title, lat, lng, starts_at, source, external_id, url,
+                                current_participants, max_participants, status, is_generated_by_ai
                             ) VALUES (
-                                :title, :lat, :lng, :starts_at, :source, :external_id, :url
+                                :title, :lat, :lng, :starts_at, :source, :external_id, :url,
+                                0, 0, 'active', false
                             )
-                            ON CONFLICT (source, external_id) DO UPDATE
-                            SET title = EXCLUDED.title,
-                                url = EXCLUDED.url,
-                                lat = EXCLUDED.lat,
-                                lng = EXCLUDED.lng,
-                                starts_at = EXCLUDED.starts_at,
-                                updated_at = NOW()
                         """),
                         {
                             "title": event.title,
