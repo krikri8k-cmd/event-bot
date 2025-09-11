@@ -1507,9 +1507,11 @@ async def cancel_creation(message: types.Message, state: FSMContext):
 @dp.message(EventCreation.waiting_for_title)
 async def process_title(message: types.Message, state: FSMContext):
     """Обработка названия события"""
+    logger.info(f"process_title: получили название '{message.text}' от пользователя {message.from_user.id}")
     await state.update_data(title=message.text)
     await state.set_state(EventCreation.waiting_for_description)
     await message.answer("Введите описание события:")
+    logger.info("process_title: перешли к состоянию waiting_for_description")
 
 
 @dp.message(EventCreation.waiting_for_description)
@@ -2048,6 +2050,10 @@ async def echo_message(message: types.Message, state: FSMContext):
     """Обработчик всех остальных сообщений"""
     # Проверяем, не находимся ли мы в процессе создания события
     current_state = await state.get_state()
+    logger.info(
+        f"echo_message: получили сообщение '{message.text}' от пользователя {message.from_user.id}, состояние: {current_state}"
+    )
+
     if current_state in [
         EventCreation.waiting_for_title,
         EventCreation.waiting_for_description,
@@ -2055,8 +2061,10 @@ async def echo_message(message: types.Message, state: FSMContext):
         EventCreation.waiting_for_location,
     ]:
         # Если в процессе создания события, не отвечаем
+        logger.info("echo_message: в процессе создания события, не отвечаем")
         return
 
+    logger.info("echo_message: отвечаем общим сообщением")
     await message.answer("Используйте кнопки меню для навигации:", reply_markup=main_menu_kb())
 
 
