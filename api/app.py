@@ -222,7 +222,7 @@ def create_app() -> FastAPI:
                 import sources.baliforum
                 from ingest import upsert_events
 
-                events = sources.baliforum.fetch(lat, lng, radius_km)
+                events = sources.baliforum.fetch(limit=100)
 
                 # Вставляем в базу данных
                 engine = get_engine()

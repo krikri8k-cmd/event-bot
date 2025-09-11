@@ -141,15 +141,26 @@ def fetch_baliforum_events(limit: int = 100) -> list[dict]:
     events: list[dict] = []
 
     for card in cards[:limit]:
-        a = card.select_one("a")
-        if not a or not a.get("href"):
+        # Ищем все ссылки в карточке
+        links = card.find_all("a", href=True)
+        if not links:
+            continue
+
+        # Берем первую ссылку с текстом (не пустую)
+        a = None
+        for link in links:
+            if link.get_text(strip=True):
+                a = link
+                break
+
+        if not a:
             continue
 
         url = a["href"]
         if url.startswith("/"):
             url = BASE + url
 
-        title = (a.get_text(strip=True) or "").strip()
+        title = a.get_text(strip=True).strip()
         date_text = (
             (card.select_one(".date, time") or {}).get_text(strip=True) if card.select_one(".date, time") else ""
         )
@@ -212,22 +223,25 @@ def fetch(limit: int = 100) -> list[RawEvent]:
         # Извлекаем external_id из URL
         external_id = event["url"].rstrip("/").split("/")[-1]
 
+        # Парсим дату если есть
+        starts_at = None
+        if event["start_time"]:
+            try:
+                from datetime import datetime
+
+                starts_at = datetime.fromisoformat(event["start_time"].replace("Z", "+00:00"))
+            except Exception:
+                starts_at = None
+
         raw_event = RawEvent(
-            external_id=external_id,
-            source_name="baliforum",
             title=event["title"],
-            start_time=event["start_time"],
-            end_time=event["end_time"],
-            venue=event["venue"],
-            address=event["address"],
-            lat=event["lat"],
-            lng=event["lng"],
+            lat=event["lat"] or 0.0,
+            lng=event["lng"] or 0.0,
+            starts_at=starts_at,
+            source="baliforum",
+            external_id=external_id,
             url=event["url"],
-            source_url=event["source_url"],
-            booking_url=event["booking_url"],
-            ticket_url=event["ticket_url"],
-            raw=event["raw"],
-            timezone="Asia/Makassar",
+            description=event.get("description"),
         )
         raw_events.append(raw_event)
 
