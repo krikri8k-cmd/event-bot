@@ -2866,13 +2866,39 @@ async def main():
             # Создаем aiohttp приложение
             app = web.Application()
 
-            # Настраиваем webhook handler
+            # Настраиваем безопасный webhook handler
             webhook_path = "/webhook"
+
+            # Создаем стандартный handler для справки
             webhook_handler = SimpleRequestHandler(
                 dispatcher=dp,
                 bot=bot,
             )
-            webhook_handler.register(app, path=webhook_path)
+
+            # Создаем безопасный wrapper
+            async def safe_webhook_handler(request):
+                try:
+                    # Проверяем, что это JSON
+                    try:
+                        data = await request.json()
+                    except Exception:
+                        logger.debug("Webhook: не JSON, игнорируем")
+                        return web.Response(status=204)
+
+                    # Простейшая проверка "похоже ли на Telegram Update"
+                    if not isinstance(data, dict) or "update_id" not in data:
+                        logger.debug("Webhook: не похоже на Telegram Update, игнорируем")
+                        return web.Response(status=204)
+
+                    # Передаем в стандартный handler
+                    return await webhook_handler.handle(request)
+
+                except Exception as e:
+                    logger.debug(f"Webhook: ошибка обработки, игнорируем: {e}")
+                    return web.Response(status=204)
+
+            # Регистрируем безопасный handler
+            app.router.add_post(webhook_path, safe_webhook_handler)
 
             # Настраиваем приложение
             setup_application(app, dp, bot=bot)
