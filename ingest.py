@@ -24,13 +24,13 @@ def upsert_events(events: list[RawEvent], engine: Engine) -> int:
     inserted_count = 0
 
     try:
-        with engine.begin() as conn:
-            for event in events:
-                try:
-                    # Создаём уникальный идентификатор
-                    unique_id = fingerprint(event)
+        for event in events:
+            try:
+                # Создаём уникальный идентификатор
+                unique_id = fingerprint(event)
 
-                    # Вставляем событие
+                # Вставляем событие в отдельной транзакции
+                with engine.begin() as conn:
                     conn.execute(
                         text("""
                             INSERT INTO events (
@@ -52,12 +52,12 @@ def upsert_events(events: list[RawEvent], engine: Engine) -> int:
                         },
                     )
 
-                    # Считаем все изменения (вставки + обновления)
-                    inserted_count += 1
+                # Считаем все изменения (вставки + обновления)
+                inserted_count += 1
 
-                except Exception as e:
-                    print(f"Ошибка вставки события '{event.title}': {e}")
-                    continue
+            except Exception as e:
+                print(f"Ошибка вставки события '{event.title}': {e}")
+                continue
 
         print(f"✅ Вставлено {inserted_count} новых событий")
         return inserted_count

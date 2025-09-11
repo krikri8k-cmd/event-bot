@@ -243,6 +243,24 @@ class EventSearchEngine:
         else:
             logger.info("🎫 Eventbrite API отключен")
 
+        # 5. Поиск в BaliForum (если настроен)
+        if self.settings.enable_baliforum:
+            logger.info("🌴 Ищем события в BaliForum...")
+            try:
+                from sources.baliforum_source import BaliForumSource
+
+                baliforum_source = BaliForumSource()
+                baliforum_events = await baliforum_source.fetch_events(lat, lng, radius_km)
+
+                if baliforum_events:
+                    all_events.extend(baliforum_events)
+                else:
+                    logger.info("   ⚠️ BaliForum не вернул события")
+            except Exception as e:
+                logger.error(f"   ❌ Ошибка при поиске в BaliForum: {e}")
+        else:
+            logger.info("🌴 BaliForum отключен")
+
         # Диагностика: считаем события по типам источников
         ai_count = sum(1 for e in all_events if e.get("source") == "ai_generated")
         user_count = sum(1 for e in all_events if e.get("source") in ["user_created", "user"])

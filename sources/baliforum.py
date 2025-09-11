@@ -68,10 +68,10 @@ def _ru_date_to_dt(label: str, now: datetime, tz: ZoneInfo) -> tuple[datetime | 
 
         if label.startswith("сегодня"):
             day = now.date()
-            label.replace("сегодня", "").strip()
+            label = label.replace("сегодня", "").strip()
         elif label.startswith("завтра"):
             day = (now + timedelta(days=1)).date()
-            label.replace("завтра", "").strip()
+            label = label.replace("завтра", "").strip()
         else:
             # '8 сент., с 20:00 до 01:00' / '8 сентября'
             parts = label.split(",")[0].split()
@@ -103,6 +103,10 @@ def _ru_date_to_dt(label: str, now: datetime, tz: ZoneInfo) -> tuple[datetime | 
                         end_dt = datetime(day.year, day.month, day.day, t2[0], t2[1], tzinfo=tz)
                         if end_dt <= start_dt:
                             end_dt += timedelta(days=1)
+
+                # Если нет времени, устанавливаем время по умолчанию
+                if not start_dt:
+                    start_dt = datetime(day.year, day.month, day.day, 18, 0, tzinfo=tz)  # 18:00 по умолчанию
 
         return start_dt, end_dt
     except (ValueError, KeyError):
@@ -174,6 +178,10 @@ def fetch_baliforum_events(limit: int = 100) -> list[dict]:
             r"Завтра с \d{1,2}:\d{2}(?: до \d{1,2}:\d{2})?",
             r"\d{1,2} (?:янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|дек)[а-я]*,? "
             r"с \d{1,2}:\d{2}(?: до \d{1,2}:\d{2})?",
+            # Добавляем более гибкие паттерны
+            r"Сегодня",
+            r"Завтра",
+            r"\d{1,2} (?:янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|дек)[а-я]*",
         ]
 
         for pattern in date_patterns:
