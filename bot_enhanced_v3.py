@@ -2840,21 +2840,24 @@ async def main():
 
     # Определяем режим запуска
     RUN_MODE = os.getenv("BOT_RUN_MODE", "webhook")
+    PORT = os.getenv("PORT", "8000")
+    WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+
     logger.info(f"Режим запуска: {RUN_MODE}")
+    logger.info(f"Порт: {PORT}")
+    logger.info(f"Webhook URL: {WEBHOOK_URL}")
 
     # Запускаем бота в зависимости от режима
     try:
         if RUN_MODE == "webhook":
             # Webhook режим для Railway
-            WEBHOOK_URL = os.getenv("WEBHOOK_URL")
             if not WEBHOOK_URL:
                 logger.error("WEBHOOK_URL не установлен для webhook режима")
                 return
 
             # Гарантированно выключаем getUpdates на стороне Telegram
             await bot.delete_webhook(drop_pending_updates=True)
-            await bot.set_webhook(url=WEBHOOK_URL)
-            logger.info(f"Webhook установлен: {WEBHOOK_URL}")
+            logger.info("Старый webhook удален")
 
             # Запускаем webhook сервер на отдельном порту
             from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
@@ -2875,27 +2878,47 @@ async def main():
             setup_application(app, dp, bot=bot)
 
             # Добавляем health check endpoint в webhook сервер
-            import time
 
             async def health_check(request):
-                return web.json_response(
-                    {
-                        "status": "healthy",
-                        "service": "EventBot Telegram Bot",
-                        "timestamp": time.time(),
-                        "uptime": "running",
-                    }
-                )
+                return web.json_response({"ok": True})
 
             app.router.add_get("/health", health_check)
             app.router.add_get("/", health_check)
 
+            # Логируем зарегистрированные маршруты
+            logger.info("Зарегистрированные маршруты:")
+            for route in app.router.routes():
+                logger.info(f"  {route.method} {route.resource.canonical}")
+
             # Запускаем объединенный сервер (webhook + health check)
-            port = int(os.getenv("PORT", "8000"))
+            port = int(PORT)
             logger.info(f"Запуск объединенного сервера (webhook + health) на порту {port}")
-            await web._run_app(app, host="0.0.0.0", port=port)
+
+            # Запускаем сервер в фоне
+            runner = web.AppRunner(app)
+            await runner.setup()
+            site = web.TCPSite(runner, "0.0.0.0", port)
+            await site.start()
+            logger.info(f"Сервер запущен на http://0.0.0.0:{port}")
+
+            # ТЕПЕРЬ устанавливаем webhook после запуска сервера
+            try:
+                await bot.set_webhook(url=WEBHOOK_URL)
+                logger.info(f"Webhook установлен: {WEBHOOK_URL}")
+            except Exception as e:
+                logger.error(f"Ошибка установки webhook: {e}")
+                # Не завершаем процесс, продолжаем работу
 
             logger.info("Webhook режим активирован")
+
+            # Ждем бесконечно, чтобы сервер не завершился
+            try:
+                while True:
+                    await asyncio.sleep(3600)  # Спим по часу
+            except asyncio.CancelledError:
+                logger.info("Получен сигнал завершения")
+            finally:
+                await runner.cleanup()
 
         else:
             # Polling режим для локальной разработки
