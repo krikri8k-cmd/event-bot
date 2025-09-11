@@ -1118,9 +1118,11 @@ dp = Dispatcher(storage=storage)
 # Состояния для FSM
 class EventCreation(StatesGroup):
     waiting_for_title = State()
-    waiting_for_description = State()
+    waiting_for_date = State()
     waiting_for_time = State()
     waiting_for_location = State()
+    waiting_for_description = State()
+    confirmation = State()
 
 
 class MomentCreation(StatesGroup):
@@ -1492,7 +1494,7 @@ async def on_create(message: types.Message):
     """Обработчик кнопки 'Создать'"""
     await dp.storage.set_state(message.from_user.id, EventCreation.waiting_for_title)
     await message.answer(
-        "Создаём новое событие! 📝\n\nВведите название события:",
+        "Создаём новое событие! 📝\n\n✍ Введите название мероприятия (например: Прогулка):",
         reply_markup=types.ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="❌ Отмена")]], resize_keyboard=True),
     )
 
@@ -1978,61 +1980,119 @@ async def on_help(message: types.Message):
 # FSM обработчики для создания событий (должны быть ПЕРЕД общим обработчиком)
 @dp.message(EventCreation.waiting_for_title)
 async def process_title(message: types.Message, state: FSMContext):
-    """Обработка названия события"""
-    logger.info(f"process_title: получили название '{message.text}' от пользователя {message.from_user.id}")
-    await state.update_data(title=message.text)
-    await state.set_state(EventCreation.waiting_for_description)
-    await message.answer("Введите описание события:")
-    logger.info("process_title: перешли к состоянию waiting_for_description")
+    """Шаг 1: Обработка названия события"""
+    title = message.text.strip()
+    logger.info(f"process_title: получили название '{title}' от пользователя {message.from_user.id}")
+
+    await state.update_data(title=title)
+    await state.set_state(EventCreation.waiting_for_date)
+    await message.answer(
+        f"Название сохранено: *{title}* ✅\n\n📅 Теперь введите дату (например: 12.09.2025):", parse_mode="Markdown"
+    )
 
 
-@dp.message(EventCreation.waiting_for_description)
-async def process_description(message: types.Message, state: FSMContext):
-    """Обработка описания события"""
-    await state.update_data(description=message.text)
+@dp.message(EventCreation.waiting_for_date)
+async def process_date(message: types.Message, state: FSMContext):
+    """Шаг 2: Обработка даты события"""
+    date = message.text.strip()
+    logger.info(f"process_date: получили дату '{date}' от пользователя {message.from_user.id}")
+
+    await state.update_data(date=date)
     await state.set_state(EventCreation.waiting_for_time)
-    await message.answer("Введите время события (например: 2024-01-15 19:00):")
+    await message.answer(
+        f"Дата сохранена: *{date}* ✅\n\n⏰ Теперь введите время (например: 17:30):", parse_mode="Markdown"
+    )
 
 
 @dp.message(EventCreation.waiting_for_time)
 async def process_time(message: types.Message, state: FSMContext):
-    """Обработка времени события"""
-    await state.update_data(time_local=message.text)
+    """Шаг 3: Обработка времени события"""
+    time = message.text.strip()
+    logger.info(f"process_time: получили время '{time}' от пользователя {message.from_user.id}")
+
+    await state.update_data(time=time)
     await state.set_state(EventCreation.waiting_for_location)
     await message.answer(
-        "Отправьте геолокацию события:",
-        reply_markup=types.ReplyKeyboardMarkup(
-            keyboard=[[KeyboardButton(text="📍 Отправить геолокацию", request_location=True)]],
-            resize_keyboard=True,
+        f"Время сохранено: *{time}* ✅\n\n📍 Теперь введите место проведения (например: Пляж Чангу):",
+        parse_mode="Markdown",
+    )
+
+
+@dp.message(EventCreation.waiting_for_location)
+async def process_location(message: types.Message, state: FSMContext):
+    """Шаг 4: Обработка места события"""
+    location = message.text.strip()
+    logger.info(f"process_location: получили место '{location}' от пользователя {message.from_user.id}")
+
+    await state.update_data(location=location)
+    await state.set_state(EventCreation.waiting_for_description)
+    await message.answer(
+        f"Место сохранено: *{location}* ✅\n\n📝 Теперь введите описание (например: Вечерняя прогулка у океана):",
+        parse_mode="Markdown",
+    )
+
+
+@dp.message(EventCreation.waiting_for_description)
+async def process_description(message: types.Message, state: FSMContext):
+    """Шаг 5: Обработка описания события"""
+    description = message.text.strip()
+    logger.info(f"process_description: получили описание от пользователя {message.from_user.id}")
+
+    await state.update_data(description=description)
+    data = await state.get_data()
+    await state.set_state(EventCreation.confirmation)
+
+    # Показываем итог перед подтверждением
+    await message.answer(
+        f"📌 **Проверьте данные мероприятия:**\n\n"
+        f"**Название:** {data['title']}\n"
+        f"**Дата:** {data['date']}\n"
+        f"**Время:** {data['time']}\n"
+        f"**Место:** {data['location']}\n"
+        f"**Описание:** {data['description']}\n\n"
+        f"Если всё верно, нажмите ✅ Сохранить. Если нужно изменить — нажмите ❌ Отмена.",
+        parse_mode="Markdown",
+        reply_markup=types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(text="✅ Сохранить", callback_data="event_confirm"),
+                    types.InlineKeyboardButton(text="❌ Отмена", callback_data="event_cancel"),
+                ]
+            ]
         ),
     )
 
 
-@dp.message(F.location, EventCreation.waiting_for_location)
-async def process_location(message: types.Message, state: FSMContext):
-    """Обработка геолокации события"""
+@dp.callback_query(F.data == "event_confirm")
+async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
+    """Шаг 6: Подтверждение создания события"""
     data = await state.get_data()
+    logger.info(f"confirm_event: подтверждение создания события от пользователя {callback.from_user.id}")
 
     # Создаём событие в БД
     with get_session() as session:
         # Сначала создаем пользователя, если его нет
-        user = session.get(User, message.from_user.id)
+        user = session.get(User, callback.from_user.id)
         if not user:
             user = User(
-                id=message.from_user.id,
-                username=message.from_user.username,
+                id=callback.from_user.id,
+                username=callback.from_user.username,
             )
             session.add(user)
             session.commit()
 
+        # Объединяем дату и время
+        time_local = f"{data['date']} {data['time']}"
+
         event = Event(
             title=data["title"],
             description=data["description"],
-            time_local=data["time_local"],
-            lat=message.location.latitude,
-            lng=message.location.longitude,
-            organizer_id=message.from_user.id,
-            organizer_username=message.from_user.username,
+            time_local=time_local,
+            location_name=data["location"],
+            lat=None,  # Пока без геолокации
+            lng=None,
+            organizer_id=callback.from_user.id,
+            organizer_username=callback.from_user.username,
             status="open",
             is_generated_by_ai=False,
         )
@@ -2040,10 +2100,25 @@ async def process_location(message: types.Message, state: FSMContext):
         session.commit()
 
     await state.clear()
-    await message.answer(
-        f"✅ Событие '{data['title']}' создано!\n\nТеперь другие пользователи смогут найти его через '📍 Что рядом'.",
-        reply_markup=main_menu_kb(),
+    await callback.message.edit_text(
+        f"🎉 **Мероприятие сохранено!**\n\n"
+        f"**Название:** {data['title']}\n"
+        f"**Дата:** {data['date']}\n"
+        f"**Время:** {data['time']}\n"
+        f"**Место:** {data['location']}\n"
+        f"**Описание:** {data['description']}\n\n"
+        f"Теперь другие пользователи смогут найти его через '📍 Что рядом'.",
+        parse_mode="Markdown",
     )
+    await callback.answer("Событие создано!")
+
+
+@dp.callback_query(F.data == "event_cancel")
+async def cancel_event_creation(callback: types.CallbackQuery, state: FSMContext):
+    """Отмена создания события"""
+    await state.clear()
+    await callback.message.edit_text("❌ Создание мероприятия отменено.")
+    await callback.answer("Создание отменено")
 
 
 @dp.message()
@@ -2057,9 +2132,11 @@ async def echo_message(message: types.Message, state: FSMContext):
 
     if current_state in [
         EventCreation.waiting_for_title,
-        EventCreation.waiting_for_description,
+        EventCreation.waiting_for_date,
         EventCreation.waiting_for_time,
         EventCreation.waiting_for_location,
+        EventCreation.waiting_for_description,
+        EventCreation.confirmation,
     ]:
         # Если в процессе создания события, не отвечаем
         logger.info("echo_message: в процессе создания события, не отвечаем")
