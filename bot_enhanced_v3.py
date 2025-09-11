@@ -2044,8 +2044,19 @@ async def on_help(message: types.Message):
 
 
 @dp.message()
-async def echo_message(message: types.Message):
+async def echo_message(message: types.Message, state: FSMContext):
     """Обработчик всех остальных сообщений"""
+    # Проверяем, не находимся ли мы в процессе создания события
+    current_state = await state.get_state()
+    if current_state in [
+        EventCreation.waiting_for_title,
+        EventCreation.waiting_for_description,
+        EventCreation.waiting_for_time,
+        EventCreation.waiting_for_location,
+    ]:
+        # Если в процессе создания события, не отвечаем
+        return
+
     await message.answer("Используйте кнопки меню для навигации:", reply_markup=main_menu_kb())
 
 
