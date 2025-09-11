@@ -96,7 +96,7 @@ def load_settings(require_bot: bool = False) -> Settings:
         moment_ttl_options = [30, 60, 120]  # дефолт
 
     moment_daily_limit = int(os.getenv("MOMENT_DAILY_LIMIT", "2").strip())
-    moment_max_radius_km = float(os.getenv("MOMENT_MAX_RADIUS_KM", "20").strip())
+    moment_max_radius_km = float(os.getenv("MOMENT_MAX_RADIUS_KM", "15").strip())
 
     # AI settings
     ai_parse_enable = os.getenv("AI_PARSE_ENABLE", "0").strip() == "1"
