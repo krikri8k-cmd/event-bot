@@ -1310,19 +1310,6 @@ async def on_location(message: types.Message):
                 ]
             )
 
-            # Добавляем кнопки расширения радиуса
-            next_radius = current_radius + radius_step
-            while next_radius <= max_radius:
-                keyboard_buttons.append(
-                    [
-                        InlineKeyboardButton(
-                            text=f"🔍 Расширить поиск до {next_radius} км",
-                            callback_data=f"rx:{next_radius}",
-                        )
-                    ]
-                )
-                next_radius += radius_step
-
             inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
             await message.answer(
