@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import logging
+import os
 
 from fastapi import APIRouter, FastAPI, HTTPException, Query
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
-from api import config as settings
+from config import load_settings
 
 logger = logging.getLogger(__name__)
 
@@ -30,13 +31,16 @@ def get_engine() -> Engine:
 def create_app() -> FastAPI:
     app = FastAPI(title="EventBot API (CI)")
 
+    # Загружаем настройки
+    settings = load_settings()
+
     # Админ роутер для управления источниками
     from api.admin import router as admin_router
 
     app.include_router(admin_router, prefix="/admin", tags=["admin"])
 
     # Meetup OAuth роутер (только если включен)
-    if settings.MEETUP_ENABLED:
+    if settings.enable_meetup_api:
         oauth_router = APIRouter(prefix="/oauth/meetup", tags=["oauth"])
 
         @oauth_router.get("/login")
@@ -63,7 +67,7 @@ def create_app() -> FastAPI:
                 raise HTTPException(status_code=400, detail="Missing code")
 
             # Мок-режим для локалки/тестов
-            if settings.MEETUP_MOCK:
+            if os.getenv("MEETUP_MOCK", "0") == "1":
                 return {"ok": True, "code": code, "state": state, "mock": True}
 
             # Боевой путь: обмен кода на токены
@@ -164,7 +168,7 @@ def create_app() -> FastAPI:
             return {"items": events, "count": len(events)}
 
     # Meetup sync endpoint (только если включен)
-    if settings.MEETUP_ENABLED:
+    if settings.enable_meetup_api:
 
         @app.post("/events/sources/meetup/sync")
         async def sync_meetup(lat: float, lng: float, radius_km: float = 5.0):
@@ -183,6 +187,36 @@ def create_app() -> FastAPI:
                 from ingest import upsert_events
 
                 events = await sources.meetup.fetch(lat, lng, radius_km)
+
+                # Вставляем в базу данных
+                engine = get_engine()
+                inserted_count = upsert_events(events, engine)
+
+                return {"inserted": inserted_count}
+
+            except Exception as e:
+                return {"error": str(e), "inserted": 0}
+
+    # BaliForum sync endpoint (только если включен)
+    if settings.enable_baliforum:
+
+        @app.post("/events/sources/baliforum/sync")
+        async def sync_baliforum(lat: float, lng: float, radius_km: float = 5.0):
+            """Синхронизация событий из BaliForum"""
+            # Валидация входных данных
+            if not (-90 <= lat <= 90):
+                raise HTTPException(status_code=400, detail="lat must be between -90 and 90")
+            if not (-180 <= lng <= 180):
+                raise HTTPException(status_code=400, detail="lng must be between -180 and 180")
+            if not (1 <= radius_km <= 20):
+                raise HTTPException(status_code=400, detail="radius_km must be between 1 and 20")
+
+            try:
+                # Получаем события из BaliForum
+                import sources.baliforum
+                from ingest import upsert_events
+
+                events = sources.baliforum.fetch(lat, lng, radius_km)
 
                 # Вставляем в базу данных
                 engine = get_engine()

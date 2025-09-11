@@ -3,11 +3,12 @@
 
 from sqlalchemy import create_engine, text
 
-from api import config
+from config import load_settings
 
 
 def check_schema():
-    engine = create_engine(config.DATABASE_URL)
+    settings = load_settings()
+    engine = create_engine(settings.database_url)
 
     with engine.connect() as conn:
         # Получаем структуру таблицы

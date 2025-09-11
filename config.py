@@ -51,6 +51,7 @@ class Settings:
     enable_meetup_api: bool
     enable_ics_feeds: bool
     enable_eventbrite_api: bool
+    enable_baliforum: bool
     ics_feeds: list[str]
 
 
@@ -106,6 +107,7 @@ def load_settings(require_bot: bool = False) -> Settings:
     enable_meetup_api = os.getenv("ENABLE_MEETUP_API", "0").strip() == "1"
     enable_ics_feeds = os.getenv("ENABLE_ICS_FEEDS", "0").strip() == "1"
     enable_eventbrite_api = os.getenv("ENABLE_EVENTBRITE_API", "0").strip() == "1"
+    enable_baliforum = os.getenv("ENABLE_BALIFORUM", "0").strip() == "1"
     ics_feeds = [url.strip() for url in (os.getenv("ICS_FEEDS") or "").split(",") if url.strip()]
 
     try:
@@ -160,5 +162,6 @@ def load_settings(require_bot: bool = False) -> Settings:
         enable_meetup_api=enable_meetup_api,
         enable_ics_feeds=enable_ics_feeds,
         enable_eventbrite_api=enable_eventbrite_api,
+        enable_baliforum=enable_baliforum,
         ics_feeds=ics_feeds,
     )
