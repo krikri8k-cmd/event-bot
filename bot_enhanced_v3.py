@@ -1541,6 +1541,16 @@ async def process_location(message: types.Message, state: FSMContext):
 
     # Создаём событие в БД
     with get_session() as session:
+        # Сначала создаем пользователя, если его нет
+        user = session.get(User, message.from_user.id)
+        if not user:
+            user = User(
+                id=message.from_user.id,
+                username=message.from_user.username,
+            )
+            session.add(user)
+            session.commit()
+
         event = Event(
             title=data["title"],
             description=data["description"],
