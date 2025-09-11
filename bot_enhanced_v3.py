@@ -1490,9 +1490,9 @@ async def on_location(message: types.Message):
 
 @dp.message(Command("create"))
 @dp.message(F.text == "➕ Создать")
-async def on_create(message: types.Message):
+async def on_create(message: types.Message, state: FSMContext):
     """Обработчик кнопки 'Создать'"""
-    await dp.storage.set_state(message.from_user.id, EventCreation.waiting_for_title)
+    await state.set_state(EventCreation.waiting_for_title)
     await message.answer(
         "Создаём новое событие! 📝\n\n✍ Введите название мероприятия (например: Прогулка):",
         reply_markup=types.ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="❌ Отмена")]], resize_keyboard=True),
