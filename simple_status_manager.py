@@ -242,6 +242,6 @@ def get_status_change_buttons(event_id: int, current_status: str):
     buttons.append({"text": "✏ Редактировать", "callback_data": f"edit_event_{event_id}"})
 
     # Кнопка возврата в главное меню (всегда доступна)
-    buttons.append({"text": "Всё супер → 🏠 В главное меню", "callback_data": f"back_to_main_{event_id}"})
+    buttons.append({"text": "✨ Всё супер → 🏠 Главное меню", "callback_data": f"back_to_main_{event_id}"})
 
     return buttons
