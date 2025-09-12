@@ -1188,8 +1188,17 @@ def update_event_field(event_id: int, field: str, value: str, user_id: int) -> b
                         # Полная дата и время
                         event.starts_at = datetime.strptime(value, "%d.%m.%Y %H:%M")
                     else:
-                        # Только дата
-                        event.starts_at = datetime.strptime(value, "%d.%m.%Y")
+                        # Только дата - сохраняем существующее время
+                        new_date = datetime.strptime(value, "%d.%m.%Y")
+                        if event.starts_at:
+                            # Сохраняем существующее время
+                            existing_time = event.starts_at.time()
+                            event.starts_at = new_date.replace(
+                                hour=existing_time.hour, minute=existing_time.minute, second=existing_time.second
+                            )
+                        else:
+                            # Если времени не было, устанавливаем 00:00
+                            event.starts_at = new_date
                     logging.info(f"Обновлена дата события {event_id}: '{value}'")
                 except ValueError as ve:
                     logging.error(f"Ошибка парсинга даты '{value}': {ve}")
