@@ -1164,23 +1164,25 @@ def edit_event_keyboard(event_id: int) -> InlineKeyboardMarkup:
     )
 
 
-async def update_event_field(event_id: int, field: str, value: str, user_id: int) -> bool:
+def update_event_field(event_id: int, field: str, value: str, user_id: int) -> bool:
     """Обновляет поле события в базе данных"""
+    from datetime import datetime
+
     try:
         with get_session() as session:
             # Проверяем, что событие принадлежит пользователю
             event = session.query(Event).filter(Event.id == event_id, Event.organizer_id == user_id).first()
 
             if not event:
+                logging.warning(f"Событие {event_id} не найдено или не принадлежит пользователю {user_id}")
                 return False
 
             # Обновляем поле
             if field == "title":
                 event.title = value
+                logging.info(f"Обновлено название события {event_id}: '{value}'")
             elif field == "starts_at":
                 # Для даты/времени нужно парсить
-                from datetime import datetime
-
                 try:
                     if " " in value:
                         # Полная дата и время
@@ -1188,15 +1190,23 @@ async def update_event_field(event_id: int, field: str, value: str, user_id: int
                     else:
                         # Только дата
                         event.starts_at = datetime.strptime(value, "%d.%m.%Y")
-                except ValueError:
+                    logging.info(f"Обновлена дата события {event_id}: '{value}'")
+                except ValueError as ve:
+                    logging.error(f"Ошибка парсинга даты '{value}': {ve}")
                     return False
             elif field == "location_name":
                 event.location_name = value
+                logging.info(f"Обновлена локация события {event_id}: '{value}'")
             elif field == "description":
                 event.description = value
+                logging.info(f"Обновлено описание события {event_id}: '{value}'")
+            else:
+                logging.error(f"Неизвестное поле для обновления: {field}")
+                return False
 
             event.updated_at_utc = datetime.now(UTC)
             session.commit()
+            logging.info(f"Событие {event_id} успешно обновлено в БД")
             return True
 
     except Exception as e:
@@ -3325,7 +3335,7 @@ async def handle_title_input(message: types.Message, state: FSMContext):
     event_id = data.get("event_id")
 
     if event_id and message.text:
-        success = await update_event_field(event_id, "title", message.text.strip(), message.from_user.id)
+        success = update_event_field(event_id, "title", message.text.strip(), message.from_user.id)
         if success:
             await message.answer("✅ Название обновлено!")
             keyboard = edit_event_keyboard(event_id)
@@ -3344,7 +3354,7 @@ async def handle_date_input(message: types.Message, state: FSMContext):
     event_id = data.get("event_id")
 
     if event_id and message.text:
-        success = await update_event_field(event_id, "starts_at", message.text.strip(), message.from_user.id)
+        success = update_event_field(event_id, "starts_at", message.text.strip(), message.from_user.id)
         if success:
             await message.answer("✅ Дата обновлена!")
             keyboard = edit_event_keyboard(event_id)
@@ -3374,12 +3384,12 @@ async def handle_time_input(message: types.Message, state: FSMContext):
             if current_event and current_event["starts_at"]:
                 current_date = current_event["starts_at"].strftime("%d.%m.%Y")
                 new_datetime = f"{current_date} {message.text.strip()}"
-                success = await update_event_field(event_id, "starts_at", new_datetime, message.from_user.id)
+                success = update_event_field(event_id, "starts_at", new_datetime, message.from_user.id)
             else:
                 # Если нет текущей даты, используем сегодняшнюю
                 today = datetime.now().strftime("%d.%m.%Y")
                 new_datetime = f"{today} {message.text.strip()}"
-                success = await update_event_field(event_id, "starts_at", new_datetime, message.from_user.id)
+                success = update_event_field(event_id, "starts_at", new_datetime, message.from_user.id)
 
             if success:
                 await message.answer("✅ Время обновлено!")
@@ -3401,7 +3411,7 @@ async def handle_location_input(message: types.Message, state: FSMContext):
     event_id = data.get("event_id")
 
     if event_id and message.text:
-        success = await update_event_field(event_id, "location_name", message.text.strip(), message.from_user.id)
+        success = update_event_field(event_id, "location_name", message.text.strip(), message.from_user.id)
         if success:
             await message.answer("✅ Локация обновлена!")
             keyboard = edit_event_keyboard(event_id)
@@ -3420,7 +3430,7 @@ async def handle_description_input(message: types.Message, state: FSMContext):
     event_id = data.get("event_id")
 
     if event_id and message.text:
-        success = await update_event_field(event_id, "description", message.text.strip(), message.from_user.id)
+        success = update_event_field(event_id, "description", message.text.strip(), message.from_user.id)
         if success:
             await message.answer("✅ Описание обновлено!")
             keyboard = edit_event_keyboard(event_id)
