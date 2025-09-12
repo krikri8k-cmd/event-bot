@@ -27,6 +27,13 @@ from aiogram.types import (
 from config import load_settings
 from database import Event, Moment, User, create_all, get_session, init_engine
 from enhanced_event_search import enhanced_search_events
+from simple_status_manager import (
+    auto_close_events,
+    change_event_status,
+    format_event_for_display,
+    get_status_change_buttons,
+    get_user_events,
+)
 from utils.geo_utils import haversine_km, static_map_url
 
 
@@ -1509,15 +1516,16 @@ async def cancel_creation(message: types.Message, state: FSMContext):
 @dp.message(Command("myevents"))
 @dp.message(F.text == "📋 Мои события")
 async def on_my_events(message: types.Message):
-    """Обработчик кнопки 'Мои события'"""
-    with get_session() as session:
-        events = (
-            session.query(Event)
-            .filter(Event.organizer_id == message.from_user.id)
-            .order_by(Event.created_at_utc.desc())
-            .limit(5)
-            .all()
-        )
+    """Обработчик кнопки 'Мои события' с управлением статусами"""
+    user_id = message.from_user.id
+
+    # Автомодерация: закрываем прошедшие события
+    closed_count = auto_close_events()
+    if closed_count > 0:
+        await message.answer(f"🤖 Автоматически закрыто {closed_count} прошедших событий")
+
+    # Получаем события пользователя
+    events = get_user_events(user_id)
 
     if not events:
         await message.answer(
@@ -1526,18 +1534,24 @@ async def on_my_events(message: types.Message):
         )
         return
 
-    lines = []
-    for event in events:
-        status_emoji = "🟢" if event.status == "open" else "🔴"
-        lines.append(
-            f"{status_emoji} **{event.title}**\n"
-            f"📅 {event.time_local or 'Время не указано'}\n"
-            f"📍 {event.location_name or 'Место не указано'}\n"
-            f"📊 Статус: {event.status}"
+    # Отправляем первое событие с кнопками управления
+    if events:
+        first_event = events[0]
+        text = f"📋 **Ваши события:**\n\n{format_event_for_display(first_event)}"
+
+        # Создаем кнопки управления
+        buttons = get_status_change_buttons(first_event["id"], first_event["status"])
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
+            ]
         )
 
-    text = "\n\n".join(lines)
-    await message.answer(f"📋 Ваши события:\n\n{text}", reply_markup=main_menu_kb(), parse_mode="Markdown")
+        # Добавляем кнопку "Следующее событие" если есть еще события
+        if len(events) > 1:
+            keyboard.inline_keyboard.append([InlineKeyboardButton(text="➡️ Следующее", callback_data="next_event_1")])
+
+        await message.answer(text, parse_mode="Markdown", reply_markup=keyboard)
 
 
 @dp.message(Command("share"))
@@ -3064,6 +3078,139 @@ async def main():
         except Exception:
             pass
         logger.info("Бот остановлен корректно.")
+
+
+# Обработчики для управления статусами событий
+@dp.callback_query(F.data.startswith("close_event_"))
+async def handle_close_event(callback: types.CallbackQuery):
+    """Закрытие события"""
+    event_id = int(callback.data.split("_")[-1])
+    user_id = callback.from_user.id
+
+    success = change_event_status(event_id, "closed", user_id)
+    if success:
+        await callback.answer("✅ Событие закрыто")
+        # Обновляем сообщение
+        events = get_user_events(user_id)
+        if events:
+            first_event = events[0]
+            text = f"📋 **Ваши события:**\n\n{format_event_for_display(first_event)}"
+            buttons = get_status_change_buttons(first_event["id"], first_event["status"])
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
+                ]
+            )
+            await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
+    else:
+        await callback.answer("❌ Ошибка при закрытии события")
+
+
+@dp.callback_query(F.data.startswith("open_event_"))
+async def handle_open_event(callback: types.CallbackQuery):
+    """Открытие события"""
+    event_id = int(callback.data.split("_")[-1])
+    user_id = callback.from_user.id
+
+    success = change_event_status(event_id, "open", user_id)
+    if success:
+        await callback.answer("✅ Событие открыто")
+        # Обновляем сообщение
+        events = get_user_events(user_id)
+        if events:
+            first_event = events[0]
+            text = f"📋 **Ваши события:**\n\n{format_event_for_display(first_event)}"
+            buttons = get_status_change_buttons(first_event["id"], first_event["status"])
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
+                ]
+            )
+            await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
+    else:
+        await callback.answer("❌ Ошибка при открытии события")
+
+
+@dp.callback_query(F.data.startswith("cancel_event_"))
+async def handle_cancel_event(callback: types.CallbackQuery):
+    """Отмена события"""
+    event_id = int(callback.data.split("_")[-1])
+    user_id = callback.from_user.id
+
+    success = change_event_status(event_id, "canceled", user_id)
+    if success:
+        await callback.answer("🚫 Событие отменено")
+        # Обновляем сообщение
+        events = get_user_events(user_id)
+        if events:
+            first_event = events[0]
+            text = f"📋 **Ваши события:**\n\n{format_event_for_display(first_event)}"
+            buttons = get_status_change_buttons(first_event["id"], first_event["status"])
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
+                ]
+            )
+            await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
+    else:
+        await callback.answer("❌ Ошибка при отмене события")
+
+
+@dp.callback_query(F.data.startswith("edit_event_"))
+async def handle_edit_event(callback: types.CallbackQuery):
+    """Редактирование события (заглушка)"""
+    await callback.answer("✏️ Редактирование событий будет добавлено в следующей версии")
+
+
+@dp.callback_query(F.data.startswith("next_event_"))
+async def handle_next_event(callback: types.CallbackQuery):
+    """Переход к следующему событию"""
+    user_id = callback.from_user.id
+    events = get_user_events(user_id)
+
+    if len(events) > 1:
+        # Показываем второе событие
+        second_event = events[1]
+        text = f"📋 **Ваши события:**\n\n{format_event_for_display(second_event)}"
+        buttons = get_status_change_buttons(second_event["id"], second_event["status"])
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
+            ]
+        )
+
+        # Добавляем кнопку "Предыдущее событие"
+        keyboard.inline_keyboard.append([InlineKeyboardButton(text="⬅️ Предыдущее", callback_data="prev_event_0")])
+
+        await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
+        await callback.answer()
+    else:
+        await callback.answer("Это единственное событие")
+
+
+@dp.callback_query(F.data.startswith("prev_event_"))
+async def handle_prev_event(callback: types.CallbackQuery):
+    """Возврат к предыдущему событию"""
+    user_id = callback.from_user.id
+    events = get_user_events(user_id)
+
+    if events:
+        # Показываем первое событие
+        first_event = events[0]
+        text = f"📋 **Ваши события:**\n\n{format_event_for_display(first_event)}"
+        buttons = get_status_change_buttons(first_event["id"], first_event["status"])
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
+            ]
+        )
+
+        # Добавляем кнопку "Следующее событие" если есть еще события
+        if len(events) > 1:
+            keyboard.inline_keyboard.append([InlineKeyboardButton(text="➡️ Следующее", callback_data="next_event_1")])
+
+        await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
+        await callback.answer()
 
 
 if __name__ == "__main__":
