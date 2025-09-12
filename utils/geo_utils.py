@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -217,3 +218,81 @@ def find_user_region(lat: float, lon: float, geo_bboxes: dict[str, dict[str, flo
 def validate_coordinates(lat: float, lon: float) -> bool:
     """Проверяет корректность координат."""
     return -90 <= lat <= 90 and -180 <= lon <= 180
+
+
+def parse_google_maps_link(link: str) -> dict | None:
+    """
+    Парсит Google Maps ссылку и извлекает координаты и название места.
+
+    Поддерживает форматы:
+    - https://maps.google.com/maps?q=lat,lng
+    - https://www.google.com/maps/place/name/@lat,lng,zoom
+    - https://maps.google.com/?q=lat,lng
+    - https://goo.gl/maps/...
+    - https://maps.app.goo.gl/...
+
+    Returns:
+        dict с ключами: lat, lng, name, raw_link или None если не удалось распарсить
+    """
+    if not link or not isinstance(link, str):
+        return None
+
+    # Очищаем ссылку
+    link = link.strip()
+
+    try:
+        # Паттерн 1: @lat,lng,zoom (самый частый)
+        pattern1 = r"@(-?\d+\.?\d*),(-?\d+\.?\d*),\d+"
+        match1 = re.search(pattern1, link)
+        if match1:
+            lat = float(match1.group(1))
+            lng = float(match1.group(2))
+
+            # Пытаемся извлечь название из URL
+            name = extract_place_name_from_url(link)
+
+            return {"lat": lat, "lng": lng, "name": name, "raw_link": link}
+
+        # Паттерн 2: q=lat,lng
+        pattern2 = r"[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)"
+        match2 = re.search(pattern2, link)
+        if match2:
+            lat = float(match2.group(1))
+            lng = float(match2.group(2))
+
+            name = extract_place_name_from_url(link)
+
+            return {"lat": lat, "lng": lng, "name": name, "raw_link": link}
+
+        # Паттерн 3: ll=lat,lng
+        pattern3 = r"[?&]ll=(-?\d+\.?\d*),(-?\d+\.?\d*)"
+        match3 = re.search(pattern3, link)
+        if match3:
+            lat = float(match3.group(1))
+            lng = float(match3.group(2))
+
+            name = extract_place_name_from_url(link)
+
+            return {"lat": lat, "lng": lng, "name": name, "raw_link": link}
+
+        return None
+
+    except (ValueError, AttributeError):
+        return None
+
+
+def extract_place_name_from_url(url: str) -> str | None:
+    """Извлекает название места из Google Maps URL."""
+    try:
+        # Паттерн для /place/name/
+        place_pattern = r"/place/([^/@]+)"
+        match = re.search(place_pattern, url)
+        if match:
+            name = match.group(1)
+            # Декодируем URL-кодированные символы
+            name = name.replace("%20", " ").replace("+", " ")
+            return name
+
+        return None
+    except Exception:
+        return None

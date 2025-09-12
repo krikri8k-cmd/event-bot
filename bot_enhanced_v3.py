@@ -1127,7 +1127,9 @@ class EventCreation(StatesGroup):
     waiting_for_title = State()
     waiting_for_date = State()
     waiting_for_time = State()
-    waiting_for_location = State()
+    waiting_for_location_type = State()  # Выбор типа локации
+    waiting_for_location_link = State()  # Ввод ссылки Google Maps
+    waiting_for_location = State()  # Legacy - для обратной совместимости
     waiting_for_description = State()
     confirmation = State()
 
@@ -2107,11 +2109,122 @@ async def process_time(message: types.Message, state: FSMContext):
     logger.info(f"process_time: получили время '{time}' от пользователя {message.from_user.id}")
 
     await state.update_data(time=time)
-    await state.set_state(EventCreation.waiting_for_location)
+    await state.set_state(EventCreation.waiting_for_location_type)
+
+    # Создаем клавиатуру для выбора типа локации
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="location_link")],
+            [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="location_map")],
+        ]
+    )
+
     await message.answer(
-        f"Время сохранено: *{time}* ✅\n\n📍 Теперь введите место проведения (например: Пляж Чангу):",
+        f"Время сохранено: *{time}* ✅\n\n📍 Как укажем место?", parse_mode="Markdown", reply_markup=keyboard
+    )
+
+
+# Обработчики для выбора типа локации
+@dp.callback_query(F.data == "location_link")
+async def handle_location_link_choice(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор ввода готовой ссылки"""
+    await state.set_state(EventCreation.waiting_for_location_link)
+    await callback.message.answer("🔗 Вставьте сюда ссылку из Google Maps:")
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "location_map")
+async def handle_location_map_choice(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор поиска на карте"""
+    await state.set_state(EventCreation.waiting_for_location_link)
+
+    # Создаем кнопку для открытия Google Maps
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text="🌍 Открыть Google Maps", url="https://www.google.com/maps")]]
+    )
+
+    await callback.message.answer("🌍 Открой карту, найди место и вставь ссылку сюда 👇", reply_markup=keyboard)
+    await callback.answer()
+
+
+@dp.message(EventCreation.waiting_for_location_link)
+async def process_location_link(message: types.Message, state: FSMContext):
+    """Обработка ссылки Google Maps"""
+    link = message.text.strip()
+    logger.info(f"process_location_link: получили ссылку от пользователя {message.from_user.id}")
+
+    # Парсим ссылку
+    from utils.geo_utils import parse_google_maps_link
+
+    location_data = parse_google_maps_link(link)
+
+    if not location_data:
+        await message.answer(
+            "❌ Не удалось распознать ссылку Google Maps.\n\n"
+            "Попробуйте:\n"
+            "• Скопировать ссылку из приложения Google Maps\n"
+            "• Или ввести координаты в формате: широта,долгота"
+        )
+        return
+
+    # Сохраняем данные локации
+    await state.update_data(
+        location_name=location_data.get("name", "Место на карте"),
+        location_lat=location_data["lat"],
+        location_lng=location_data["lng"],
+        location_url=location_data["raw_link"],
+    )
+
+    # Показываем подтверждение
+    location_name = location_data.get("name", "Место на карте")
+    lat = location_data["lat"]
+    lng = location_data["lng"]
+
+    # Создаем кнопки подтверждения
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🌍 Открыть на карте", url=link)],
+            [
+                InlineKeyboardButton(text="✅ Да", callback_data="location_confirm"),
+                InlineKeyboardButton(text="❌ Изменить", callback_data="location_change"),
+            ],
+        ]
+    )
+
+    await message.answer(
+        f"📍 **Локация:** {location_name}\n" f"🌍 Координаты: {lat:.6f}, {lng:.6f}\n\n" f"Всё верно?",
+        parse_mode="Markdown",
+        reply_markup=keyboard,
+    )
+
+
+# Обработчики подтверждения локации
+@dp.callback_query(F.data == "location_confirm")
+async def handle_location_confirm(callback: types.CallbackQuery, state: FSMContext):
+    """Подтверждение локации"""
+    await state.set_state(EventCreation.waiting_for_description)
+    await callback.message.answer(
+        "📍 Место сохранено! ✅\n\n📝 Теперь введите описание (например: Вечерняя прогулка у океана):",
         parse_mode="Markdown",
     )
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "location_change")
+async def handle_location_change(callback: types.CallbackQuery, state: FSMContext):
+    """Изменение локации"""
+    await state.set_state(EventCreation.waiting_for_location_type)
+
+    # Создаем клавиатуру для выбора типа локации
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="location_link")],
+            [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="location_map")],
+        ]
+    )
+
+    await callback.message.answer("📍 Как укажем место?", reply_markup=keyboard)
+    await callback.answer()
 
 
 @dp.message(EventCreation.waiting_for_location)
@@ -2139,12 +2252,18 @@ async def process_description(message: types.Message, state: FSMContext):
     await state.set_state(EventCreation.confirmation)
 
     # Показываем итог перед подтверждением
+    location_text = data.get("location", "Не указано")
+    if "location_name" in data:
+        location_text = data["location_name"]
+        if "location_url" in data:
+            location_text += f"\n🌍 [Открыть на карте]({data['location_url']})"
+
     await message.answer(
         f"📌 **Проверьте данные мероприятия:**\n\n"
         f"**Название:** {data['title']}\n"
         f"**Дата:** {data['date']}\n"
         f"**Время:** {data['time']}\n"
-        f"**Место:** {data['location']}\n"
+        f"**Место:** {location_text}\n"
         f"**Описание:** {data['description']}\n\n"
         f"Если всё верно, нажмите ✅ Сохранить. Если нужно изменить — нажмите ❌ Отмена.",
         parse_mode="Markdown",
@@ -2180,13 +2299,20 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
         # Объединяем дату и время
         time_local = f"{data['date']} {data['time']}"
 
+        # Определяем данные локации
+        location_name = data.get("location_name", data.get("location", "Место не указано"))
+        location_url = data.get("location_url")
+        lat = data.get("location_lat")
+        lng = data.get("location_lng")
+
         event = Event(
             title=data["title"],
             description=data["description"],
             time_local=time_local,
-            location_name=data["location"],
-            lat=None,  # Пока без геолокации
-            lng=None,
+            location_name=location_name,
+            location_url=location_url,
+            lat=lat,
+            lng=lng,
             organizer_id=callback.from_user.id,
             organizer_username=callback.from_user.username,
             status="open",
