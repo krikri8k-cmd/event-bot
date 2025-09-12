@@ -231,28 +231,17 @@ def get_status_change_buttons(event_id: int, current_status: str):
 
     # Кнопки в зависимости от текущего статуса
     if current_status == "open":
-        buttons.extend(
-            [
-                {"text": "❌ Закрыть", "callback_data": f"close_event_{event_id}"},
-                {"text": "🚫 Отменить", "callback_data": f"cancel_event_{event_id}"},
-            ]
-        )
+        buttons.append({"text": "✅ Завершить мероприятие", "callback_data": f"close_event_{event_id}"})
     elif current_status == "closed":
-        buttons.extend(
-            [
-                {"text": "✅ Открыть", "callback_data": f"open_event_{event_id}"},
-                {"text": "🚫 Отменить", "callback_data": f"cancel_event_{event_id}"},
-            ]
-        )
+        buttons.append({"text": "🔄 Возобновить мероприятие", "callback_data": f"open_event_{event_id}"})
     elif current_status == "canceled":
-        buttons.extend(
-            [
-                {"text": "✅ Открыть", "callback_data": f"open_event_{event_id}"},
-                {"text": "❌ Закрыть", "callback_data": f"close_event_{event_id}"},
-            ]
-        )
+        # Для отмененных событий показываем только возобновление
+        buttons.append({"text": "🔄 Возобновить мероприятие", "callback_data": f"open_event_{event_id}"})
 
     # Кнопка редактирования (всегда доступна)
     buttons.append({"text": "✏ Редактировать", "callback_data": f"edit_event_{event_id}"})
+
+    # Кнопка возврата в главное меню (всегда доступна)
+    buttons.append({"text": "🌟 Всё супер → 🏠 В главное меню", "callback_data": f"back_to_main_{event_id}"})
 
     return buttons

@@ -3142,15 +3142,23 @@ async def main():
 # Обработчики для управления статусами событий
 @dp.callback_query(F.data.startswith("close_event_"))
 async def handle_close_event(callback: types.CallbackQuery):
-    """Закрытие события"""
+    """Завершение мероприятия"""
     event_id = int(callback.data.split("_")[-1])
     user_id = callback.from_user.id
 
     success = change_event_status(event_id, "closed", user_id)
     if success:
-        await callback.answer("✅ Событие закрыто")
-        # Обновляем сообщение
+        # Получаем название события для сообщения
         events = get_user_events(user_id)
+        event_name = "мероприятие"
+        if events:
+            event = next((e for e in events if e["id"] == event_id), None)
+            if event:
+                event_name = event["title"]
+
+        await callback.answer(f"✅ Мероприятие '{event_name}' завершено!")
+
+        # Обновляем сообщение
         if events:
             first_event = events[0]
             text = f"📋 **Ваши события:**\n\n{format_event_for_display(first_event)}"
@@ -3162,20 +3170,28 @@ async def handle_close_event(callback: types.CallbackQuery):
             )
             await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
     else:
-        await callback.answer("❌ Ошибка при закрытии события")
+        await callback.answer("❌ Ошибка при завершении мероприятия")
 
 
 @dp.callback_query(F.data.startswith("open_event_"))
 async def handle_open_event(callback: types.CallbackQuery):
-    """Открытие события"""
+    """Возобновление мероприятия"""
     event_id = int(callback.data.split("_")[-1])
     user_id = callback.from_user.id
 
     success = change_event_status(event_id, "open", user_id)
     if success:
-        await callback.answer("✅ Событие открыто")
-        # Обновляем сообщение
+        # Получаем название события для сообщения
         events = get_user_events(user_id)
+        event_name = "мероприятие"
+        if events:
+            event = next((e for e in events if e["id"] == event_id), None)
+            if event:
+                event_name = event["title"]
+
+        await callback.answer(f"🔄 Мероприятие '{event_name}' снова активно!")
+
+        # Обновляем сообщение
         if events:
             first_event = events[0]
             text = f"📋 **Ваши события:**\n\n{format_event_for_display(first_event)}"
@@ -3187,32 +3203,7 @@ async def handle_open_event(callback: types.CallbackQuery):
             )
             await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
     else:
-        await callback.answer("❌ Ошибка при открытии события")
-
-
-@dp.callback_query(F.data.startswith("cancel_event_"))
-async def handle_cancel_event(callback: types.CallbackQuery):
-    """Отмена события"""
-    event_id = int(callback.data.split("_")[-1])
-    user_id = callback.from_user.id
-
-    success = change_event_status(event_id, "canceled", user_id)
-    if success:
-        await callback.answer("🚫 Событие отменено")
-        # Обновляем сообщение
-        events = get_user_events(user_id)
-        if events:
-            first_event = events[0]
-            text = f"📋 **Ваши события:**\n\n{format_event_for_display(first_event)}"
-            buttons = get_status_change_buttons(first_event["id"], first_event["status"])
-            keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
-                ]
-            )
-            await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
-    else:
-        await callback.answer("❌ Ошибка при отмене события")
+        await callback.answer("❌ Ошибка при возобновлении мероприятия")
 
 
 @dp.callback_query(F.data.startswith("edit_event_"))
@@ -3463,6 +3454,13 @@ async def handle_next_event(callback: types.CallbackQuery):
         await callback.answer()
     else:
         await callback.answer("Это единственное событие")
+
+
+@dp.callback_query(F.data.startswith("back_to_main_"))
+async def handle_back_to_main(callback: types.CallbackQuery):
+    """Возврат в главное меню"""
+    await callback.message.answer("🏠 Вы вернулись в главное меню", reply_markup=main_menu_kb())
+    await callback.answer("🏠 Возврат в главное меню")
 
 
 @dp.callback_query(F.data.startswith("prev_event_"))
