@@ -2232,7 +2232,9 @@ async def echo_message(message: types.Message, state: FSMContext):
         EventEditing.waiting_for_description,
     ]:
         # Если в процессе создания или редактирования события, не отвечаем
-        logger.info("echo_message: в процессе создания/редактирования события, не отвечаем")
+        logger.info(
+            f"echo_message: в процессе создания/редактирования события (состояние: {current_state}), не отвечаем"
+        )
         return
 
     logger.info("echo_message: отвечаем общим сообщением")
@@ -3265,7 +3267,17 @@ async def handle_edit_event(callback: types.CallbackQuery, state: FSMContext):
 @dp.callback_query(F.data.startswith("edit_title_"))
 async def handle_edit_title_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор редактирования названия"""
+    event_id = int(callback.data.split("_")[-1])
+    user_id = callback.from_user.id
+
+    logging.info(f"handle_edit_title_choice: пользователь {user_id} выбрал редактирование названия события {event_id}")
+
+    # Сохраняем ID события в состоянии
+    await state.update_data(event_id=event_id)
     await state.set_state(EventEditing.waiting_for_title)
+
+    logging.info("handle_edit_title_choice: состояние установлено в EventEditing.waiting_for_title")
+
     await callback.message.answer("✍️ Введите новое название события:")
     await callback.answer()
 
@@ -3334,8 +3346,15 @@ async def handle_title_input(message: types.Message, state: FSMContext):
     data = await state.get_data()
     event_id = data.get("event_id")
 
+    logging.info(
+        f"handle_title_input: получен ввод '{message.text}' для события {event_id} от пользователя {message.from_user.id}"
+    )
+
     if event_id and message.text:
+        logging.info(f"handle_title_input: вызываем update_event_field для события {event_id}")
         success = update_event_field(event_id, "title", message.text.strip(), message.from_user.id)
+        logging.info(f"handle_title_input: результат update_event_field: {success}")
+
         if success:
             await message.answer("✅ Название обновлено!")
             keyboard = edit_event_keyboard(event_id)
