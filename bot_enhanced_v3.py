@@ -2214,9 +2214,15 @@ async def echo_message(message: types.Message, state: FSMContext):
         EventCreation.waiting_for_location,
         EventCreation.waiting_for_description,
         EventCreation.confirmation,
+        # Добавляем состояния редактирования событий
+        EventEditing.waiting_for_title,
+        EventEditing.waiting_for_date,
+        EventEditing.waiting_for_time,
+        EventEditing.waiting_for_location,
+        EventEditing.waiting_for_description,
     ]:
-        # Если в процессе создания события, не отвечаем
-        logger.info("echo_message: в процессе создания события, не отвечаем")
+        # Если в процессе создания или редактирования события, не отвечаем
+        logger.info("echo_message: в процессе создания/редактирования события, не отвечаем")
         return
 
     logger.info("echo_message: отвечаем общим сообщением")
