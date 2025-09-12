@@ -2177,8 +2177,8 @@ async def process_location_link(message: types.Message, state: FSMContext):
 
     # Показываем подтверждение
     location_name = location_data.get("name", "Место на карте")
-    lat = location_data["lat"]
-    lng = location_data["lng"]
+    lat = location_data.get("lat")
+    lng = location_data.get("lng")
 
     # Создаем кнопки подтверждения
     keyboard = InlineKeyboardMarkup(
@@ -2191,8 +2191,14 @@ async def process_location_link(message: types.Message, state: FSMContext):
         ]
     )
 
+    # Формируем сообщение в зависимости от наличия координат
+    if lat is not None and lng is not None:
+        location_text = f"📍 **Локация:** {location_name}\n🌍 Координаты: {lat:.6f}, {lng:.6f}\n\nВсё верно?"
+    else:
+        location_text = f"📍 **Локация:** {location_name}\n🌍 Ссылка на карту сохранена\n\nВсё верно?"
+
     await message.answer(
-        f"📍 **Локация:** {location_name}\n" f"🌍 Координаты: {lat:.6f}, {lng:.6f}\n\n" f"Всё верно?",
+        location_text,
         parse_mode="Markdown",
         reply_markup=keyboard,
     )

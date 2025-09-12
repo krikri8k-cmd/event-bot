@@ -241,6 +241,13 @@ def parse_google_maps_link(link: str) -> dict | None:
     link = link.strip()
 
     try:
+        # Сначала проверяем, не короткая ли это ссылка
+        if "goo.gl/maps" in link or "maps.app.goo.gl" in link:
+            # Для коротких ссылок пытаемся получить полную ссылку
+            expanded_link = expand_short_url(link)
+            if expanded_link:
+                link = expanded_link
+
         # Паттерн 1: @lat,lng,zoom (самый частый)
         pattern1 = r"@(-?\d+\.?\d*),(-?\d+\.?\d*),\d+"
         match1 = re.search(pattern1, link)
@@ -275,9 +282,69 @@ def parse_google_maps_link(link: str) -> dict | None:
 
             return {"lat": lat, "lng": lng, "name": name, "raw_link": link}
 
+        # Паттерн 4: center=lat,lng
+        pattern4 = r"[?&]center=(-?\d+\.?\d*),(-?\d+\.?\d*)"
+        match4 = re.search(pattern4, link)
+        if match4:
+            lat = float(match4.group(1))
+            lng = float(match4.group(2))
+
+            name = extract_place_name_from_url(link)
+
+            return {"lat": lat, "lng": lng, "name": name, "raw_link": link}
+
+        # Паттерн 5: ссылка на конкретное место (без координат в URL)
+        if "/place/" in link:
+            name = extract_place_name_from_url(link)
+            if name:
+                # Для мест без координат в URL возвращаем только название
+                # Координаты можно будет получить позже через геокодирование
+                return {"lat": None, "lng": None, "name": name, "raw_link": link}
+
         return None
 
     except (ValueError, AttributeError):
+        return None
+
+
+def expand_short_url(short_url: str) -> str | None:
+    """Расширяет короткую ссылку Google Maps до полной."""
+    try:
+        import httpx
+
+        # Делаем HEAD запрос, чтобы получить редирект
+        with httpx.Client(follow_redirects=False, timeout=10) as client:
+            response = client.head(short_url)
+
+            # Проверяем, есть ли Location заголовок
+            if response.status_code in [301, 302, 303, 307, 308]:
+                location = response.headers.get("location")
+                if location:
+                    return location
+
+        return None
+    except Exception:
+        return None
+
+
+def geocode_place_name(place_name: str) -> dict | None:
+    """Геокодирует название места в координаты."""
+    try:
+        import asyncio
+
+        from utils.geo_utils import geocode_address
+
+        # Запускаем асинхронную функцию
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(geocode_address(place_name))
+            if result and "lat" in result and "lng" in result:
+                return {"lat": result["lat"], "lng": result["lng"]}
+        finally:
+            loop.close()
+        return None
+    except Exception:
         return None
 
 
