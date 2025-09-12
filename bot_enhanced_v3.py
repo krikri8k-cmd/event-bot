@@ -2333,7 +2333,7 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
         f"**Название:** {data['title']}\n"
         f"**Дата:** {data['date']}\n"
         f"**Время:** {data['time']}\n"
-        f"**Место:** {data['location']}\n"
+        f"**Место:** {location_name}\n"
         f"**Описание:** {data['description']}\n\n"
         f"Теперь другие пользователи смогут найти его через '📍 Что рядом'.",
         parse_mode="Markdown",
