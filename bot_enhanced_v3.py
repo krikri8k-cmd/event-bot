@@ -13,7 +13,7 @@ from math import ceil
 from urllib.parse import quote_plus, urlparse
 
 from aiogram import Bot, Dispatcher, F, types
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -2208,35 +2208,13 @@ async def cancel_event_creation(callback: types.CallbackQuery, state: FSMContext
     await callback.answer("Создание отменено")
 
 
-@dp.message()
+@dp.message(~StateFilter(EventCreation, EventEditing))
 async def echo_message(message: types.Message, state: FSMContext):
-    """Обработчик всех остальных сообщений"""
-    # Проверяем, не находимся ли мы в процессе создания события
+    """Обработчик всех остальных сообщений (кроме FSM состояний)"""
     current_state = await state.get_state()
     logger.info(
         f"echo_message: получили сообщение '{message.text}' от пользователя {message.from_user.id}, состояние: {current_state}"
     )
-
-    if current_state in [
-        EventCreation.waiting_for_title,
-        EventCreation.waiting_for_date,
-        EventCreation.waiting_for_time,
-        EventCreation.waiting_for_location,
-        EventCreation.waiting_for_description,
-        EventCreation.confirmation,
-        # Добавляем состояния редактирования событий
-        EventEditing.waiting_for_title,
-        EventEditing.waiting_for_date,
-        EventEditing.waiting_for_time,
-        EventEditing.waiting_for_location,
-        EventEditing.waiting_for_description,
-    ]:
-        # Если в процессе создания или редактирования события, не отвечаем
-        logger.info(
-            f"echo_message: в процессе создания/редактирования события (состояние: {current_state}), не отвечаем"
-        )
-        return
-
     logger.info("echo_message: отвечаем общим сообщением")
     await message.answer("Используйте кнопки меню для навигации:", reply_markup=main_menu_kb())
 
