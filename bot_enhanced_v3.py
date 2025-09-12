@@ -2305,6 +2305,14 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
         # Объединяем дату и время
         time_local = f"{data['date']} {data['time']}"
 
+        # Парсим дату и время для starts_at
+        from datetime import datetime
+
+        try:
+            starts_at = datetime.strptime(time_local, "%d.%m.%Y %H:%M")
+        except ValueError:
+            starts_at = None
+
         # Определяем данные локации
         location_name = data.get("location_name", data.get("location", "Место не указано"))
         location_url = data.get("location_url")
@@ -2315,6 +2323,7 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
             title=data["title"],
             description=data["description"],
             time_local=time_local,
+            starts_at=starts_at,
             location_name=location_name,
             location_url=location_url,
             lat=lat,
