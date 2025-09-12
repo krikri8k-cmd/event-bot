@@ -1141,6 +1141,69 @@ class MomentCreation(StatesGroup):
     preview_confirmed = State()
 
 
+class EventEditing(StatesGroup):
+    choosing_field = State()
+    waiting_for_title = State()
+    waiting_for_date = State()
+    waiting_for_time = State()
+    waiting_for_location = State()
+    waiting_for_description = State()
+
+
+def edit_event_keyboard(event_id: int) -> InlineKeyboardMarkup:
+    """Создаёт клавиатуру для редактирования события"""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📌 Название", callback_data=f"edit_title_{event_id}")],
+            [InlineKeyboardButton(text="📅 Дата", callback_data=f"edit_date_{event_id}")],
+            [InlineKeyboardButton(text="⏰ Время", callback_data=f"edit_time_{event_id}")],
+            [InlineKeyboardButton(text="📍 Локация", callback_data=f"edit_location_{event_id}")],
+            [InlineKeyboardButton(text="📝 Описание", callback_data=f"edit_description_{event_id}")],
+            [InlineKeyboardButton(text="✅ Завершить", callback_data=f"edit_finish_{event_id}")],
+        ]
+    )
+
+
+async def update_event_field(event_id: int, field: str, value: str, user_id: int) -> bool:
+    """Обновляет поле события в базе данных"""
+    try:
+        with get_session() as session:
+            # Проверяем, что событие принадлежит пользователю
+            event = session.query(Event).filter(Event.id == event_id, Event.organizer_id == user_id).first()
+
+            if not event:
+                return False
+
+            # Обновляем поле
+            if field == "title":
+                event.title = value
+            elif field == "starts_at":
+                # Для даты/времени нужно парсить
+                from datetime import datetime
+
+                try:
+                    if " " in value:
+                        # Полная дата и время
+                        event.starts_at = datetime.strptime(value, "%d.%m.%Y %H:%M")
+                    else:
+                        # Только дата
+                        event.starts_at = datetime.strptime(value, "%d.%m.%Y")
+                except ValueError:
+                    return False
+            elif field == "location_name":
+                event.location_name = value
+            elif field == "description":
+                event.description = value
+
+            event.updated_at_utc = datetime.now(UTC)
+            session.commit()
+            return True
+
+    except Exception as e:
+        logging.error(f"Ошибка обновления события {event_id}: {e}")
+        return False
+
+
 def main_menu_kb() -> ReplyKeyboardMarkup:
     """Создаёт главное меню"""
     from config import load_settings
@@ -3157,9 +3220,210 @@ async def handle_cancel_event(callback: types.CallbackQuery):
 
 
 @dp.callback_query(F.data.startswith("edit_event_"))
-async def handle_edit_event(callback: types.CallbackQuery):
-    """Редактирование события (заглушка)"""
-    await callback.answer("✏️ Редактирование событий будет добавлено в следующей версии")
+async def handle_edit_event(callback: types.CallbackQuery, state: FSMContext):
+    """Начало редактирования события"""
+    event_id = int(callback.data.split("_")[-1])
+    user_id = callback.from_user.id
+
+    # Проверяем, что событие принадлежит пользователю
+    events = get_user_events(user_id)
+    event_exists = any(event["id"] == event_id for event in events)
+
+    if not event_exists:
+        await callback.answer("❌ Событие не найдено или не принадлежит вам")
+        return
+
+    # Сохраняем ID события в состоянии
+    await state.update_data(event_id=event_id)
+    await state.set_state(EventEditing.choosing_field)
+
+    # Показываем меню редактирования
+    keyboard = edit_event_keyboard(event_id)
+    await callback.message.answer(
+        "✏️ **Редактирование события**\n\nВыберите, что хотите изменить:", parse_mode="Markdown", reply_markup=keyboard
+    )
+    await callback.answer()
+
+
+# Обработчики для выбора полей редактирования
+@dp.callback_query(F.data.startswith("edit_title_"))
+async def handle_edit_title_choice(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор редактирования названия"""
+    await state.set_state(EventEditing.waiting_for_title)
+    await callback.message.answer("✍️ Введите новое название события:")
+    await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("edit_date_"))
+async def handle_edit_date_choice(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор редактирования даты"""
+    await state.set_state(EventEditing.waiting_for_date)
+    await callback.message.answer("📅 Введите новую дату в формате ДД.ММ.ГГГГ (например: 12.09.2025):")
+    await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("edit_time_"))
+async def handle_edit_time_choice(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор редактирования времени"""
+    await state.set_state(EventEditing.waiting_for_time)
+    await callback.message.answer("⏰ Введите новое время в формате ЧЧ:ММ (например: 18:30):")
+    await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("edit_location_"))
+async def handle_edit_location_choice(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор редактирования локации"""
+    await state.set_state(EventEditing.waiting_for_location)
+    await callback.message.answer("📍 Введите новое место проведения:")
+    await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("edit_description_"))
+async def handle_edit_description_choice(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор редактирования описания"""
+    await state.set_state(EventEditing.waiting_for_description)
+    await callback.message.answer("📝 Введите новое описание:")
+    await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("edit_finish_"))
+async def handle_edit_finish(callback: types.CallbackQuery, state: FSMContext):
+    """Завершение редактирования"""
+    data = await state.get_data()
+    event_id = data.get("event_id")
+
+    if event_id:
+        # Получаем обновленное событие
+        events = get_user_events(callback.from_user.id)
+        updated_event = next((event for event in events if event["id"] == event_id), None)
+
+        if updated_event:
+            text = f"✅ **Событие обновлено!**\n\n{format_event_for_display(updated_event)}"
+            buttons = get_status_change_buttons(updated_event["id"], updated_event["status"])
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
+                ]
+            )
+            await callback.message.answer(text, parse_mode="Markdown", reply_markup=keyboard)
+
+    await state.clear()
+    await callback.answer("✅ Редактирование завершено!")
+
+
+# Обработчики ввода данных для редактирования
+@dp.message(EventEditing.waiting_for_title)
+async def handle_title_input(message: types.Message, state: FSMContext):
+    """Обработка ввода нового названия"""
+    data = await state.get_data()
+    event_id = data.get("event_id")
+
+    if event_id and message.text:
+        success = await update_event_field(event_id, "title", message.text.strip(), message.from_user.id)
+        if success:
+            await message.answer("✅ Название обновлено!")
+            keyboard = edit_event_keyboard(event_id)
+            await message.answer("Выберите, что еще хотите изменить:", reply_markup=keyboard)
+            await state.set_state(EventEditing.choosing_field)
+        else:
+            await message.answer("❌ Ошибка при обновлении названия")
+    else:
+        await message.answer("❌ Введите корректное название")
+
+
+@dp.message(EventEditing.waiting_for_date)
+async def handle_date_input(message: types.Message, state: FSMContext):
+    """Обработка ввода новой даты"""
+    data = await state.get_data()
+    event_id = data.get("event_id")
+
+    if event_id and message.text:
+        success = await update_event_field(event_id, "starts_at", message.text.strip(), message.from_user.id)
+        if success:
+            await message.answer("✅ Дата обновлена!")
+            keyboard = edit_event_keyboard(event_id)
+            await message.answer("Выберите, что еще хотите изменить:", reply_markup=keyboard)
+            await state.set_state(EventEditing.choosing_field)
+        else:
+            await message.answer("❌ Ошибка при обновлении даты. Проверьте формат (ДД.ММ.ГГГГ)")
+    else:
+        await message.answer("❌ Введите корректную дату")
+
+
+@dp.message(EventEditing.waiting_for_time)
+async def handle_time_input(message: types.Message, state: FSMContext):
+    """Обработка ввода нового времени"""
+    data = await state.get_data()
+    event_id = data.get("event_id")
+
+    if event_id and message.text:
+        # Для времени нужно получить текущую дату и объединить с новым временем
+        try:
+            from datetime import datetime
+
+            # Получаем текущую дату события
+            events = get_user_events(message.from_user.id)
+            current_event = next((event for event in events if event["id"] == event_id), None)
+
+            if current_event and current_event["starts_at"]:
+                current_date = current_event["starts_at"].strftime("%d.%m.%Y")
+                new_datetime = f"{current_date} {message.text.strip()}"
+                success = await update_event_field(event_id, "starts_at", new_datetime, message.from_user.id)
+            else:
+                # Если нет текущей даты, используем сегодняшнюю
+                today = datetime.now().strftime("%d.%m.%Y")
+                new_datetime = f"{today} {message.text.strip()}"
+                success = await update_event_field(event_id, "starts_at", new_datetime, message.from_user.id)
+
+            if success:
+                await message.answer("✅ Время обновлено!")
+                keyboard = edit_event_keyboard(event_id)
+                await message.answer("Выберите, что еще хотите изменить:", reply_markup=keyboard)
+                await state.set_state(EventEditing.choosing_field)
+            else:
+                await message.answer("❌ Ошибка при обновлении времени. Проверьте формат (ЧЧ:ММ)")
+        except Exception:
+            await message.answer("❌ Ошибка при обновлении времени. Проверьте формат (ЧЧ:ММ)")
+    else:
+        await message.answer("❌ Введите корректное время")
+
+
+@dp.message(EventEditing.waiting_for_location)
+async def handle_location_input(message: types.Message, state: FSMContext):
+    """Обработка ввода новой локации"""
+    data = await state.get_data()
+    event_id = data.get("event_id")
+
+    if event_id and message.text:
+        success = await update_event_field(event_id, "location_name", message.text.strip(), message.from_user.id)
+        if success:
+            await message.answer("✅ Локация обновлена!")
+            keyboard = edit_event_keyboard(event_id)
+            await message.answer("Выберите, что еще хотите изменить:", reply_markup=keyboard)
+            await state.set_state(EventEditing.choosing_field)
+        else:
+            await message.answer("❌ Ошибка при обновлении локации")
+    else:
+        await message.answer("❌ Введите корректную локацию")
+
+
+@dp.message(EventEditing.waiting_for_description)
+async def handle_description_input(message: types.Message, state: FSMContext):
+    """Обработка ввода нового описания"""
+    data = await state.get_data()
+    event_id = data.get("event_id")
+
+    if event_id and message.text:
+        success = await update_event_field(event_id, "description", message.text.strip(), message.from_user.id)
+        if success:
+            await message.answer("✅ Описание обновлено!")
+            keyboard = edit_event_keyboard(event_id)
+            await message.answer("Выберите, что еще хотите изменить:", reply_markup=keyboard)
+            await state.set_state(EventEditing.choosing_field)
+        else:
+            await message.answer("❌ Ошибка при обновлении описания")
+    else:
+        await message.answer("❌ Введите корректное описание")
 
 
 @dp.callback_query(F.data.startswith("next_event_"))
