@@ -97,6 +97,8 @@ async def _fetch_json(
 ) -> dict[str, Any]:
     """Выполняет HTTP запрос с retry и rate limiting"""
     backoff = 0.5
+    start_time = time.time()
+
     for attempt in range(5):
         await limiter.wait()
         try:
@@ -105,12 +107,32 @@ async def _fetch_json(
             if r.status_code >= 500:
                 raise httpx.HTTPStatusError("5xx", request=r.request, response=r)
             r.raise_for_status()
+
+            # Записываем успешный запрос в health-метрики
+            latency_ms = (time.time() - start_time) * 1000
+            try:
+                from web.health import record_kudago_request
+
+                record_kudago_request(success=True, latency_ms=latency_ms)
+            except ImportError:
+                pass  # Health модуль может быть недоступен
+
             return r.json()
         except Exception as e:
             METRICS["api_errors"] += 1
             logger.warning(f"KudaGo request error ({attempt+1}/5): {e}")
             await asyncio.sleep(backoff)
             backoff *= 2
+
+    # Записываем неудачный запрос в health-метрики
+    latency_ms = (time.time() - start_time) * 1000
+    try:
+        from web.health import record_kudago_request
+
+        record_kudago_request(success=False, latency_ms=latency_ms)
+    except ImportError:
+        pass  # Health модуль может быть недоступен
+
     raise RuntimeError("KudaGo API failed after retries")
 
 
@@ -201,8 +223,30 @@ class KudaGoSource(BaseSource):
             events = await self._fetch_today_kudago(city_slug, (lat, lng), int(radius_km * 1000))
             all_events.extend(events)
             logger.info(f"✅ Найдено {len(events)} событий в {city_name}")
+
+            # Записываем метрики событий
+            try:
+                from web.health import record_kudago_request
+
+                record_kudago_request(
+                    success=True,
+                    latency_ms=0,  # Латентность уже записана в _fetch_json
+                    events_count=len(events),
+                    events_after_geo=len(events),  # События уже отфильтрованы
+                )
+            except ImportError:
+                pass  # Health модуль может быть недоступен
+
         except Exception as e:
             logger.error(f"❌ Ошибка при получении событий из {city_name}: {e}")
+
+            # Записываем метрики ошибки
+            try:
+                from web.health import record_kudago_request
+
+                record_kudago_request(success=False, latency_ms=0)
+            except ImportError:
+                pass  # Health модуль может быть недоступен
 
         return all_events
 
@@ -255,12 +299,22 @@ class KudaGoSource(BaseSource):
         # Нормализация
         normalized: list[dict[str, Any]] = [_normalize_event(r, city_slug) for r in results]
 
+        # Валидация событий
+        try:
+            from utils.event_validator import validate_events_batch
+
+            validated = validate_events_batch(normalized, city_slug)
+            logger.info(f"Валидация {city_slug}: {len(validated)}/{len(normalized)} событий прошли валидацию")
+        except Exception as e:
+            logger.warning(f"validator unavailable, skip: {e}")
+            validated = normalized
+
         # Гео-фильтр (если подключён)
         try:
             from utils.geo_bounds import is_allowed
 
             filtered: list[dict[str, Any]] = []
-            for ev in normalized:
+            for ev in validated:
                 lat, lon = ev.get("lat"), ev.get("lon")
                 if lat is None or lon is None:
                     filtered.append(ev)
@@ -270,7 +324,7 @@ class KudaGoSource(BaseSource):
             METRICS["events_after_geo"] += len(filtered)
         except Exception as e:
             logger.warning(f"geo filter unavailable, skip: {e}")
-            filtered = normalized
+            filtered = validated
 
         # DRY_RUN: не сохраняем, возвращаем наверх
         if KUDAGO_DRY_RUN:
