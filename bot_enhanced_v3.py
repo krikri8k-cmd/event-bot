@@ -1347,7 +1347,11 @@ async def on_location(message: types.Message):
     lat = message.location.latitude
     lng = message.location.longitude
 
-    await message.answer("Смотрю, что рядом...", reply_markup=main_menu_kb())
+    # Показываем индикатор загрузки
+    loading_message = await message.answer(
+        "🔍 Ищу события рядом...",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔍", callback_data="loading")]]),
+    )
 
     try:
         # Обновляем геолокацию пользователя и получаем его радиус
@@ -1367,6 +1371,11 @@ async def on_location(message: types.Message):
             logger.info(f"✅ Поиск завершен, найдено {len(events)} событий")
         except Exception:
             logger.exception("❌ Ошибка при поиске событий")
+            # Удаляем сообщение загрузки при ошибке
+            try:
+                await loading_message.delete()
+            except Exception:
+                pass
             fallback = render_fallback(lat, lng)
             await message.answer(
                 fallback,
@@ -1409,6 +1418,12 @@ async def on_location(message: types.Message):
             )
 
             inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+
+            # Удаляем сообщение загрузки
+            try:
+                await loading_message.delete()
+            except Exception:
+                pass
 
             await message.answer(
                 f"📅 Событий на сегодня не найдено в радиусе {current_radius} км.\n\n"
@@ -1525,6 +1540,12 @@ async def on_location(message: types.Message):
 
                     inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
+                    # Удаляем сообщение загрузки
+                    try:
+                        await loading_message.delete()
+                    except Exception:
+                        pass
+
                     # Отправляем карту с краткой подписью
                     await message.answer_photo(
                         map_url,
@@ -1551,6 +1572,12 @@ async def on_location(message: types.Message):
                     await message.answer(f"Не удалось загрузить изображение карты. Вот URL для проверки:\n{map_url}")
             else:
                 # Если карта не сгенерировалась, отправляем только список событий
+                # Удаляем сообщение загрузки
+                try:
+                    await loading_message.delete()
+                except Exception:
+                    pass
+
                 try:
                     await send_compact_events_list(message, events, lat, lng, page=0, user_radius=radius)
                     logger.info("✅ Компактный список событий отправлен (без карты)")
@@ -2430,6 +2457,12 @@ async def handle_pagination(callback: types.CallbackQuery):
         await callback.answer("Произошла ошибка")
 
 
+@dp.callback_query(F.data == "loading")
+async def handle_loading_button(callback: types.CallbackQuery):
+    """Обработчик кнопки загрузки - просто отвечаем, что работаем"""
+    await callback.answer("🔍 Ищем события...", show_alert=False)
+
+
 @dp.callback_query(F.data.startswith("rx:"))
 async def handle_expand_radius(callback: types.CallbackQuery):
     """Обработчик расширения радиуса поиска"""
@@ -2449,16 +2482,34 @@ async def handle_expand_radius(callback: types.CallbackQuery):
 
         logger.info(f"🔍 Расширяем поиск до {new_radius} км от ({lat}, {lng})")
 
+        # Показываем индикатор загрузки
+        loading_message = await callback.message.answer(
+            "🔍 Ищу...",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="🔍", callback_data="loading")]]
+            ),
+        )
+
         # Ищем события с расширенным радиусом
         try:
             events = await enhanced_search_events(lat, lng, radius_km=new_radius)
             events = sort_events_by_time(events)
         except Exception as e:
             logger.error(f"❌ Ошибка при расширенном поиске: {e}")
+            # Удаляем сообщение загрузки при ошибке
+            try:
+                await loading_message.delete()
+            except Exception:
+                pass
             await callback.answer("Ошибка при поиске событий")
             return
 
         if not events:
+            # Удаляем сообщение загрузки если события не найдены
+            try:
+                await loading_message.delete()
+            except Exception:
+                pass
             await callback.answer("События не найдены даже в расширенном радиусе")
             return
 
@@ -2486,6 +2537,12 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             "page": 1,
             "diag": diag,
         }
+
+        # Удаляем сообщение загрузки
+        try:
+            await loading_message.delete()
+        except Exception:
+            pass  # Игнорируем ошибки удаления
 
         # Рендерим первую страницу
         header_html = render_header(counts, radius_km=new_radius)
