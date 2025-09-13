@@ -587,11 +587,17 @@ async def send_compact_events_list(
     try:
         # Отправляем компактный список событий в HTML формате
         await message.answer(text, reply_markup=inline_kb, parse_mode="HTML", disable_web_page_preview=True)
+
+        # Возвращаем пользователя к основному меню после отправки списка событий
+        await message.answer("🏠 Выберите действие:", reply_markup=main_menu_kb())
         logger.info(f"✅ Страница {page + 1} событий отправлена (HTML)")
     except Exception as e:
         logger.error(f"❌ Ошибка отправки страницы {page + 1}: {e}")
         # Fallback - отправляем без форматирования
         await message.answer(f"📋 События (страница {page + 1} из {total_pages}):\n\n{text}", reply_markup=inline_kb)
+
+        # Возвращаем пользователя к основному меню
+        await message.answer("🏠 Выберите действие:", reply_markup=main_menu_kb())
 
 
 async def edit_events_list_message(
@@ -1571,6 +1577,7 @@ async def on_location(message: types.Message):
                             f"💡 Нажми кнопку '🗺️ Открыть в Google Maps с событиями' выше "
                             f"чтобы увидеть полную информацию о каждом событии!",
                             parse_mode="Markdown",
+                            reply_markup=main_menu_kb(),
                         )
                 except Exception as e:
                     logger.exception("Failed to send map image, will send URL as text: %s", e)
@@ -1593,6 +1600,7 @@ async def on_location(message: types.Message):
                         f"📋 **Все {len(events)} событий:**\n\n"
                         f"💡 К сожалению, карта не загрузилась, но все события найдены!",
                         parse_mode="Markdown",
+                        reply_markup=main_menu_kb(),
                     )
 
         except Exception:
