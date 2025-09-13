@@ -54,6 +54,20 @@ class Settings:
     enable_baliforum: bool
     ics_feeds: list[str]
 
+    # Geo bounds settings (по умолчанию все выключено)
+    enable_geo_bounds: bool
+    russia_bounds_enabled: bool
+
+    # KudaGo source settings (по умолчанию все выключено)
+    kudago_enabled: bool
+    kudago_dry_run: bool
+    kudago_rps: float
+    kudago_timeout_s: float
+    kudago_page_size: int
+    today_max_events: int
+    today_show_top: int
+    cache_ttl_s: int
+
 
 def _parse_admin_ids(value: str | None) -> set[int]:
     if not value:
@@ -110,6 +124,20 @@ def load_settings(require_bot: bool = False) -> Settings:
     enable_baliforum = os.getenv("ENABLE_BALIFORUM", "0").strip() == "1"
     ics_feeds = [url.strip() for url in (os.getenv("ICS_FEEDS") or "").split(",") if url.strip()]
 
+    # Geo bounds settings (по умолчанию все выключено)
+    enable_geo_bounds = os.getenv("ENABLE_GEO_BOUNDS", "false").lower() == "true"
+    russia_bounds_enabled = os.getenv("RUSSIA_BOUNDS_ENABLED", "false").lower() == "true"
+
+    # KudaGo source settings (по умолчанию все выключено)
+    kudago_enabled = os.getenv("KUDAGO_ENABLED", "false").lower() == "true"
+    kudago_dry_run = os.getenv("KUDAGO_DRY_RUN", "true").lower() == "true"
+    kudago_rps = float(os.getenv("KUDAGO_RPS", "3"))
+    kudago_timeout_s = float(os.getenv("KUDAGO_TIMEOUT_S", "8"))
+    kudago_page_size = int(os.getenv("KUDAGO_PAGE_SIZE", "100"))
+    today_max_events = int(os.getenv("TODAY_MAX_EVENTS", "60"))
+    today_show_top = int(os.getenv("TODAY_SHOW_TOP", "12"))
+    cache_ttl_s = int(os.getenv("CACHE_TTL_S", "300"))
+
     try:
         default_radius_km = float(default_radius_km_str)
     except ValueError:
@@ -164,4 +192,16 @@ def load_settings(require_bot: bool = False) -> Settings:
         enable_eventbrite_api=enable_eventbrite_api,
         enable_baliforum=enable_baliforum,
         ics_feeds=ics_feeds,
+        # Geo bounds settings
+        enable_geo_bounds=enable_geo_bounds,
+        russia_bounds_enabled=russia_bounds_enabled,
+        # KudaGo source settings
+        kudago_enabled=kudago_enabled,
+        kudago_dry_run=kudago_dry_run,
+        kudago_rps=kudago_rps,
+        kudago_timeout_s=kudago_timeout_s,
+        kudago_page_size=kudago_page_size,
+        today_max_events=today_max_events,
+        today_show_top=today_show_top,
+        cache_ttl_s=cache_ttl_s,
     )

@@ -18,6 +18,20 @@ class BaliForumSource:
         self.name = "baliforum"
         self.display_name = "BaliForum"
 
+    @property
+    def country_code(self) -> str:
+        return "ID"
+
+    def is_enabled(self) -> bool:
+        """Проверяет, включен ли источник BaliForum"""
+        import os
+
+        return os.getenv("ENABLE_BALIFORUM", "0").strip() == "1"
+
+    def get_metrics(self) -> dict:
+        """Возвращает метрики источника"""
+        return {}
+
     async def fetch_events(self, lat: float, lng: float, radius_km: float) -> list[dict[str, Any]]:
         """
         Получает события из BaliForum
