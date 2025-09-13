@@ -261,7 +261,26 @@ class EventSearchEngine:
         else:
             logger.info("🌴 BaliForum отключен")
 
-        # 6. Поиск событий пользователей из базы данных
+        # 6. Поиск в KudaGo (если настроен)
+        if self.settings.kudago_enabled:
+            logger.info("🎭 Ищем события в KudaGo...")
+            try:
+                from sources.kudago_source import KudaGoSource
+
+                kudago_source = KudaGoSource()
+                kudago_events = await kudago_source.fetch_events(lat, lng, radius_km)
+
+                if kudago_events:
+                    all_events.extend(kudago_events)
+                    logger.info(f"   ✅ Найдено {len(kudago_events)} событий в KudaGo")
+                else:
+                    logger.info("   ⚠️ KudaGo не вернул события")
+            except Exception as e:
+                logger.error(f"   ❌ Ошибка при поиске в KudaGo: {e}")
+        else:
+            logger.info("🎭 KudaGo отключен")
+
+        # 7. Поиск событий пользователей из базы данных
         logger.info("👥 Ищем события пользователей в базе данных...")
         try:
             from config import load_settings
