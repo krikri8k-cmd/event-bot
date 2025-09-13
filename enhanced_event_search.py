@@ -261,6 +261,57 @@ class EventSearchEngine:
         else:
             logger.info("🌴 BaliForum отключен")
 
+        # 6. Поиск событий пользователей из базы данных
+        logger.info("👥 Ищем события пользователей в базе данных...")
+        try:
+            from database import Event, get_session
+            from utils.geo_utils import haversine_km
+
+            with get_session() as session:
+                # Получаем все активные события пользователей
+                user_events = (
+                    session.query(Event)
+                    .filter(Event.status == "open", Event.lat.isnot(None), Event.lng.isnot(None))
+                    .all()
+                )
+
+                user_events_count = 0
+                for event in user_events:
+                    # Вычисляем расстояние до события
+                    distance = haversine_km(lat, lng, event.lat, event.lng)
+
+                    # Если событие в радиусе поиска
+                    if distance <= radius_km:
+                        all_events.append(
+                            {
+                                "type": "user",
+                                "title": event.title,
+                                "description": event.description or "",
+                                "time_local": event.time_local or "",
+                                "start_time": event.starts_at,
+                                "venue": {
+                                    "name": event.location_name or "",
+                                    "address": event.location_name or "",
+                                    "lat": event.lat,
+                                    "lon": event.lng,
+                                },
+                                "source_url": event.location_url or "",
+                                "lat": event.lat,
+                                "lng": event.lng,
+                                "source": "user_created",
+                                "distance_km": round(distance, 2),
+                                "organizer_username": event.organizer_username,
+                            }
+                        )
+                        user_events_count += 1
+
+                if user_events_count > 0:
+                    logger.info(f"   ✅ Найдено {user_events_count} событий пользователей")
+                else:
+                    logger.info("   ⚠️ События пользователей не найдены в радиусе")
+        except Exception as e:
+            logger.error(f"   ❌ Ошибка при поиске событий пользователей: {e}")
+
         # Диагностика: считаем события по типам источников
         ai_count = sum(1 for e in all_events if e.get("source") == "ai_generated")
         user_count = sum(1 for e in all_events if e.get("source") in ["user_created", "user"])
