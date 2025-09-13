@@ -13,6 +13,7 @@ from math import ceil
 from urllib.parse import quote_plus, urlparse
 
 from aiogram import Bot, Dispatcher, F, types
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -2395,13 +2396,21 @@ async def handle_pagination(callback: types.CallbackQuery):
         # Рендерим страницу
         page_html, total_pages = render_page(prepared, page, page_size=5)
 
-        # Обновляем сообщение
-        await callback.message.edit_text(
-            render_header(counts) + "\n\n" + page_html,
-            parse_mode="HTML",
-            disable_web_page_preview=True,
-            reply_markup=kb_pager(page, total_pages, current_radius),
-        )
+        # Обновляем сообщение с защитой от ошибок
+        try:
+            await callback.message.edit_text(
+                render_header(counts) + "\n\n" + page_html,
+                parse_mode="HTML",
+                disable_web_page_preview=True,
+                reply_markup=kb_pager(page, total_pages, current_radius),
+            )
+        except TelegramBadRequest:
+            await callback.message.answer(
+                render_header(counts) + "\n\n" + page_html,
+                parse_mode="HTML",
+                disable_web_page_preview=True,
+                reply_markup=kb_pager(page, total_pages, current_radius),
+            )
 
         # Обновляем состояние
         state["page"] = page
@@ -2478,13 +2487,23 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         header_html = render_header(counts)
         page_html, total_pages = render_page(prepared, page=1, page_size=5)
 
-        # Обновляем сообщение
-        await callback.message.edit_text(
-            header_html + "\n\n" + page_html,
-            parse_mode="HTML",
-            disable_web_page_preview=True,
-            reply_markup=kb_pager(1, total_pages, new_radius),
-        )
+        # Обновляем сообщение с защитой от ошибок
+        try:
+            await callback.message.edit_text(
+                header_html + "\n\n" + page_html,
+                parse_mode="HTML",
+                disable_web_page_preview=True,
+                reply_markup=kb_pager(1, total_pages, new_radius),
+            )
+        except TelegramBadRequest:
+            # Если не удалось отредактировать (сообщение устарело/удалено), отправляем новое
+            await callback.message.answer(
+                header_html + "\n\n" + page_html,
+                parse_mode="HTML",
+                disable_web_page_preview=True,
+                reply_markup=kb_pager(1, total_pages, new_radius),
+            )
+
         await callback.answer(f"Радиус расширен до {new_radius} км")
 
     except (ValueError, IndexError) as e:
@@ -3037,7 +3056,10 @@ async def handle_radius_selection(callback: types.CallbackQuery):
     """Обработчик выбора радиуса поиска"""
     try:
         if callback.data == "radius:cancel":
-            await callback.message.edit_text("Настройки радиуса отменены.", reply_markup=main_menu_kb())
+            try:
+                await callback.message.edit_text("Настройки радиуса отменены.", reply_markup=main_menu_kb())
+            except TelegramBadRequest:
+                await callback.message.answer("Настройки радиуса отменены.", reply_markup=main_menu_kb())
             await callback.answer()
             return
 
@@ -3062,21 +3084,36 @@ async def handle_radius_selection(callback: types.CallbackQuery):
                 session.add(user)
                 session.commit()
 
-        await callback.message.edit_text(
-            f"✅ **Радиус поиска установлен: {radius} км**\n\n"
-            f"Теперь при поиске событий будет использоваться радиус {radius} км.\n"
-            f"Этот радиус также будет применяться для поиска моментов.",
-            parse_mode="Markdown",
-            reply_markup=main_menu_kb(),
-        )
+        try:
+            await callback.message.edit_text(
+                f"✅ **Радиус поиска установлен: {radius} км**\n\n"
+                f"Теперь при поиске событий будет использоваться радиус {radius} км.\n"
+                f"Этот радиус также будет применяться для поиска моментов.",
+                parse_mode="Markdown",
+                reply_markup=main_menu_kb(),
+            )
+        except TelegramBadRequest:
+            await callback.message.answer(
+                f"✅ **Радиус поиска установлен: {radius} км**\n\n"
+                f"Теперь при поиске событий будет использоваться радиус {radius} км.\n"
+                f"Этот радиус также будет применяться для поиска моментов.",
+                parse_mode="Markdown",
+                reply_markup=main_menu_kb(),
+            )
         await callback.answer(f"Радиус установлен: {radius} км")
 
     except Exception as e:
         logger.error(f"Ошибка при выборе радиуса: {e}")
-        await callback.message.edit_text(
-            "Произошла ошибка при сохранении настроек. Попробуйте еще раз.",
-            reply_markup=main_menu_kb(),
-        )
+        try:
+            await callback.message.edit_text(
+                "Произошла ошибка при сохранении настроек. Попробуйте еще раз.",
+                reply_markup=main_menu_kb(),
+            )
+        except TelegramBadRequest:
+            await callback.message.answer(
+                "Произошла ошибка при сохранении настроек. Попробуйте еще раз.",
+                reply_markup=main_menu_kb(),
+            )
         await callback.answer("Произошла ошибка")
 
 
