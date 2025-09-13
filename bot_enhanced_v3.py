@@ -575,7 +575,7 @@ async def send_compact_events_list(
     }
 
     # 4) Рендерим страницу
-    header_html = render_header(counts)
+    header_html = render_header(counts, radius_km=int(radius))
     page_html, total_pages = render_page(prepared, page=page + 1, page_size=5)
     text = header_html + "\n\n" + page_html
 
@@ -633,7 +633,7 @@ async def edit_events_list_message(
     page_events = prepared[start_idx:end_idx]
 
     # Формируем заголовок
-    header_html = render_header(counts)
+    header_html = render_header(counts, radius_km=int(radius))
 
     # Формируем HTML карточки событий
     event_lines = []
@@ -893,9 +893,13 @@ def make_counts(groups):
     }
 
 
-def render_header(counts) -> str:
+def render_header(counts, radius_km: int = None) -> str:
     """Рендерит заголовок с счетчиками (только ненулевые)"""
-    lines = [f"🗺 Найдено рядом: <b>{counts['all']}</b>"]
+    if radius_km:
+        lines = [f"🗺 В радиусе {radius_km} км найдено: <b>{counts['all']}</b>"]
+    else:
+        lines = [f"🗺 Найдено рядом: <b>{counts['all']}</b>"]
+
     if counts["moments"]:
         lines.append(f"• ⚡ Мгновенные: {counts['moments']}")
     if counts["user"]:
@@ -1447,7 +1451,7 @@ async def on_location(message: types.Message):
             }
 
             # 4) Формируем заголовок с правильным отчётом
-            header_html = render_header(counts)
+            header_html = render_header(counts, radius_km=int(radius))
 
             # 5) Рендерим первые 3 события для карты
             page_html, _ = render_page(prepared, page=1, page_size=3)
@@ -2399,14 +2403,14 @@ async def handle_pagination(callback: types.CallbackQuery):
         # Обновляем сообщение с защитой от ошибок
         try:
             await callback.message.edit_text(
-                render_header(counts) + "\n\n" + page_html,
+                render_header(counts, radius_km=current_radius) + "\n\n" + page_html,
                 parse_mode="HTML",
                 disable_web_page_preview=True,
                 reply_markup=kb_pager(page, total_pages, current_radius),
             )
         except TelegramBadRequest:
             await callback.message.answer(
-                render_header(counts) + "\n\n" + page_html,
+                render_header(counts, radius_km=current_radius) + "\n\n" + page_html,
                 parse_mode="HTML",
                 disable_web_page_preview=True,
                 reply_markup=kb_pager(page, total_pages, current_radius),
@@ -2484,7 +2488,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         }
 
         # Рендерим первую страницу
-        header_html = render_header(counts)
+        header_html = render_header(counts, radius_km=new_radius)
         page_html, total_pages = render_page(prepared, page=1, page_size=5)
 
         # Обновляем сообщение с защитой от ошибок
