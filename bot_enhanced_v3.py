@@ -29,7 +29,6 @@ from aiogram.types import (
 from config import load_settings
 from database import Event, Moment, User, create_all, get_session, init_engine
 from enhanced_event_search import enhanced_search_events
-from handlers.today_handler import register_today_handlers
 from simple_status_manager import (
     auto_close_events,
     change_event_status,
@@ -1133,9 +1132,6 @@ create_all()
 bot = Bot(token=settings.telegram_token)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
-
-# Регистрируем обработчики команды /today
-register_today_handlers(dp)
 
 
 # Состояния для FSM
