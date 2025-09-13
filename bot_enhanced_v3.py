@@ -19,9 +19,13 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (
+    BotCommandScopeAllGroupChats,
+    BotCommandScopeAllPrivateChats,
+    BotCommandScopeDefault,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     KeyboardButton,
+    MenuButtonCommands,
     ReplyKeyboardMarkup,
 )
 
@@ -3234,6 +3238,7 @@ async def main():
             types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
             types.BotCommand(command="help", description="❓ Показать справку"),
             types.BotCommand(command="nearby", description="📍 Найти события рядом"),
+            types.BotCommand(command="today", description="🌍 События сегодня (Москва/СПб)"),
             types.BotCommand(command="create", description="➕ Создать событие"),
         ]
 
@@ -3252,8 +3257,21 @@ async def main():
             ]
         )
 
-        await bot.set_my_commands(commands)
-        logger.info("Команды бота установлены")
+        # Устанавливаем команды во всех скоупах
+
+        # 1) По умолчанию (любой чат/язык)
+        await bot.set_my_commands(commands, scope=BotCommandScopeDefault())
+
+        # 2) Все приватные чаты
+        await bot.set_my_commands(commands, scope=BotCommandScopeAllPrivateChats())
+
+        # 3) Все групповые чаты (если нужен доступ в группах)
+        await bot.set_my_commands(commands, scope=BotCommandScopeAllGroupChats())
+
+        # 4) Возвращаем кнопку меню к «Команды»
+        await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+
+        logger.info("Команды бота установлены во всех скоупах")
     except Exception as e:
         logger.warning(f"Не удалось установить команды бота: {e}")
 
