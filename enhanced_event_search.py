@@ -264,8 +264,13 @@ class EventSearchEngine:
         # 6. Поиск событий пользователей из базы данных
         logger.info("👥 Ищем события пользователей в базе данных...")
         try:
-            from database import Event, get_session
+            from config import load_settings
+            from database import Event, get_session, init_engine
             from utils.geo_utils import haversine_km
+
+            # Инициализируем базу данных
+            settings = load_settings()
+            init_engine(settings.database_url)
 
             with get_session() as session:
                 # Получаем все активные события пользователей
