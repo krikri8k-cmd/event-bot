@@ -44,12 +44,16 @@ class BaliForumSource:
             events = []
             for event in raw_events:
                 try:
-                    # Проверяем, что событие в радиусе (если есть координаты)
-                    if event.lat and event.lng:
-                        # Простая проверка радиуса (можно улучшить)
-                        distance = self._calculate_distance(lat, lng, event.lat, event.lng)
-                        if distance > radius_km:
-                            continue
+                    # Пропускаем события без координат
+                    if not event.lat or not event.lng:
+                        logger.debug(f"   ⚠️ Пропускаем событие без координат: {event.title}")
+                        continue
+
+                    # Проверяем, что событие в радиусе
+                    distance = self._calculate_distance(lat, lng, event.lat, event.lng)
+                    if distance > radius_km:
+                        logger.debug(f"   ⚠️ Событие вне радиуса ({distance:.1f} км): {event.title}")
+                        continue
 
                     events.append(
                         {
@@ -68,6 +72,7 @@ class BaliForumSource:
                             "lat": event.lat,
                             "lng": event.lng,
                             "source": self.name,
+                            "distance_km": round(distance, 2),
                         }
                     )
                 except Exception as e:
