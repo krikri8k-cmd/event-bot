@@ -26,9 +26,9 @@ jobs:
         
     - name: 🧪 Run tests (optional)
       env:
-        DATABASE_URL: sqlite:///test.db
-        TELEGRAM_TOKEN: test_token
-        OPENAI_API_KEY: test_key
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         python -m pytest tests/ -v || echo "⚠️ Tests failed, but continuing deployment..."
         echo "✅ Test step completed"
