@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 
 from database import get_engine
 from utils.simple_timezone import get_city_from_coordinates
-from utils.ultra_simple_events import UltraSimpleEventsService
+from utils.unified_events_service import UnifiedEventsService
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class ParserIntegration:
 
     def __init__(self):
         self.engine = get_engine()
-        self.events_service = UltraSimpleEventsService(self.engine)
+        self.events_service = UnifiedEventsService(self.engine)
 
     async def save_parser_events(self, events: list[dict[str, Any]], source: str) -> int:
         """

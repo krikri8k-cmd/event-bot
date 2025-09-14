@@ -36,7 +36,7 @@ from simple_status_manager import (
     get_user_events,
 )
 from utils.geo_utils import haversine_km, static_map_url
-from utils.ultra_simple_events import UltraSimpleEventsService
+from utils.unified_events_service import UnifiedEventsService
 
 
 def is_valid_url(url: str) -> bool:
@@ -1396,7 +1396,7 @@ async def on_location(message: types.Message):
             from utils.simple_timezone import get_city_from_coordinates
 
             engine = get_engine()
-            events_service = UltraSimpleEventsService(engine)
+            events_service = UnifiedEventsService(engine)
 
             # Определяем город по координатам
             city = get_city_from_coordinates(lat, lng)
@@ -2446,7 +2446,7 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
             from utils.simple_timezone import get_city_from_coordinates
 
             engine = get_engine()
-            events_service = UltraSimpleEventsService(engine)
+            events_service = UnifiedEventsService(engine)
 
             # Определяем город по координатам
             city = get_city_from_coordinates(lat, lng) if lat and lng else "bali"
@@ -2635,7 +2635,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             from utils.simple_timezone import get_city_from_coordinates
 
             engine = get_engine()
-            events_service = UltraSimpleEventsService(engine)
+            events_service = UnifiedEventsService(engine)
 
             # Определяем город по координатам
             city = get_city_from_coordinates(lat, lng)

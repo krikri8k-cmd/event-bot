@@ -11,7 +11,7 @@ from sqlalchemy import text
 from config import load_settings
 from database import get_engine, init_engine
 from utils.simple_timezone import get_city_from_coordinates
-from utils.ultra_simple_events import UltraSimpleEventsService
+from utils.unified_events_service import UnifiedEventsService
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -28,7 +28,7 @@ async def check_parser_flow():
     engine = get_engine()
 
     # Создаем сервис
-    events_service = UltraSimpleEventsService(engine)
+    events_service = UnifiedEventsService(engine)
 
     # Координаты для тестирования
     test_lat = -8.675326

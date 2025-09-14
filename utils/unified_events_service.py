@@ -1,5 +1,5 @@
 """
-УЛЬТРА ПРОСТАЯ логика работы с событиями БЕЗ VIEW
+УНИФИЦИРОВАННЫЙ сервис для работы с событиями через единую таблицу events
 """
 
 from datetime import datetime
@@ -9,8 +9,8 @@ from sqlalchemy import text
 from utils.simple_timezone import get_today_start_utc, get_tomorrow_start_utc
 
 
-class UltraSimpleEventsService:
-    """Ультра простой сервис БЕЗ VIEW - только прямые запросы"""
+class UnifiedEventsService:
+    """Унифицированный сервис для работы с единой таблицей events"""
 
     def __init__(self, engine):
         self.engine = engine
@@ -19,40 +19,20 @@ class UltraSimpleEventsService:
         self, city: str, user_lat: float | None = None, user_lng: float | None = None, radius_km: float = 15
     ) -> list[dict]:
         """
-        Поиск сегодняшних событий БЕЗ VIEW - прямые запросы к таблицам
+        Поиск сегодняшних событий из единой таблицы events
         """
         # Получаем временные границы для города
         start_utc = get_today_start_utc(city)
         end_utc = get_tomorrow_start_utc(city)
 
         with self.engine.connect() as conn:
-            # Прямой UNION ALL запрос БЕЗ VIEW
             if user_lat and user_lng:
                 # Поиск с координатами и радиусом
                 query = text("""
-                    SELECT 'parser' as source_type, id, title, description, starts_at,
+                    SELECT source, id, title, description, starts_at,
                            city, lat, lng, location_name, location_url, url as event_url,
-                           NULL as organizer_id, NULL as max_participants,
-                           NULL as current_participants, 'open' as status, created_at_utc
-                    FROM events_parser
-                    WHERE city = :city
-                    AND starts_at >= :start_utc
-                    AND starts_at < :end_utc
-                    AND (lat IS NULL OR lng IS NULL OR
-                        6371 * acos(
-                            GREATEST(-1, LEAST(1,
-                                cos(radians(:user_lat)) * cos(radians(lat)) *
-                                cos(radians(lng) - radians(:user_lng)) +
-                                sin(radians(:user_lat)) * sin(radians(lat))
-                            ))
-                        ) <= :radius_km)
-
-                    UNION ALL
-
-                    SELECT 'user' as source_type, id, title, description, starts_at,
-                           city, lat, lng, location_name, location_url, NULL as event_url,
                            organizer_id, max_participants, current_participants, status, created_at_utc
-                    FROM events_user
+                    FROM events
                     WHERE city = :city
                     AND starts_at >= :start_utc
                     AND starts_at < :end_utc
@@ -64,7 +44,6 @@ class UltraSimpleEventsService:
                                 sin(radians(:user_lat)) * sin(radians(lat))
                             ))
                         ) <= :radius_km)
-
                     ORDER BY starts_at
                 """)
 
@@ -82,35 +61,34 @@ class UltraSimpleEventsService:
             else:
                 # Поиск без координат
                 query = text("""
-                    SELECT 'parser' as source_type, id, title, description, starts_at,
+                    SELECT source, id, title, description, starts_at,
                            city, lat, lng, location_name, location_url, url as event_url,
-                           NULL as organizer_id, NULL as max_participants,
-                           NULL as current_participants, 'open' as status, created_at_utc
-                    FROM events_parser
-                    WHERE city = :city
-                    AND starts_at >= :start_utc
-                    AND starts_at < :end_utc
-
-                    UNION ALL
-
-                    SELECT 'user' as source_type, id, title, description, starts_at,
-                           city, lat, lng, location_name, location_url, NULL as event_url,
                            organizer_id, max_participants, current_participants, status, created_at_utc
-                    FROM events_user
+                    FROM events
                     WHERE city = :city
                     AND starts_at >= :start_utc
                     AND starts_at < :end_utc
-
                     ORDER BY starts_at
                 """)
 
-                result = conn.execute(query, {"city": city, "start_utc": start_utc, "end_utc": end_utc})
+                result = conn.execute(
+                    query,
+                    {
+                        "city": city,
+                        "start_utc": start_utc,
+                        "end_utc": end_utc,
+                    },
+                )
 
             events = []
             for row in result:
+                # Определяем source_type для совместимости с существующим кодом
+                source_type = "user" if row[0] == "user" else "parser"
+
                 events.append(
                     {
-                        "source_type": row[0],
+                        "source_type": source_type,
+                        "source": row[0],  # Добавляем исходный source
                         "id": row[1],
                         "title": row[2],
                         "description": row[3],
@@ -132,15 +110,15 @@ class UltraSimpleEventsService:
             return events
 
     def get_events_stats(self, city: str) -> dict:
-        """Статистика событий БЕЗ VIEW"""
+        """Статистика событий из единой таблицы"""
         start_utc = get_today_start_utc(city)
         end_utc = get_tomorrow_start_utc(city)
 
         with self.engine.connect() as conn:
-            # Прямые запросы к таблицам
-            parser_result = conn.execute(
+            # Общая статистика
+            total_result = conn.execute(
                 text("""
-                SELECT COUNT(*) FROM events_parser
+                SELECT COUNT(*) FROM events
                 WHERE city = :city
                 AND starts_at >= :start_utc
                 AND starts_at < :end_utc
@@ -148,21 +126,33 @@ class UltraSimpleEventsService:
                 {"city": city, "start_utc": start_utc, "end_utc": end_utc},
             ).fetchone()
 
-            user_result = conn.execute(
+            # Статистика по источникам
+            source_result = conn.execute(
                 text("""
-                SELECT COUNT(*) FROM events_user
+                SELECT source, COUNT(*) FROM events
                 WHERE city = :city
                 AND starts_at >= :start_utc
                 AND starts_at < :end_utc
+                GROUP BY source
             """),
                 {"city": city, "start_utc": start_utc, "end_utc": end_utc},
-            ).fetchone()
+            ).fetchall()
+
+            # Подсчитываем пользовательские и парсерные события
+            parser_events = 0
+            user_events = 0
+
+            for source, count in source_result:
+                if source == "user":
+                    user_events = count
+                else:
+                    parser_events += count
 
             return {
                 "city": city,
-                "parser_events": parser_result[0],
-                "user_events": user_result[0],
-                "total_events": parser_result[0] + user_result[0],
+                "parser_events": parser_events,
+                "user_events": user_events,
+                "total_events": total_result[0],
                 "date_range": f"{start_utc.isoformat()} - {end_utc.isoformat()}",
             }
 
@@ -180,35 +170,24 @@ class UltraSimpleEventsService:
         max_participants: int = None,
     ) -> int:
         """
-        Создание пользовательского события
-
-        Args:
-            organizer_id: ID пользователя
-            title: Название события
-            description: Описание
-            starts_at_utc: Время начала в UTC
-            city: Город
-            lat, lng: Координаты
-            location_name: Название места
-            location_url: Ссылка на место
-            max_participants: Максимум участников
-
-        Returns:
-            ID созданного события
+        Создание пользовательского события (сначала в events_user, потом синхронизация)
         """
-        with self.engine.connect() as conn:
-            query = text("""
+        with self.engine.begin() as conn:
+            # 1. Создаем в events_user
+            user_event_query = text("""
                 INSERT INTO events_user
                 (organizer_id, title, description, starts_at, city, lat, lng,
-                 location_name, location_url, max_participants)
+                 location_name, location_url, max_participants, country)
                 VALUES
                 (:organizer_id, :title, :description, :starts_at, :city, :lat, :lng,
-                 :location_name, :location_url, :max_participants)
+                 :location_name, :location_url, :max_participants, :country)
                 RETURNING id
             """)
 
-            result = conn.execute(
-                query,
+            country = "ID" if city == "bali" else "RU"
+
+            user_result = conn.execute(
+                user_event_query,
                 {
                     "organizer_id": organizer_id,
                     "title": title,
@@ -220,13 +199,35 @@ class UltraSimpleEventsService:
                     "location_name": location_name,
                     "location_url": location_url,
                     "max_participants": max_participants,
+                    "country": country,
                 },
             )
 
-            event_id = result.fetchone()[0]
-            conn.commit()
+            user_event_id = user_result.fetchone()[0]
 
-            return event_id
+            # 2. Синхронизируем в events
+            sync_query = text("""
+                INSERT INTO events (
+                    source, external_id, title, description, starts_at, ends_at,
+                    url, location_name, location_url, lat, lng, country, city,
+                    organizer_id, organizer_username, max_participants, current_participants,
+                    participants_ids, status, created_at_utc, updated_at_utc, is_generated_by_ai
+                )
+                SELECT
+                    'user' as source,
+                    id::text as external_id,
+                    title, description, starts_at, NULL as ends_at,
+                    NULL as url, location_name, location_url, lat, lng, country, city,
+                    organizer_id, NULL as organizer_username, max_participants, 0 as current_participants,
+                    NULL as participants_ids, 'open' as status, NOW(), NOW(), false as is_generated_by_ai
+                FROM events_user
+                WHERE id = :user_event_id
+            """)
+
+            conn.execute(sync_query, {"user_event_id": user_event_id})
+
+            print(f"✅ Создано пользовательское событие ID {user_event_id}: '{title}'")
+            return user_event_id
 
     def save_parser_event(
         self,
@@ -243,25 +244,11 @@ class UltraSimpleEventsService:
         url: str = None,
     ) -> int:
         """
-        Сохранение парсерного события в БД
-
-        Args:
-            source: Источник (baliforum, kudago, ai)
-            external_id: Уникальный ID из источника
-            title: Название события
-            description: Описание
-            starts_at_utc: Время начала в UTC
-            city: Город
-            lat, lng: Координаты
-            location_name: Название места
-            location_url: Ссылка на место
-            url: Ссылка на событие
-
-        Returns:
-            ID созданного события
+        Сохранение парсерного события (сначала в events_parser, потом синхронизация)
         """
-        with self.engine.connect() as conn:
-            # Проверяем дубликаты по source + external_id
+        with self.engine.begin() as conn:
+            # 1. Сохраняем в events_parser
+            # Проверяем дубликаты
             existing = conn.execute(
                 text("""
                 SELECT id FROM events_parser
@@ -270,14 +257,18 @@ class UltraSimpleEventsService:
                 {"source": source, "external_id": external_id},
             ).fetchone()
 
+            country = "ID" if city == "bali" else "RU"
+            is_ai = source == "ai"
+
             if existing:
-                # Обновляем существующее событие
+                # Обновляем существующее событие в events_parser
                 conn.execute(
                     text("""
                     UPDATE events_parser
                     SET title = :title, description = :description, starts_at = :starts_at,
                         city = :city, lat = :lat, lng = :lng, location_name = :location_name,
-                        location_url = :location_url, url = :url, updated_at_utc = NOW()
+                        location_url = :location_url, url = :url, country = :country,
+                        updated_at_utc = NOW()
                     WHERE source = :source AND external_id = :external_id
                 """),
                     {
@@ -290,6 +281,7 @@ class UltraSimpleEventsService:
                         "location_name": location_name,
                         "location_url": location_url,
                         "url": url,
+                        "country": country,
                         "source": source,
                         "external_id": external_id,
                     },
@@ -298,15 +290,15 @@ class UltraSimpleEventsService:
                 event_id = existing[0]
                 print(f"🔄 Обновлено парсерное событие ID {event_id}: '{title}'")
             else:
-                # Создаем новое событие
+                # Создаем новое событие в events_parser
                 result = conn.execute(
                     text("""
                     INSERT INTO events_parser
                     (source, external_id, title, description, starts_at, city, lat, lng,
-                     location_name, location_url, url)
+                     location_name, location_url, url, country)
                     VALUES
                     (:source, :external_id, :title, :description, :starts_at, :city, :lat, :lng,
-                     :location_name, :location_url, :url)
+                     :location_name, :location_url, :url, :country)
                     RETURNING id
                 """),
                     {
@@ -321,19 +313,50 @@ class UltraSimpleEventsService:
                         "location_name": location_name,
                         "location_url": location_url,
                         "url": url,
+                        "country": country,
                     },
                 )
 
                 event_id = result.fetchone()[0]
                 print(f"✅ Создано парсерное событие ID {event_id}: '{title}'")
 
-            conn.commit()
+            # 2. Синхронизируем в events (простая вставка без ON CONFLICT)
+            sync_query = text("""
+                INSERT INTO events (
+                    source, external_id, title, description, starts_at, ends_at,
+                    url, location_name, location_url, lat, lng, country, city,
+                    created_at_utc, updated_at_utc, is_generated_by_ai
+                )
+                SELECT
+                    source, external_id, title, description, starts_at, NULL as ends_at,
+                    url, location_name, location_url, lat, lng, country, city,
+                    NOW(), NOW(), :is_ai
+                FROM events_parser
+                WHERE source = :source AND external_id = :external_id
+            """)
+
+            try:
+                conn.execute(sync_query, {"source": source, "external_id": external_id, "is_ai": is_ai})
+            except Exception as e:
+                # Игнорируем ошибки дублирования - событие уже есть в основной таблице
+                print(f"⚠️ Событие уже синхронизировано: {e}")
+
             return event_id
 
     def cleanup_old_events(self, city: str) -> int:
-        """Очистка старых событий"""
-        with self.engine.connect() as conn:
-            # Очищаем парсерные события
+        """Очистка старых событий из всех таблиц"""
+        with self.engine.begin() as conn:
+            # Очищаем из основной таблицы events
+            events_deleted = conn.execute(
+                text("""
+                DELETE FROM events
+                WHERE city = :city
+                AND starts_at < NOW() - INTERVAL '1 day'
+            """),
+                {"city": city},
+            ).rowcount
+
+            # Очищаем из events_parser
             parser_deleted = conn.execute(
                 text("""
                 DELETE FROM events_parser
@@ -343,7 +366,7 @@ class UltraSimpleEventsService:
                 {"city": city},
             ).rowcount
 
-            # Очищаем пользовательские события
+            # Очищаем из events_user
             user_deleted = conn.execute(
                 text("""
                 DELETE FROM events_user
@@ -353,12 +376,10 @@ class UltraSimpleEventsService:
                 {"city": city},
             ).rowcount
 
-            conn.commit()
-
-            total_deleted = parser_deleted + user_deleted
+            total_deleted = events_deleted + parser_deleted + user_deleted
             print(
                 f"🧹 Очистка {city}: удалено {total_deleted} событий "
-                f"({parser_deleted} парсерных, {user_deleted} пользовательских)"
+                f"(events: {events_deleted}, parser: {parser_deleted}, user: {user_deleted})"
             )
 
             return total_deleted
