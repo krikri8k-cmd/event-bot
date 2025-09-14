@@ -564,7 +564,16 @@ async def send_compact_events_list(
     groups = group_by_type(prepared)
     counts = make_counts(groups)
 
-    # 3) Сохраняем состояние для пагинации и расширения радиуса
+    # 3) Определяем регион пользователя
+    region = "bali"  # По умолчанию Бали
+    if 55.0 <= user_lat <= 60.0 and 35.0 <= user_lng <= 40.0:  # Москва
+        region = "moscow"
+    elif 59.0 <= user_lat <= 60.5 and 29.0 <= user_lng <= 31.0:  # СПб
+        region = "spb"
+    elif -9.0 <= user_lat <= -8.0 and 114.0 <= user_lng <= 116.0:  # Бали
+        region = "bali"
+
+    # 4) Сохраняем состояние для пагинации и расширения радиуса
     user_state[message.chat.id] = {
         "prepared": prepared,
         "counts": counts,
@@ -573,14 +582,15 @@ async def send_compact_events_list(
         "radius": int(radius),
         "page": 1,
         "diag": diag,
+        "region": region,  # Добавляем регион
     }
 
-    # 4) Рендерим страницу
+    # 5) Рендерим страницу
     header_html = render_header(counts, radius_km=int(radius))
     page_html, total_pages = render_page(prepared, page=page + 1, page_size=5)
     text = header_html + "\n\n" + page_html
 
-    # 5) Создаем клавиатуру пагинации с кнопками расширения радиуса
+    # 6) Создаем клавиатуру пагинации с кнопками расширения радиуса
     inline_kb = kb_pager(page + 1, total_pages, int(radius)) if total_pages > 1 else None
 
     try:
@@ -2571,19 +2581,67 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             ),
         )
 
-        # Ищем события с расширенным радиусом
+        # Ищем события с расширенным радиусом используя EventsService
         try:
-            events = await enhanced_search_events(lat, lng, radius_km=new_radius)
+            # Используем EventsService для поиска событий
+            from database import get_engine
+            from storage.events_service import EventsService
+            from storage.region_router import Region
+
+            engine = get_engine()
+            events_service = EventsService(engine)
+
+            # Определяем регион из состояния или по координатам
+            region_name = state.get("region", "bali")
+            if region_name == "moscow":
+                region = Region.MOSCOW
+            elif region_name == "spb":
+                region = Region.SPB
+            else:
+                region = Region.BALI
+
+            logger.info(f"🔍 Ищем события в регионе {region.value} с радиусом {new_radius} км")
+
+            # Ищем события через EventsService
+            events = await events_service.find_events_by_region(
+                region=region, center_lat=lat, center_lng=lng, radius_km=new_radius, days_ahead=7
+            )
+
+            # Конвертируем в старый формат для совместимости
+            converted_events = []
+            for event in events:
+                converted_event = {
+                    "title": event.get("title", ""),
+                    "description": event.get("description", ""),
+                    "start_time": event.get("starts_at"),
+                    "venue_name": event.get("location_name", ""),
+                    "address": event.get("location_url", ""),
+                    "lat": event.get("lat"),
+                    "lng": event.get("lng"),
+                    "source_url": event.get("url", ""),
+                    "type": "source" if event.get("event_type") == "parser" else "user",
+                    "source": event.get("source", "user_created"),
+                }
+                converted_events.append(converted_event)
+
+            events = converted_events
             events = sort_events_by_time(events)
+
         except Exception as e:
-            logger.error(f"❌ Ошибка при расширенном поиске: {e}")
-            # Удаляем сообщение загрузки при ошибке
+            logger.error(f"❌ Ошибка при расширенном поиске через EventsService: {e}")
+            # Fallback к старому методу
             try:
-                await loading_message.delete()
-            except Exception:
-                pass
-            await callback.answer("Ошибка при поиске событий")
-            return
+                events = await enhanced_search_events(lat, lng, radius_km=new_radius)
+                events = sort_events_by_time(events)
+            except Exception as e2:
+                logger.error(f"❌ Ошибка при fallback поиске: {e2}")
+                # Удаляем сообщение загрузки при ошибке
+                try:
+                    await loading_message.delete()
+                except Exception:
+                    pass
+                await callback.answer("Ошибка при поиске событий")
+                return
 
         if not events:
             # Удаляем сообщение загрузки если события не найдены
@@ -2617,6 +2675,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             "radius": new_radius,
             "page": 1,
             "diag": diag,
+            "region": region_name,  # Сохраняем регион
         }
 
         # Удаляем сообщение загрузки

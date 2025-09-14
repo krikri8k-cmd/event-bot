@@ -137,7 +137,7 @@ class EventSearchEngine:
         try:
             from database import get_engine, init_engine
             from storage.events_service import EventsService
-            from storage.region_router import Region, detect_region
+            from storage.region_router import Region
 
             # Инициализируем БД и сервис
             init_engine(self.settings.database_url)
@@ -145,13 +145,15 @@ class EventSearchEngine:
             events_service = EventsService(engine)
 
             # Определяем регион по координатам
-            region = detect_region(None, None)  # Определяем по координатам
+            region = Region.BALI  # По умолчанию Бали
 
             # Если координаты в России, определяем город
             if 55.0 <= lat <= 60.0 and 35.0 <= lng <= 40.0:  # Примерные границы Москвы
                 region = Region.MOSCOW
             elif 59.0 <= lat <= 60.5 and 29.0 <= lng <= 31.0:  # Примерные границы СПб
                 region = Region.SPB
+            elif -9.0 <= lat <= -8.0 and 114.0 <= lng <= 116.0:  # Примерные границы Бали
+                region = Region.BALI
 
             logger.info(f"📍 Определен регион: {region.value}")
 
