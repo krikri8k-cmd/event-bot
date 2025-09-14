@@ -127,13 +127,51 @@ class EventSearchEngine:
 
     async def search_all_sources(self, lat: float, lng: float, radius_km: int = 5) -> list[dict[str, Any]]:
         """
-        Ищет события из всех доступных источников
+        Ищет события из всех доступных источников используя новую архитектуру
         """
         all_events = []
 
         logger.info(f"🔍 Ищем события в радиусе {radius_km} км от ({lat}, {lng})")
 
-        # 1. AI генерация событий (только если разрешено)
+        # 1. Используем новую архитектуру с EventsService
+        try:
+            from database import get_engine, init_engine
+            from storage.events_service import EventsService
+            from storage.region_router import Region, detect_region
+
+            # Инициализируем БД и сервис
+            init_engine(self.settings.database_url)
+            engine = get_engine()
+            events_service = EventsService(engine)
+
+            # Определяем регион по координатам
+            region = detect_region(None, None)  # Определяем по координатам
+
+            # Если координаты в России, определяем город
+            if 55.0 <= lat <= 60.0 and 35.0 <= lng <= 40.0:  # Примерные границы Москвы
+                region = Region.MOSCOW
+            elif 59.0 <= lat <= 60.5 and 29.0 <= lng <= 31.0:  # Примерные границы СПб
+                region = Region.SPB
+
+            logger.info(f"📍 Определен регион: {region.value}")
+
+            # Ищем события в регионе
+            events = await events_service.find_events_by_region(
+                region=region, center_lat=lat, center_lng=lng, radius_km=radius_km, days_ahead=7
+            )
+
+            if events:
+                logger.info(f"   ✅ Найдено {len(events)} событий в регионе {region.value}")
+                all_events.extend(events)
+            else:
+                logger.info(f"   ⚠️ События в регионе {region.value} не найдены")
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка поиска через EventsService: {e}")
+            # Fallback к старому методу если новая архитектура не работает
+            logger.info("🔄 Переключаемся на старый метод поиска...")
+
+        # 2. AI генерация событий (только если разрешено)
         if self.settings.ai_generate_synthetic:
             logger.info("🤖 Генерируем AI события...")
             try:
