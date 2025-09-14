@@ -67,8 +67,8 @@ def today_window_utc(tz: ZoneInfo = ZoneInfo("Europe/Moscow")) -> tuple[datetime
     """Возвращает окно 'сегодня' в UTC с учётом часового пояса"""
     now_tz = datetime.now(tz)
     start = datetime(now_tz.year, now_tz.month, now_tz.day, 0, 0, 0, tzinfo=tz).astimezone(UTC)
-    # Расширяем окно на 3 дня вперед, чтобы получить больше событий
-    end = (start + timedelta(days=3) - timedelta(seconds=1)).astimezone(UTC)
+    # Окно только на сегодня (до конца дня)
+    end = (start + timedelta(days=1) - timedelta(seconds=1)).astimezone(UTC)
     return start, end
 
 

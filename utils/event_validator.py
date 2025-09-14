@@ -125,7 +125,7 @@ def validate_event(event: dict[str, Any], city: str = "unknown") -> dict[str, An
 
         # 4. Валидация координат
         lat = event.get("lat")
-        lng = event.get("lng")
+        lng = event.get("lng") or event.get("lon")  # Поддерживаем оба поля
         if lat is None or lng is None:
             VALIDATION_METRICS["missing_coordinates"] += 1
             logger.debug(f"Событие без координат в {city}: {title[:50]}")
