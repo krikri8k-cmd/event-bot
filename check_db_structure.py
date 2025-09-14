@@ -1,65 +1,54 @@
 #!/usr/bin/env python3
-"""Проверка структуры таблицы events"""
+"""
+Проверка структуры БД
+"""
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
-from api import config
+from config import load_settings
+from database import get_engine, init_engine
 
 
-def check_structure():
-    engine = create_engine(config.DATABASE_URL)
+def check_db_structure():
+    settings = load_settings()
+    init_engine(settings.database_url)
+    engine = get_engine()
 
     with engine.connect() as conn:
-        # Структура таблицы
+        # Проверяем структуру events_user
         result = conn.execute(
-            text("""
-            SELECT column_name, data_type, is_nullable, column_default
-            FROM information_schema.columns
-            WHERE table_name = 'events'
-            ORDER BY ordinal_position
-        """)
-        )
-
-        print("Table events structure:")
+            text(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'events_user' ORDER BY ordinal_position"
+            )
+        ).fetchall()
+        print("events_user columns:")
         for row in result:
-            print(f"- {row.column_name}: {row.data_type} (nullable: {row.is_nullable})")
+            print(f"  {row[0]}")
 
-        print("\n" + "=" * 50)
+        print()
 
-        # Последние записи с новыми полями
+        # Проверяем структуру events_parser
         result = conn.execute(
-            text("""
-            SELECT id, title, city, country, organizer_id, organizer_url
-            FROM events ORDER BY updated_at_utc DESC LIMIT 10
-        """)
-        )
-
-        print("\nLast 10 events with new fields:")
+            text(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'events_parser' ORDER BY ordinal_position"
+            )
+        ).fetchall()
+        print("events_parser columns:")
         for row in result:
-            print(f"- ID {row.id}: {row.title}")
-            print(f"  City: {row.city}, Country: {row.country}")
-            print(f"  Organizer ID: {row.organizer_id}, URL: {row.organizer_url}")
+            print(f"  {row[0]}")
 
-        print("\n" + "=" * 50)
+        print()
 
-        # Статистика по новым полям
+        # Проверяем VIEW events
         result = conn.execute(
-            text("""
-            SELECT COUNT(*) as total,
-                   COUNT(CASE WHEN city IS NOT NULL THEN 1 END) as with_city,
-                   COUNT(CASE WHEN country IS NOT NULL THEN 1 END) as with_country,
-                   COUNT(CASE WHEN organizer_url IS NOT NULL THEN 1 END) as with_organizer_url
-            FROM events
-        """)
-        )
-
-        row = result.fetchone()
-        print("\nStatistics:")
-        print(f"- Total events: {row.total}")
-        print(f"- With city: {row.with_city}")
-        print(f"- With country: {row.with_country}")
-        print(f"- With organizer_url: {row.with_organizer_url}")
+            text(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'events' ORDER BY ordinal_position"
+            )
+        ).fetchall()
+        print("events VIEW columns:")
+        for row in result:
+            print(f"  {row[0]}")
 
 
 if __name__ == "__main__":
-    check_structure()
+    check_db_structure()

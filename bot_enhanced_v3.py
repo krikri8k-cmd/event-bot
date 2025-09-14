@@ -28,7 +28,6 @@ from aiogram.types import (
 
 from config import load_settings
 from database import Event, Moment, User, create_all, get_session, init_engine
-from enhanced_event_search import enhanced_search_events
 from simple_status_manager import (
     auto_close_events,
     change_event_status,
@@ -37,6 +36,7 @@ from simple_status_manager import (
     get_user_events,
 )
 from utils.geo_utils import haversine_km, static_map_url
+from utils.ultra_simple_events import UltraSimpleEventsService
 
 
 def is_valid_url(url: str) -> bool:
@@ -1390,7 +1390,41 @@ async def on_location(message: types.Message):
         # Ищем события из всех источников
         try:
             logger.info(f"🔍 Начинаем поиск событий для координат ({lat}, {lng}) с радиусом {radius} км")
-            events = await enhanced_search_events(lat, lng, radius_km=int(radius))
+
+            # Используем новую упрощенную архитектуру
+            from database import get_engine
+            from utils.simple_timezone import get_city_from_coordinates
+
+            engine = get_engine()
+            events_service = UltraSimpleEventsService(engine)
+
+            # Определяем город по координатам
+            city = get_city_from_coordinates(lat, lng)
+            logger.info(f"🌍 Определен город: {city}")
+
+            # Ищем события
+            events = events_service.search_events_today(city=city, user_lat=lat, user_lng=lng, radius_km=int(radius))
+
+            # Конвертируем в старый формат для совместимости
+            formatted_events = []
+            for event in events:
+                formatted_events.append(
+                    {
+                        "title": event["title"],
+                        "description": event["description"],
+                        "time_local": event["starts_at"].strftime("%Y-%m-%d %H:%M"),
+                        "location_name": event["location_name"],
+                        "location_url": event["location_url"],
+                        "lat": event["lat"],
+                        "lng": event["lng"],
+                        "source": event["source_type"],
+                        "url": event.get("event_url", ""),
+                        "community_name": "",
+                        "community_link": "",
+                    }
+                )
+
+            events = formatted_events
             logger.info(f"✅ Поиск завершен, найдено {len(events)} событий")
         except Exception:
             logger.exception("❌ Ошибка при поиске событий")
@@ -2406,54 +2440,35 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
         lat = data.get("location_lat")
         lng = data.get("location_lng")
 
-        # Используем новую архитектуру с EventsService
+        # Используем новую упрощенную архитектуру
         try:
             from database import get_engine
-            from storage.events_service import EventsService
+            from utils.simple_timezone import get_city_from_coordinates
 
             engine = get_engine()
-            events_service = EventsService(engine)
+            events_service = UltraSimpleEventsService(engine)
 
-            # Подготавливаем данные события
-            event_data = {
-                "title": data["title"],
-                "description": data["description"],
-                "starts_at": starts_at,
-                "location_name": location_name,
-                "location_url": location_url,
-                "lat": lat,
-                "lng": lng,
-                "organizer_id": callback.from_user.id,
-                "organizer_username": callback.from_user.username,
-                "status": "open",
-                "current_participants": 0,
-            }
+            # Определяем город по координатам
+            city = get_city_from_coordinates(lat, lng) if lat and lng else "bali"
 
-            # Определяем регион пользователя по координатам (если есть)
-            country_code = None
-            city = None
-            if lat and lng:
-                # Простая логика определения региона по координатам
-                if 55.0 <= lat <= 60.0 and 35.0 <= lng <= 40.0:  # Москва
-                    country_code = "RU"
-                    city = "moscow"
-                elif 59.0 <= lat <= 60.5 and 29.0 <= lng <= 31.0:  # СПб
-                    country_code = "RU"
-                    city = "spb"
-                elif -9.0 <= lat <= -8.0 and 114.0 <= lng <= 116.0:  # Бали
-                    country_code = "ID"
-                    city = "bali"
-
-            # Сохраняем через EventsService
-            success = await events_service.upsert_user_event(
-                event_data=event_data, country_code=country_code, city=city
+            # Создаем событие через упрощенный сервис
+            event_id = events_service.create_user_event(
+                organizer_id=callback.from_user.id,
+                title=data["title"],
+                description=data["description"],
+                starts_at_utc=starts_at,
+                city=city,
+                lat=lat,
+                lng=lng,
+                location_name=location_name,
+                location_url=location_url,
+                max_participants=data.get("max_participants"),
             )
 
-            if not success:
-                raise Exception("Не удалось сохранить событие через EventsService")
+            logger.info(f"✅ Событие создано с ID: {event_id}")
 
-        except ImportError as e:
-            logger.warning(f"EventsService недоступен, используем старый метод: {e}")
+        except Exception as e:
+            logger.error(f"❌ Ошибка при создании события: {e}")
             # Fallback к старому методу
             event = Event(
                 title=data["title"],
@@ -2613,31 +2628,21 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             ),
         )
 
-        # Ищем события с расширенным радиусом используя EventsService
+        # Ищем события с расширенным радиусом используя упрощенную архитектуру
         try:
-            # Используем EventsService для поиска событий
+            # Используем упрощенную архитектуру для поиска событий
             from database import get_engine
-            from storage.events_service import EventsService
-            from storage.region_router import Region
+            from utils.simple_timezone import get_city_from_coordinates
 
             engine = get_engine()
-            events_service = EventsService(engine)
+            events_service = UltraSimpleEventsService(engine)
 
-            # Определяем регион из состояния или по координатам
-            region_name = state.get("region", "bali")
-            if region_name == "moscow":
-                region = Region.MOSCOW
-            elif region_name == "spb":
-                region = Region.SPB
-            else:
-                region = Region.BALI
+            # Определяем город по координатам
+            city = get_city_from_coordinates(lat, lng)
+            logger.info(f"🔍 Ищем события в городе {city} с радиусом {new_radius} км")
 
-            logger.info(f"🔍 Ищем события в регионе {region.value} с радиусом {new_radius} км")
-
-            # Ищем события через EventsService
-            events = await events_service.find_events_by_region(
-                region=region, center_lat=lat, center_lng=lng, radius_km=new_radius, days_ahead=7
-            )
+            # Ищем события через упрощенный сервис
+            events = events_service.search_events_today(city=city, user_lat=lat, user_lng=lng, radius_km=new_radius)
 
             # Конвертируем в старый формат для совместимости
             converted_events = []
@@ -2650,9 +2655,9 @@ async def handle_expand_radius(callback: types.CallbackQuery):
                     "address": event.get("location_url", ""),
                     "lat": event.get("lat"),
                     "lng": event.get("lng"),
-                    "source_url": event.get("url", ""),
-                    "type": "source" if event.get("event_type") == "parser" else "user",
-                    "source": event.get("source", "user_created"),
+                    "source_url": event.get("event_url", ""),
+                    "type": "source" if event.get("source_type") == "parser" else "user",
+                    "source": event.get("source_type", "user_created"),
                 }
                 converted_events.append(converted_event)
 
@@ -2660,20 +2665,10 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             events = sort_events_by_time(events)
 
         except Exception as e:
-            logger.error(f"❌ Ошибка при расширенном поиске через EventsService: {e}")
-            # Fallback к старому методу
-            try:
-                events = await enhanced_search_events(lat, lng, radius_km=new_radius)
-                events = sort_events_by_time(events)
-            except Exception as e2:
-                logger.error(f"❌ Ошибка при fallback поиске: {e2}")
-                # Удаляем сообщение загрузки при ошибке
-                try:
-                    await loading_message.delete()
-                except Exception:
-                    pass
-                await callback.answer("Ошибка при поиске событий")
-                return
+            logger.error(f"❌ Ошибка при расширенном поиске: {e}")
+            events = []
+            await callback.answer("Ошибка при поиске событий")
+            return
 
         if not events:
             # Удаляем сообщение загрузки если события не найдены
@@ -2707,7 +2702,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             "radius": new_radius,
             "page": 1,
             "diag": diag,
-            "region": region_name,  # Сохраняем регион
+            "region": city,  # Сохраняем город
         }
 
         # Удаляем сообщение загрузки
