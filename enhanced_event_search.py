@@ -283,8 +283,8 @@ class EventSearchEngine:
         else:
             logger.info("🎫 Eventbrite API отключен")
 
-        # 5. Поиск в BaliForum (если настроен)
-        if self.settings.enable_baliforum:
+        # 5. Поиск в BaliForum (только для Бали)
+        if self.settings.enable_baliforum and region == Region.BALI:
             logger.info("🌴 Ищем события в BaliForum...")
             try:
                 from sources.baliforum_source import BaliForumSource
@@ -299,11 +299,14 @@ class EventSearchEngine:
             except Exception as e:
                 logger.error(f"   ❌ Ошибка при поиске в BaliForum: {e}")
         else:
-            logger.info("🌴 BaliForum отключен")
+            if region != Region.BALI:
+                logger.info("🌴 BaliForum пропущен (не регион Бали)")
+            else:
+                logger.info("🌴 BaliForum отключен")
 
-        # 6. Поиск в KudaGo (если настроен)
-        if self.settings.kudago_enabled:
-            logger.info("🎭 Ищем события в KudaGo...")
+        # 6. Поиск в KudaGo (только для российских регионов)
+        if self.settings.kudago_enabled and region in [Region.MOSCOW, Region.SPB]:
+            logger.info(f"🎭 Ищем события в KudaGo для региона {region.value}...")
             try:
                 from sources.kudago_source import KudaGoSource
 
@@ -318,7 +321,10 @@ class EventSearchEngine:
             except Exception as e:
                 logger.error(f"   ❌ Ошибка при поиске в KudaGo: {e}")
         else:
-            logger.info("🎭 KudaGo отключен")
+            if region == Region.BALI:
+                logger.info("🎭 KudaGo пропущен (регион Бали)")
+            else:
+                logger.info("🎭 KudaGo отключен")
 
         # 7. Поиск событий пользователей из базы данных
         logger.info("👥 Ищем события пользователей в базе данных...")

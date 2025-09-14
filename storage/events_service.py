@@ -190,14 +190,16 @@ class EventsService:
 
             # Фильтр по геолокации (если указан)
             if center_lat and center_lng:
-                # Используем приблизительный расчет расстояния
+                # Используем приблизительный расчет расстояния с защитой от ошибок округления
                 sql += """
                     AND lat IS NOT NULL AND lng IS NOT NULL
                     AND (
                         6371 * acos(
-                            cos(radians(:center_lat)) * cos(radians(lat)) *
-                            cos(radians(lng) - radians(:center_lng)) +
-                            sin(radians(:center_lat)) * sin(radians(lat))
+                            GREATEST(-1, LEAST(1,
+                                cos(radians(:center_lat)) * cos(radians(lat)) *
+                                cos(radians(lng) - radians(:center_lng)) +
+                                sin(radians(:center_lat)) * sin(radians(lat))
+                            ))
                         )
                     ) <= :radius_km
                 """

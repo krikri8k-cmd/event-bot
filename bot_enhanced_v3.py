@@ -1442,6 +1442,30 @@ async def on_location(message: types.Message):
             except Exception:
                 pass
 
+            # Определяем регион пользователя
+            region = "bali"  # По умолчанию Бали
+            if 55.0 <= lat <= 60.0 and 35.0 <= lng <= 40.0:  # Москва
+                region = "moscow"
+            elif 59.0 <= lat <= 60.5 and 29.0 <= lng <= 31.0:  # СПб
+                region = "spb"
+            elif -9.0 <= lat <= -8.0 and 114.0 <= lng <= 116.0:  # Бали
+                region = "bali"
+
+            # Сохраняем состояние даже когда событий нет
+            user_state[message.chat.id] = {
+                "prepared": [],
+                "counts": {},
+                "lat": lat,
+                "lng": lng,
+                "radius": int(current_radius),
+                "page": 1,
+                "diag": {},
+                "region": region,
+            }
+            logger.info(
+                f"💾 Состояние сохранено для пользователя {message.chat.id}: lat={lat}, lng={lng}, radius={current_radius}, region={region}"
+            )
+
             await message.answer(
                 f"📅 Событий на сегодня не найдено в радиусе {current_radius} км.\n\n"
                 "Попробуй расширить поиск или создай своё событие:",
