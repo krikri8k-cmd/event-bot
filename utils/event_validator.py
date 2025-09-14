@@ -5,8 +5,9 @@
 
 import logging
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
@@ -49,21 +50,71 @@ def validate_event(event: dict[str, Any], city: str = "unknown") -> dict[str, An
             VALIDATION_METRICS["title_truncated"] += 1
             logger.debug(f"Заголовок обрезан в {city}: {title[:50]}...")
 
-        # 2. Валидация временной метки
-        start_ts = event.get("start_ts")
-        if start_ts is None:
-            logger.info(f"Событие без времени отброшено в {city}: {title[:50]}")
-            VALIDATION_METRICS["events_dropped"] += 1
-            return None
+        # 2. Валидация временной метки (разрешаем события без времени для упрощенного режима)
+        starts_at = event.get("starts_at")
+        if starts_at is None:
+            logger.info(f"Событие без времени принято в упрощенном режиме в {city}: {title[:50]}")
+            # Устанавливаем время по умолчанию - сегодня в 12:00 по московскому времени
+            now = datetime.now(ZoneInfo("Europe/Moscow"))
+            today_noon = now.replace(hour=12, minute=0, second=0, microsecond=0)
+            starts_at = today_noon.astimezone(UTC)
+            event["starts_at"] = starts_at
+        else:
+            # Убеждаемся, что starts_at - это datetime объект
+            if isinstance(starts_at, int | float):
+                event["starts_at"] = datetime.fromtimestamp(int(starts_at), tz=UTC)
+            elif not isinstance(starts_at, datetime):
+                # Если это строка или другой формат, пытаемся парсить
+                try:
+                    from dateutil.parser import parse
+
+                    event["starts_at"] = parse(str(starts_at)).replace(tzinfo=UTC)
+                except Exception:
+                    # Фоллбек на сегодня в 12:00
+                    now = datetime.now(ZoneInfo("Europe/Moscow"))
+                    today_noon = now.replace(hour=12, minute=0, second=0, microsecond=0)
+                    event["starts_at"] = today_noon.astimezone(UTC)
 
         # Проверяем, что событие в разумных временных рамках
-        datetime.now(UTC).timestamp()
-        # Временно отключаем фильтр по времени для KudaGo
-        # if start_ts < now - 12 * 3600 or start_ts > now + 36 * 3600:
-        #     logger.info(f"Событие вне временного окна отброшено в {city}: {title[:50]} (ts: {start_ts}, now: {now})")
-        #     VALIDATION_METRICS["invalid_timestamp"] += 1
-        #     VALIDATION_METRICS["events_dropped"] += 1
-        #     return None
+        now_utc = datetime.now(UTC)
+
+        # Для KudaGo: принимаем события на сегодня и завтра (для тестирования)
+        if event.get("source") == "kudago":
+            # Получаем начало сегодня и конец завтра по московскому времени
+            moscow_tz = ZoneInfo("Europe/Moscow")
+            now_moscow = datetime.now(moscow_tz)
+            today_start = now_moscow.replace(hour=0, minute=0, second=0, microsecond=0)
+            tomorrow_end = (today_start + timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=999999)
+
+            # Конвертируем в UTC
+            today_start_utc = today_start.astimezone(UTC)
+            tomorrow_end_utc = tomorrow_end.astimezone(UTC)
+
+            # Принимаем события на сегодня и завтра
+            if today_start_utc <= starts_at <= tomorrow_end_utc:
+                event_date = starts_at.astimezone(moscow_tz).date()
+                today_date = now_moscow.date()
+                if event_date == today_date:
+                    logger.info(f"✅ KudaGo событие на СЕГОДНЯ принято: {title[:50]}")
+                else:
+                    logger.info(f"✅ KudaGo событие на ЗАВТРА принято: {title[:50]}")
+            else:
+                logger.info(f"❌ KudaGo событие не в окне отброшено: {title[:50]} (starts_at: {starts_at})")
+                VALIDATION_METRICS["invalid_timestamp"] += 1
+                VALIDATION_METRICS["events_dropped"] += 1
+                return None
+        else:
+            # Для других источников: мягкий фильтр на неделю
+            week_ago = now_utc - timedelta(days=7)
+            week_ahead = now_utc + timedelta(days=7)
+            if starts_at < week_ago or starts_at > week_ahead:
+                logger.info(
+                    f"Событие вне временного окна отброшено в {city}: {title[:50]} "
+                    f"(starts_at: {starts_at}, now: {now_utc})"
+                )
+                VALIDATION_METRICS["invalid_timestamp"] += 1
+                VALIDATION_METRICS["events_dropped"] += 1
+                return None
 
         # 3. Валидация URL
         source_url = event.get("source_url", "").strip()
@@ -93,13 +144,16 @@ def validate_event(event: dict[str, Any], city: str = "unknown") -> dict[str, An
         # Создаем валидированное событие
         validated_event = {
             "title": title,
-            "start_ts": start_ts,
-            "end_ts": event.get("end_ts"),
+            "starts_at": starts_at,
+            "ends_at": event.get("ends_at"),
             "lat": lat,
             "lng": lng,
+            "lon": lng,  # Добавляем поле lon для совместимости
             "venue_name": (event.get("venue_name", "") or "").strip(),
+            "location_name": (event.get("venue_name", "") or "").strip(),  # Добавляем location_name для SQL
             "address": (event.get("address", "") or "").strip(),
             "source_url": source_url,
+            "url": source_url,  # Добавляем поле url для SQL запроса
             "country_code": country_code,
             "city": event_city,
             "source": event.get("source", "kudago"),

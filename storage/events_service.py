@@ -294,18 +294,17 @@ class EventsService:
             # Подготавливаем данные для upsert в events_parser
             upsert_sql = """
                 INSERT INTO events_parser (
-                    source, external_id, title, description, starts_at, ends_at,
+                    source, external_id, title, starts_at, ends_at,
                     url, location_name, location_url, lat, lng, country, city,
                     community_name, community_link, created_at_utc, updated_at_utc
                 ) VALUES (
-                    :source, :external_id, :title, :description, :starts_at, :ends_at,
+                    :source, :external_id, :title, :starts_at, :ends_at,
                     :url, :location_name, :location_url, :lat, :lng, :country, :city,
                     :community_name, :community_link, NOW(), NOW()
                 )
                 ON CONFLICT (source, external_id)
                 DO UPDATE SET
                     title = EXCLUDED.title,
-                    description = EXCLUDED.description,
                     starts_at = EXCLUDED.starts_at,
                     ends_at = EXCLUDED.ends_at,
                     url = EXCLUDED.url,
@@ -319,6 +318,13 @@ class EventsService:
                     community_link = EXCLUDED.community_link,
                     updated_at_utc = NOW()
             """
+
+            # Логируем SQL параметры для отладки
+            logger.debug("SQL upsert событий парсера:")
+            logger.debug("SQL: %s", upsert_sql)
+            logger.debug(
+                "PARAMS: %s", {k: str(v) if not isinstance(v, int | float | str) else v for k, v in event_data.items()}
+            )
 
             # Выполняем upsert
             with self.engine.begin() as conn:
