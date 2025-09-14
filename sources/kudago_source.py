@@ -332,14 +332,36 @@ class KudaGoSource(BaseSource):
             _cache_put(cache_key, filtered)
             return filtered
 
-        # Здесь — сохранение в БД (встраивай свой save_event / upsert)
+        # Сохранение в БД через EventsService
         saved = 0
-        for ev in filtered:
-            try:
-                # save_event(ev)  # реализовать в своём хранилище
-                saved += 1
-            except Exception as e:
-                logger.warning(f"save failed: {e}")
+        try:
+            from database import get_engine
+            from storage.events_service import EventsService
+
+            engine = get_engine()
+            events_service = EventsService(engine)
+
+            for ev in filtered:
+                try:
+                    # Добавляем информацию о регионе для правильного роутинга
+                    if city_slug == "msk":
+                        ev["country_code"] = "RU"
+                        ev["city"] = "moscow"
+                    elif city_slug == "spb":
+                        ev["country_code"] = "RU"
+                        ev["city"] = "spb"
+
+                    # Сохраняем через сервис
+                    success = await events_service.upsert_parser_event(ev)
+                    if success:
+                        saved += 1
+                except Exception as e:
+                    logger.warning(f"save failed for event {ev.get('title', 'unknown')}: {e}")
+        except ImportError as e:
+            logger.warning(f"EventsService not available, skipping save: {e}")
+        except Exception as e:
+            logger.error(f"Error initializing EventsService: {e}")
+
         METRICS["events_saved"] += saved
 
         _cache_put(cache_key, filtered)
