@@ -132,6 +132,7 @@ class EventSearchEngine:
         all_events = []
 
         logger.info(f"🔍 Ищем события в радиусе {radius_km} км от ({lat}, {lng})")
+        logger.info(f"📍 Координаты поиска: lat={lat} lng={lng} радиус={radius_km}км источник=enhanced_search")
 
         # 1. Используем новую архитектуру с EventsService
         try:
