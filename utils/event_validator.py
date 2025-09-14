@@ -52,17 +52,18 @@ def validate_event(event: dict[str, Any], city: str = "unknown") -> dict[str, An
         # 2. Валидация временной метки
         start_ts = event.get("start_ts")
         if start_ts is None:
-            logger.debug(f"Событие без времени отброшено в {city}: {title[:50]}")
+            logger.info(f"Событие без времени отброшено в {city}: {title[:50]}")
             VALIDATION_METRICS["events_dropped"] += 1
             return None
 
         # Проверяем, что событие в разумных временных рамках
-        now = datetime.now(UTC).timestamp()
-        if start_ts < now - 12 * 3600 or start_ts > now + 36 * 3600:
-            logger.debug(f"Событие вне временного окна отброшено в {city}: {title[:50]} (ts: {start_ts})")
-            VALIDATION_METRICS["invalid_timestamp"] += 1
-            VALIDATION_METRICS["events_dropped"] += 1
-            return None
+        datetime.now(UTC).timestamp()
+        # Временно отключаем фильтр по времени для KudaGo
+        # if start_ts < now - 12 * 3600 or start_ts > now + 36 * 3600:
+        #     logger.info(f"Событие вне временного окна отброшено в {city}: {title[:50]} (ts: {start_ts}, now: {now})")
+        #     VALIDATION_METRICS["invalid_timestamp"] += 1
+        #     VALIDATION_METRICS["events_dropped"] += 1
+        #     return None
 
         # 3. Валидация URL
         source_url = event.get("source_url", "").strip()
@@ -156,6 +157,8 @@ def validate_events_batch(events: list[dict[str, Any]], city: str = "unknown") -
         validated = validate_event(event, city)
         if validated:
             validated_events.append(validated)
+        else:
+            logger.info(f"Событие отброшено валидатором: '{event.get('title', 'Без названия')}'")
 
     logger.info(f"Валидация в {city}: {len(validated_events)}/{len(events)} событий прошли валидацию")
     return validated_events

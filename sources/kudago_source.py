@@ -121,6 +121,8 @@ async def _fetch_json(
         except Exception as e:
             METRICS["api_errors"] += 1
             logger.warning(f"KudaGo request error ({attempt+1}/5): {e}")
+            logger.warning(f"URL: {url}")
+            logger.warning(f"Params: {params}")
             await asyncio.sleep(backoff)
             backoff *= 2
 
@@ -138,13 +140,23 @@ async def _fetch_json(
 
 def _normalize_event(raw: dict[str, Any], city_slug: str) -> dict[str, Any]:
     """Нормализует событие из KudaGo в стандартный формат"""
+    logger.info(f"Нормализация события: '{raw.get('title', 'Без названия')}'")
     # Даты: берём первую ближайшую
     start_ts = None
     end_ts = None
-    if raw.get("dates"):
-        first = sorted(raw["dates"], key=lambda d: d.get("start") or 0)[0]
-        start_ts = int(first.get("start") or 0)
-        end_ts = int(first.get("end") or 0) or None
+    dates = raw.get("dates", [])
+
+    if dates:
+        # Сортируем по времени начала
+        valid_dates = [d for d in dates if d.get("start")]
+        if valid_dates:
+            first = sorted(valid_dates, key=lambda d: d.get("start") or 0)[0]
+            start_ts = int(first.get("start") or 0)
+            end_ts = int(first.get("end") or 0) or None
+        else:
+            logger.info(f"Событие '{raw.get('title', 'Без названия')}' без валидных дат")
+    else:
+        logger.info(f"Событие '{raw.get('title', 'Без названия')}' без поля dates")
 
     lat = lon = None
     place = raw.get("place") or {}
@@ -159,6 +171,7 @@ def _normalize_event(raw: dict[str, Any], city_slug: str) -> dict[str, Any]:
         "country_code": "RU",
         "city": "moscow" if city_slug == "msk" else "spb" if city_slug == "spb" else city_slug,
         "title": (raw.get("title") or "").strip(),
+        "description": (raw.get("description") or "").strip(),  # Добавляем описание
         "start_ts": start_ts,
         "end_ts": end_ts,
         "lat": lat,
@@ -187,7 +200,11 @@ class KudaGoSource(BaseSource):
 
     def is_enabled(self) -> bool:
         """Проверяет, включен ли источник KudaGo"""
-        return KUDAGO_ENABLED
+        # Используем настройки из config вместо переменных окружения
+        from config import load_settings
+
+        settings = load_settings()
+        return settings.kudago_enabled
 
     async def fetch_events(self, lat: float, lng: float, radius_km: float) -> list[dict[str, Any]]:
         """
@@ -272,8 +289,9 @@ class KudaGoSource(BaseSource):
         base_url = "https://kudago.com/public-api/v1.4/events/"
         params = {
             "location": city_slug,
-            "actual_since": _iso(start_utc),
-            "actual_until": _iso(end_utc),
+            # Временно отключаем фильтр по датам
+            # "actual_since": _iso(start_utc),
+            # "actual_until": _iso(end_utc),
             "expand": "place,dates,location",
             "fields": "id,title,place,dates,site_url,location",
             "page_size": KUDAGO_PAGE_SIZE,
@@ -332,7 +350,10 @@ class KudaGoSource(BaseSource):
             filtered = validated
 
         # DRY_RUN: не сохраняем, возвращаем наверх
-        if KUDAGO_DRY_RUN:
+        from config import load_settings
+
+        settings = load_settings()
+        if settings.kudago_dry_run:
             logger.info(f"DRY_RUN: fetched={len(results)} normalized={len(normalized)} after_geo={len(filtered)}")
             _cache_put(cache_key, filtered)
             return filtered
