@@ -1471,6 +1471,9 @@ async def on_location(message: types.Message):
                 "page": 1,
                 "diag": diag,
             }
+            logger.info(
+                f"💾 Состояние сохранено для пользователя {message.chat.id}: lat={lat}, lng={lng}, radius={radius}"
+            )
 
             # 4) Формируем заголовок с правильным отчётом
             header_html = render_header(counts, radius_km=int(radius))
@@ -2426,6 +2429,7 @@ async def handle_pagination(callback: types.CallbackQuery):
         # Получаем сохраненное состояние
         state = user_state.get(callback.message.chat.id)
         if not state:
+            logger.warning(f"Состояние не найдено для пользователя {callback.message.chat.id}")
             await callback.answer("Состояние не найдено. Отправьте новую геолокацию.")
             return
 
@@ -2482,14 +2486,24 @@ async def handle_expand_radius(callback: types.CallbackQuery):
 
         # Получаем сохраненное состояние
         state = user_state.get(callback.message.chat.id)
+        logger.info(f"🔍 Проверяем состояние для пользователя {callback.message.chat.id}: {state is not None}")
         if not state:
+            logger.warning(f"Состояние не найдено для пользователя {callback.message.chat.id}")
+            logger.info(f"Доступные состояния: {list(user_state.keys())}")
             await callback.answer("Состояние не найдено. Отправьте новую геолокацию.")
             return
 
-        lat = state["lat"]
-        lng = state["lng"]
+        lat = state.get("lat")
+        lng = state.get("lng")
 
-        logger.info(f"🔍 Расширяем поиск до {new_radius} км от ({lat}, {lng})")
+        if not lat or not lng:
+            logger.warning(f"Координаты не найдены в состоянии для пользователя {callback.message.chat.id}")
+            await callback.answer("Координаты не найдены. Отправьте новую геолокацию.")
+            return
+
+        logger.info(
+            f"🔍 Расширяем поиск до {new_radius} км от ({lat}, {lng}) для пользователя {callback.message.chat.id}"
+        )
 
         # Показываем индикатор загрузки
         loading_message = await callback.message.answer(
