@@ -228,6 +228,108 @@ class UltraSimpleEventsService:
 
             return event_id
 
+    def save_parser_event(
+        self,
+        source: str,
+        external_id: str,
+        title: str,
+        description: str,
+        starts_at_utc: datetime,
+        city: str,
+        lat: float,
+        lng: float,
+        location_name: str = None,
+        location_url: str = None,
+        url: str = None,
+    ) -> int:
+        """
+        Сохранение парсерного события в БД
+
+        Args:
+            source: Источник (baliforum, kudago, ai)
+            external_id: Уникальный ID из источника
+            title: Название события
+            description: Описание
+            starts_at_utc: Время начала в UTC
+            city: Город
+            lat, lng: Координаты
+            location_name: Название места
+            location_url: Ссылка на место
+            url: Ссылка на событие
+
+        Returns:
+            ID созданного события
+        """
+        with self.engine.connect() as conn:
+            # Проверяем дубликаты по source + external_id
+            existing = conn.execute(
+                text("""
+                SELECT id FROM events_parser
+                WHERE source = :source AND external_id = :external_id
+            """),
+                {"source": source, "external_id": external_id},
+            ).fetchone()
+
+            if existing:
+                # Обновляем существующее событие
+                conn.execute(
+                    text("""
+                    UPDATE events_parser
+                    SET title = :title, description = :description, starts_at = :starts_at,
+                        city = :city, lat = :lat, lng = :lng, location_name = :location_name,
+                        location_url = :location_url, url = :url, updated_at_utc = NOW()
+                    WHERE source = :source AND external_id = :external_id
+                """),
+                    {
+                        "title": title,
+                        "description": description,
+                        "starts_at": starts_at_utc,
+                        "city": city,
+                        "lat": lat,
+                        "lng": lng,
+                        "location_name": location_name,
+                        "location_url": location_url,
+                        "url": url,
+                        "source": source,
+                        "external_id": external_id,
+                    },
+                )
+
+                event_id = existing[0]
+                print(f"🔄 Обновлено парсерное событие ID {event_id}: '{title}'")
+            else:
+                # Создаем новое событие
+                result = conn.execute(
+                    text("""
+                    INSERT INTO events_parser
+                    (source, external_id, title, description, starts_at, city, lat, lng,
+                     location_name, location_url, url)
+                    VALUES
+                    (:source, :external_id, :title, :description, :starts_at, :city, :lat, :lng,
+                     :location_name, :location_url, :url)
+                    RETURNING id
+                """),
+                    {
+                        "source": source,
+                        "external_id": external_id,
+                        "title": title,
+                        "description": description,
+                        "starts_at": starts_at_utc,
+                        "city": city,
+                        "lat": lat,
+                        "lng": lng,
+                        "location_name": location_name,
+                        "location_url": location_url,
+                        "url": url,
+                    },
+                )
+
+                event_id = result.fetchone()[0]
+                print(f"✅ Создано парсерное событие ID {event_id}: '{title}'")
+
+            conn.commit()
+            return event_id
+
     def cleanup_old_events(self, city: str) -> int:
         """Очистка старых событий"""
         with self.engine.connect() as conn:
