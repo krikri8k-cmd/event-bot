@@ -1437,6 +1437,9 @@ async def on_location(message: types.Message):
                 "Попробуй расширить поиск или создай своё событие:",
                 reply_markup=inline_kb,
             )
+
+            # Возвращаем основное меню
+            await message.answer("🏠 Выберите действие:", reply_markup=main_menu_kb())
             return
 
         # Сортируем события по времени (ближайшие первыми)
@@ -2514,6 +2517,9 @@ async def handle_pagination(callback: types.CallbackQuery):
 
         await callback.answer()
 
+        # Возвращаем основное меню
+        await callback.message.answer("🏠 Выберите действие:", reply_markup=main_menu_kb())
+
     except (ValueError, IndexError) as e:
         logger.error(f"❌ Ошибка обработки пагинации: {e}")
         await callback.answer("Ошибка обработки запроса")
@@ -2641,6 +2647,9 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             )
 
         await callback.answer(f"Радиус расширен до {new_radius} км")
+
+        # Возвращаем основное меню
+        await callback.message.answer("🏠 Выберите действие:", reply_markup=main_menu_kb())
 
     except (ValueError, IndexError) as e:
         logger.error(f"❌ Ошибка обработки расширения радиуса: {e}")
