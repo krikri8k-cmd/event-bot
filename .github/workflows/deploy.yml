@@ -30,12 +30,14 @@ jobs:
         
     - name: 🚀 Deploy to Railway
       if: github.ref == 'refs/heads/main'
-      uses: railway-app/railway-deploy@v1
-      with:
-        railway-token: ${{ secrets.RAILWAY_TOKEN }}
+      run: |
+        echo "🎉 Code pushed to GitHub successfully!"
+        echo "📱 Railway will auto-deploy from GitHub integration"
+        echo "🔗 Check Railway dashboard for deployment status"
+        echo "⏱️ Deployment usually takes 2-5 minutes"
         
     - name: ✅ Deployment status
       run: |
-        echo "🎉 Deployment completed!"
-        echo "📱 Bot should be running on Railway"
-        echo "🔗 Check Railway dashboard for logs"
+        echo "✅ GitHub Actions completed successfully!"
+        echo "🚀 Railway should auto-deploy from GitHub"
+        echo "📊 Check Railway dashboard for logs and status"
