@@ -2363,22 +2363,74 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
         lat = data.get("location_lat")
         lng = data.get("location_lng")
 
-        event = Event(
-            title=data["title"],
-            description=data["description"],
-            time_local=time_local,
-            starts_at=starts_at,
-            location_name=location_name,
-            location_url=location_url,
-            lat=lat,
-            lng=lng,
-            organizer_id=callback.from_user.id,
-            organizer_username=callback.from_user.username,
-            status="open",
-            is_generated_by_ai=False,
-        )
-        session.add(event)
-        session.commit()
+        # Используем новую архитектуру с EventsService
+        try:
+            from database import get_engine
+            from storage.events_service import EventsService
+
+            engine = get_engine()
+            events_service = EventsService(engine)
+
+            # Подготавливаем данные события
+            event_data = {
+                "title": data["title"],
+                "description": data["description"],
+                "starts_at": starts_at,
+                "location_name": location_name,
+                "location_url": location_url,
+                "lat": lat,
+                "lng": lng,
+                "organizer_id": callback.from_user.id,
+                "organizer_username": callback.from_user.username,
+                "status": "open",
+                "current_participants": 0,
+            }
+
+            # Определяем регион пользователя по координатам (если есть)
+            country_code = None
+            city = None
+            if lat and lng:
+                # Простая логика определения региона по координатам
+                if 55.0 <= lat <= 60.0 and 35.0 <= lng <= 40.0:  # Москва
+                    country_code = "RU"
+                    city = "moscow"
+                elif 59.0 <= lat <= 60.5 and 29.0 <= lng <= 31.0:  # СПб
+                    country_code = "RU"
+                    city = "spb"
+                elif -9.0 <= lat <= -8.0 and 114.0 <= lng <= 116.0:  # Бали
+                    country_code = "ID"
+                    city = "bali"
+
+            # Сохраняем через EventsService
+            success = await events_service.upsert_user_event(
+                event_data=event_data, country_code=country_code, city=city
+            )
+
+            if not success:
+                raise Exception("Не удалось сохранить событие через EventsService")
+
+        except ImportError as e:
+            logger.warning(f"EventsService недоступен, используем старый метод: {e}")
+            # Fallback к старому методу
+            event = Event(
+                title=data["title"],
+                description=data["description"],
+                time_local=time_local,
+                starts_at=starts_at,
+                location_name=location_name,
+                location_url=location_url,
+                lat=lat,
+                lng=lng,
+                organizer_id=callback.from_user.id,
+                organizer_username=callback.from_user.username,
+                status="open",
+                is_generated_by_ai=False,
+            )
+            session.add(event)
+            session.commit()
+        except Exception as e:
+            logger.error(f"Ошибка сохранения события: {e}")
+            raise
 
     await state.clear()
     await callback.message.edit_text(

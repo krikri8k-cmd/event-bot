@@ -95,10 +95,13 @@ class EventsService:
                 event_data["current_participants"] = 0
 
             # Добавляем значения по умолчанию для обязательных полей
+            event_data.setdefault("url", None)
             event_data.setdefault("location_url", None)
             event_data.setdefault("participants_ids", None)
             event_data.setdefault("community_name", None)
             event_data.setdefault("community_link", None)
+            event_data.setdefault("ends_at", None)
+            event_data.setdefault("max_participants", None)
 
             # Upsert в таблицу events_user
             return await self._upsert_user_event(event_data)
