@@ -54,6 +54,7 @@ class EventsService:
             event_data.setdefault("location_url", None)
             event_data.setdefault("community_name", None)
             event_data.setdefault("community_link", None)
+            event_data.setdefault("ends_at", None)
 
             # Upsert в таблицу events_parser
             return await self._upsert_parser_event(event_data)
