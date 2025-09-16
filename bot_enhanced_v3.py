@@ -1442,80 +1442,6 @@ async def on_location(message: types.Message):
             )
             return
 
-        if not events:
-            logger.info("📭 События не найдены")
-
-            # Создаем кнопки расширения радиуса
-            keyboard_buttons = []
-            current_radius = int(settings.default_radius_km)
-            radius_step = int(settings.radius_step_km)
-            max_radius = int(settings.max_radius_km)
-
-            # Добавляем кнопки расширения радиуса
-            next_radius = current_radius + radius_step
-            while next_radius <= max_radius:
-                keyboard_buttons.append(
-                    [
-                        InlineKeyboardButton(
-                            text=f"🔍 Расширить поиск до {next_radius} км",
-                            callback_data=f"rx:{next_radius}",
-                        )
-                    ]
-                )
-                next_radius += radius_step
-
-            # Добавляем кнопку создания события
-            keyboard_buttons.append(
-                [
-                    InlineKeyboardButton(
-                        text="➕ Создать событие",
-                        callback_data="create_event",
-                    )
-                ]
-            )
-
-            inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-
-            # Удаляем сообщение загрузки
-            try:
-                await loading_message.delete()
-            except Exception:
-                pass
-
-            # Определяем регион пользователя
-            region = "bali"  # По умолчанию Бали
-            if 55.0 <= lat <= 60.0 and 35.0 <= lng <= 40.0:  # Москва
-                region = "moscow"
-            elif 59.0 <= lat <= 60.5 and 29.0 <= lng <= 31.0:  # СПб
-                region = "spb"
-            elif -9.0 <= lat <= -8.0 and 114.0 <= lng <= 116.0:  # Бали
-                region = "bali"
-
-            # Сохраняем состояние даже когда событий нет
-            user_state[message.chat.id] = {
-                "prepared": [],
-                "counts": {},
-                "lat": lat,
-                "lng": lng,
-                "radius": int(current_radius),
-                "page": 1,
-                "diag": {},
-                "region": region,
-            }
-            logger.info(
-                f"💾 Состояние сохранено для пользователя {message.chat.id}: lat={lat}, lng={lng}, radius={current_radius}, region={region}"
-            )
-
-            await message.answer(
-                f"📅 Событий на сегодня не найдено в радиусе {current_radius} км.\n\n"
-                "Попробуй расширить поиск или создай своё событие:",
-                reply_markup=inline_kb,
-            )
-
-            # Возвращаем основное меню
-            await message.answer("🏠 Выберите действие:", reply_markup=main_menu_kb())
-            return
-
         # Сортируем события по времени (ближайшие первыми)
         events = sort_events_by_time(events)
         logger.info("📅 События отсортированы по времени")
@@ -1523,7 +1449,7 @@ async def on_location(message: types.Message):
         # Единый конвейер: prepared → groups → counts → render
         try:
             prepared, diag = prepare_events_for_feed(
-                events, user_point=(lat, lng), radius_km=settings.default_radius_km, with_diag=True
+                events, user_point=(lat, lng), radius_km=int(radius), with_diag=True
             )
             logger.info(f"prepared: kept={diag['kept']} dropped={diag['dropped']} reasons_top3={diag['reasons_top3']}")
             logger.info(
@@ -1537,6 +1463,81 @@ async def on_location(message: types.Message):
             # Группируем и считаем
             groups = group_by_type(prepared)
             counts = make_counts(groups)
+
+            # Проверяем, есть ли события после фильтрации
+            if not prepared:
+                logger.info("📭 События не найдены после фильтрации")
+
+                # Создаем кнопки расширения радиуса
+                keyboard_buttons = []
+                current_radius = int(radius)
+                radius_step = int(settings.radius_step_km)
+                max_radius = int(settings.max_radius_km)
+
+                # Добавляем кнопки расширения радиуса
+                next_radius = current_radius + radius_step
+                while next_radius <= max_radius:
+                    keyboard_buttons.append(
+                        [
+                            InlineKeyboardButton(
+                                text=f"🔍 Расширить поиск до {next_radius} км",
+                                callback_data=f"rx:{next_radius}",
+                            )
+                        ]
+                    )
+                    next_radius += radius_step
+
+                # Добавляем кнопку создания события
+                keyboard_buttons.append(
+                    [
+                        InlineKeyboardButton(
+                            text="➕ Создать событие",
+                            callback_data="create_event",
+                        )
+                    ]
+                )
+
+                inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+
+                # Удаляем сообщение загрузки
+                try:
+                    await loading_message.delete()
+                except Exception:
+                    pass
+
+                # Определяем регион пользователя
+                region = "bali"  # По умолчанию Бали
+                if 55.0 <= lat <= 60.0 and 35.0 <= lng <= 40.0:  # Москва
+                    region = "moscow"
+                elif 59.0 <= lat <= 60.5 and 29.0 <= lng <= 31.0:  # СПб
+                    region = "spb"
+                elif -9.0 <= lat <= -8.0 and 114.0 <= lng <= 116.0:  # Бали
+                    region = "bali"
+
+                # Сохраняем состояние даже когда событий нет
+                user_state[message.chat.id] = {
+                    "prepared": [],
+                    "counts": {},
+                    "lat": lat,
+                    "lng": lng,
+                    "radius": int(current_radius),
+                    "page": 1,
+                    "diag": diag,
+                    "region": region,
+                }
+                logger.info(
+                    f"💾 Состояние сохранено для пользователя {message.chat.id}: lat={lat}, lng={lng}, radius={current_radius}, region={region}"
+                )
+
+                await message.answer(
+                    f"📅 Событий на сегодня не найдено в радиусе {current_radius} км.\n\n"
+                    "Попробуй расширить поиск или создай своё событие:",
+                    reply_markup=inline_kb,
+                )
+
+                # Возвращаем основное меню
+                await message.answer("🏠 Выберите действие:", reply_markup=main_menu_kb())
+                return
 
             # Сохраняем состояние для пагинации и расширения радиуса
             user_state[message.chat.id] = {
