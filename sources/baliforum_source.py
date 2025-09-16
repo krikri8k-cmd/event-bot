@@ -48,7 +48,7 @@ class BaliForumSource:
         """
         start_time = time.time()
         parsed = 0
-        skipped_no_time = 0
+        skipped_no_time_count = 0
         skipped_no_coords = 0
         skipped_radius = 0
         errors = 0
@@ -80,7 +80,7 @@ class BaliForumSource:
                 try:
                     # Пропускаем события без времени
                     if not event.starts_at:
-                        skipped_no_time += 1
+                        skipped_no_time_count += 1
                         continue
 
                     # Пропускаем события без координат
@@ -124,7 +124,7 @@ class BaliForumSource:
                 source="baliforum",
                 region="bali",
                 parsed=parsed,
-                skipped_no_time=skipped_no_time,
+                skipped_no_time=skipped_no_time_count,
                 skipped_no_coords=skipped_no_coords,
                 upserted=len(events),
                 updated=0,
@@ -146,7 +146,7 @@ class BaliForumSource:
                 source="baliforum",
                 region="bali",
                 parsed=parsed,
-                skipped_no_time=skipped_no_time,
+                skipped_no_time=skipped_no_time_count,
                 skipped_no_coords=skipped_no_coords,
                 upserted=0,
                 updated=0,
