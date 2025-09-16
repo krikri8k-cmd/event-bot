@@ -1546,8 +1546,8 @@ async def on_location(message: types.Message):
                 )
 
                 await message.answer(
-                    f"📅 Событий на сегодня не найдено в радиусе {current_radius} км.\n\n"
-                    "Попробуй расширить поиск или создай своё событие:",
+                    f"📅 В радиусе {current_radius} км событий на сегодня не найдено.\n\n"
+                    f"💡 Попробуй расширить поиск до {current_radius + int(settings.radius_step_km)} км или создай своё событие!",
                     reply_markup=inline_kb,
                 )
 
@@ -1580,6 +1580,11 @@ async def on_location(message: types.Message):
                 short_caption += f"\n\n... и еще {len(prepared) - 3} событий"
 
             short_caption += "\n\n💡 <b>Нажми кнопку ниже для Google Maps!</b>"
+
+            # Добавляем подсказку о расширении поиска, если событий мало
+            if counts["all"] < 5:
+                next_radius = int(radius) + int(settings.radius_step_km)
+                short_caption += f"\n🔍 <i>Можно расширить поиск до {next_radius} км</i>"
 
             # Создаём карту с нумерованными метками
             points = []
@@ -1623,24 +1628,24 @@ async def on_location(message: types.Message):
                         [InlineKeyboardButton(text="🗺️ Открыть в Google Maps с событиями", url=maps_url)]
                     ]
 
-                    # Добавляем кнопки расширения радиуса, если событий меньше 5 или их нет
-                    if counts["all"] < 5:
-                        current_radius = int(settings.default_radius_km)
-                        radius_step = int(settings.radius_step_km)
-                        max_radius = int(settings.max_radius_km)
+                    # Всегда добавляем кнопки расширения радиуса для лучшего UX
+                    # Пользователь должен понимать, что можно расширить поиск
+                    current_radius = int(settings.default_radius_km)
+                    radius_step = int(settings.radius_step_km)
+                    max_radius = int(settings.max_radius_km)
 
-                        # Создаем кнопки для расширения радиуса
-                        next_radius = current_radius + radius_step
-                        while next_radius <= max_radius:
-                            keyboard_buttons.append(
-                                [
-                                    InlineKeyboardButton(
-                                        text=f"🔍 Расширить до {next_radius} км",
-                                        callback_data=f"rx:{next_radius}",
-                                    )
-                                ]
-                            )
-                            next_radius += radius_step
+                    # Создаем кнопки для расширения радиуса
+                    next_radius = current_radius + radius_step
+                    while next_radius <= max_radius:
+                        keyboard_buttons.append(
+                            [
+                                InlineKeyboardButton(
+                                    text=f"🔍 Расширить до {next_radius} км",
+                                    callback_data=f"rx:{next_radius}",
+                                )
+                            ]
+                        )
+                        next_radius += radius_step
 
                     inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
