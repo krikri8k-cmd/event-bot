@@ -2,11 +2,13 @@
 УНИФИЦИРОВАННЫЙ сервис для работы с событиями через единую таблицу events
 """
 
+import time
 from datetime import datetime
 
 from sqlalchemy import text
 
 from utils.simple_timezone import get_today_start_utc, get_tomorrow_start_utc
+from utils.structured_logging import StructuredLogger
 
 
 class UnifiedEventsService:
@@ -16,11 +18,18 @@ class UnifiedEventsService:
         self.engine = engine
 
     def search_events_today(
-        self, city: str, user_lat: float | None = None, user_lng: float | None = None, radius_km: float = 15
+        self,
+        city: str,
+        user_lat: float | None = None,
+        user_lng: float | None = None,
+        radius_km: float = 15,
+        message_id: str | None = None,
     ) -> list[dict]:
         """
         Поиск сегодняшних событий из единой таблицы events
         """
+        start_time = time.time()
+
         # Получаем временные границы для города
         start_utc = get_today_start_utc(city)
         end_utc = get_tomorrow_start_utc(city)
@@ -36,14 +45,14 @@ class UnifiedEventsService:
                     WHERE city = :city
                     AND starts_at >= :start_utc
                     AND starts_at < :end_utc
-                    AND (lat IS NULL OR lng IS NULL OR
-                        6371 * acos(
-                            GREATEST(-1, LEAST(1,
-                                cos(radians(:user_lat)) * cos(radians(lat)) *
-                                cos(radians(lng) - radians(:user_lng)) +
-                                sin(radians(:user_lat)) * sin(radians(lat))
-                            ))
-                        ) <= :radius_km)
+                    AND lat IS NOT NULL AND lng IS NOT NULL
+                    AND 6371 * acos(
+                        GREATEST(-1, LEAST(1,
+                            cos(radians(:user_lat)) * cos(radians(lat)) *
+                            cos(radians(lng) - radians(:user_lng)) +
+                            sin(radians(:user_lat)) * sin(radians(lat))
+                        ))
+                    ) <= :radius_km
                     ORDER BY starts_at
                 """)
 
@@ -81,9 +90,18 @@ class UnifiedEventsService:
                 )
 
             events = []
+            found_user = 0
+            found_parser = 0
+
             for row in result:
                 # Определяем source_type для совместимости с существующим кодом
                 source_type = "user" if row[0] == "user" else "parser"
+
+                # Подсчитываем по источникам
+                if row[0] == "user":
+                    found_user += 1
+                else:
+                    found_parser += 1
 
                 events.append(
                     {
@@ -106,6 +124,27 @@ class UnifiedEventsService:
                         "created_at_utc": row[15],
                     }
                 )
+
+            # Логируем результат поиска
+            empty_reason = None
+            if not events:
+                if user_lat and user_lng:
+                    empty_reason = "no_events_in_radius"
+                else:
+                    empty_reason = "no_events_today"
+
+            StructuredLogger.log_search(
+                region=city,
+                radius_km=radius_km if user_lat and user_lng else 0,
+                user_lat=user_lat or 0,
+                user_lng=user_lng or 0,
+                found_total=len(events),
+                found_user=found_user,
+                found_parser=found_parser,
+                message_id=message_id,
+                empty_reason=empty_reason,
+                duration_ms=(time.time() - start_time) * 1000,
+            )
 
             return events
 

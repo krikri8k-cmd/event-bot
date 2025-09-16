@@ -4,9 +4,11 @@
 """
 
 import logging
+import time
 from typing import Any
 
 from sources.baliforum import fetch as fetch_baliforum_events
+from utils.structured_logging import StructuredLogger
 
 logger = logging.getLogger(__name__)
 
@@ -44,29 +46,52 @@ class BaliForumSource:
         Returns:
             Список событий в формате для enhanced_event_search
         """
+        start_time = time.time()
+        parsed = 0
+        skipped_no_time = 0
+        skipped_no_coords = 0
+        skipped_radius = 0
+        errors = 0
+
         try:
             logger.info(f"🌴 Ищем события в {self.display_name}...")
 
             # Получаем события из BaliForum
             raw_events = fetch_baliforum_events(limit=100)
+            parsed = len(raw_events) if raw_events else 0
 
             if not raw_events:
-                logger.info(f"   ⚠️ {self.display_name} не вернул события")
+                StructuredLogger.log_ingest(
+                    source="baliforum",
+                    region="bali",
+                    parsed=0,
+                    skipped_no_time=0,
+                    skipped_no_coords=0,
+                    upserted=0,
+                    updated=0,
+                    duration_ms=(time.time() - start_time) * 1000,
+                    errors=0,
+                )
                 return []
 
             # Конвертируем RawEvent в формат для enhanced_event_search
             events = []
             for event in raw_events:
                 try:
+                    # Пропускаем события без времени
+                    if not event.starts_at:
+                        skipped_no_time += 1
+                        continue
+
                     # Пропускаем события без координат
                     if not event.lat or not event.lng:
-                        logger.debug(f"   ⚠️ Пропускаем событие без координат: {event.title}")
+                        skipped_no_coords += 1
                         continue
 
                     # Проверяем, что событие в радиусе
                     distance = self._calculate_distance(lat, lng, event.lat, event.lng)
                     if distance > radius_km:
-                        logger.debug(f"   ⚠️ Событие вне радиуса ({distance:.1f} км): {event.title}")
+                        skipped_radius += 1
                         continue
 
                     events.append(
@@ -90,8 +115,23 @@ class BaliForumSource:
                         }
                     )
                 except Exception as e:
+                    errors += 1
                     logger.warning(f"   ⚠️ Ошибка при обработке события '{event.title}': {e}")
                     continue
+
+            # Логируем результат
+            StructuredLogger.log_ingest(
+                source="baliforum",
+                region="bali",
+                parsed=parsed,
+                skipped_no_time=skipped_no_time,
+                skipped_no_coords=skipped_no_coords,
+                upserted=len(events),
+                updated=0,
+                duration_ms=(time.time() - start_time) * 1000,
+                errors=errors,
+                skipped_radius=skipped_radius,
+            )
 
             if events:
                 logger.info(f"   ✅ Найдено {len(events)} событий в {self.display_name}")
@@ -101,6 +141,18 @@ class BaliForumSource:
             return events
 
         except Exception as e:
+            errors += 1
+            StructuredLogger.log_ingest(
+                source="baliforum",
+                region="bali",
+                parsed=parsed,
+                skipped_no_time=skipped_no_time,
+                skipped_no_coords=skipped_no_coords,
+                upserted=0,
+                updated=0,
+                duration_ms=(time.time() - start_time) * 1000,
+                errors=errors,
+            )
             logger.error(f"   ❌ Ошибка при поиске в {self.display_name}: {e}")
             return []
 
