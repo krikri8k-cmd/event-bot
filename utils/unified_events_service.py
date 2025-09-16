@@ -40,7 +40,8 @@ class UnifiedEventsService:
                 query = text("""
                     SELECT source, id, title, description, starts_at,
                            city, lat, lng, location_name, location_url, url as event_url,
-                           organizer_id, max_participants, current_participants, status, created_at_utc
+                           organizer_id, organizer_username, max_participants,
+                           current_participants, status, created_at_utc
                     FROM events
                     WHERE city = :city
                     AND starts_at >= :start_utc
@@ -72,7 +73,8 @@ class UnifiedEventsService:
                 query = text("""
                     SELECT source, id, title, description, starts_at,
                            city, lat, lng, location_name, location_url, url as event_url,
-                           organizer_id, max_participants, current_participants, status, created_at_utc
+                           organizer_id, organizer_username, max_participants,
+                           current_participants, status, created_at_utc
                     FROM events
                     WHERE city = :city
                     AND starts_at >= :start_utc
@@ -118,10 +120,11 @@ class UnifiedEventsService:
                         "location_url": row[9],
                         "event_url": row[10],
                         "organizer_id": row[11],
-                        "max_participants": row[12],
-                        "current_participants": row[13],
-                        "status": row[14],
-                        "created_at_utc": row[15],
+                        "organizer_username": row[12],
+                        "max_participants": row[13],
+                        "current_participants": row[14],
+                        "status": row[15],
+                        "created_at_utc": row[16],
                     }
                 )
 

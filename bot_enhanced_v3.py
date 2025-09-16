@@ -738,7 +738,15 @@ def render_event_html(e: dict, idx: int) -> str:
     title = html.escape(e.get("title", "Событие"))
     when = e.get("when_str", "")
     dist = f"{e['distance_km']:.1f} км" if e.get("distance_km") is not None else ""
-    event_type = e.get("type", "source")
+
+    # Определяем тип события, если не установлен
+    event_type = e.get("type")
+    if not event_type:
+        source = e.get("source", "")
+        if source == "user":
+            event_type = "user"
+        else:
+            event_type = "source"
 
     # Поддерживаем новую структуру venue и старую
     venue = e.get("venue", {})
