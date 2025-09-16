@@ -6,7 +6,7 @@
 import json
 import logging
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ class StructuredLogger:
         """
         log_data = {
             "type": "ingest",
-            "timestamp": datetime.now(datetime.UTC).isoformat() + "Z",
+            "timestamp": datetime.now(UTC).isoformat() + "Z",
             "source": source,
             "region": region,
             "parsed": parsed,
@@ -103,7 +103,7 @@ class StructuredLogger:
         """
         log_data = {
             "type": "search",
-            "timestamp": datetime.now(datetime.UTC).isoformat() + "Z",
+            "timestamp": datetime.now(UTC).isoformat() + "Z",
             "region": region,
             "radius_km": radius_km,
             "user_lat": user_lat,

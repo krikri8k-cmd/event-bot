@@ -116,7 +116,7 @@ async def check_ai_generation():
         print("-" * 30)
 
         try:
-            from enhanced_event_search import fetch_ai_events_nearby
+            from ai_utils import fetch_ai_events_nearby
 
             print("🤖 Запускаем AI генерацию...")
             ai_events = await fetch_ai_events_nearby(user_lat, user_lon)
