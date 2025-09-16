@@ -1437,6 +1437,9 @@ async def on_location(message: types.Message):
                         "url": event.get("event_url", ""),
                         "community_name": "",
                         "community_link": "",
+                        # Добавляем поля автора для пользовательских событий
+                        "organizer_id": event.get("organizer_id"),
+                        "organizer_username": event.get("organizer_username"),
                     }
                 )
 
