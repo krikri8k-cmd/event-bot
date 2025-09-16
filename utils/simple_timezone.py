@@ -30,6 +30,7 @@ def get_city_timezone(city: str) -> str:
 def get_today_start_utc(city: str) -> datetime:
     """
     Получает начало сегодняшнего дня в UTC для города
+    Окно "сегодня" = с 00:00 до 23:59:59 по местному времени города
 
     Args:
         city: Название города
@@ -43,7 +44,7 @@ def get_today_start_utc(city: str) -> datetime:
     # Текущее время в городе
     now_local = datetime.now(tz)
 
-    # Начало дня в городе
+    # Начало сегодняшнего дня в городе (00:00:00)
     start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Конвертируем в UTC
@@ -55,6 +56,7 @@ def get_today_start_utc(city: str) -> datetime:
 def get_tomorrow_start_utc(city: str) -> datetime:
     """
     Получает начало завтрашнего дня в UTC для города
+    Окно "сегодня" заканчивается в 00:00:00 следующего дня по местному времени
 
     Args:
         city: Название города
@@ -62,15 +64,16 @@ def get_tomorrow_start_utc(city: str) -> datetime:
     Returns:
         Начало завтрашнего дня в UTC
     """
+    from datetime import timedelta
+
     tz_name = get_city_timezone(city)
     tz = ZoneInfo(tz_name)
 
     # Текущее время в городе
     now_local = datetime.now(tz)
 
-    # Начало завтрашнего дня в городе
-    tomorrow_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
-    tomorrow_local = tomorrow_local.replace(day=now_local.day + 1)
+    # Начало завтрашнего дня в городе (00:00:00 следующего дня)
+    tomorrow_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
 
     # Конвертируем в UTC
     tomorrow_utc = tomorrow_local.astimezone(UTC)
