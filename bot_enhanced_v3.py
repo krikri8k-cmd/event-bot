@@ -1623,8 +1623,8 @@ async def on_location(message: types.Message):
                         [InlineKeyboardButton(text="🗺️ Открыть в Google Maps с событиями", url=maps_url)]
                     ]
 
-                    # Добавляем кнопки расширения радиуса, если событий меньше 3 или их нет
-                    if counts["all"] < 3:
+                    # Добавляем кнопки расширения радиуса, если событий меньше 5 или их нет
+                    if counts["all"] < 5:
                         current_radius = int(settings.default_radius_km)
                         radius_step = int(settings.radius_step_km)
                         max_radius = int(settings.max_radius_km)
