@@ -757,12 +757,20 @@ def render_event_html(e: dict, idx: int) -> str:
 
     # Источник/Автор согласно ТЗ
     if event_type == "user":
-        # Для моментов показываем автора
-        author_username = e.get("creator_username") or e.get("author_username")
+        # Для пользовательских событий показываем автора
+        author_username = e.get("organizer_username") or e.get("creator_username") or e.get("author_username")
         if author_username:
-            src_part = f"👤 Автор @{html.escape(author_username)}"
+            # Создаем кликабельную ссылку на пользователя
+            src_part = (
+                f'👤 <a href="tg://user?id={e.get("organizer_id", "")}">Автор @{html.escape(author_username)}</a>'
+            )
         else:
-            src_part = "👤 Автор"
+            # Если username нет, но есть organizer_id, показываем только ID
+            organizer_id = e.get("organizer_id")
+            if organizer_id:
+                src_part = f'👤 <a href="tg://user?id={organizer_id}">Автор</a>'
+            else:
+                src_part = "👤 Автор"
     else:
         # Для источников и AI-парсинга показываем источник
         src = get_source_url(e)
@@ -2464,6 +2472,7 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
                 location_name=location_name,
                 location_url=location_url,
                 max_participants=data.get("max_participants"),
+                organizer_username=callback.from_user.username,
             )
 
             logger.info(f"✅ Событие создано с ID: {event_id}")

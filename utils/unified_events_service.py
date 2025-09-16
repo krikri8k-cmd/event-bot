@@ -207,6 +207,7 @@ class UnifiedEventsService:
         location_name: str,
         location_url: str = None,
         max_participants: int = None,
+        organizer_username: str = None,
     ) -> int:
         """
         Создание пользовательского события (сначала в events_user, потом синхронизация)
@@ -215,10 +216,10 @@ class UnifiedEventsService:
             # 1. Создаем в events_user
             user_event_query = text("""
                 INSERT INTO events_user
-                (organizer_id, title, description, starts_at, city, lat, lng,
+                (organizer_id, organizer_username, title, description, starts_at, city, lat, lng,
                  location_name, location_url, max_participants, country)
                 VALUES
-                (:organizer_id, :title, :description, :starts_at, :city, :lat, :lng,
+                (:organizer_id, :organizer_username, :title, :description, :starts_at, :city, :lat, :lng,
                  :location_name, :location_url, :max_participants, :country)
                 RETURNING id
             """)
@@ -229,6 +230,7 @@ class UnifiedEventsService:
                 user_event_query,
                 {
                     "organizer_id": organizer_id,
+                    "organizer_username": organizer_username,
                     "title": title,
                     "description": description,
                     "starts_at": starts_at_utc,
@@ -257,7 +259,7 @@ class UnifiedEventsService:
                     id::text as external_id,
                     title, description, starts_at, NULL as ends_at,
                     NULL as url, location_name, location_url, lat, lng, country, city,
-                    organizer_id, NULL as organizer_username, max_participants, 0 as current_participants,
+                    organizer_id, organizer_username, max_participants, 0 as current_participants,
                     NULL as participants_ids, 'open' as status, NOW(), NOW(), false as is_generated_by_ai
                 FROM events_user
                 WHERE id = :user_event_id
