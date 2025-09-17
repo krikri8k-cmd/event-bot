@@ -49,6 +49,11 @@ jobs:
       run: |
         python -c "
         import os
+        
+        # Устанавливаем минимальные переменные для тестирования
+        os.environ['DATABASE_URL'] = 'postgresql://test:test@localhost/test'
+        os.environ['TELEGRAM_TOKEN'] = 'test_token'
+        
         from config import load_settings
         
         # Проверяем что конфиг загружается
@@ -57,6 +62,7 @@ jobs:
             print('✅ Configuration loaded successfully')
             print(f'   BaliForum enabled: {settings.enable_baliforum}')
             print(f'   AI parsing enabled: {settings.ai_parse_enable}')
+            print('   (Using test environment variables)')
         except Exception as e:
             print(f'❌ Config error: {e}')
             exit(1)
