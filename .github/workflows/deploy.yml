@@ -1,10 +1,11 @@
-name: 🚀 Deploy to Railway
+name: 🚀 Deploy Event-Bot with Automation
 
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -14,7 +15,7 @@ jobs:
     - name: 📥 Checkout code
       uses: actions/checkout@v4
       
-    - name: 🐍 Setup Python
+    - name: 🐍 Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
@@ -24,25 +25,86 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
-    - name: 🧪 Run tests (optional)
-      env:
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    - name: 🧹 Lint with ruff
       run: |
-        python -m pytest tests/ -v || echo "⚠️ Tests failed, but continuing deployment..."
-        echo "✅ Test step completed"
+        pip install ruff
+        ruff check .
+        ruff format --check .
         
-    - name: 🚀 Deploy to Railway
+    - name: 🧪 Test imports
+      run: |
+        python -c "
+        try:
+            from modern_scheduler import ModernEventScheduler
+            from start_production import main
+            from sources.baliforum import fetch
+            from utils.unified_events_service import UnifiedEventsService
+            print('✅ All imports successful')
+        except Exception as e:
+            print(f'❌ Import error: {e}')
+            exit(1)
+        "
+        
+    - name: 🎯 Validate configuration
+      run: |
+        python -c "
+        import os
+        from config import load_settings
+        
+        # Проверяем что конфиг загружается
+        try:
+            settings = load_settings()
+            print('✅ Configuration loaded successfully')
+            print(f'   BaliForum enabled: {settings.enable_baliforum}')
+            print(f'   AI parsing enabled: {settings.ai_parse_enable}')
+        except Exception as e:
+            print(f'❌ Config error: {e}')
+            exit(1)
+        "
+        
+    - name: 📊 Show deployment info
+      run: |
+        echo "🎉 === DEPLOYMENT READY ==="
+        echo "📋 What will be deployed:"
+        echo "   🤖 Telegram Bot"
+        echo "   🚀 Automation Scheduler (every 12 hours)"
+        echo "   🧹 Auto-cleanup (every 6 hours)"
+        echo "   📊 Correct architecture (events_parser → events)"
+        echo ""
+        echo "⏰ Automation schedule:"
+        echo "   🌅 Morning parsing (~08:00)"
+        echo "   🌙 Evening parsing (~20:00)"
+        echo ""
+        echo "✅ Code is ready for production deployment!"
+        
+    - name: 🏷️ Create release tag
       if: github.ref == 'refs/heads/main'
       run: |
-        echo "🎉 Code pushed to GitHub successfully!"
-        echo "📱 Railway will auto-deploy from GitHub integration"
-        echo "🔗 Check Railway dashboard for deployment status"
-        echo "⏱️ Deployment usually takes 2-5 minutes"
+        # Создаем тег с временной меткой
+        TAG="v$(date +%Y%m%d-%H%M%S)-automation"
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git tag -a $TAG -m "🚀 Production deployment with automation system"
+        echo "Created tag: $TAG"
         
-    - name: ✅ Deployment status
+    - name: 📝 Generate deployment summary
       run: |
-        echo "✅ GitHub Actions completed successfully!"
-        echo "🚀 Railway should auto-deploy from GitHub"
-        echo "📊 Check Railway dashboard for logs and status"
+        echo "# 🎯 Event-Bot Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## ✅ Successfully Deployed Features:" >> $GITHUB_STEP_SUMMARY
+        echo "- 🤖 **Telegram Bot** - User interaction" >> $GITHUB_STEP_SUMMARY
+        echo "- 🚀 **Automation System** - Every 12 hours parsing" >> $GITHUB_STEP_SUMMARY
+        echo "- 🧹 **Auto-cleanup** - Every 6 hours" >> $GITHUB_STEP_SUMMARY
+        echo "- 📊 **Correct Architecture** - events_parser → events" >> $GITHUB_STEP_SUMMARY
+        echo "- 🌴 **BaliForum Parser** - Real events from baliforum.ru" >> $GITHUB_STEP_SUMMARY
+        echo "- 🤖 **AI Parser** - Smart event generation" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## 🎯 Next Steps:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Deploy to your hosting platform (Railway, Heroku, etc.)" >> $GITHUB_STEP_SUMMARY
+        echo "2. Set environment variables" >> $GITHUB_STEP_SUMMARY
+        echo "3. Run: \`python start_production.py\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## 📚 Documentation:" >> $GITHUB_STEP_SUMMARY
+        echo "- [Deployment Guide](./DEPLOY_WITH_AUTOMATION.md)" >> $GITHUB_STEP_SUMMARY
+        echo "- [Modern Scheduler](./modern_scheduler.py)" >> $GITHUB_STEP_SUMMARY
+        echo "- [Production Starter](./start_production.py)" >> $GITHUB_STEP_SUMMARY

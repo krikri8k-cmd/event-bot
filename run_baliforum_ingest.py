@@ -14,9 +14,9 @@ from dotenv import load_dotenv
 sys.path.append(".")
 
 from database import get_engine, init_engine
-from ingest.upsert import upsert_event
 from sources.baliforum import fetch
 from utils.structured_logging import StructuredLogger
+from utils.unified_events_service import UnifiedEventsService
 
 
 def run_baliforum_ingest():
@@ -29,6 +29,7 @@ def run_baliforum_ingest():
     database_url = os.getenv("DATABASE_URL")
     init_engine(database_url)
     engine = get_engine()
+    service = UnifiedEventsService(engine)
 
     try:
         # Получаем события
@@ -49,23 +50,24 @@ def run_baliforum_ingest():
                         skipped_no_coords += 1
                         continue
 
-                    row = {
-                        "source": "baliforum",
-                        "external_id": event.external_id or event.url.split("/")[-1],
-                        "url": event.url,
-                        "title": event.title,
-                        "starts_at": event.starts_at,
-                        "ends_at": None,
-                        "lat": event.lat,
-                        "lng": event.lng,
-                        "location_name": "",
-                        "location_url": "",
-                        "city": "bali",
-                        "country": "ID",
-                    }
+                    # ПРАВИЛЬНАЯ АРХИТЕКТУРА: Сохраняем через UnifiedEventsService
+                    # Сначала в events_parser, потом автоматически синхронизируется в events
+                    event_id = service.save_parser_event(
+                        source="baliforum",
+                        external_id=event.external_id or event.url.split("/")[-1],
+                        title=event.title,
+                        description=event.description,
+                        starts_at_utc=event.starts_at,
+                        city="bali",
+                        lat=event.lat,
+                        lng=event.lng,
+                        location_name=event.description or "",
+                        location_url="",
+                        url=event.url,
+                    )
 
-                    upsert_event(engine, row)
-                    saved_count += 1
+                    if event_id:
+                        saved_count += 1
 
                 except Exception as e:
                     print(f"    ❌ Ошибка сохранения события: {e}")

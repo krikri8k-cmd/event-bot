@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+"""
+Современный планировщик для автоматического пополнения событий
+Использует новую архитектуру с UnifiedEventsService
+"""
+
+import logging
+import time
+
+from apscheduler.schedulers.background import BackgroundScheduler
+
+from config import load_settings
+from database import get_engine, init_engine
+from sources.baliforum import fetch as fetch_baliforum
+from utils.unified_events_service import UnifiedEventsService
+
+logger = logging.getLogger(__name__)
+
+
+class ModernEventScheduler:
+    """Современный планировщик событий"""
+
+    def __init__(self):
+        self.settings = load_settings()
+        init_engine(self.settings.database_url)
+        self.engine = get_engine()
+        self.service = UnifiedEventsService(self.engine)
+        self.scheduler = None
+
+    def ingest_baliforum(self):
+        """Парсинг событий с BaliForum через правильную архитектуру"""
+        if not self.settings.enable_baliforum:
+            logger.info("🌴 BaliForum отключен в настройках")
+            return
+
+        try:
+            logger.info("🌴 Запуск парсинга BaliForum...")
+            start_time = time.time()
+
+            # Получаем события
+            raw_events = fetch_baliforum(limit=50)
+
+            saved_count = 0
+            skipped_no_coords = 0
+            error_count = 0
+
+            for event in raw_events:
+                try:
+                    # Проверяем координаты (как в оригинальном парсере)
+                    if not event.lat or not event.lng:
+                        skipped_no_coords += 1
+                        continue
+
+                    # ПРАВИЛЬНАЯ АРХИТЕКТУРА: Сохраняем через UnifiedEventsService
+                    # Сначала в events_parser, потом автоматически синхронизируется в events
+                    event_id = self.service.save_parser_event(
+                        source="baliforum",
+                        external_id=event.external_id or event.url.split("/")[-1],
+                        title=event.title,
+                        description=event.description,
+                        starts_at_utc=event.starts_at,
+                        city="bali",
+                        lat=event.lat,
+                        lng=event.lng,
+                        location_name=event.description or "",
+                        location_url="",
+                        url=event.url,
+                    )
+
+                    if event_id:
+                        saved_count += 1
+
+                except Exception as e:
+                    error_count += 1
+                    logger.error(f"   ❌ Ошибка сохранения события '{event.title}': {e}")
+
+            duration = (time.time() - start_time) * 1000
+            logger.info(
+                f"   ✅ BaliForum: сохранено={saved_count}, "
+                f"пропущено без координат={skipped_no_coords}, "
+                f"ошибок={error_count}, время={duration:.0f}мс"
+            )
+
+        except Exception as e:
+            logger.error(f"   ❌ Ошибка парсинга BaliForum: {e}")
+
+    async def ingest_ai_events(self):
+        """Генерация AI событий через правильную архитектуру"""
+        if not self.settings.ai_parse_enable:
+            logger.info("🤖 AI парсинг отключен в настройках")
+            return
+
+        try:
+            logger.info("🤖 Запуск AI генерации событий...")
+            start_time = time.time()
+
+            # Координаты центра Бали
+            bali_coords = [
+                (-8.6705, 115.2126),  # Denpasar
+                (-8.5069, 115.2625),  # Ubud
+                (-8.6482, 115.1342),  # Canggu
+                (-8.7089, 115.1681),  # Seminyak
+            ]
+
+            import hashlib
+            from datetime import datetime
+
+            from ai_utils import fetch_ai_events_nearby
+
+            total_ai_events = 0
+            error_count = 0
+
+            for lat, lng in bali_coords:
+                try:
+                    ai_events = await fetch_ai_events_nearby(lat, lng)
+
+                    for event in ai_events:
+                        try:
+                            # Парсим время
+                            starts_at = datetime.strptime(event["time_local"], "%Y-%m-%d %H:%M")
+
+                            # Создаем стабильный external_id
+                            raw_id = f"ai_{event['title']}_{event['time_local']}_{lat}_{lng}"
+                            external_id = hashlib.sha1(raw_id.encode()).hexdigest()[:16]
+
+                            # ПРАВИЛЬНАЯ АРХИТЕКТУРА: Сохраняем через UnifiedEventsService
+                            event_id = self.service.save_parser_event(
+                                source="ai",
+                                external_id=external_id,
+                                title=event["title"],
+                                description=event.get("description", ""),
+                                starts_at_utc=starts_at,
+                                city="bali",
+                                lat=event["lat"],
+                                lng=event["lng"],
+                                location_name=event.get("location_name", ""),
+                                location_url=event.get("location_url", ""),
+                                url=event.get("community_link", ""),
+                            )
+
+                            if event_id:
+                                total_ai_events += 1
+
+                        except Exception as e:
+                            error_count += 1
+                            logger.error(f"   ❌ Ошибка сохранения AI события '{event.get('title', 'Unknown')}': {e}")
+
+                except Exception as e:
+                    error_count += 1
+                    logger.error(f"   ❌ Ошибка AI парсинга для ({lat}, {lng}): {e}")
+
+            duration = (time.time() - start_time) * 1000
+            logger.info(f"   ✅ AI: создано={total_ai_events}, ошибок={error_count}, время={duration:.0f}мс")
+
+        except Exception as e:
+            logger.error(f"   ❌ Ошибка AI парсинга: {e}")
+
+    def cleanup_old_events(self):
+        """Очистка старых событий"""
+        try:
+            logger.info("🧹 Очистка старых событий...")
+
+            cities = ["bali", "moscow", "spb"]
+            total_deleted = 0
+
+            for city in cities:
+                deleted = self.service.cleanup_old_events(city)
+                total_deleted += deleted
+
+            logger.info(f"   ✅ Очищено {total_deleted} старых событий")
+
+        except Exception as e:
+            logger.error(f"   ❌ Ошибка очистки: {e}")
+
+    def run_full_ingest(self):
+        """Полный цикл обновления событий"""
+        logger.info("🚀 === НАЧАЛО ЦИКЛА ОБНОВЛЕНИЯ СОБЫТИЙ ===")
+        start_time = time.time()
+
+        # 1. Парсим BaliForum
+        self.ingest_baliforum()
+
+        # 2. Генерируем AI события (если включено)
+        if self.settings.ai_generate_synthetic:
+            import asyncio
+
+            asyncio.run(self.ingest_ai_events())
+
+        # 3. Очищаем старые события
+        self.cleanup_old_events()
+
+        duration = time.time() - start_time
+        logger.info(f"✅ === ЦИКЛ ЗАВЕРШЕН ЗА {duration:.1f}с ===")
+
+    def start(self):
+        """Запуск планировщика"""
+        if self.scheduler and self.scheduler.running:
+            logger.warning("⚠️ Планировщик уже запущен")
+            return
+
+        self.scheduler = BackgroundScheduler(timezone="UTC")
+
+        # Основной цикл каждые 12 часов (2 раза в день)
+        self.scheduler.add_job(
+            self.run_full_ingest, "interval", hours=12, id="modern-ingest-cycle", max_instances=1, coalesce=True
+        )
+
+        # Очистка старых событий каждые 6 часов
+        self.scheduler.add_job(
+            self.cleanup_old_events, "interval", hours=6, id="cleanup-cycle", max_instances=1, coalesce=True
+        )
+
+        self.scheduler.start()
+        logger.info("🚀 Современный планировщик запущен!")
+        logger.info("   📅 Полный цикл: каждые 12 часов (2 раза в день)")
+        logger.info("   🧹 Очистка: каждые 6 часов")
+
+        # Запускаем первый цикл сразу
+        self.run_full_ingest()
+
+    def stop(self):
+        """Остановка планировщика"""
+        if self.scheduler and self.scheduler.running:
+            self.scheduler.shutdown()
+            logger.info("🛑 Планировщик остановлен")
+
+
+# Глобальный экземпляр
+_modern_scheduler = None
+
+
+def get_modern_scheduler() -> ModernEventScheduler:
+    """Получить экземпляр современного планировщика"""
+    global _modern_scheduler
+    if _modern_scheduler is None:
+        _modern_scheduler = ModernEventScheduler()
+    return _modern_scheduler
+
+
+def start_modern_scheduler():
+    """Запустить современный планировщик"""
+    scheduler = get_modern_scheduler()
+    scheduler.start()
+
+
+if __name__ == "__main__":
+    # Ручной запуск для тестирования
+    logging.basicConfig(level=logging.INFO)
+    scheduler = ModernEventScheduler()
+    scheduler.run_full_ingest()
