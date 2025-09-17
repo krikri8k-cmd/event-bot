@@ -35,7 +35,8 @@ from simple_status_manager import (
     get_status_change_buttons,
     get_user_events,
 )
-from utils.geo_utils import haversine_km, static_map_url
+from utils.geo_utils import haversine_km
+from utils.static_map import build_static_map_url, fetch_static_map
 from utils.unified_events_service import UnifiedEventsService
 
 
@@ -1605,104 +1606,99 @@ async def on_location(message: types.Message):
                 else:
                     logger.warning(f"Событие {i}: отсутствуют координаты")
 
-            # Увеличиваем размер карты для отображения всех событий
-            map_url = static_map_url(lat, lng, points, size="800x600", zoom=14)
+            # УНИВЕРСАЛЬНЫЙ ФОЛБЭК: пробуем карту, если не получается - отправляем без неё
 
-            # --- DEBUG: persist & log map url ---
-            from pathlib import Path
+            # Создаем расширенную ссылку на Google Maps с информацией о событиях
+            maps_url = create_enhanced_google_maps_url(lat, lng, prepared[:12])
 
-            try:
-                Path("last_map_url.txt").write_text(map_url, encoding="utf-8")
-            except Exception as e:
-                logger.warning("Cannot write last_map_url.txt: %s", e)
-            logger.info("Map URL: %s", map_url)
-            print(f"MAP_URL={map_url}")
-            # --- END DEBUG ---
+            # Создаем кнопки для расширения радиуса
+            keyboard_buttons = [[InlineKeyboardButton(text="🗺️ Открыть в Google Maps с событиями", url=maps_url)]]
 
-            if map_url and map_url.startswith("http"):
-                try:
-                    # Создаем инлайн клавиатуру с ссылкой на Google Maps
+            # Всегда добавляем кнопки расширения радиуса для лучшего UX
+            current_radius = int(settings.default_radius_km)
+            radius_step = int(settings.radius_step_km)
+            max_radius = int(settings.max_radius_km)
 
-                    # Создаем расширенную ссылку на Google Maps с информацией о событиях
-                    maps_url = create_enhanced_google_maps_url(lat, lng, prepared[:12])
-
-                    # Создаем кнопки для расширения радиуса, если событий мало
-                    keyboard_buttons = [
-                        [InlineKeyboardButton(text="🗺️ Открыть в Google Maps с событиями", url=maps_url)]
-                    ]
-
-                    # Всегда добавляем кнопки расширения радиуса для лучшего UX
-                    # Пользователь должен понимать, что можно расширить поиск
-                    current_radius = int(settings.default_radius_km)
-                    radius_step = int(settings.radius_step_km)
-                    max_radius = int(settings.max_radius_km)
-
-                    # Создаем кнопки для расширения радиуса
-                    next_radius = current_radius + radius_step
-                    while next_radius <= max_radius:
-                        keyboard_buttons.append(
-                            [
-                                InlineKeyboardButton(
-                                    text=f"🔍 Расширить до {next_radius} км",
-                                    callback_data=f"rx:{next_radius}",
-                                )
-                            ]
+            # Создаем кнопки для расширения радиуса
+            next_radius = current_radius + radius_step
+            while next_radius <= max_radius:
+                keyboard_buttons.append(
+                    [
+                        InlineKeyboardButton(
+                            text=f"🔍 Расширить до {next_radius} км",
+                            callback_data=f"rx:{next_radius}",
                         )
-                        next_radius += radius_step
+                    ]
+                )
+                next_radius += radius_step
 
-                    inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+            inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
-                    # Удаляем сообщение загрузки
-                    try:
-                        await loading_message.delete()
-                    except Exception:
-                        pass
+            # Пробуем получить изображение карты (с circuit breaker)
+            map_bytes = None
+            if settings.google_maps_api_key and points:
+                # Конвертируем points в нужный формат для новой функции
+                event_points = [(p[1], p[2]) for p in points]  # (lat, lng)
+                map_bytes = await fetch_static_map(
+                    build_static_map_url(lat, lng, event_points, settings.google_maps_api_key)
+                )
 
-                    # Отправляем карту с краткой подписью
+            # Короткая подпись для карты/сообщения
+            caption = f"🗺️ **В радиусе {radius} км найдено: {len(events)}**\n"
+            caption += f"• 🌟 Мгновенные: {counts.get('moments', 0)}\n"
+            caption += f"• 👥 От пользователей: {counts.get('user', 0)}\n"
+            caption += f"• 🌐 Из источников: {counts.get('source', 0)}"
+
+            # Удаляем сообщение загрузки
+            try:
+                await loading_message.delete()
+            except Exception:
+                pass
+
+            # Отправляем ответ (с картой или без)
+            try:
+                if map_bytes:
+                    # Отправляем с изображением карты
+                    from aiogram.types import BufferedInputFile
+
+                    map_file = BufferedInputFile(map_bytes, filename="map.png")
                     await message.answer_photo(
-                        map_url,
-                        caption=short_caption,
+                        map_file,
+                        caption=caption,
                         reply_markup=inline_kb,
                         parse_mode="HTML",
                     )
+                    logger.info("✅ Карта отправлена успешно")
+                else:
+                    # Отправляем без карты (graceful fallback)
+                    await message.answer(
+                        caption,
+                        reply_markup=inline_kb,
+                        parse_mode="HTML",
+                    )
+                    logger.info("✅ События отправлены без карты (graceful fallback)")
 
-                    # Отправляем компактный список событий отдельным сообщением
-                    try:
-                        await send_compact_events_list(message, events, lat, lng, page=0, user_radius=radius)
-                        logger.info("✅ Компактный список событий отправлен")
-                    except Exception as e:
-                        logger.error(f"❌ Ошибка отправки компактного списка: {e}")
-                        # Fallback - отправляем краткий список
-                        await message.answer(
-                            f"📋 **Все {len(events)} событий:**\n\n"
-                            f"💡 Нажми кнопку '🗺️ Открыть в Google Maps с событиями' выше "
-                            f"чтобы увидеть полную информацию о каждом событии!",
-                            parse_mode="Markdown",
-                            reply_markup=main_menu_kb(),
-                        )
-                except Exception as e:
-                    logger.exception("Failed to send map image, will send URL as text: %s", e)
-                    await message.answer(f"Не удалось загрузить изображение карты. Вот URL для проверки:\n{map_url}")
-            else:
-                # Если карта не сгенерировалась, отправляем только список событий
-                # Удаляем сообщение загрузки
-                try:
-                    await loading_message.delete()
-                except Exception:
-                    pass
-
+                # Отправляем компактный список событий отдельным сообщением
                 try:
                     await send_compact_events_list(message, events, lat, lng, page=0, user_radius=radius)
-                    logger.info("✅ Компактный список событий отправлен (без карты)")
+                    logger.info("✅ Компактный список событий отправлен")
                 except Exception as e:
                     logger.error(f"❌ Ошибка отправки компактного списка: {e}")
                     # Fallback - отправляем краткий список
                     await message.answer(
                         f"📋 **Все {len(events)} событий:**\n\n"
-                        f"💡 К сожалению, карта не загрузилась, но все события найдены!",
+                        f"💡 Нажми кнопку '🗺️ Открыть в Google Maps с событиями' выше "
+                        f"чтобы увидеть полную информацию о каждом событии!",
                         parse_mode="Markdown",
                         reply_markup=main_menu_kb(),
                     )
+
+            except Exception as e:
+                logger.error(f"❌ Ошибка отправки ответа: {e}")
+                # Критический fallback - простое сообщение
+                await message.answer(
+                    f"📋 Найдено {len(events)} событий в радиусе {radius} км", reply_markup=main_menu_kb()
+                )
 
         except Exception:
             logger.exception(

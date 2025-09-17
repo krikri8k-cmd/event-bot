@@ -68,6 +68,12 @@ class Settings:
     today_show_top: int
     cache_ttl_s: int
 
+    # Maps settings
+    maps_enabled: bool
+    maps_timeout_s: float
+    maps_cb_fails: int
+    maps_cb_cooldown_min: int
+
 
 def _parse_admin_ids(value: str | None) -> set[int]:
     if not value:
@@ -204,4 +210,9 @@ def load_settings(require_bot: bool = False) -> Settings:
         today_max_events=today_max_events,
         today_show_top=today_show_top,
         cache_ttl_s=cache_ttl_s,
+        # Maps settings
+        maps_enabled=bool(os.getenv("MAPS_ENABLED", "true").lower() == "true"),
+        maps_timeout_s=float(os.getenv("MAPS_TIMEOUT_S", "3.5")),
+        maps_cb_fails=int(os.getenv("MAPS_CB_FAILS", "3")),
+        maps_cb_cooldown_min=int(os.getenv("MAPS_CB_COOLDOWN_MIN", "60")),
     )
