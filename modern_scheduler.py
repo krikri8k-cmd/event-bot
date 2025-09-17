@@ -84,6 +84,86 @@ class ModernEventScheduler:
         except Exception as e:
             logger.error(f"   ❌ Ошибка парсинга BaliForum: {e}")
 
+    async def ingest_kudago(self):
+        """Парсинг событий с KudaGo через правильную архитектуру"""
+        try:
+            from config import load_settings
+
+            settings = load_settings()
+
+            if not settings.kudago_enabled:
+                logger.info("🎭 KudaGo отключен в настройках")
+                return
+
+            logger.info("🎭 Запуск парсинга KudaGo...")
+            start_time = time.time()
+
+            # Координаты центров городов для парсинга
+            cities_coords = [
+                (55.7558, 37.6173, "moscow"),  # Москва
+                (59.9343, 30.3351, "spb"),  # СПб
+            ]
+
+            total_saved = 0
+            total_errors = 0
+
+            from sources.kudago_source import KudaGoSource
+
+            kudago_source = KudaGoSource()
+
+            for lat, lng, city in cities_coords:
+                try:
+                    logger.info(f"   🌍 Парсим {city}...")
+
+                    # Получаем события через KudaGo источник
+                    events = await kudago_source.fetch_events(lat, lng, 50)  # 50км радиус для города
+
+                    saved_count = 0
+                    error_count = 0
+
+                    for event in events:
+                        try:
+                            # ПРАВИЛЬНАЯ АРХИТЕКТУРА: Сохраняем через UnifiedEventsService
+                            event_id = self.service.save_parser_event(
+                                source="kudago",
+                                external_id=str(event.get("source_id", event.get("title", ""))),
+                                title=event["title"],
+                                description=event.get("description", ""),
+                                starts_at_utc=event["starts_at"],
+                                city=event["city"],
+                                lat=event.get("lat", 0.0),
+                                lng=event.get("lon", 0.0),
+                                location_name=event.get("venue_name", ""),
+                                location_url=event.get("address", ""),
+                                url=event.get("source_url", ""),
+                            )
+
+                            if event_id:
+                                saved_count += 1
+
+                        except Exception as e:
+                            error_count += 1
+                            logger.error(
+                                f"   ❌ Ошибка сохранения KudaGo события '{event.get('title', 'Unknown')}': {e}"
+                            )
+
+                    total_saved += saved_count
+                    total_errors += error_count
+
+                    logger.info(f"   ✅ {city}: сохранено={saved_count}, ошибок={error_count}")
+
+                except Exception as e:
+                    total_errors += 1
+                    logger.error(f"   ❌ Ошибка парсинга {city}: {e}")
+
+            duration = (time.time() - start_time) * 1000
+            logger.info(
+                f"   ✅ KudaGo: всего сохранено={total_saved}, " f"ошибок={total_errors}, время={duration:.0f}мс"
+            )
+
+        except Exception as e:
+            logger.error(f"   ❌ Ошибка парсинга KudaGo: {e}")
+
     async def ingest_ai_events(self):
         """Генерация AI событий через правильную архитектуру"""
         if not self.settings.ai_parse_enable:
@@ -180,13 +260,16 @@ class ModernEventScheduler:
         # 1. Парсим BaliForum
         self.ingest_baliforum()
 
-        # 2. Генерируем AI события (если включено)
-        if self.settings.ai_generate_synthetic:
-            import asyncio
+        # 2. Парсим KudaGo (Москва и СПб)
+        import asyncio
 
+        asyncio.run(self.ingest_kudago())
+
+        # 3. Генерируем AI события (если включено)
+        if self.settings.ai_generate_synthetic:
             asyncio.run(self.ingest_ai_events())
 
-        # 3. Очищаем старые события
+        # 4. Очищаем старые события
         self.cleanup_old_events()
 
         duration = time.time() - start_time
@@ -213,6 +296,7 @@ class ModernEventScheduler:
         self.scheduler.start()
         logger.info("🚀 Современный планировщик запущен!")
         logger.info("   📅 Полный цикл: каждые 12 часов (2 раза в день)")
+        logger.info("   🌴 BaliForum (Бали) + 🎭 KudaGo (Москва, СПб)")
         logger.info("   🧹 Очистка: каждые 6 часов")
 
         # Запускаем первый цикл сразу
