@@ -364,28 +364,30 @@ class UnifiedEventsService:
                 event_id = result.fetchone()[0]
                 print(f"✅ Создано парсерное событие ID {event_id}: '{title}'")
 
-            # 2. Синхронизируем в events (простая вставка без ON CONFLICT)
-            sync_query = text("""
-                INSERT INTO events (
-                    source, external_id, title, description, starts_at, ends_at,
-                    url, location_name, location_url, lat, lng, country, city,
-                    created_at_utc, updated_at_utc, is_generated_by_ai
-                )
-                SELECT
-                    source, external_id, title, description, starts_at, NULL as ends_at,
-                    url, location_name, location_url, lat, lng, country, city,
-                    NOW(), NOW(), :is_ai
-                FROM events_parser
-                WHERE source = :source AND external_id = :external_id
-            """)
+        # 2. Синхронизируем в events в отдельной транзакции
+        try:
+            with self.engine.begin() as sync_conn:
+                sync_query = text("""
+                    INSERT INTO events (
+                        source, external_id, title, description, starts_at, ends_at,
+                        url, location_name, location_url, lat, lng, country, city,
+                        created_at_utc, updated_at_utc, is_generated_by_ai
+                    )
+                    SELECT
+                        source, external_id, title, description, starts_at, NULL as ends_at,
+                        url, location_name, location_url, lat, lng, country, city,
+                        NOW(), NOW(), :is_ai
+                    FROM events_parser
+                    WHERE source = :source AND external_id = :external_id
+                """)
 
-            try:
-                conn.execute(sync_query, {"source": source, "external_id": external_id, "is_ai": is_ai})
-            except Exception as e:
-                # Игнорируем ошибки дублирования - событие уже есть в основной таблице
-                print(f"⚠️ Событие уже синхронизировано: {e}")
+                sync_conn.execute(sync_query, {"source": source, "external_id": external_id, "is_ai": is_ai})
 
-            return event_id
+        except Exception as e:
+            # Игнорируем ошибки дублирования - событие уже есть в основной таблице
+            print(f"⚠️ Событие уже синхронизировано: {e}")
+
+        return event_id
 
     def cleanup_old_events(self, city: str) -> int:
         """Очистка старых событий из всех таблиц"""
