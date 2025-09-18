@@ -129,8 +129,15 @@ def _ru_date_to_dt(label: str, now: datetime, tz: ZoneInfo) -> tuple[datetime | 
 
         start_dt = end_dt = None
 
+        # Если день не найден, но есть время - считаем что событие сегодня
+        if not day:
+            # Проверяем, есть ли время в оригинальной строке
+            if _parse_time(original_label):
+                day = now.date()
+                print(f"DEBUG: _ru_date_to_dt: no date found but time exists, using today: '{original_label}'")
+
         if day:
-            if "весь день" in label:
+            if "весь день" in label or "весь день" in original_label:
                 start_dt = datetime.combine(day, datetime.min.time(), tz)
                 end_dt = start_dt + timedelta(hours=23, minutes=59)
             else:

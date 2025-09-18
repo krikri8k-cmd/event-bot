@@ -343,6 +343,17 @@ class UnifiedEventsService:
                     VALUES
                     (:source, :external_id, :title, :description, :starts_at, :city, :lat, :lng,
                      :location_name, :location_url, :url, :country)
+                    ON CONFLICT (source, external_id) DO UPDATE SET
+                        title = EXCLUDED.title,
+                        description = EXCLUDED.description,
+                        starts_at = EXCLUDED.starts_at,
+                        city = EXCLUDED.city,
+                        lat = EXCLUDED.lat,
+                        lng = EXCLUDED.lng,
+                        location_name = EXCLUDED.location_name,
+                        location_url = EXCLUDED.location_url,
+                        url = EXCLUDED.url,
+                        country = EXCLUDED.country
                     RETURNING id
                 """),
                     {
@@ -379,6 +390,19 @@ class UnifiedEventsService:
                         NOW(), NOW(), :is_ai
                     FROM events_parser
                     WHERE source = :source AND external_id = :external_id
+                    ON CONFLICT (source, external_id) DO UPDATE SET
+                        title = EXCLUDED.title,
+                        description = EXCLUDED.description,
+                        starts_at = EXCLUDED.starts_at,
+                        ends_at = EXCLUDED.ends_at,
+                        url = EXCLUDED.url,
+                        location_name = EXCLUDED.location_name,
+                        location_url = EXCLUDED.location_url,
+                        lat = EXCLUDED.lat,
+                        lng = EXCLUDED.lng,
+                        country = EXCLUDED.country,
+                        city = EXCLUDED.city,
+                        updated_at_utc = NOW()
                 """)
 
                 sync_conn.execute(sync_query, {"source": source, "external_id": external_id, "is_ai": is_ai})
