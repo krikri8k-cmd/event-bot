@@ -831,6 +831,8 @@ def render_event_html(e: dict, idx: int) -> str:
             except Exception:
                 pass
 
+    logger.info(f"🕐 render_event_html ИТОГ: title={title}, when='{when}', dist={dist}")
+
     return f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n📍 {venue_display}\n{src_part}  {map_part}\n"
 
 
