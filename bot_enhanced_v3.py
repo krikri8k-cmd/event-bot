@@ -2587,11 +2587,32 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
         # Объединяем дату и время
         time_local = f"{data['date']} {data['time']}"
 
-        # Парсим дату и время для starts_at
+        # Определяем предварительный город (для правильного часового пояса)
+        # Позже будет уточнен по координатам
+        preliminary_city = "bali"  # По умолчанию Бали
+
+        # Парсим дату и время для starts_at с учетом часового пояса
         from datetime import datetime
 
+        import pytz
+
         try:
-            starts_at = datetime.strptime(time_local, "%d.%m.%Y %H:%M")
+            # Парсим время как локальное для региона
+            naive_dt = datetime.strptime(time_local, "%d.%m.%Y %H:%M")
+
+            # Определяем часовой пояс по городу
+            if preliminary_city == "bali":
+                tz = pytz.timezone("Asia/Makassar")
+            elif preliminary_city in ["moscow", "spb"]:
+                tz = pytz.timezone("Europe/Moscow")
+            else:
+                tz = pytz.UTC
+
+            # Локализуем время и конвертируем в UTC
+            local_dt = tz.localize(naive_dt)
+            starts_at = local_dt.astimezone(pytz.UTC)
+
+            logger.info(f"🕐 Время события: {time_local} ({preliminary_city}) → {starts_at} UTC")
         except ValueError:
             starts_at = None
 
