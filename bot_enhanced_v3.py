@@ -741,12 +741,11 @@ def render_event_html(e: dict, idx: int) -> str:
 
     logger.info(f"🕐 render_event_html: title={title}, when_str='{when}', starts_at={e.get('starts_at')}")
 
-    # Если when_str пустое, пробуем сформировать время из starts_at
-    if not when and e.get("starts_at"):
-        city = e.get("city", "bali")
-        logger.info(f"🕐 render_event_html: when_str пустое, пробуем starts_at={e.get('starts_at')}")
-        when = format_event_time(e.get("starts_at"), city)
-        logger.info(f"🕐 render_event_html: получили when={when}")
+    # Если when_str пустое, используем новую функцию human_when
+    if not when:
+        region = e.get("city", "bali")
+        when = human_when(e, region)
+        logger.info(f"🕐 render_event_html: использовали human_when, получили when='{when}'")
     dist = f"{e['distance_km']:.1f} км" if e.get("distance_km") is not None else ""
 
     # Определяем тип события, если не установлен
@@ -1301,6 +1300,40 @@ async def send_spinning_menu(message):
             await menu_message.edit_text("🎯", reply_markup=main_menu_kb())
         except Exception:
             pass
+
+
+def human_when(event: dict, region: str) -> str:
+    """Возвращает '14:30' или пустую строку, если времени нет"""
+    from datetime import datetime
+
+    import pytz
+
+    REGION_TZ = {
+        "bali": "Asia/Makassar",
+        "moscow": "Europe/Moscow",
+        "spb": "Europe/Moscow",
+    }
+
+    dt_utc = event.get("starts_at") or event.get("start_time")  # подстраховка
+    if not dt_utc:
+        return ""
+
+    if isinstance(dt_utc, str):
+        # на всякий случай – ISO в БД могут прийти строкой
+        try:
+            dt_utc = datetime.fromisoformat(dt_utc.replace("Z", "+00:00"))
+        except Exception:
+            return ""
+
+    try:
+        tz = pytz.timezone(REGION_TZ.get(region, "UTC"))
+        local = dt_utc.astimezone(tz)
+        # если у источника была только дата без времени → не печатаем 00:00
+        if not (local.hour == 0 and local.minute == 0):
+            return local.strftime("%H:%M")
+        return ""
+    except Exception:
+        return ""
 
 
 def format_event_time(starts_at, city="bali") -> str:
@@ -2779,6 +2812,8 @@ async def handle_expand_radius(callback: types.CallbackQuery):
                     "title": event.get("title", ""),
                     "description": event.get("description", ""),
                     "start_time": event.get("starts_at"),
+                    "starts_at": event.get("starts_at"),  # Добавляем поле starts_at!
+                    "city": event.get("city", "bali"),  # Добавляем город!
                     "venue_name": event.get("location_name", ""),
                     "address": event.get("location_url", ""),
                     "lat": event.get("lat"),
