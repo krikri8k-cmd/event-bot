@@ -1913,7 +1913,7 @@ async def on_my_events(message: types.Message):
     # Отправляем первое событие с кнопками управления
     if events:
         first_event = events[0]
-        text = f"📋 **Ваши события:**\n\n{format_event_for_display(first_event)}"
+        text = f"📋 Ваши события:\n\n{format_event_for_display(first_event)}"
 
         # Создаем кнопки управления
         buttons = get_status_change_buttons(first_event["id"], first_event["status"])
@@ -1927,7 +1927,7 @@ async def on_my_events(message: types.Message):
         if len(events) > 1:
             keyboard.inline_keyboard.append([InlineKeyboardButton(text="➡️ Следующее", callback_data="next_event_1")])
 
-        await message.answer(text, parse_mode="Markdown", reply_markup=keyboard)
+        await message.answer(text, reply_markup=keyboard)
 
 
 @dp.message(Command("share"))
@@ -2544,6 +2544,35 @@ async def process_description(message: types.Message, state: FSMContext):
     """Шаг 5: Обработка описания события"""
     description = message.text.strip()
     logger.info(f"process_description: получили описание от пользователя {message.from_user.id}")
+
+    # Защита от спама - запрет ссылок и подозрительного контента в описании
+    spam_indicators = [
+        "/",
+        "http",
+        "www.",
+        ".com",
+        ".ru",
+        ".org",
+        ".net",
+        "telegram.me",
+        "t.me",
+        "@",
+        "tg://",
+        "bit.ly",
+        "goo.gl",
+    ]
+
+    description_lower = description.lower()
+    if any(indicator in description_lower for indicator in spam_indicators):
+        await message.answer(
+            "❌ В описании нельзя указывать ссылки и контакты!\n\n"
+            "📝 Пожалуйста, опишите событие своими словами:\n"
+            "• Что будет происходить\n"
+            "• Кому будет интересно\n"
+            "• Что взять с собой\n\n"
+            "Контакты можно указать после создания события."
+        )
+        return
 
     await state.update_data(description=description)
     data = await state.get_data()
@@ -4049,11 +4078,42 @@ async def handle_location_input(message: types.Message, state: FSMContext):
 @dp.message(EventEditing.waiting_for_description)
 async def handle_description_input(message: types.Message, state: FSMContext):
     """Обработка ввода нового описания"""
+    description = message.text.strip()
+
+    # Защита от спама - запрет ссылок и подозрительного контента в описании
+    spam_indicators = [
+        "/",
+        "http",
+        "www.",
+        ".com",
+        ".ru",
+        ".org",
+        ".net",
+        "telegram.me",
+        "t.me",
+        "@",
+        "tg://",
+        "bit.ly",
+        "goo.gl",
+    ]
+
+    description_lower = description.lower()
+    if any(indicator in description_lower for indicator in spam_indicators):
+        await message.answer(
+            "❌ В описании нельзя указывать ссылки и контакты!\n\n"
+            "📝 Пожалуйста, опишите событие своими словами:\n"
+            "• Что будет происходить\n"
+            "• Кому будет интересно\n"
+            "• Что взять с собой\n\n"
+            "Контакты можно указать после создания события."
+        )
+        return
+
     data = await state.get_data()
     event_id = data.get("event_id")
 
-    if event_id and message.text:
-        success = update_event_field(event_id, "description", message.text.strip(), message.from_user.id)
+    if event_id and description:
+        success = update_event_field(event_id, "description", description, message.from_user.id)
         if success:
             await message.answer("✅ Описание обновлено!")
             keyboard = edit_event_keyboard(event_id)
