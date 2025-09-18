@@ -860,6 +860,10 @@ def render_page(events: list[dict], page: int, page_size: int = 5) -> tuple[str,
     page    — 1..N
     return: (html_text, total_pages)
     """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
     if not events:
         return "Поблизости пока ничего не нашли.", 1
 
@@ -870,6 +874,7 @@ def render_page(events: list[dict], page: int, page_size: int = 5) -> tuple[str,
 
     parts = []
     for idx, e in enumerate(events[start:end], start=start + 1):
+        logger.info(f"🕐 render_page: событие {idx} - starts_at={e.get('starts_at')}, title={e.get('title')}")
         parts.append(render_event_html(e, idx))
 
     return "\n".join(parts).strip(), total_pages
