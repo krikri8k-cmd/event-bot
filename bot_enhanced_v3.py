@@ -732,13 +732,21 @@ def get_source_url(e: dict) -> str | None:
 
 def render_event_html(e: dict, idx: int) -> str:
     """Рендерит одну карточку события в HTML согласно ТЗ"""
+    import logging
+
+    logger = logging.getLogger(__name__)
+
     title = html.escape(e.get("title", "Событие"))
     when = e.get("when_str", "")
+
+    logger.info(f"🕐 render_event_html: title={title}, when_str='{when}', starts_at={e.get('starts_at')}")
 
     # Если when_str пустое, пробуем сформировать время из starts_at
     if not when and e.get("starts_at"):
         city = e.get("city", "bali")
+        logger.info(f"🕐 render_event_html: when_str пустое, пробуем starts_at={e.get('starts_at')}")
         when = format_event_time(e.get("starts_at"), city)
+        logger.info(f"🕐 render_event_html: получили when={when}")
     dist = f"{e['distance_km']:.1f} км" if e.get("distance_km") is not None else ""
 
     # Определяем тип события, если не установлен
@@ -1290,7 +1298,14 @@ async def send_spinning_menu(message):
 
 def format_event_time(starts_at, city="bali") -> str:
     """Форматирует время события для отображения"""
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    logger.info(f"🕐 format_event_time: starts_at={starts_at}, type={type(starts_at)}, city={city}")
+
     if not starts_at:
+        logger.info("🕐 starts_at пустое, возвращаем 'время уточняется'")
         return "время уточняется"
 
     try:
@@ -1496,12 +1511,16 @@ async def on_location(message: types.Message):
 
             # Конвертируем в старый формат для совместимости
             formatted_events = []
+            logger.info(f"🕐 Получили {len(events)} событий из UnifiedEventsService")
             for event in events:
+                logger.info(f"🕐 Событие: {event.get('title')} - starts_at: {event.get('starts_at')}")
                 formatted_events.append(
                     {
                         "title": event["title"],
                         "description": event["description"],
-                        "time_local": event["starts_at"].strftime("%Y-%m-%d %H:%M"),
+                        "time_local": event["starts_at"].strftime("%Y-%m-%d %H:%M") if event["starts_at"] else None,
+                        "starts_at": event["starts_at"],  # Добавляем поле starts_at!
+                        "city": event.get("city", "bali"),  # Добавляем город для правильного форматирования времени
                         "location_name": event["location_name"],
                         "location_url": event["location_url"],
                         "lat": event["lat"],
