@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-# DEPRECATED: not used since 2025-09-18. Do not import in new code.
-# This was a one-time cleanup script that has been completed.
-# Archived copy available in: archive/DEPRECATED_READONLY/
 """
 Очистка дубликатов в таблице events перед созданием уникального индекса
 """

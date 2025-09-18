@@ -1,0 +1,29 @@
+path,lines,imports,imported_by_count,last_git_commit,is_test,has_main,has_cli,status,notes
+bot_enhanced_v3.py,4000+,many,1,recent,false,true,false,KEEP,Main bot file
+utils/unified_events_service.py,400+,few,1,recent,false,false,false,KEEP,Core service
+sources/baliforum.py,350+,few,1,recent,false,false,false,KEEP,Active parser
+sources/kudago_source.py,500+,few,1,recent,false,false,false,KEEP,Active parser
+database.py,200+,few,many,recent,false,false,false,KEEP,Core database
+config.py,100+,few,many,recent,false,false,false,KEEP,Core config
+add_composite_index.py,20,few,0,old,false,true,true,DEPRECATE,One-time migration script
+analyze_db_structure.py,200+,few,0,old,false,true,true,DEPRECATE,Debug script
+bot_health.py,100+,few,0,old,false,true,true,DEPRECATE,Health check script
+cleanup_duplicates.py,100+,few,0,old,false,true,true,DEPRECATE,One-time cleanup
+cleanup_old_events_table.py,50,few,0,old,false,true,true,DEPRECATE,One-time migration
+deploy.py,100+,few,0,old,false,true,true,DEPRECATE,Replaced by .bat/.ps1
+find_yesterday_event.py,100+,few,0,old,false,true,true,DEPRECATE,Debug script
+fix_events_view.py,50,few,0,old,false,true,true,DEPRECATE,One-time migration
+fix_organizer_nullable.py,20,few,0,old,false,true,true,DEPRECATE,One-time migration
+fix_unified_events_view.py,100+,few,0,old,false,true,true,DEPRECATE,One-time migration
+migrate_to_simple_architecture.py,50,few,0,old,false,true,true,DEPRECATE,One-time migration
+quick_start.py,50,few,0,old,false,true,true,DEPRECATE,Replaced by start scripts
+remove_active_status.py,100+,few,0,old,false,true,true,DEPRECATE,One-time migration
+remove_draft_status.py,100+,few,0,old,false,true,true,DEPRECATE,One-time migration
+remove_open_status.py,100+,few,0,old,false,true,true,DEPRECATE,One-time migration
+smart_ai_generator.py,200+,few,0,old,false,true,true,DEPRECATE,Replaced by ai_utils.py
+storage/simple_events_service.py,400+,few,0,old,false,false,false,DEPRECATE,Replaced by UnifiedEventsService
+storage/region_router.py,100+,few,0,old,false,false,false,DEPRECATE,Not used
+api/ingest/ai_ingest.py,150+,few,0,old,false,false,false,DEPRECATE,Not used in current flow
+api/services/user_prefs.py,100+,few,0,old,false,false,false,DEPRECATE,Not used
+utils/port_manager.py,100+,few,0,old,false,false,false,DEPRECATE,Not used
+web/server.py,50,few,0,old,false,true,true,DEPRECATE,Not used
