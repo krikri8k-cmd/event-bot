@@ -1894,6 +1894,7 @@ async def cancel_creation(message: types.Message, state: FSMContext):
 async def on_my_events(message: types.Message):
     """Обработчик кнопки 'Мои события' с управлением статусами"""
     user_id = message.from_user.id
+    logger.info(f"🔍 on_my_events: запрос от пользователя {user_id}")
 
     # Автомодерация: закрываем прошедшие события
     closed_count = auto_close_events()
@@ -1902,6 +1903,7 @@ async def on_my_events(message: types.Message):
 
     # Получаем события пользователя
     events = get_user_events(user_id)
+    logger.info(f"🔍 on_my_events: найдено {len(events) if events else 0} событий для пользователя {user_id}")
 
     if not events:
         await message.answer(
@@ -1913,7 +1915,9 @@ async def on_my_events(message: types.Message):
     # Отправляем первое событие с кнопками управления
     if events:
         first_event = events[0]
+        logger.info(f"🔍 on_my_events: отправляем первое событие: {first_event.get('title')}")
         text = f"📋 Ваши события:\n\n{format_event_for_display(first_event)}"
+        logger.info(f"🔍 on_my_events: сформированный текст: {text[:100]}...")
 
         # Создаем кнопки управления
         buttons = get_status_change_buttons(first_event["id"], first_event["status"])
@@ -1927,7 +1931,16 @@ async def on_my_events(message: types.Message):
         if len(events) > 1:
             keyboard.inline_keyboard.append([InlineKeyboardButton(text="➡️ Следующее", callback_data="next_event_1")])
 
-        await message.answer(text, reply_markup=keyboard)
+        try:
+            await message.answer(text, reply_markup=keyboard)
+            logger.info("✅ on_my_events: сообщение отправлено успешно")
+        except Exception as e:
+            logger.error(f"❌ on_my_events: ошибка отправки сообщения: {e}")
+            # Fallback - отправляем без форматирования
+            simple_text = (
+                f"📋 Ваши события:\n\nНазвание: {first_event.get('title')}\nСтатус: {first_event.get('status')}"
+            )
+            await message.answer(simple_text, reply_markup=keyboard)
 
 
 @dp.message(Command("share"))
