@@ -2776,6 +2776,43 @@ async def cancel_event_creation(callback: types.CallbackQuery, state: FSMContext
     await callback.answer("Создание отменено")
 
 
+@dp.callback_query(F.data == "manage_events")
+async def handle_manage_events(callback: types.CallbackQuery):
+    """Обработчик кнопки Управление событиями"""
+    user_id = callback.from_user.id
+    events = get_user_events(user_id)
+    active_events = [e for e in events if e.get("status") == "open"]
+
+    if not active_events:
+        await callback.message.edit_text("У вас нет активных событий для управления.", reply_markup=None)
+        await callback.answer()
+        return
+
+    # Показываем первое событие с кнопками управления (старая логика)
+    first_event = active_events[0]
+    text = f"🔧 Управление событием:\n\n{format_event_for_display(first_event)}"
+
+    # Создаем кнопки управления
+    buttons = get_status_change_buttons(first_event["id"], first_event["status"])
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
+        ]
+    )
+
+    # Добавляем навигацию если есть еще события
+    if len(active_events) > 1:
+        keyboard.inline_keyboard.append(
+            [
+                InlineKeyboardButton(text="⬅️ Предыдущее", callback_data="prev_event_0"),
+                InlineKeyboardButton(text="➡️ Следующее", callback_data="next_event_1"),
+            ]
+        )
+
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
+
+
 @dp.message(~StateFilter(EventCreation, EventEditing))
 async def echo_message(message: types.Message, state: FSMContext):
     """Обработчик всех остальных сообщений (кроме FSM состояний)"""
