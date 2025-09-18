@@ -2601,6 +2601,21 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
         lat = data.get("location_lat")
         lng = data.get("location_lng")
 
+        # Если координаты не извлечены из ссылки, пробуем геокодирование
+        if (not lat or not lng) and location_name and location_name != "Место не указано":
+            logger.info(f"🌍 Координаты не найдены, пробуем геокодирование адреса: {location_name}")
+            try:
+                from utils.geo_utils import geocode_address
+
+                coords = await geocode_address(location_name)
+                if coords:
+                    lat, lng = coords
+                    logger.info(f"✅ Геокодирование успешно: lat={lat}, lng={lng}")
+                else:
+                    logger.warning(f"❌ Геокодирование не удалось для: {location_name}")
+            except Exception as e:
+                logger.error(f"❌ Ошибка геокодирования: {e}")
+
         # Используем новую упрощенную архитектуру
         try:
             from database import get_engine
