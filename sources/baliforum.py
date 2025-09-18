@@ -73,6 +73,7 @@ def _ru_date_to_dt(label: str, now: datetime, tz: ZoneInfo) -> tuple[datetime | 
     """
     try:
         label = label.strip().lower()
+        original_label = label  # Сохраняем оригинал для парсинга времени
         day = None
 
         if label.startswith("сегодня"):
@@ -97,7 +98,7 @@ def _ru_date_to_dt(label: str, now: datetime, tz: ZoneInfo) -> tuple[datetime | 
                     if day < now.date():
                         day = datetime(year + 1, mon, d, tzinfo=tz).date()
 
-            # 2. '10.09 20:15' (день.месяц)
+            # 2. '10.09 в 20:15' или '10.09 20:15' (день.месяц)
             if not day:
                 dot_match = re.search(r"(\d{1,2})\.(\d{1,2})", label)
                 if dot_match:
@@ -108,6 +109,8 @@ def _ru_date_to_dt(label: str, now: datetime, tz: ZoneInfo) -> tuple[datetime | 
                         day = datetime(year, mon, d, tzinfo=tz).date()
                         if day < now.date():
                             day = datetime(year + 1, mon, d, tzinfo=tz).date()
+                        # Убираем найденную дату из label для дальнейшего парсинга времени
+                        label = re.sub(r"\d{1,2}\.\d{1,2}", "", label).strip()
 
             # 3. День недели 'чт 19:30'
             if not day:
@@ -141,9 +144,11 @@ def _ru_date_to_dt(label: str, now: datetime, tz: ZoneInfo) -> tuple[datetime | 
                         start_dt = datetime(day.year, day.month, day.day, t1[0], t1[1], tzinfo=tz)
                         time_found = True
 
-                # 2. Если не нашли через "с ", ищем время напрямую
+                # 2. Если не нашли через "с ", ищем время в оригинальной строке
                 if not time_found:
-                    t1 = _parse_time(label)
+                    # Убираем "в " для поиска времени и используем оригинальную строку
+                    clean_label = original_label.replace("в ", "").strip()
+                    t1 = _parse_time(clean_label)
                     if t1:
                         start_dt = datetime(day.year, day.month, day.day, t1[0], t1[1], tzinfo=tz)
                         time_found = True
@@ -157,10 +162,10 @@ def _ru_date_to_dt(label: str, now: datetime, tz: ZoneInfo) -> tuple[datetime | 
                         if end_dt <= start_dt:
                             end_dt += timedelta(days=1)
 
-                # КРИТИЧНО: Если нет времени - НЕ устанавливаем дефолтное время!
-                # Событие должно быть пропущено
+                # Если нет времени, устанавливаем дефолтное время 12:00
                 if not time_found:
-                    return None, None
+                    start_dt = datetime(day.year, day.month, day.day, 12, 0, tzinfo=tz)
+                    print(f"DEBUG: _ru_date_to_dt: no time found, using 12:00 for '{label}'")
 
         return start_dt, end_dt
     except (ValueError, KeyError):
@@ -268,9 +273,9 @@ def fetch_baliforum_events(limit: int = 100) -> list[dict]:
         if end:
             end = end.astimezone(UTC)
 
-        # Пропускаем события без точного времени
+        # Пропускаем события, если вообще не удалось извлечь дату
         if not start:
-            print(f"DEBUG: baliforum: skip (no time): url={url}, title={title}, date_text='{date_text}'")
+            print(f"DEBUG: baliforum: skip (no date/time): url={url}, title={title}, date_text='{date_text}'")
             skipped_no_time += 1
             continue
 
