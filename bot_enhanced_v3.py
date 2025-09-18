@@ -1520,27 +1520,34 @@ async def on_location(message: types.Message):
             formatted_events = []
             logger.info(f"🕐 Получили {len(events)} событий из UnifiedEventsService")
             for event in events:
-                logger.info(f"🕐 Событие: {event.get('title')} - starts_at: {event.get('starts_at')}")
-                formatted_events.append(
-                    {
-                        "title": event["title"],
-                        "description": event["description"],
-                        "time_local": event["starts_at"].strftime("%Y-%m-%d %H:%M") if event["starts_at"] else None,
-                        "starts_at": event["starts_at"],  # Добавляем поле starts_at!
-                        "city": event.get("city", "bali"),  # Добавляем город для правильного форматирования времени
-                        "location_name": event["location_name"],
-                        "location_url": event["location_url"],
-                        "lat": event["lat"],
-                        "lng": event["lng"],
-                        "source": event["source_type"],
-                        "url": event.get("event_url", ""),
-                        "community_name": "",
-                        "community_link": "",
-                        # Добавляем поля автора для пользовательских событий
-                        "organizer_id": event.get("organizer_id"),
-                        "organizer_username": event.get("organizer_username"),
-                    }
+                starts_at_value = event.get("starts_at")
+                logger.info(
+                    f"🕐 ДО конвертации: {event.get('title')} - starts_at: {starts_at_value} (тип: {type(starts_at_value)})"
                 )
+
+                formatted_event = {
+                    "title": event["title"],
+                    "description": event["description"],
+                    "time_local": event["starts_at"].strftime("%Y-%m-%d %H:%M") if event["starts_at"] else None,
+                    "starts_at": event["starts_at"],  # Добавляем поле starts_at!
+                    "city": event.get("city", "bali"),  # Добавляем город для правильного форматирования времени
+                    "location_name": event["location_name"],
+                    "location_url": event["location_url"],
+                    "lat": event["lat"],
+                    "lng": event["lng"],
+                    "source": event["source_type"],
+                    "url": event.get("event_url", ""),
+                    "community_name": "",
+                    "community_link": "",
+                    # Добавляем поля автора для пользовательских событий
+                    "organizer_id": event.get("organizer_id"),
+                    "organizer_username": event.get("organizer_username"),
+                }
+
+                logger.info(
+                    f"🕐 ПОСЛЕ конвертации: {formatted_event.get('title')} - starts_at: {formatted_event.get('starts_at')}"
+                )
+                formatted_events.append(formatted_event)
 
             events = formatted_events
             logger.info(f"✅ Поиск завершен, найдено {len(events)} событий")
