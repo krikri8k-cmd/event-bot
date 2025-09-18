@@ -1260,6 +1260,26 @@ def update_event_field(event_id: int, field: str, value: str, user_id: int) -> b
         return False
 
 
+async def send_spinning_globe_menu(message):
+    """Отправляет анимированный крутящийся земной шар с главным меню"""
+    import asyncio
+
+    # Последовательность эмодзи для создания эффекта вращения
+    globe_frames = ["🌍", "🌎", "🌏", "🌍", "🌎", "🌏"]
+
+    # Отправляем первый кадр
+    globe_message = await message.answer(globe_frames[0], reply_markup=main_menu_kb())
+
+    # Анимируем вращение (быстрая анимация)
+    try:
+        for frame in globe_frames[1:]:
+            await asyncio.sleep(0.3)  # Пауза между кадрами
+            await globe_message.edit_text(frame, reply_markup=main_menu_kb())
+    except Exception:
+        # Если редактирование не удалось, просто оставляем последний кадр
+        pass
+
+
 def main_menu_kb() -> ReplyKeyboardMarkup:
     """Создаёт главное меню"""
     from config import load_settings
@@ -1552,7 +1572,7 @@ async def on_location(message: types.Message):
                 )
 
                 # Отправляем главное меню после сообщения о том, что события не найдены
-                await message.answer("🏠", reply_markup=main_menu_kb())
+                await send_spinning_globe_menu(message)
                 return
 
             # Сохраняем состояние для пагинации и расширения радиуса
@@ -1679,7 +1699,7 @@ async def on_location(message: types.Message):
                     await send_compact_events_list(message, events, lat, lng, page=0, user_radius=radius)
                     logger.info("✅ Компактный список событий отправлен")
                     # Отправляем главное меню после списка событий
-                    await message.answer("🏠", reply_markup=main_menu_kb())
+                    await send_spinning_globe_menu(message)
                 except Exception as e:
                     logger.error(f"❌ Ошибка отправки компактного списка: {e}")
                     # Fallback - отправляем краткий список
@@ -3198,7 +3218,7 @@ async def handle_create_moment(callback: types.CallbackQuery, state: FSMContext)
             await callback.message.edit_text(
                 f"❌ Ты уже создал {current_count} Момента сегодня. Попробуй завтра.",
                 reply_markup=InlineKeyboardMarkup(
-                    inline_keyboard=[[InlineKeyboardButton(text="🏠 Главное меню", callback_data="m:cancel")]]
+                    inline_keyboard=[[InlineKeyboardButton(text="🌍 Главное меню", callback_data="m:cancel")]]
                 ),
             )
             await state.clear()
@@ -3901,7 +3921,7 @@ async def handle_next_event(callback: types.CallbackQuery):
 async def handle_back_to_main(callback: types.CallbackQuery):
     """Возврат в главное меню"""
     # Просто обновляем клавиатуру без дополнительного текста
-    await callback.answer("🏠 Возврат в главное меню")
+    await callback.answer("🌍 Возврат в главное меню")
 
 
 @dp.callback_query(F.data.startswith("prev_event_"))
