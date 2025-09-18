@@ -2698,8 +2698,12 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
         f"**Описание:** {data['description']}\n\n"
         f"Теперь другие пользователи смогут найти его через '📍 Что рядом'.",
         parse_mode="Markdown",
+        reply_markup=None,  # Убираем все кнопки после сохранения
     )
     await callback.answer("Событие создано!")
+
+    # Показываем крутую анимацию после сохранения
+    await send_spinning_menu(callback.message)
 
 
 @dp.callback_query(F.data == "event_cancel")
