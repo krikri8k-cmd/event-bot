@@ -603,8 +603,7 @@ async def send_compact_events_list(
         # Fallback - отправляем без форматирования
         await message.answer(f"📋 События (страница {page + 1} из {total_pages}):\n\n{text}", reply_markup=inline_kb)
 
-    # Возвращаем пользователя к основному меню после отправки списка событий
-    await send_main_menu(message)
+    # Клавиатура главного меню уже есть у пользователя, дополнительное сообщение не нужно
 
 
 async def edit_events_list_message(
@@ -1261,16 +1260,6 @@ def update_event_field(event_id: int, field: str, value: str, user_id: int) -> b
         return False
 
 
-async def send_main_menu(message_or_callback, text: str = "🏠 Выберите действие:"):
-    """Отправляет главное меню пользователю"""
-    if hasattr(message_or_callback, "message"):
-        # Это callback query
-        await message_or_callback.message.answer(text, reply_markup=main_menu_kb())
-    else:
-        # Это обычное сообщение
-        await message_or_callback.answer(text, reply_markup=main_menu_kb())
-
-
 def main_menu_kb() -> ReplyKeyboardMarkup:
     """Создаёт главное меню"""
     from config import load_settings
@@ -1562,8 +1551,7 @@ async def on_location(message: types.Message):
                     reply_markup=inline_kb,
                 )
 
-                # Возвращаем основное меню
-                await send_main_menu(message)
+                # Клавиатура главного меню уже есть у пользователя
                 return
 
             # Сохраняем состояние для пагинации и расширения радиуса
@@ -2601,8 +2589,7 @@ async def handle_pagination(callback: types.CallbackQuery):
 
         await callback.answer()
 
-        # Возвращаем основное меню
-        await send_main_menu(callback)
+        # Клавиатура главного меню уже есть у пользователя
 
     except (ValueError, IndexError) as e:
         logger.error(f"❌ Ошибка обработки пагинации: {e}")
@@ -2763,8 +2750,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
 
         await callback.answer(f"Радиус расширен до {new_radius} км")
 
-        # Возвращаем основное меню
-        await send_main_menu(callback)
+        # Клавиатура главного меню уже есть у пользователя
 
     except (ValueError, IndexError) as e:
         logger.error(f"❌ Ошибка обработки расширения радиуса: {e}")
@@ -3911,7 +3897,7 @@ async def handle_next_event(callback: types.CallbackQuery):
 @dp.callback_query(F.data.startswith("back_to_main_"))
 async def handle_back_to_main(callback: types.CallbackQuery):
     """Возврат в главное меню"""
-    await callback.message.answer("🏠 Вы вернулись в главное меню", reply_markup=main_menu_kb())
+    # Просто обновляем клавиатуру без дополнительного текста
     await callback.answer("🏠 Возврат в главное меню")
 
 
