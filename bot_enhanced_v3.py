@@ -597,17 +597,14 @@ async def send_compact_events_list(
     try:
         # Отправляем компактный список событий в HTML формате
         await message.answer(text, reply_markup=inline_kb, parse_mode="HTML", disable_web_page_preview=True)
-
-        # Возвращаем пользователя к основному меню после отправки списка событий
-        await message.answer("🏠 Выберите действие:", reply_markup=main_menu_kb())
         logger.info(f"✅ Страница {page + 1} событий отправлена (HTML)")
     except Exception as e:
         logger.error(f"❌ Ошибка отправки страницы {page + 1}: {e}")
         # Fallback - отправляем без форматирования
         await message.answer(f"📋 События (страница {page + 1} из {total_pages}):\n\n{text}", reply_markup=inline_kb)
 
-        # Возвращаем пользователя к основному меню
-        await message.answer("🏠 Выберите действие:", reply_markup=main_menu_kb())
+    # Возвращаем пользователя к основному меню после отправки списка событий
+    await send_main_menu(message)
 
 
 async def edit_events_list_message(
@@ -1264,6 +1261,16 @@ def update_event_field(event_id: int, field: str, value: str, user_id: int) -> b
         return False
 
 
+async def send_main_menu(message_or_callback, text: str = "🏠 Выберите действие:"):
+    """Отправляет главное меню пользователю"""
+    if hasattr(message_or_callback, "message"):
+        # Это callback query
+        await message_or_callback.message.answer(text, reply_markup=main_menu_kb())
+    else:
+        # Это обычное сообщение
+        await message_or_callback.answer(text, reply_markup=main_menu_kb())
+
+
 def main_menu_kb() -> ReplyKeyboardMarkup:
     """Создаёт главное меню"""
     from config import load_settings
@@ -1556,7 +1563,7 @@ async def on_location(message: types.Message):
                 )
 
                 # Возвращаем основное меню
-                await message.answer("🏠 Выберите действие:", reply_markup=main_menu_kb())
+                await send_main_menu(message)
                 return
 
             # Сохраняем состояние для пагинации и расширения радиуса
@@ -2595,7 +2602,7 @@ async def handle_pagination(callback: types.CallbackQuery):
         await callback.answer()
 
         # Возвращаем основное меню
-        await callback.message.answer("🏠 Выберите действие:", reply_markup=main_menu_kb())
+        await send_main_menu(callback)
 
     except (ValueError, IndexError) as e:
         logger.error(f"❌ Ошибка обработки пагинации: {e}")
@@ -2757,7 +2764,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         await callback.answer(f"Радиус расширен до {new_radius} км")
 
         # Возвращаем основное меню
-        await callback.message.answer("🏠 Выберите действие:", reply_markup=main_menu_kb())
+        await send_main_menu(callback)
 
     except (ValueError, IndexError) as e:
         logger.error(f"❌ Ошибка обработки расширения радиуса: {e}")
