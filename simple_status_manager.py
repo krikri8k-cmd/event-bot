@@ -203,9 +203,16 @@ def format_event_for_display(event):
     # Заголовок с эмодзи статуса
     lines.append(f"{event['status_emoji']} **{event['title']}**")
 
-    # Время
+    # Время (конвертируем в региональное)
     if event["starts_at"]:
-        time_str = event["starts_at"].strftime("%d.%m.%Y | %H:%M")
+        import pytz
+
+        # Определяем часовой пояс (по умолчанию Бали)
+        tz = pytz.timezone("Asia/Makassar")  # Бали UTC+8
+
+        # Конвертируем UTC в локальное время
+        local_time = event["starts_at"].astimezone(tz)
+        time_str = local_time.strftime("%d.%m.%Y | %H:%M")
         lines.append(f"📅 {time_str}")
     else:
         lines.append("📅 Время не указано")

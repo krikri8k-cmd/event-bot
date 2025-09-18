@@ -1912,35 +1912,45 @@ async def on_my_events(message: types.Message):
         )
         return
 
-    # Отправляем первое событие с кнопками управления
+    # Отправляем все активные события пользователя
     if events:
-        first_event = events[0]
-        logger.info(f"🔍 on_my_events: отправляем первое событие: {first_event.get('title')}")
-        text = f"📋 Ваши события:\n\n{format_event_for_display(first_event)}"
-        logger.info(f"🔍 on_my_events: сформированный текст: {text[:100]}...")
+        # Фильтруем только активные события (открытые)
+        active_events = [e for e in events if e.get("status") == "open"]
+        logger.info(f"🔍 on_my_events: активных событий: {len(active_events)} из {len(events)}")
 
-        # Создаем кнопки управления
-        buttons = get_status_change_buttons(first_event["id"], first_event["status"])
+        if not active_events:
+            await message.answer(
+                "У вас нет активных событий.\n\n" "📋 Закрытые события можно посмотреть через команду /myevents",
+                reply_markup=main_menu_kb(),
+            )
+            return
+
+        # Формируем текст со всеми активными событиями
+        text_parts = ["📋 Ваши активные события:\n"]
+
+        for i, event in enumerate(active_events[:5], 1):  # Показываем максимум 5
+            event_text = format_event_for_display(event)
+            text_parts.append(f"{i}) {event_text}")
+
+        if len(active_events) > 5:
+            text_parts.append(f"\n... и еще {len(active_events) - 5} событий")
+
+        text = "\n\n".join(text_parts)
+        logger.info(f"🔍 on_my_events: сформированный текст для {len(active_events)} событий")
+
+        # Простая клавиатура без сложной логики
         keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
-            ]
+            inline_keyboard=[[InlineKeyboardButton(text="🔧 Управление событиями", callback_data="manage_events")]]
         )
-
-        # Добавляем кнопку "Следующее событие" если есть еще события
-        if len(events) > 1:
-            keyboard.inline_keyboard.append([InlineKeyboardButton(text="➡️ Следующее", callback_data="next_event_1")])
 
         try:
             await message.answer(text, reply_markup=keyboard)
             logger.info("✅ on_my_events: сообщение отправлено успешно")
         except Exception as e:
             logger.error(f"❌ on_my_events: ошибка отправки сообщения: {e}")
-            # Fallback - отправляем без форматирования
-            simple_text = (
-                f"📋 Ваши события:\n\nНазвание: {first_event.get('title')}\nСтатус: {first_event.get('status')}"
-            )
-            await message.answer(simple_text, reply_markup=keyboard)
+            # Fallback - отправляем простой список
+            simple_text = f"📋 Ваши события: {len(active_events)} активных"
+            await message.answer(simple_text, reply_markup=main_menu_kb())
 
 
 @dp.message(Command("share"))
