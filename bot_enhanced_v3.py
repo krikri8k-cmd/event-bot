@@ -670,8 +670,18 @@ async def edit_events_list_message(
 
 async def send_detailed_events_list(message: types.Message, events: list, user_lat: float, user_lng: float):
     """
-    Отправляет детальный список событий отдельным сообщением (устаревшая функция)
+    Отправляет детальный список событий отдельным сообщением
+
+    DEPRECATED: Use send_compact_events_list directly
     """
+    import warnings
+
+    warnings.warn(
+        "send_detailed_events_list is deprecated. Use send_compact_events_list directly.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     # Используем новую компактную функцию
     await send_compact_events_list(message, events, user_lat, user_lng, page=0)
 

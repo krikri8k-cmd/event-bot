@@ -31,6 +31,7 @@ dev = [
 [tool.ruff]
 target-version = "py312"
 line-length = 120
+exclude = ["archive/**", "venv/**", "__pycache__/**"]
 
 [tool.ruff.format]
 line-ending = "lf"
@@ -55,6 +56,8 @@ ignore = []
 # Длинные строки в диагностических сообщениях
 "bot_enhanced_v3.py" = ["E501"]
 "tools/run_quality_checks.py" = ["E501"]
+# Deprecated модули (будут удалены)
+"storage/simple_events_service.py" = ["E402", "F401", "I001", "UP015", "W291"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
