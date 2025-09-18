@@ -734,6 +734,11 @@ def render_event_html(e: dict, idx: int) -> str:
     """Рендерит одну карточку события в HTML согласно ТЗ"""
     title = html.escape(e.get("title", "Событие"))
     when = e.get("when_str", "")
+
+    # Если when_str пустое, пробуем сформировать время из starts_at
+    if not when and e.get("starts_at"):
+        city = e.get("city", "bali")
+        when = format_event_time(e.get("starts_at"), city)
     dist = f"{e['distance_km']:.1f} км" if e.get("distance_km") is not None else ""
 
     # Определяем тип события, если не установлен
@@ -1281,6 +1286,54 @@ async def send_spinning_menu(message):
             await menu_message.edit_text("🎯", reply_markup=main_menu_kb())
         except Exception:
             pass
+
+
+def format_event_time(starts_at, city="bali") -> str:
+    """Форматирует время события для отображения"""
+    if not starts_at:
+        return "время уточняется"
+
+    try:
+        from datetime import datetime
+
+        from utils.simple_timezone import get_city_timezone
+
+        # Получаем часовой пояс города
+        tz_name = get_city_timezone(city)
+
+        # Если starts_at это строка, парсим её
+        if isinstance(starts_at, str):
+            # Пробуем разные форматы
+            try:
+                starts_at = datetime.fromisoformat(starts_at.replace("Z", "+00:00"))
+            except (ValueError, TypeError):
+                return "время уточняется"
+
+        # Конвертируем в локальное время города
+        import pytz
+
+        utc = pytz.UTC
+        local_tz = pytz.timezone(tz_name)
+
+        if starts_at.tzinfo is None:
+            starts_at = utc.localize(starts_at)
+
+        local_time = starts_at.astimezone(local_tz)
+
+        # Форматируем красиво
+        now = datetime.now(local_tz)
+        today = now.date()
+
+        if local_time.date() == today:
+            # Сегодня - показываем только время
+            return f"сегодня в {local_time.strftime('%H:%M')}"
+        else:
+            # Другой день - показываем дату и время
+            return f"{local_time.strftime('%d.%m в %H:%M')}"
+
+    except Exception:
+        # Если что-то пошло не так, возвращаем базовое значение
+        return "время уточняется"
 
 
 def main_menu_kb() -> ReplyKeyboardMarkup:
