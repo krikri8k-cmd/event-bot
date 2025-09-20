@@ -782,23 +782,20 @@ def render_event_html(e: dict, idx: int) -> str:
     else:
         venue_display = "📍 Локация уточняется"
 
-    # Источник/Автор согласно ТЗ
+    # Источник/Автор
     if event_type == "user":
-        # Для пользовательских событий показываем автора
         organizer_id = e.get("organizer_id")
         organizer_username = e.get("organizer_username")
 
         if organizer_id:
-            # Сначала пробуем использовать organizer_username из события
             if organizer_username:
                 display_name = f"@{organizer_username}"
             else:
-                # Если нет, получаем из базы данных
                 display_name = get_user_display_name(organizer_id)
 
-            src_part = f'👤 <a href="tg://user?id={organizer_id}">Автор {html.escape(display_name)}</a>'
+            src_part = f'👤 <a href="tg://user?id={organizer_id}">{html.escape(display_name)}</a>'
         else:
-            src_part = "👤 Автор"
+            src_part = "👤 Пользователь"
     else:
         # Для источников и AI-парсинга показываем источник
         src = get_source_url(e)
@@ -1413,10 +1410,10 @@ def get_user_display_name(user_id: int) -> str:
                 elif user.full_name:
                     return user.full_name
                 else:
-                    return f"ID{user_id}"
-            return f"ID{user_id}"
+                    return "Пользователь"
+            return "Пользователь"
     except Exception:
-        return f"ID{user_id}"
+        return "Пользователь"
 
 
 def get_example_date():
