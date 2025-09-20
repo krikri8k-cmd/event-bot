@@ -1802,8 +1802,8 @@ async def on_location(message: types.Message):
                     else:
                         logger.warning("🇷🇺 Не удалось загрузить карту для пользователя в России - используем fallback")
 
-            # Короткая подпись для карты/сообщения
-            caption = f"🗺️ **В радиусе {radius} км найдено: {len(events)}**\n"
+            # Короткая подпись для карты/сообщения - используем отфильтрованные события
+            caption = f"🗺️ **В радиусе {radius} км найдено: {len(prepared)}**\n"
             caption += f"• 🌟 Мгновенные: {counts.get('moments', 0)}\n"
             caption += f"• 👥 От пользователей: {counts.get('user', 0)}\n"
             caption += f"• 🌐 Из источников: {counts.get('source', 0)}"
@@ -1842,7 +1842,7 @@ async def on_location(message: types.Message):
                 # Если не удалось отправить карту или заголовок, отправляем минимальное сообщение
                 try:
                     await message.answer(
-                        f"📋 Найдено {len(events)} событий в радиусе {radius} км",
+                        f"📋 Найдено {len(prepared)} событий в радиусе {radius} км",
                         reply_markup=inline_kb,
                         parse_mode="HTML",
                     )
@@ -1860,13 +1860,13 @@ async def on_location(message: types.Message):
                 logger.error(f"❌ Ошибка отправки компактного списка: {e}")
                 # Fallback - отправляем простой список событий
                 try:
-                    event_titles = [f"• {event.get('title', 'Без названия')}" for event in events[:10]]
+                    event_titles = [f"• {event.get('title', 'Без названия')}" for event in prepared[:10]]
                     events_text = "\n".join(event_titles)
-                    if len(events) > 10:
-                        events_text += f"\n... и ещё {len(events) - 10} событий"
+                    if len(prepared) > 10:
+                        events_text += f"\n... и ещё {len(prepared) - 10} событий"
 
                     await message.answer(
-                        f"📋 **Найдено {len(events)} событий:**\n\n{events_text}\n\n"
+                        f"📋 **Найдено {len(prepared)} событий:**\n\n{events_text}\n\n"
                         f"💡 Используйте кнопки выше для просмотра на карте!",
                         parse_mode="Markdown",
                         reply_markup=main_menu_kb(),
@@ -1877,7 +1877,7 @@ async def on_location(message: types.Message):
                     # Последний fallback - просто сообщение о количестве
                     try:
                         await message.answer(
-                            f"📋 Найдено {len(events)} событий в радиусе {radius} км", reply_markup=main_menu_kb()
+                            f"📋 Найдено {len(prepared)} событий в радиусе {radius} км", reply_markup=main_menu_kb()
                         )
                     except Exception as e3:
                         logger.error(f"❌ Финальная критическая ошибка: {e3}")
