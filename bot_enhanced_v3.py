@@ -469,6 +469,13 @@ def prepare_events_for_feed(
 
         # OK — оставляем событие
         e = enrich_venue_name(e)
+
+        # Логируем пользовательские события
+        if event_type == "user":
+            logger.info(
+                f"🔍 PREPARE: title='{title}', organizer_id={e.get('organizer_id')}, organizer_username='{e.get('organizer_username')}'"
+            )
+
         kept.append(e)
         kept_by_type[event_type] = kept_by_type.get(event_type, 0) + 1
 
