@@ -1627,7 +1627,8 @@ async def on_location(message: types.Message):
                     "location_url": event["location_url"],
                     "lat": event["lat"],
                     "lng": event["lng"],
-                    "source": event["source_type"],
+                    "source": event.get("source", ""),  # Сохраняем оригинальный source из БД
+                    "source_type": event.get("source_type", ""),  # Добавляем source_type отдельно
                     "url": event.get("event_url", ""),
                     "community_name": "",
                     "community_link": "",
@@ -1639,6 +1640,14 @@ async def on_location(message: types.Message):
                 logger.info(
                     f"🕐 ПОСЛЕ конвертации: {formatted_event.get('title')} - starts_at: {formatted_event.get('starts_at')}"
                 )
+
+                # Логируем конвертацию для пользовательских событий
+                if event.get("source") == "user":
+                    logger.info(
+                        f"🔍 CONVERT USER EVENT: title='{event.get('title')}', "
+                        f"organizer_id={event.get('organizer_id')} -> {formatted_event.get('organizer_id')}, "
+                        f"organizer_username='{event.get('organizer_username')}' -> '{formatted_event.get('organizer_username')}'"
+                    )
                 formatted_events.append(formatted_event)
 
             events = formatted_events
