@@ -1401,6 +1401,19 @@ def format_event_time(starts_at, city="bali") -> str:
         return "время уточняется"
 
 
+def get_example_date():
+    """Возвращает пример даты (сегодня или завтра)"""
+    from datetime import timedelta
+
+    today = datetime.now()
+    # Если уже поздно (после 18:00), предлагаем завтра
+    if today.hour >= 18:
+        example_date = today + timedelta(days=1)
+    else:
+        example_date = today
+    return example_date.strftime("%d.%m.%Y")
+
+
 def main_menu_kb() -> ReplyKeyboardMarkup:
     """Создаёт главное меню"""
     from config import load_settings
@@ -2430,8 +2443,9 @@ async def process_title(message: types.Message, state: FSMContext):
 
     await state.update_data(title=title)
     await state.set_state(EventCreation.waiting_for_date)
+    example_date = get_example_date()
     await message.answer(
-        f"Название сохранено: *{title}* ✅\n\n📅 Теперь введите дату (например: 12.09.2025):", parse_mode="Markdown"
+        f"Название сохранено: *{title}* ✅\n\n📅 Теперь введите дату (например: {example_date}):", parse_mode="Markdown"
     )
 
 
@@ -4010,7 +4024,8 @@ async def handle_edit_title_choice(callback: types.CallbackQuery, state: FSMCont
 async def handle_edit_date_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор редактирования даты"""
     await state.set_state(EventEditing.waiting_for_date)
-    await callback.message.answer("📅 Введите новую дату в формате ДД.ММ.ГГГГ (например: 12.09.2025):")
+    example_date = get_example_date()
+    await callback.message.answer(f"📅 Введите новую дату в формате ДД.ММ.ГГГГ (например: {example_date}):")
     await callback.answer()
 
 
