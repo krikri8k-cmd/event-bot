@@ -787,22 +787,23 @@ def render_event_html(e: dict, idx: int) -> str:
         organizer_id = e.get("organizer_id")
         organizer_username = e.get("organizer_username")
 
-        if organizer_id and organizer_username:
-            src_part = f'👤 <a href="tg://user?id={organizer_id}">@{html.escape(organizer_username)}</a>'
-        else:
-            # Если нет username, пробуем получить из БД
-            if organizer_id:
+        if organizer_id:
+            # Сначала пробуем username из события
+            if organizer_username:
+                src_part = f'👤 <a href="tg://user?id={organizer_id}">@{html.escape(organizer_username)}</a>'
+            else:
+                # Если нет, ищем в БД
                 try:
                     with get_session() as session:
                         user = session.get(User, organizer_id)
                         if user and user.username:
                             src_part = f'👤 <a href="tg://user?id={organizer_id}">@{html.escape(user.username)}</a>'
                         else:
-                            src_part = None  # Не показываем автора если нет username
+                            src_part = f'👤 <a href="tg://user?id={organizer_id}">Автор</a>'  # Показываем "Автор" если нет username
                 except Exception:
-                    src_part = None
-            else:
-                src_part = None
+                    src_part = f'👤 <a href="tg://user?id={organizer_id}">Автор</a>'
+        else:
+            src_part = "👤 Автор"  # Fallback если нет organizer_id
     else:
         # Для источников и AI-парсинга показываем источник
         src = get_source_url(e)
@@ -847,7 +848,7 @@ def render_event_html(e: dict, idx: int) -> str:
 
     logger.info(f"🕐 render_event_html ИТОГ: title={title}, when='{when}', dist={dist}")
 
-    # Формируем строку с автором только если есть username
+    # Формируем строку с автором
     author_line = f"{src_part}  " if src_part else ""
     return f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n📍 {venue_display}\n{author_line}{map_part}\n"
 
