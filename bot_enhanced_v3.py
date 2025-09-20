@@ -785,19 +785,13 @@ def render_event_html(e: dict, idx: int) -> str:
     # Источник/Автор согласно ТЗ
     if event_type == "user":
         # Для пользовательских событий показываем автора
-        author_username = e.get("organizer_username") or e.get("creator_username") or e.get("author_username")
-        if author_username:
-            # Создаем кликабельную ссылку на пользователя
-            src_part = (
-                f'👤 <a href="tg://user?id={e.get("organizer_id", "")}">Автор @{html.escape(author_username)}</a>'
-            )
+        organizer_id = e.get("organizer_id")
+        if organizer_id:
+            # Получаем отображаемое имя пользователя
+            display_name = get_user_display_name(organizer_id)
+            src_part = f'👤 <a href="tg://user?id={organizer_id}">Автор {html.escape(display_name)}</a>'
         else:
-            # Если username нет, но есть organizer_id, показываем только ID
-            organizer_id = e.get("organizer_id")
-            if organizer_id:
-                src_part = f'👤 <a href="tg://user?id={organizer_id}">Автор</a>'
-            else:
-                src_part = "👤 Автор"
+            src_part = "👤 Автор"
     else:
         # Для источников и AI-парсинга показываем источник
         src = get_source_url(e)
@@ -1399,6 +1393,23 @@ def format_event_time(starts_at, city="bali") -> str:
     except Exception:
         # Если что-то пошло не так, возвращаем базовое значение
         return "время уточняется"
+
+
+def get_user_display_name(user_id: int) -> str:
+    """Получает отображаемое имя пользователя по ID"""
+    try:
+        with get_session() as session:
+            user = session.get(User, user_id)
+            if user:
+                if user.username:
+                    return f"@{user.username}"
+                elif user.full_name:
+                    return user.full_name
+                else:
+                    return f"ID{user_id}"
+            return f"ID{user_id}"
+    except Exception:
+        return f"ID{user_id}"
 
 
 def get_example_date():
