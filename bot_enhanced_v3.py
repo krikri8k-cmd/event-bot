@@ -787,7 +787,7 @@ def render_event_html(e: dict, idx: int) -> str:
         organizer_id = e.get("organizer_id")
         organizer_username = e.get("organizer_username")
 
-        logger.debug(f"👤 Обрабатываем автора: organizer_id={organizer_id}, organizer_username={organizer_username}")
+        logger.info(f"👤 Обрабатываем автора: organizer_id={organizer_id}, organizer_username={organizer_username}")
 
         if organizer_id:
             # Сначала пробуем username из события
