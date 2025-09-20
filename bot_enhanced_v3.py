@@ -1806,7 +1806,7 @@ async def on_location(message: types.Message):
             caption = f"🗺️ **В радиусе {radius} км найдено: {len(prepared)}**\n"
             caption += f"• 🌟 Мгновенные: {counts.get('moments', 0)}\n"
             caption += f"• 👥 От пользователей: {counts.get('user', 0)}\n"
-            caption += f"• 🌐 Из источников: {counts.get('source', 0)}"
+            caption += f"• 🌐 Из источников: {counts.get('sources', 0)}"
 
             # Удаляем сообщение загрузки
             try:
