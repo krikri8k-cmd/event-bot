@@ -37,6 +37,8 @@ class UnifiedEventsService:
         start_utc = get_today_start_utc(city)
         end_utc = get_tomorrow_start_utc(city)
 
+        logger.info(f"🔍 SEARCH: city='{city}', user_lat={user_lat}, user_lng={user_lng}, radius_km={radius_km}")
+
         with self.engine.connect() as conn:
             if user_lat and user_lng:
                 # Поиск с координатами и радиусом
@@ -145,6 +147,14 @@ class UnifiedEventsService:
                     empty_reason = "no_events_in_radius"
                 else:
                     empty_reason = "no_events_today"
+
+            # Логируем результаты поиска по городам
+            cities_found = {}
+            for event in events:
+                event_city = event.get("city", "unknown")
+                cities_found[event_city] = cities_found.get(event_city, 0) + 1
+
+            logger.info(f"🔍 SEARCH RESULT: запрашивали city='{city}', нашли события по городам: {cities_found}")
 
             StructuredLogger.log_search(
                 region=city,

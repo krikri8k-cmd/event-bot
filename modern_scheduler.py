@@ -257,17 +257,27 @@ class ModernEventScheduler:
         logger.info("🚀 === НАЧАЛО ЦИКЛА ОБНОВЛЕНИЯ СОБЫТИЙ ===")
         start_time = time.time()
 
-        # 1. Парсим BaliForum
-        self.ingest_baliforum()
+        # 1. Парсим BaliForum (для Бали)
+        if self.settings.enable_baliforum:
+            self.ingest_baliforum()
+        else:
+            logger.info("🌴 BaliForum пропущен (отключен в настройках)")
 
-        # 2. Парсим KudaGo (Москва и СПб)
-        import asyncio
+        # 2. Парсим KudaGo (Москва и СПб) - только если включен
+        if self.settings.kudago_enabled:
+            import asyncio
 
-        asyncio.run(self.ingest_kudago())
+            asyncio.run(self.ingest_kudago())
+        else:
+            logger.info("🎭 KudaGo пропущен (отключен в настройках)")
 
         # 3. Генерируем AI события (если включено)
         if self.settings.ai_generate_synthetic:
+            import asyncio
+
             asyncio.run(self.ingest_ai_events())
+        else:
+            logger.info("🤖 AI генерация пропущена (отключена в настройках)")
 
         # 4. Очищаем старые события
         self.cleanup_old_events()
