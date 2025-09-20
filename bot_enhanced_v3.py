@@ -788,35 +788,27 @@ def render_event_html(e: dict, idx: int) -> str:
     else:
         venue_display = "📍 Локация уточняется"
 
-    # Источник/Автор
+    # Источник/Автор - ТОЛЬКО из таблицы events
     if event_type == "user":
         organizer_id = e.get("organizer_id")
-        organizer_username = e.get("organizer_username")
+        organizer_username = e.get("organizer_username")  # Берем ТОЛЬКО из таблицы events
 
-        logger.info(f"👤 Обрабатываем автора: organizer_id={organizer_id}, organizer_username={organizer_username}")
+        logger.info(
+            f"👤 Пользовательское событие: organizer_id={organizer_id}, organizer_username={organizer_username}"
+        )
 
-        if organizer_id:
-            # Сначала пробуем username из события
-            if organizer_username:
-                logger.debug(f"👤 Используем username из события: @{organizer_username}")
-                src_part = f'👤 <a href="tg://user?id={organizer_id}">@{html.escape(organizer_username)}</a>'
-            else:
-                # Если нет, ищем в БД
-                try:
-                    with get_session() as session:
-                        user = session.get(User, organizer_id)
-                        if user and user.username:
-                            logger.debug(f"👤 Найден username в БД: @{user.username}")
-                            src_part = f'👤 <a href="tg://user?id={organizer_id}">@{html.escape(user.username)}</a>'
-                        else:
-                            logger.debug(f"👤 Username не найден ни в событии, ни в БД для user_id={organizer_id}")
-                            src_part = f'👤 <a href="tg://user?id={organizer_id}">Автор</a>'  # Показываем "Автор" если нет username
-                except Exception as ex:
-                    logger.debug(f"👤 Ошибка при поиске пользователя в БД: {ex}")
-                    src_part = f'👤 <a href="tg://user?id={organizer_id}">Автор</a>'
+        if organizer_id and organizer_username:
+            # Показываем username из таблицы events
+            src_part = f'👤 <a href="tg://user?id={organizer_id}">@{html.escape(organizer_username)}</a>'
+            logger.info(f"👤 Показываем автора: @{organizer_username}")
+        elif organizer_id:
+            # Есть ID но нет username в таблице events
+            src_part = f'👤 <a href="tg://user?id={organizer_id}">Автор</a>'
+            logger.info(f"👤 Показываем 'Автор' (нет username в events для ID {organizer_id})")
         else:
-            logger.debug("👤 Нет organizer_id, показываем общий fallback")
-            src_part = "👤 Автор"  # Fallback если нет organizer_id
+            # Нет ни ID ни username
+            src_part = "👤 Автор"
+            logger.info("👤 Показываем общий 'Автор' (нет organizer_id)")
     else:
         # Для источников и AI-парсинга показываем источник
         src = get_source_url(e)
