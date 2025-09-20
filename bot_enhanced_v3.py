@@ -760,12 +760,18 @@ def render_event_html(e: dict, idx: int) -> str:
 
     # Определяем тип события, если не установлен
     event_type = e.get("type")
+    source = e.get("source", "")
+    source_type = e.get("source_type", "")
+
+    logger.info(f"🔍 DEBUG: event_type={event_type}, source={source}, source_type={source_type}")
+
     if not event_type:
-        source = e.get("source", "")
-        if source == "user":
+        if source == "user" or source_type == "user":
             event_type = "user"
         else:
             event_type = "source"
+
+    logger.info(f"🔍 FINAL: event_type={event_type} для события '{e.get('title', 'Без названия')[:20]}'")
 
     # Поддерживаем новую структуру venue и старую
     venue = e.get("venue", {})
