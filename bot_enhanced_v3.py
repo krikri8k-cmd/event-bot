@@ -787,15 +787,22 @@ def render_event_html(e: dict, idx: int) -> str:
         organizer_id = e.get("organizer_id")
         organizer_username = e.get("organizer_username")
 
-        if organizer_id:
-            if organizer_username:
-                display_name = f"@{organizer_username}"
-            else:
-                display_name = get_user_display_name(organizer_id)
-
-            src_part = f'👤 <a href="tg://user?id={organizer_id}">{html.escape(display_name)}</a>'
+        if organizer_id and organizer_username:
+            src_part = f'👤 <a href="tg://user?id={organizer_id}">@{html.escape(organizer_username)}</a>'
         else:
-            src_part = "👤 Пользователь"
+            # Если нет username, пробуем получить из БД
+            if organizer_id:
+                try:
+                    with get_session() as session:
+                        user = session.get(User, organizer_id)
+                        if user and user.username:
+                            src_part = f'👤 <a href="tg://user?id={organizer_id}">@{html.escape(user.username)}</a>'
+                        else:
+                            src_part = None  # Не показываем автора если нет username
+                except Exception:
+                    src_part = None
+            else:
+                src_part = None
     else:
         # Для источников и AI-парсинга показываем источник
         src = get_source_url(e)
@@ -840,7 +847,9 @@ def render_event_html(e: dict, idx: int) -> str:
 
     logger.info(f"🕐 render_event_html ИТОГ: title={title}, when='{when}', dist={dist}")
 
-    return f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n📍 {venue_display}\n{src_part}  {map_part}\n"
+    # Формируем строку с автором только если есть username
+    author_line = f"{src_part}  " if src_part else ""
+    return f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n📍 {venue_display}\n{author_line}{map_part}\n"
 
 
 def render_fallback(lat: float, lng: float) -> str:
