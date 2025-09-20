@@ -4245,8 +4245,9 @@ async def handle_next_event(callback: types.CallbackQuery):
 @dp.callback_query(F.data.startswith("back_to_main_"))
 async def handle_back_to_main(callback: types.CallbackQuery):
     """Возврат в главное меню"""
-    # Просто обновляем клавиатуру без дополнительного текста
+    # Отправляем ракету и возвращаемся в главное меню
     await callback.answer("🎯 Возврат в главное меню")
+    await callback.message.answer("🚀", reply_markup=main_menu_kb())
 
 
 @dp.callback_query(F.data.startswith("prev_event_"))
