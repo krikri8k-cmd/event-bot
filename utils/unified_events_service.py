@@ -2,6 +2,7 @@
 УНИФИЦИРОВАННЫЙ сервис для работы с событиями через единую таблицу events
 """
 
+import logging
 import time
 from datetime import datetime
 
@@ -9,6 +10,8 @@ from sqlalchemy import text
 
 from utils.simple_timezone import get_today_start_utc, get_tomorrow_start_utc
 from utils.structured_logging import StructuredLogger
+
+logger = logging.getLogger(__name__)
 
 
 class UnifiedEventsService:
@@ -105,28 +108,35 @@ class UnifiedEventsService:
                 else:
                     found_parser += 1
 
-                events.append(
-                    {
-                        "source_type": source_type,
-                        "source": row[0],  # Добавляем исходный source
-                        "id": row[1],
-                        "title": row[2],
-                        "description": row[3],
-                        "starts_at": row[4],
-                        "city": row[5],
-                        "lat": row[6],
-                        "lng": row[7],
-                        "location_name": row[8],
-                        "location_url": row[9],
-                        "event_url": row[10],
-                        "organizer_id": row[11],
-                        "organizer_username": row[12],
-                        "max_participants": row[13],
-                        "current_participants": row[14],
-                        "status": row[15],
-                        "created_at_utc": row[16],
-                    }
-                )
+                event_data = {
+                    "source_type": source_type,
+                    "source": row[0],  # Добавляем исходный source
+                    "id": row[1],
+                    "title": row[2],
+                    "description": row[3],
+                    "starts_at": row[4],
+                    "city": row[5],
+                    "lat": row[6],
+                    "lng": row[7],
+                    "location_name": row[8],
+                    "location_url": row[9],
+                    "event_url": row[10],
+                    "organizer_id": row[11],
+                    "organizer_username": row[12],
+                    "max_participants": row[13],
+                    "current_participants": row[14],
+                    "status": row[15],
+                    "created_at_utc": row[16],
+                }
+
+                # Логируем пользовательские события
+                if row[0] == "user":
+                    logger.info(
+                        f"🔍 DB EVENT: title='{row[2]}', source='{row[0]}', "
+                        f"organizer_id={row[11]}, organizer_username='{row[12]}'"
+                    )
+
+                events.append(event_data)
 
             # Логируем результат поиска
             empty_reason = None
