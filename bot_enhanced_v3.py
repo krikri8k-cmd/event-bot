@@ -804,18 +804,11 @@ def render_event_html(e: dict, idx: int) -> str:
             f"👤 Пользовательское событие: organizer_id={organizer_id}, organizer_username={organizer_username}"
         )
 
-        if organizer_id and organizer_username and organizer_username != "None":
-            # Показываем username автора
-            src_part = f'👤 <a href="tg://user?id={organizer_id}">@{html.escape(organizer_username)}</a>'
-            logger.info(f"👤 Показываем автора: @{organizer_username}")
-        elif organizer_id:
-            # Есть ID но нет username в таблице events
-            src_part = f'👤 <a href="tg://user?id={organizer_id}">Автор</a>'
-            logger.info(f"👤 Показываем 'Автор' (нет username в events для ID {organizer_id})")
-        else:
-            # Нет ни ID ни username
-            src_part = "👤 Автор"
-            logger.info("👤 Показываем общий 'Автор' (нет organizer_id)")
+        # Используем единообразную функцию для отображения автора
+        from utils.author_display import format_author_display
+
+        src_part = format_author_display(organizer_id, organizer_username)
+        logger.info(f"👤 Отображение автора: {src_part}")
     else:
         # Для источников и AI-парсинга показываем источник
         src = get_source_url(e)
@@ -3546,7 +3539,10 @@ async def handle_create_moment(callback: types.CallbackQuery, state: FSMContext)
     try:
         data = await state.get_data()
         user_id = callback.from_user.id
-        username = callback.from_user.username
+        # Используем единообразную функцию для получения username
+        from utils.author_display import get_organizer_username_from_telegram_user
+
+        username = get_organizer_username_from_telegram_user(callback.from_user)
 
         # Проверяем лимит перед созданием
         can_create, current_count = await check_daily_limit(user_id)
@@ -3598,7 +3594,7 @@ async def handle_create_moment(callback: types.CallbackQuery, state: FSMContext)
 
         await callback.message.edit_text(
             f"✅ **Момент создан!**\n\n"
-            f"👤 Автор: @{username or 'Аноним'}\n"
+            f"👤 Автор: @{username or 'Аноним'}\n"  # Используем единообразную логику
             f"✨ *{data['title']}*\n"
             f"⏳ истечёт через *{ttl_human}*\n\n"
             f"🚗 [Маршрут]({route_url})",
