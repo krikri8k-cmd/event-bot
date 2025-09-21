@@ -701,7 +701,11 @@ logger = logging.getLogger(__name__)
 
 
 def build_maps_url(e: dict) -> str:
-    """Создает URL для Google Maps с приоритетом venue_name > address > coordinates"""
+    """Создает URL для маршрута с приоритетом location_url > venue_name > address > coordinates"""
+    # Для пользовательских событий и моментов приоритизируем location_url (ссылка, которую указал пользователь)
+    if e.get("type") in ("user", "moment") and e.get("location_url"):
+        return e["location_url"]
+
     # Поддерживаем новую структуру venue и старую
     venue = e.get("venue", {})
     name = (venue.get("name") or e.get("venue_name") or "").strip()
@@ -3587,10 +3591,13 @@ async def handle_create_moment(callback: types.CallbackQuery, state: FSMContext)
             else:
                 ttl_human = f"{hours}ч {minutes}м"
 
-        # Создаем ссылку на маршрут
-        from utils.geo_utils import to_google_maps_link
+        # Создаем ссылку на маршрут с приоритетом location_url
+        if data.get("location_url"):
+            route_url = data["location_url"]
+        else:
+            from utils.geo_utils import to_google_maps_link
 
-        route_url = to_google_maps_link(data["lat"], data["lng"])
+            route_url = to_google_maps_link(data["lat"], data["lng"])
 
         await callback.message.edit_text(
             f"✅ **Момент создан!**\n\n"
