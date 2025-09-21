@@ -804,8 +804,8 @@ def render_event_html(e: dict, idx: int) -> str:
             f"👤 Пользовательское событие: organizer_id={organizer_id}, organizer_username={organizer_username}"
         )
 
-        if organizer_id and organizer_username:
-            # Показываем username из таблицы events
+        if organizer_id and organizer_username and organizer_username != "None":
+            # Показываем username автора
             src_part = f'👤 <a href="tg://user?id={organizer_id}">@{html.escape(organizer_username)}</a>'
             logger.info(f"👤 Показываем автора: @{organizer_username}")
         elif organizer_id:
@@ -2820,25 +2820,7 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
 
         except Exception as e:
             logger.error(f"❌ Ошибка при создании события: {e}")
-            # Fallback к старому методу
-            event = Event(
-                title=data["title"],
-                description=data["description"],
-                time_local=time_local,
-                starts_at=starts_at,
-                location_name=location_name,
-                location_url=location_url,
-                lat=lat,
-                lng=lng,
-                organizer_id=callback.from_user.id,
-                organizer_username=callback.from_user.username,
-                status="open",
-                is_generated_by_ai=False,
-            )
-            session.add(event)
-            session.commit()
-        except Exception as e:
-            logger.error(f"Ошибка сохранения события: {e}")
+            # НЕ используем fallback - события должны сохраняться только в events_user
             raise
 
     await state.clear()
