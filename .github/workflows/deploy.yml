@@ -45,15 +45,17 @@ jobs:
             exit(1)
         "
         
+    - name: 🎯 Set environment variables
+      run: |
+        echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> $GITHUB_ENV
+        echo "TELEGRAM_TOKEN=${{ secrets.TELEGRAM_TOKEN }}" >> $GITHUB_ENV
+        echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
+        echo "MOMENTS_ENABLE=0" >> $GITHUB_ENV
+        echo "AI_PARSE_ENABLE=1" >> $GITHUB_ENV
+        echo "ENABLE_BALIFORUM=1" >> $GITHUB_ENV
+        echo "ENABLE_KUDAGO=1" >> $GITHUB_ENV
+        
     - name: 🎯 Validate configuration
-      env:
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        MOMENTS_ENABLE: 0
-        AI_PARSE_ENABLE: 1
-        ENABLE_BALIFORUM: 1
-        ENABLE_KUDAGO: 1
       run: |
         python -c "
         from config import load_settings
@@ -66,7 +68,7 @@ jobs:
             print(f'   KudaGo enabled: {settings.kudago_enabled}')
             print(f'   AI parsing enabled: {settings.ai_parse_enable}')
             print(f'   Moments enabled: {settings.moments_enable}')
-            print('   (Using test environment variables)')
+            print('   (Using GitHub Secrets)')
         except Exception as e:
             print(f'❌ Config error: {e}')
             exit(1)
