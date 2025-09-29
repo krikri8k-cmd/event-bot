@@ -46,14 +46,16 @@ jobs:
         "
         
     - name: 🎯 Validate configuration
+      env:
+        DATABASE_URL: postgresql://test:test@localhost/test
+        TELEGRAM_TOKEN: test_token
+        OPENAI_API_KEY: test_key
+        MOMENTS_ENABLE: 0
+        AI_PARSE_ENABLE: 1
+        ENABLE_BALIFORUM: 1
+        ENABLE_KUDAGO: 1
       run: |
         python -c "
-        import os
-        
-        # Устанавливаем минимальные переменные для тестирования
-        os.environ['DATABASE_URL'] = 'postgresql://test:test@localhost/test'
-        os.environ['TELEGRAM_TOKEN'] = 'test_token'
-        
         from config import load_settings
         
         # Проверяем что конфиг загружается
@@ -61,7 +63,9 @@ jobs:
             settings = load_settings()
             print('✅ Configuration loaded successfully')
             print(f'   BaliForum enabled: {settings.enable_baliforum}')
+            print(f'   KudaGo enabled: {settings.enable_kudago}')
             print(f'   AI parsing enabled: {settings.ai_parse_enable}')
+            print(f'   Moments enabled: {settings.moments_enable}')
             print('   (Using test environment variables)')
         except Exception as e:
             print(f'❌ Config error: {e}')
