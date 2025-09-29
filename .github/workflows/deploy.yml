@@ -85,18 +85,28 @@ jobs:
     - name: 🗄️ Check database connection
       run: |
         python -c "
-        from database import engine
-        from config import load_settings
+        import os
+        from sqlalchemy import create_engine, text
         
         print('🗄️ Checking database connection...')
+        print(f'🔍 DATABASE_URL length: {len(os.getenv(\"DATABASE_URL\", \"\"))}')
+        
         try:
+            # Создаем engine напрямую с переменной окружения
+            database_url = os.getenv('DATABASE_URL')
+            if not database_url:
+                print('❌ DATABASE_URL is not set')
+                exit(1)
+                
+            engine = create_engine(database_url)
+            
             # Проверяем подключение к базе
             with engine.connect() as conn:
-                result = conn.execute('SELECT 1')
+                result = conn.execute(text('SELECT 1'))
                 print('✅ Database connection successful')
                 
                 # Проверяем, есть ли таблицы
-                result = conn.execute(\"SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'\")
+                result = conn.execute(text(\"SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'\"))
                 tables = [row[0] for row in result]
                 print(f'📊 Found {len(tables)} tables: {tables[:5]}...')
                 
