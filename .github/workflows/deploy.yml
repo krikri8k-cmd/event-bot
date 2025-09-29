@@ -82,6 +82,22 @@ jobs:
             exit(1)
         "
         
+    - name: 🗄️ Setup database schema
+      run: |
+        python -c "
+        from database import Base, engine
+        from config import load_settings
+        
+        print('🗄️ Setting up database schema...')
+        try:
+            # Создаем все таблицы
+            Base.metadata.create_all(bind=engine)
+            print('✅ Database schema created successfully')
+        except Exception as e:
+            print(f'❌ Database setup error: {e}')
+            exit(1)
+        "
+        
     - name: 📊 Show deployment info
       run: |
         echo "🎉 === DEPLOYMENT READY ==="
