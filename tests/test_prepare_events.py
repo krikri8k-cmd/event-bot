@@ -139,4 +139,4 @@ def test_counts_and_grouping_on_prepared():
     # 2 source + 1 ai_generated = 3 источника, 1 user событие
     assert counts["sources"] == 3  # 2 source + 1 ai_generated
     assert counts["user"] == 1  # 1 user событие
-    assert counts["moments"] == 1  # моменты = user события
+    # assert counts["moments"] == 1  # моменты удалены - функция Moments отключена

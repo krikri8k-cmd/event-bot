@@ -97,15 +97,7 @@ class TestGetSourceUrl:
         result = get_source_url(event)
         assert result == "https://maps.google.com/place"
 
-    def test_moment_type_with_valid_location_url(self):
-        """Тест для типа 'moment' с валидным location_url"""
-        event = {
-            "type": "moment",
-            "location_url": "https://t.me/moment/789",
-            "title": "Moment Event",
-        }
-        result = get_source_url(event)
-        assert result == "https://t.me/moment/789"
+    # Тест для типа 'moment' удален - функция Moments отключена
 
     def test_unknown_type_fallback_behavior(self):
         """Тест для неизвестного типа с fallback поведением"""
