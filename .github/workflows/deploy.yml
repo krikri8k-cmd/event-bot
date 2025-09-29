@@ -48,7 +48,7 @@ jobs:
     - name: 🎯 Set environment variables
       run: |
         echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> $GITHUB_ENV
-        echo "TELEGRAM_TOKEN=${{ secrets.TELEGRAM_TOKEN }}" >> $GITHUB_ENV
+        echo "TELEGRAM_TOKEN=test_token_for_validation" >> $GITHUB_ENV
         echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
         echo "MOMENTS_ENABLE=0" >> $GITHUB_ENV
         echo "AI_PARSE_ENABLE=1" >> $GITHUB_ENV
