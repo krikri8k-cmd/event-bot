@@ -2,15 +2,12 @@
 Тесты для синхронизации Meetup событий
 """
 
-import os
-
 import pytest
 
 pytestmark = pytest.mark.api
 
-# В лёгком CI пропускаем модуль целиком
-if os.environ.get("FULL_TESTS") != "1":
-    pytest.skip("Skipping Meetup sync tests in light CI", allow_module_level=True)
+# Отключаем Meetup тесты - используем только BaliForum + KudaGo + пользовательские события
+pytest.skip("Meetup integration disabled - using simplified architecture", allow_module_level=True)
 
 
 def test_sync_meetup_smoke(api_client, api_engine, db_clean):
