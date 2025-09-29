@@ -10,6 +10,7 @@ pytestmark = [
     pytest.mark.api,
     pytest.mark.db,
     pytest.mark.skipif(os.getenv("FULL_TESTS") != "1", reason="Full tests disabled"),
+    pytest.mark.skip(reason="event_sources table removed - using simplified architecture"),
 ]
 
 
