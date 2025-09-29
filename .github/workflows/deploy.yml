@@ -82,19 +82,26 @@ jobs:
             exit(1)
         "
         
-    - name: 🗄️ Setup database schema
+    - name: 🗄️ Check database connection
       run: |
         python -c "
-        from database import Base, engine
+        from database import engine
         from config import load_settings
         
-        print('🗄️ Setting up database schema...')
+        print('🗄️ Checking database connection...')
         try:
-            # Создаем все таблицы
-            Base.metadata.create_all(bind=engine)
-            print('✅ Database schema created successfully')
+            # Проверяем подключение к базе
+            with engine.connect() as conn:
+                result = conn.execute('SELECT 1')
+                print('✅ Database connection successful')
+                
+                # Проверяем, есть ли таблицы
+                result = conn.execute(\"SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'\")
+                tables = [row[0] for row in result]
+                print(f'📊 Found {len(tables)} tables: {tables[:5]}...')
+                
         except Exception as e:
-            print(f'❌ Database setup error: {e}')
+            print(f'❌ Database connection error: {e}')
             exit(1)
         "
         
