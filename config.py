@@ -103,7 +103,7 @@ def load_settings(require_bot: bool = False) -> Settings:
     google_maps_api_key = os.getenv("GOOGLE_MAPS_API_KEY")
     default_radius_km_str = (os.getenv("DEFAULT_RADIUS_KM") or "5").strip()
     radius_step_km_str = (os.getenv("RADIUS_STEP_KM") or "5").strip()
-    max_radius_km_str = (os.getenv("MAX_RADIUS_KM") or "15").strip()
+    max_radius_km_str = (os.getenv("MAX_RADIUS_KM") or "20").strip()
     admin_ids = _parse_admin_ids(os.getenv("ADMIN_IDS"))
 
     # Moments settings
@@ -157,7 +157,7 @@ def load_settings(require_bot: bool = False) -> Settings:
     try:
         max_radius_km = float(max_radius_km_str)
     except ValueError:
-        max_radius_km = 15.0
+        max_radius_km = 20.0
 
     # Требовать токен только в режиме бота
     if require_bot and not telegram_token:
