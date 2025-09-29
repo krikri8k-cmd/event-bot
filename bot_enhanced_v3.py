@@ -1293,15 +1293,15 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
     """Создаёт главное меню"""
     from config import load_settings
 
-    settings = load_settings()
+    load_settings()
 
     keyboard = [
         [KeyboardButton(text="📍 Что рядом"), KeyboardButton(text="➕ Создать")],
     ]
 
-    # Добавляем кнопку для моментов, если они включены
-    if settings.moments_enable:
-        keyboard.append([KeyboardButton(text="⚡ Создать Момент")])
+    # Кнопка Moments отключена - функция удалена
+    # if settings.moments_enable:
+    #     keyboard.append([KeyboardButton(text="⚡ Создать Момент")])
 
     keyboard.extend(
         [
@@ -3124,7 +3124,7 @@ async def main():
     # Запускаем фоновую задачу для очистки моментов
     from config import load_settings
 
-    settings = load_settings()
+    load_settings()
     # Moments отключены - фоновая задача не запускается
     # if settings.moments_enable:
     #     asyncio.create_task(cleanup_moments_task())
@@ -3159,9 +3159,9 @@ async def main():
             types.BotCommand(command="create", description="➕ Создать событие"),
         ]
 
-        # Добавляем команду для моментов, если они включены
-        if settings.moments_enable:
-            commands.append(types.BotCommand(command="moment", description="⚡ Создать Момент"))
+        # Команда Moments отключена - функция удалена
+        # if settings.moments_enable:
+        #     commands.append(types.BotCommand(command="moment", description="⚡ Создать Момент"))
 
         commands.extend(
             [
