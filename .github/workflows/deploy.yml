@@ -55,6 +55,14 @@ jobs:
         echo "ENABLE_BALIFORUM=1" >> $GITHUB_ENV
         echo "ENABLE_KUDAGO=1" >> $GITHUB_ENV
         
+        # Debug: Check if DATABASE_URL is set
+        echo "🔍 Debug: Checking environment variables..."
+        if [ -n "$DATABASE_URL" ]; then
+          echo "✅ DATABASE_URL is set (length: ${#DATABASE_URL})"
+        else
+          echo "❌ DATABASE_URL is NOT set"
+        fi
+        
     - name: 🎯 Validate configuration
       run: |
         python -c "
