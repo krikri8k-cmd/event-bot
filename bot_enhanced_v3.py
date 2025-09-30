@@ -836,10 +836,13 @@ def render_event_html(e: dict, idx: int) -> str:
                 pass
 
     logger.info(f"🕐 render_event_html ИТОГ: title={title}, when='{when}', dist={dist}")
+    logger.info(f"🔍 DEBUG: src_part='{src_part}', map_part='{map_part}'")
 
     # Формируем строку с автором
     author_line = f"{src_part}  " if src_part else ""
-    return f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n📍 {venue_display}\n{author_line}{map_part}\n"
+    final_html = f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n📍 {venue_display}\n{author_line}{map_part}\n"
+    logger.info(f"🔍 FINAL HTML: {final_html}")
+    return final_html
 
 
 def render_fallback(lat: float, lng: float) -> str:
