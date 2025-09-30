@@ -520,6 +520,72 @@ def create_events_summary(events: list) -> str:
     return "\n".join(summary_lines)
 
 
+async def send_compact_events_list_prepared(
+    message: types.Message,
+    prepared_events: list,
+    user_lat: float,
+    user_lng: float,
+    page: int = 0,
+    user_radius: float = None,
+):
+    """
+    Отправляет компактный список уже подготовленных событий с пагинацией в HTML формате
+    """
+    from config import load_settings
+
+    settings = load_settings()
+
+    # Используем радиус пользователя или дефолтный
+    radius = get_user_radius(message.from_user.id, settings.default_radius_km)
+
+    # Обогащаем события названиями мест и расстояниями
+    for event in prepared_events:
+        enrich_venue_name(event)
+        event["distance_km"] = haversine_km(user_lat, user_lng, event["lat"], event["lng"])
+
+    # Группируем и считаем
+    groups = group_by_type(prepared_events)
+    counts = make_counts(groups)
+
+    # Определяем регион пользователя
+    region = "bali"  # По умолчанию Бали
+    if 55.0 <= user_lat <= 60.0 and 35.0 <= user_lng <= 40.0:  # Москва
+        region = "moscow"
+    elif 59.0 <= user_lat <= 60.5 and 29.0 <= user_lng <= 31.0:  # СПб
+        region = "spb"
+    elif -9.0 <= user_lat <= -8.0 and 114.0 <= user_lng <= 116.0:  # Бали
+        region = "bali"
+
+    # Сохраняем состояние для пагинации и расширения радиуса
+    user_state[message.chat.id] = {
+        "prepared": prepared_events,
+        "counts": counts,
+        "lat": user_lat,
+        "lng": user_lng,
+        "radius": int(radius),
+        "page": 1,
+        "diag": {"kept": len(prepared_events), "dropped": 0, "reasons_top3": []},
+        "region": region,
+    }
+
+    # Рендерим страницу
+    header_html = render_header(counts, radius_km=int(radius))
+    page_html, total_pages = render_page(prepared_events, page=page + 1, page_size=5)
+    text = header_html + "\n\n" + page_html
+
+    # Создаем клавиатуру пагинации с кнопками расширения радиуса
+    inline_kb = kb_pager(page + 1, total_pages, int(radius)) if total_pages > 1 else None
+
+    try:
+        # Отправляем компактный список событий в HTML формате
+        await message.answer(text, reply_markup=inline_kb, parse_mode="HTML", disable_web_page_preview=True)
+        logger.info(f"✅ Страница {page + 1} событий отправлена (HTML)")
+    except Exception as e:
+        logger.error(f"❌ Ошибка отправки страницы {page + 1}: {e}")
+        # Fallback - отправляем без форматирования
+        await message.answer(f"📋 События (страница {page + 1} из {total_pages}):\n\n{text}", reply_markup=inline_kb)
+
+
 async def send_compact_events_list(
     message: types.Message,
     events: list,
@@ -793,6 +859,9 @@ def render_event_html(e: dict, idx: int) -> str:
 
         src_part = format_author_display(organizer_id, organizer_username)
         logger.info(f"👤 Отображение автора: {src_part}")
+        logger.info(
+            f"👤 DEBUG: organizer_id={organizer_id}, organizer_username='{organizer_username}', src_part='{src_part}'"
+        )
     else:
         # Для источников и AI-парсинга показываем источник
         src = get_source_url(e)
@@ -840,6 +909,7 @@ def render_event_html(e: dict, idx: int) -> str:
 
     # Формируем строку с автором
     author_line = f"{src_part}  " if src_part else ""
+    logger.info(f"🔍 DEBUG: author_line='{author_line}', map_part='{map_part}'")
     final_html = f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n📍 {venue_display}\n{author_line}{map_part}\n"
     logger.info(f"🔍 FINAL HTML: {final_html}")
     return final_html
@@ -1732,7 +1802,7 @@ async def on_location(message: types.Message):
 
             # ВСЕГДА отправляем компактный список событий, независимо от проблем с картой
             try:
-                await send_compact_events_list(message, events, lat, lng, page=0, user_radius=radius)
+                await send_compact_events_list_prepared(message, prepared, lat, lng, page=0, user_radius=radius)
                 logger.info("✅ Компактный список событий отправлен")
                 # Отправляем главное меню после списка событий
                 await send_spinning_menu(message)
