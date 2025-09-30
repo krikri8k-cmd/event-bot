@@ -835,13 +835,21 @@ def render_event_html(e: dict, idx: int) -> str:
     venue_name = venue.get("name") or e.get("venue_name") or e.get("location_name")
     venue_address = venue.get("address") or e.get("address") or e.get("location_url")
 
+    logger.info(f"🔍 DEBUG VENUE: venue={venue}, venue_name='{venue_name}', venue_address='{venue_address}'")
+    logger.info(
+        f"🔍 DEBUG EVENT FIELDS: e.get('venue_name')='{e.get('venue_name')}', e.get('location_name')='{e.get('location_name')}', e.get('address')='{e.get('address')}'"
+    )
+
     # Приоритет: venue_name → address → coords → description (для пользовательских событий)
     if venue_name:
         venue_display = html.escape(venue_name)
+        logger.info(f"🔍 DEBUG: Используем venue_name: '{venue_display}'")
     elif venue_address:
         venue_display = html.escape(venue_address)
+        logger.info(f"🔍 DEBUG: Используем venue_address: '{venue_display}'")
     elif e.get("lat") and e.get("lng"):
         venue_display = f"координаты ({e['lat']:.4f}, {e['lng']:.4f})"
+        logger.info(f"🔍 DEBUG: Используем координаты: '{venue_display}'")
     elif event_type == "user" and e.get("description"):
         # Для пользовательских событий показываем описание вместо "Локация уточняется"
         description = e.get("description", "").strip()
@@ -850,10 +858,13 @@ def render_event_html(e: dict, idx: int) -> str:
             if len(description) > 100:
                 description = description[:97] + "..."
             venue_display = html.escape(description)
+            logger.info(f"🔍 DEBUG: Используем описание: '{venue_display}'")
         else:
             venue_display = "📍 Локация уточняется"
+            logger.info(f"🔍 DEBUG: Описание пустое, используем fallback: '{venue_display}'")
     else:
         venue_display = "📍 Локация уточняется"
+        logger.info(f"🔍 DEBUG: Используем fallback: '{venue_display}'")
 
     # Источник/Автор - ТОЛЬКО из таблицы events
     if event_type == "user":
