@@ -885,7 +885,14 @@ def render_page(events: list[dict], page: int, page_size: int = 5) -> tuple[str,
     parts = []
     for idx, e in enumerate(events[start:end], start=start + 1):
         logger.info(f"🕐 render_page: событие {idx} - starts_at={e.get('starts_at')}, title={e.get('title')}")
-        parts.append(render_event_html(e, idx))
+        try:
+            html = render_event_html(e, idx)
+            parts.append(html)
+        except Exception as e_render:
+            logger.error(f"❌ Ошибка рендеринга события {idx}: {e_render}")
+            # Fallback для одного события
+            title = e.get("title", "Без названия")
+            parts.append(f"{idx}) {title}")
 
     return "\n".join(parts).strip(), total_pages
 
