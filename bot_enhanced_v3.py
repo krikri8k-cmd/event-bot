@@ -931,6 +931,18 @@ def render_event_html(e: dict, idx: int) -> str:
     # Формируем строку с автором
     author_line = f"{src_part}  " if src_part else ""
     logger.info(f"🔍 DEBUG: author_line='{author_line}', map_part='{map_part}'")
+
+    # Добавляем описание для пользовательских событий
+    description_part = ""
+    if event_type == "user" and e.get("description"):
+        description = e.get("description", "").strip()
+        if description:
+            # Ограничиваем длину описания для красоты
+            if len(description) > 150:
+                description = description[:147] + "..."
+            description_part = f"\n📝 {html.escape(description)}"
+            logger.info(f"🔍 DEBUG: Добавлено описание: '{description[:50]}...'")
+
     logger.info(f"🔍 DEBUG: ПЕРЕД final_html: venue_display='{venue_display}'")
     logger.info(f"🔍 DEBUG: venue_display repr: {repr(venue_display)}")
     logger.info(f"🔍 DEBUG: venue_display len: {len(venue_display)}")
@@ -939,7 +951,7 @@ def render_event_html(e: dict, idx: int) -> str:
     test_venue = venue_display
     logger.info(f"🔍 DEBUG: test_venue='{test_venue}'")
 
-    final_html = f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n📍 {test_venue}\n{author_line}{map_part}\n"
+    final_html = f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n📍 {test_venue}\n{author_line}{map_part}{description_part}\n"
     logger.info(f"🔍 DEBUG: ПОСЛЕ final_html: venue_display='{venue_display}'")
     logger.info(f"🔍 FINAL HTML: {final_html}")
     return final_html
