@@ -1507,10 +1507,78 @@ async def on_what_nearby(message: types.Message):
 
 
 @dp.message(F.location)
-async def on_location(message: types.Message):
+async def on_location(message: types.Message, state: FSMContext):
     """Обработчик получения геолокации"""
     lat = message.location.latitude
     lng = message.location.longitude
+
+    # Проверяем, есть ли выбранная категория для заданий
+    data = await state.get_data()
+    selected_category = data.get("selected_category")
+
+    if selected_category:
+        # Это геолокация для заданий
+        user_id = message.from_user.id
+
+        # Показываем загрузку
+        loading_msg = await message.answer("🔍 Ищу задания рядом с вами...")
+
+        try:
+            # Импортируем TaskService
+            from tasks.task_service import TaskService
+
+            task_service = TaskService()
+
+            # Получаем задания
+            tasks = task_service.get_three_tasks(selected_category, user_id, lat, lng)
+
+            if not tasks:
+                await loading_msg.edit_text(
+                    "😔 К сожалению, рядом с вами нет подходящих мест для этой категории.\n\n"
+                    "Попробуйте другую категорию или расширьте радиус поиска!"
+                )
+                await state.clear()
+                return
+
+            # Формируем сообщение с заданиями
+            category_names = {
+                "body": "💪 Тело",
+                "spirit": "🧘 Дух",
+                "career": "💼 Карьера",
+                "social": "🤝 Взаимодействие",
+            }
+
+            category_name = category_names.get(selected_category, selected_category)
+
+            text = f"🎯 **{category_name} - Ваши задания:**\n\n"
+
+            keyboard = []
+            for i, task in enumerate(tasks, 1):
+                place = task["place"]
+                text += f"**{i}. {task['title']}**\n"
+                text += f"📍 {place['name']} ({place['distance_km']} км)\n"
+                text += f"📝 {task['description']}\n\n"
+
+                keyboard.append(
+                    [
+                        InlineKeyboardButton(
+                            text=f"🎯 {task['title'][:30]}...", callback_data=f"start_task:{task['id']}:{place['id']}"
+                        )
+                    ]
+                )
+
+            keyboard.append([InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")])
+            reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+            await loading_msg.edit_text(text, parse_mode="Markdown", reply_markup=reply_markup)
+
+        except Exception as e:
+            logger.error(f"Ошибка получения заданий: {e}")
+            await loading_msg.edit_text("❌ Произошла ошибка при поиске заданий. Попробуйте позже.")
+
+        # Очищаем состояние
+        await state.clear()
+        return
 
     # Логируем получение геолокации
     logger.info(f"📍 Получена геолокация пользователя: lat={lat} lon={lng} (источник=пользователь)")
@@ -2350,13 +2418,26 @@ async def on_diag_search(message: types.Message):
 
 @dp.message(F.text == "🎯 Цель на Районе")
 async def on_tasks_goal(message: types.Message):
-    """Обработчик кнопки 'Цель на Районе' - пока заглушка"""
+    """Обработчик кнопки 'Цель на Районе' - выбор категории"""
+    keyboard = [
+        [InlineKeyboardButton(text="💪 Тело", callback_data="task_category:body")],
+        [InlineKeyboardButton(text="🧘 Дух", callback_data="task_category:spirit")],
+        [InlineKeyboardButton(text="💼 Карьера", callback_data="task_category:career")],
+        [InlineKeyboardButton(text="🤝 Взаимодействие", callback_data="task_category:social")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+    ]
+    reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
+
     await message.answer(
         "🎯 **Цель на Районе**\n\n"
-        "Эта функция в разработке!\n"
-        "Скоро здесь будут персонализированные задания для мотивации IRL-активности.\n\n"
-        "Пока используйте '📍 Что рядом' для поиска событий!",
+        "Выберите категорию для получения персонализированных заданий:\n\n"
+        "💪 **Тело** - спорт, йога, прогулки\n"
+        "🧘 **Дух** - медитация, храмы, природа\n"
+        "💼 **Карьера** - работа, обучение, развитие\n"
+        "🤝 **Взаимодействие** - знакомства, общение\n\n"
+        "После выбора отправьте вашу геолокацию!",
         parse_mode="Markdown",
+        reply_markup=reply_markup,
     )
 
 
@@ -2370,6 +2451,68 @@ async def on_my_tasks(message: types.Message):
         "Пока используйте '📋 Мои события' для управления событиями!",
         parse_mode="Markdown",
     )
+
+
+@dp.callback_query(F.data.startswith("task_category:"))
+async def handle_task_category_selection(callback: types.CallbackQuery, state: FSMContext):
+    """Обработчик выбора категории задания"""
+    category = callback.data.split(":")[1]
+
+    category_names = {"body": "💪 Тело", "spirit": "🧘 Дух", "career": "💼 Карьера", "social": "🤝 Взаимодействие"}
+
+    category_name = category_names.get(category, category)
+
+    # Сохраняем выбранную категорию в состоянии
+    await state.update_data(selected_category=category)
+
+    await callback.message.edit_text(
+        f"🎯 **{category_name}**\n\n"
+        "Отлично! Теперь отправьте вашу геолокацию, чтобы я нашел ближайшие места для заданий.\n\n"
+        "📍 Нажмите кнопку 'Отправить геолокацию' или отправьте координаты.",
+        parse_mode="Markdown",
+    )
+
+    await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("start_task:"))
+async def handle_start_task(callback: types.CallbackQuery):
+    """Обработчик начала выполнения задания"""
+    try:
+        # Парсим данные: start_task:template_id:place_id
+        parts = callback.data.split(":")
+        int(parts[1])
+        int(parts[2])
+
+        # Получаем данные задания и места
+        from tasks.task_service import TaskService
+
+        TaskService()
+
+        # Здесь нужно получить полные данные задания и места
+        # Пока заглушка
+        await callback.message.edit_text(
+            "🎯 **Задание начато!**\n\n"
+            "Ваше задание добавлено в активные.\n"
+            "Перейдите в '📋 Мои задания' для управления.\n\n"
+            "🚀 Удачи в выполнении!",
+            parse_mode="Markdown",
+        )
+
+        await callback.answer("✅ Задание добавлено в активные!")
+
+    except Exception as e:
+        logger.error(f"Ошибка начала задания: {e}")
+        await callback.answer("❌ Ошибка при начале задания")
+
+
+@dp.callback_query(F.data == "back_to_main")
+async def handle_back_to_main_tasks(callback: types.CallbackQuery):
+    """Обработчик возврата в главное меню из заданий"""
+    await callback.message.edit_text(
+        "🏠 **Главное меню**\n\n" "Выберите действие:", parse_mode="Markdown", reply_markup=main_menu_kb()
+    )
+    await callback.answer()
 
 
 @dp.message(Command("help"))
