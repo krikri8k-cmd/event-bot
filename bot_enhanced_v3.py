@@ -40,6 +40,16 @@ from utils.static_map import build_static_map_url, fetch_static_map
 from utils.unified_events_service import UnifiedEventsService
 
 
+def get_user_display_name(user: types.User) -> str:
+    """Получает отображаемое имя пользователя: username или first_name"""
+    if user.username:
+        return f"@{user.username}"
+    elif user.first_name:
+        return user.first_name
+    else:
+        return f"User {user.id}"
+
+
 def is_valid_url(url: str) -> bool:
     """
     Проверяет, является ли строка валидным URL
@@ -1360,7 +1370,7 @@ def format_event_time(starts_at, city="bali") -> str:
         return "время уточняется"
 
 
-def get_user_display_name(user_id: int) -> str:
+def get_user_display_name_by_id(user_id: int) -> str:
     """Получает отображаемое имя пользователя по ID"""
     try:
         with get_session() as session:
@@ -1465,8 +1475,7 @@ async def cmd_start(message: types.Message):
             user = User(
                 id=user_id,
                 username=message.from_user.username,
-                first_name=message.from_user.first_name,
-                last_name=message.from_user.last_name,
+                full_name=get_user_display_name(message.from_user),
             )
             session.add(user)
             session.commit()
@@ -3128,7 +3137,7 @@ async def handle_radius_selection(callback: types.CallbackQuery):
                 user = User(
                     id=user_id,
                     username=callback.from_user.username,
-                    full_name=callback.from_user.full_name,
+                    full_name=get_user_display_name(callback.from_user),
                     default_radius_km=radius,
                 )
                 session.add(user)
