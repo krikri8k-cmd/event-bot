@@ -832,7 +832,7 @@ def render_event_html(e: dict, idx: int) -> str:
 
     # Поддерживаем новую структуру venue и старую
     venue = e.get("venue", {})
-    venue_name = venue.get("name") or e.get("venue_name") or e.get("location_name")
+    venue_name = venue.get("name") or e.get("location_name") or e.get("venue_name")
     venue_address = venue.get("address") or e.get("address") or e.get("location_url")
 
     logger.info(f"🔍 DEBUG VENUE: venue={venue}, venue_name='{venue_name}', venue_address='{venue_address}'")
