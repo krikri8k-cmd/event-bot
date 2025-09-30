@@ -231,8 +231,6 @@ def get_event_type_info(event: dict) -> tuple[str, str]:
 
     if event_type == "user":
         return "👥", "Пользовательские"
-    elif event_type == "moment":
-        return "⚡", "Мгновенные"
     elif source == "ai_generated":
         return "🤖", "AI генерация"
     elif source == "popular_places":
@@ -263,7 +261,6 @@ def group_events_by_type(events: list) -> dict[str, list]:
     groups = {
         "sources": [],  # Из источников (календари, соцсети)
         "users": [],  # От пользователей
-        "moments": [],  # Мгновенные события
     }
 
     for event in events:
@@ -272,8 +269,6 @@ def group_events_by_type(events: list) -> dict[str, list]:
 
         if event_type == "user":
             groups["users"].append(event)
-        elif event_type == "moment":
-            groups["moments"].append(event)
         else:
             # Все остальные считаем источниками
             groups["sources"].append(event)
@@ -494,7 +489,6 @@ def prepare_events_for_feed(
         "found_by_stream": {
             "source": kept_by_type["source"],
             "ai_parsed": kept_by_type["ai_parsed"],
-            "moments": kept_by_type["user"],
         },
         "kept_by_type": kept_by_type,
         "reasons": list(drop.reasons.keys()),
@@ -521,7 +515,7 @@ def create_events_summary(events: list) -> str:
     if ai_parsed_count > 0:
         summary_lines.append(f"• AI-парсинг: {ai_parsed_count}")
     if moments_count > 0:
-        summary_lines.append(f"• Моменты: {moments_count}")
+        summary_lines.append(f"• От пользователей: {moments_count}")
 
     return "\n".join(summary_lines)
 
@@ -558,7 +552,7 @@ async def send_compact_events_list(
     prepared, diag = prepare_events_for_feed(events, user_point=(user_lat, user_lng), with_diag=True)
     logger.info(f"prepared: kept={diag['kept']} dropped={diag['dropped']} reasons_top3={diag['reasons_top3']}")
     logger.info(
-        f"found_by_stream: source={diag['found_by_stream']['source']} ai_parsed={diag['found_by_stream']['ai_parsed']} moments={diag['found_by_stream']['moments']}"
+        f"found_by_stream: source={diag['found_by_stream']['source']} ai_parsed={diag['found_by_stream']['ai_parsed']} user={diag['found_by_stream']['user']}"
     )
     logger.info(
         f"kept_by_type: source={diag['kept_by_type'].get('source', 0)} user={diag['kept_by_type'].get('user', 0)} ai_parsed={diag['kept_by_type'].get('ai_parsed', 0)}"
@@ -633,13 +627,11 @@ async def edit_events_list_message(
         event["distance_km"] = haversine_km(user_lat, user_lng, event["lat"], event["lng"])
 
     groups = {
-        "moment": [e for e in prepared if e["type"] == "moment"],
         "user": [e for e in prepared if e["type"] == "user"],
         "source": [e for e in prepared if e["type"] == "source"],
     }
     counts = {
         "all": len(prepared),
-        "moments": len(groups["moment"]),
         "user": len(groups["user"]),
         "sources": len(groups["source"]),
     }
@@ -867,7 +859,8 @@ def render_fallback(lat: float, lng: float) -> str:
     """Fallback страница при ошибках в пайплайне"""
     return (
         f"🗺 <b>Найдено рядом: 0</b>\n"
-        f"• ⚡ Мгновенные: 0\n\n"
+        f"• 👥 От пользователей: 0\n"
+        f"• 🌐 Из источников: 0\n\n"
         f"1) <b>Попробуйте расширить поиск</b> — (0.0 км)\n"
         f"📍 Локация уточняется\n"
         f'ℹ️ Источник не указан  🚗 <a href="https://www.google.com/maps/search/?api=1&query={lat},{lng}">Маршрут</a>\n\n'
@@ -964,8 +957,7 @@ def make_counts(groups):
     ai_count = len(groups.get("ai", [])) + len(groups.get("ai_parsed", [])) + len(groups.get("ai_generated", []))
     return {
         "all": total,
-        "moments": len(groups.get("user", [])),  # Моменты хранятся в ключе "user"
-        "user": len(groups.get("user", [])),
+        "user": len(groups.get("user", [])),  # Только пользовательские события
         "sources": len(groups.get("source", [])) + ai_count,  # AI события считаются как источники
     }
 
@@ -977,8 +969,6 @@ def render_header(counts, radius_km: int = None) -> str:
     else:
         lines = [f"🗺 Найдено рядом: <b>{counts['all']}</b>"]
 
-    if counts["moments"]:
-        lines.append(f"• ⚡ Мгновенные: {counts['moments']}")
     if counts["user"]:
         lines.append(f"• 👥 От пользователей: {counts['user']}")
     if counts["sources"]:
@@ -1700,7 +1690,6 @@ async def on_location(message: types.Message):
 
             # Короткая подпись для карты/сообщения - используем отфильтрованные события
             caption = f"🗺️ **В радиусе {radius} км найдено: {len(prepared)}**\n"
-            caption += f"• 🌟 Мгновенные: {counts.get('moments', 0)}\n"
             caption += f"• 👥 От пользователей: {counts.get('user', 0)}\n"
             caption += f"• 🌐 Из источников: {counts.get('sources', 0)}"
 
@@ -2016,7 +2005,7 @@ async def on_diag_last(message: types.Message):
             f"<b>Страница:</b> {state.get('page', 'N/A')}",
             "",
             "<b>📊 Статистика по потокам:</b>",
-            f"• found_by_stream: source={found_by_stream.get('source', 0)}, ai_parsed={found_by_stream.get('ai_parsed', 0)}, moments={found_by_stream.get('moments', 0)}",
+            f"• found_by_stream: source={found_by_stream.get('source', 0)}, ai_parsed={found_by_stream.get('ai_parsed', 0)}, user={found_by_stream.get('user', 0)}",
             f"• kept_by_type: source={kept_by_type.get('source', 0)}, ai_parsed={kept_by_type.get('ai_parsed', 0)}, user={kept_by_type.get('user', 0)}",
             f"• dropped: {diag.get('dropped', 0)}, top_reasons={diag.get('reasons_top3', [])}",
             "",
@@ -2259,7 +2248,6 @@ async def on_diag_search(message: types.Message):
             "",
             "<b>📈 Итоговые счетчики:</b>",
             f"• Всего: {counts.get('all', 0)}",
-            f"• Мгновенные: {counts.get('moments', 0)}",
             f"• Пользовательские: {counts.get('user', 0)}",
             f"• Внешние: {counts.get('sources', 0)}",
         ]
