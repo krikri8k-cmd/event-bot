@@ -952,11 +952,13 @@ def make_counts(groups):
     """Создает счетчики по группам"""
     total = sum(len(v) for v in groups.values())
     ai_count = len(groups.get("ai", [])) + len(groups.get("ai_parsed", [])) + len(groups.get("ai_generated", []))
-    return {
+    counts = {
         "all": total,
         "user": len(groups.get("user", [])),  # Только пользовательские события
         "sources": len(groups.get("source", [])) + ai_count,  # AI события считаются как источники
     }
+    logger.info(f"🔍 make_counts: groups={list(groups.keys())}, counts={counts}")
+    return counts
 
 
 def render_header(counts, radius_km: int = None) -> str:
