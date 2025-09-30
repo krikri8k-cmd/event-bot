@@ -1518,19 +1518,18 @@ async def on_location(message: types.Message, state: FSMContext):
 
     if selected_category:
         # Это геолокация для заданий
-        user_id = message.from_user.id
 
         # Показываем загрузку
         loading_msg = await message.answer("🔍 Ищу задания рядом с вами...")
 
         try:
-            # Импортируем TaskService
-            from tasks.task_service import TaskService
-
-            task_service = TaskService()
+            # Временно отключаем TaskService до применения миграций БД
+            # from tasks.task_service import TaskService
+            # task_service = TaskService()
 
             # Получаем задания
-            tasks = task_service.get_three_tasks(selected_category, user_id, lat, lng)
+            # tasks = task_service.get_three_tasks(selected_category, user_id, lat, lng)
+            tasks = []  # Временно пустой список
 
             if not tasks:
                 await loading_msg.edit_text(
@@ -2485,9 +2484,8 @@ async def handle_start_task(callback: types.CallbackQuery):
         int(parts[2])
 
         # Получаем данные задания и места
-        from tasks.task_service import TaskService
-
-        TaskService()
+        # from tasks.task_service import TaskService
+        # task_service = TaskService()
 
         # Здесь нужно получить полные данные задания и места
         # Пока заглушка
