@@ -231,8 +231,6 @@ def get_event_type_info(event: dict) -> tuple[str, str]:
 
     if event_type == "user":
         return "👥", "Пользовательские"
-    elif event_type == "moment":
-        return "👥", "Пользовательские"  # Моменты теперь отображаются как пользовательские
     elif source == "ai_generated":
         return "🤖", "AI генерация"
     elif source == "popular_places":
@@ -269,7 +267,7 @@ def group_events_by_type(events: list) -> dict[str, list]:
         event_type = event.get("type", "")
         event.get("source", "")
 
-        if event_type in ("user", "moment"):
+        if event_type == "user":
             groups["users"].append(event)
         else:
             # Все остальные считаем источниками
@@ -309,7 +307,7 @@ def prepare_events_for_feed(
 ) -> tuple[list[dict], dict] | list[dict]:
     """
     Фильтрует события для показа в ленте с улучшенной диагностикой
-    Поддерживает три типа событий: source, user (moments), ai_parsed
+    Поддерживает три типа событий: source, user, ai_parsed
     """
     from config import load_settings
     from logging_helpers import DropStats
@@ -352,9 +350,9 @@ def prepare_events_for_feed(
             drop.add("no_url", title)
             continue
 
-        # Для user (moments) URL не обязателен
-        if event_type in ("user", "moment") and not url:
-            # Моменты могут не иметь URL
+        # Для user URL не обязателен
+        if event_type == "user" and not url:
+            # Пользовательские события могут не иметь URL
             pass
 
         # 2) Проверяем наличие локации (venue_name ИЛИ address ИЛИ coords)
@@ -394,12 +392,12 @@ def prepare_events_for_feed(
                         continue
 
                 if expires_utc < datetime.now(UTC):
-                    drop.add("moment_expired", title)
+                    drop.add("event_expired", title)
                     continue
 
-            # Для моментов используем специальный радиус
-            moment_radius = settings.moment_max_radius_km
-            if user_point and moment_radius is not None:
+            # Для пользовательских событий используем специальный радиус
+            user_radius = settings.moment_max_radius_km
+            if user_point and user_radius is not None:
                 # Получаем координаты события
                 event_lat = None
                 event_lng = None
@@ -419,8 +417,8 @@ def prepare_events_for_feed(
                     from utils.geo_utils import haversine_km
 
                     distance = haversine_km(user_point[0], user_point[1], event_lat, event_lng)
-                    if distance > moment_radius:
-                        drop.add("moment_out_of_radius", title)
+                    if distance > user_radius:
+                        drop.add("user_event_out_of_radius", title)
                         continue
                     # Добавляем расстояние к событию
                     e["distance_km"] = round(distance, 2)
@@ -468,7 +466,7 @@ def prepare_events_for_feed(
         e = enrich_venue_name(e)
 
         # Логируем пользовательские события
-        if event_type in ("user", "moment"):
+        if event_type == "user":
             logger.info(
                 f"🔍 PREPARE: title='{title}', organizer_id={e.get('organizer_id')}, organizer_username='{e.get('organizer_username')}'"
             )
@@ -507,7 +505,7 @@ def create_events_summary(events: list) -> str:
     # Подсчитываем события по типам
     source_count = sum(1 for e in events if e.get("type") == "source")
     ai_parsed_count = sum(1 for e in events if e.get("type") == "ai_parsed")
-    moments_count = sum(1 for e in events if e.get("type") in ("user", "moment"))
+    user_count = sum(1 for e in events if e.get("type") == "user")
 
     summary_lines = [f"🗺 Найдено {len(events)} событий рядом!"]
 
@@ -516,8 +514,8 @@ def create_events_summary(events: list) -> str:
         summary_lines.append(f"• Из источников: {source_count}")
     if ai_parsed_count > 0:
         summary_lines.append(f"• AI-парсинг: {ai_parsed_count}")
-    if moments_count > 0:
-        summary_lines.append(f"• От пользователей: {moments_count}")
+    if user_count > 0:
+        summary_lines.append(f"• От пользователей: {user_count}")
 
     return "\n".join(summary_lines)
 
@@ -539,16 +537,6 @@ async def send_compact_events_list(
 
     # Используем радиус пользователя или дефолтный
     radius = get_user_radius(message.from_user.id, settings.default_radius_km)
-
-    # Добавляем моменты к списку событий, если включены
-    # Moments отключены
-    # if settings.moments_enable:
-    #     try:
-    #         moments = await get_active_moments_nearby(user_lat, user_lng, radius)
-    #         events.extend(moments)
-    #         logger.info(f"Добавлено {len(moments)} моментов к {len(events) - len(moments)} событиям")
-    #     except Exception as e:
-    #         logger.error(f"Ошибка загрузки моментов: {e}")
 
     # 1) Сначала фильтруем и группируем (после всех проверок publishable)
     prepared, diag = prepare_events_for_feed(events, user_point=(user_lat, user_lng), with_diag=True)
@@ -629,7 +617,7 @@ async def edit_events_list_message(
         event["distance_km"] = haversine_km(user_lat, user_lng, event["lat"], event["lng"])
 
     groups = {
-        "user": [e for e in prepared if e["type"] in ("user", "moment")],
+        "user": [e for e in prepared if e["type"] == "user"],
         "source": [e for e in prepared if e["type"] == "source"],
     }
     counts = {
@@ -697,8 +685,8 @@ logger = logging.getLogger(__name__)
 
 def build_maps_url(e: dict) -> str:
     """Создает URL для маршрута с приоритетом location_url > venue_name > address > coordinates"""
-    # Для пользовательских событий и моментов приоритизируем location_url (ссылка, которую указал пользователь)
-    if e.get("type") in ("user", "moment") and e.get("location_url"):
+    # Для пользовательских событий приоритизируем location_url (ссылка, которую указал пользователь)
+    if e.get("type") == "user" and e.get("location_url"):
         return e["location_url"]
 
     # Поддерживаем новую структуру venue и старую
@@ -728,11 +716,8 @@ def get_source_url(e: dict) -> str | None:
     elif t in ("ai", "ai_parsed", "ai_generated"):
         # Для AI-парсинга: source_url > url > original_url > location_url
         candidates = [e.get("source_url"), e.get("url"), e.get("original_url"), e.get("location_url")]
-    elif t == "moment":
-        # Для моментов пользователей URL не обязателен
-        candidates = [e.get("author_url"), e.get("chat_url"), e.get("location_url")]
     elif t == "user":
-        # Для моментов пользователей URL не обязателен
+        # Для пользовательских событий URL не обязателен
         candidates = [e.get("author_url"), e.get("chat_url")]
     else:
         # Fallback для неизвестных типов
@@ -795,7 +780,7 @@ def render_event_html(e: dict, idx: int) -> str:
         venue_display = "📍 Локация уточняется"
 
     # Источник/Автор - ТОЛЬКО из таблицы events
-    if event_type in ("user", "moment"):
+    if event_type == "user":
         organizer_id = e.get("organizer_id")
         organizer_username = e.get("organizer_username")  # Берем ТОЛЬКО из таблицы events
 
@@ -826,9 +811,9 @@ def render_event_html(e: dict, idx: int) -> str:
     # Маршрут с приоритетом venue_name → address → coords
     map_part = f'🚗 <a href="{build_maps_url(e)}">Маршрут</a>'
 
-    # Добавляем таймер для моментов
+    # Добавляем таймер для пользовательских событий
     timer_part = ""
-    if event_type in ("user", "moment"):
+    if event_type == "user":
         expires_utc = e.get("expires_utc")
         if expires_utc:
             from datetime import UTC, datetime
@@ -946,7 +931,7 @@ def group_by_type(events):
     """Группирует события по типам согласно ТЗ"""
     return {
         "source": [e for e in events if e.get("type") == "source"],
-        "user": [e for e in events if e.get("type") in ("user", "moment")],
+        "user": [e for e in events if e.get("type") == "user"],
         "ai_parsed": [e for e in events if e.get("type") == "ai_parsed"],
         "ai": [e for e in events if e.get("type") == "ai"],
         "ai_generated": [e for e in events if e.get("type") == "ai_generated"],
@@ -1290,10 +1275,6 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
     keyboard = [
         [KeyboardButton(text="📍 Что рядом"), KeyboardButton(text="➕ Создать")],
     ]
-
-    # Кнопка Moments отключена - функция удалена
-    # if settings.moments_enable:
-    #     keyboard.append([KeyboardButton(text="⚡ Создать Момент")])
 
     keyboard.extend(
         [
@@ -2059,45 +2040,7 @@ async def on_diag_last(message: types.Message):
         # Добавляем информацию о моментах и лимитах
         from config import load_settings
 
-        settings = load_settings()
-
-        if settings.moments_enable:
-            info_lines.extend(
-                [
-                    "",
-                    "<b>⚡ Моменты:</b>",
-                    f"• всего активных: {len([e for e in prepared if e.get('type') == 'user'])}",
-                    f"• лимит на пользователя: {settings.moment_daily_limit}/день",
-                    f"• TTL варианты: {', '.join(map(str, settings.moment_ttl_options))} мин",
-                ]
-            )
-
-            # Показываем моменты с деталями
-            moments = [e for e in prepared if e.get("type") == "user"]
-            if moments:
-                info_lines.extend(["", "<b>📋 Активные моменты:</b>"])
-                for moment in moments[:3]:  # Показываем первые 3
-                    author = moment.get("creator_username", "Аноним")
-                    title = moment.get("title", "Момент")
-                    expires = moment.get("expires_utc")
-                    if expires:
-                        try:
-                            from datetime import datetime
-
-                            exp_dt = datetime.fromisoformat(expires.replace("Z", "+00:00"))
-                            now = datetime.now(exp_dt.tzinfo)
-                            remaining = exp_dt - now
-                            hours = int(remaining.total_seconds() // 3600)
-                            minutes = int((remaining.total_seconds() % 3600) // 60)
-                            time_left = f"{hours}ч {minutes}м" if hours > 0 else f"{minutes}м"
-                        except Exception:
-                            time_left = "неизвестно"
-                    else:
-                        time_left = "неизвестно"
-
-                    lat = moment.get("lat", 0)
-                    lng = moment.get("lng", 0)
-                    info_lines.append(f'👤 @{author} | "{title}" | ещё {time_left} | ({lat:.4f}, {lng:.4f})')
+        load_settings()
 
         # Показываем первое отброшенное source событие для диагностики
         if diag.get("dropped", 0) > 0:
@@ -2143,16 +2086,8 @@ async def on_diag_all(message: types.Message):
                 session.query(Event).filter(Event.created_at_utc >= yesterday, Event.is_generated_by_ai is True).count()
             )
 
-            # Moments отключены
-            # active_moments = session.query(Moment).filter(Moment.is_active is True, Moment.expires_at > now).count()
-            # expired_moments = session.query(Moment).filter(Moment.is_active is True, Moment.expires_at <= now).count()
-            active_moments = 0
-            expired_moments = 0
-
             # Общее количество событий
             total_events = session.query(Event).count()
-            # total_moments = session.query(Moment).count()
-            total_moments = 0
 
             # Получаем список активных источников
             sources = session.query(Event.source).filter(Event.source.isnot(None)).distinct().all()
@@ -2169,14 +2104,9 @@ async def on_diag_all(message: types.Message):
                 f"• AI-сгенерированные: {ai_events}",
                 f"• Всего: {source_events + user_events + ai_events}",
                 "",
-                "<b>⚡ Моменты:</b>",
-                f"• Активные: {active_moments}",
-                f"• Истекшие (требуют очистки): {expired_moments}",
-                f"• Всего в БД: {total_moments}",
                 "",
                 "<b>📈 Общая статистика:</b>",
                 f"• Всего событий в БД: {total_events}",
-                f"• Всего моментов в БД: {total_moments}",
                 "",
                 "<b>🔗 Активные источники:</b>",
             ]
@@ -2195,7 +2125,6 @@ async def on_diag_all(message: types.Message):
                 [
                     "",
                     "<b>⚙️ Конфигурация:</b>",
-                    f"• Моменты включены: {'✅' if settings.moments_enable else '❌'}",
                     f"• AI парсинг: {'✅' if settings.ai_parse_enable else '❌'}",
                     f"• Meetup API: {'✅' if settings.enable_meetup_api else '❌'}",
                     f"• ICS календари: {'✅' if settings.enable_ics_feeds else '❌'}",
@@ -3104,9 +3033,6 @@ async def handle_radius_selection(callback: types.CallbackQuery):
         await callback.answer("Произошла ошибка")
 
 
-# cleanup_moments_task удалена - функция Moments отключена
-
-
 async def main():
     """Главная функция"""
     logger.info("Запуск улучшенного EventBot (aiogram 3.x)...")
@@ -3115,10 +3041,6 @@ async def main():
     from config import load_settings
 
     load_settings()
-    # Moments отключены - фоновая задача не запускается
-    # if settings.moments_enable:
-    #     asyncio.create_task(cleanup_moments_task())
-    #     logger.info("Запущена фоновая задача очистки моментов")
 
     # Читаем переменные окружения
     RUN_MODE = os.getenv("BOT_RUN_MODE", "webhook")
@@ -3148,10 +3070,6 @@ async def main():
             types.BotCommand(command="nearby", description="📍 Найти события рядом"),
             types.BotCommand(command="create", description="➕ Создать событие"),
         ]
-
-        # Команда Moments отключена - функция удалена
-        # if settings.moments_enable:
-        #     commands.append(types.BotCommand(command="moment", description="⚡ Создать Момент"))
 
         commands.extend(
             [
