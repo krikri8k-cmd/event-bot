@@ -835,13 +835,23 @@ def render_event_html(e: dict, idx: int) -> str:
     venue_name = venue.get("name") or e.get("venue_name")
     venue_address = venue.get("address") or e.get("address")
 
-    # Приоритет: venue_name → address → coords
+    # Приоритет: venue_name → address → coords → description (для пользовательских событий)
     if venue_name:
         venue_display = html.escape(venue_name)
     elif venue_address:
         venue_display = html.escape(venue_address)
     elif e.get("lat") and e.get("lng"):
         venue_display = f"координаты ({e['lat']:.4f}, {e['lng']:.4f})"
+    elif event_type == "user" and e.get("description"):
+        # Для пользовательских событий показываем описание вместо "Локация уточняется"
+        description = e.get("description", "").strip()
+        if description:
+            # Ограничиваем длину описания для красоты
+            if len(description) > 100:
+                description = description[:97] + "..."
+            venue_display = html.escape(description)
+        else:
+            venue_display = "📍 Локация уточняется"
     else:
         venue_display = "📍 Локация уточняется"
 
