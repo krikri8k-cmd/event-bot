@@ -934,7 +934,12 @@ def render_event_html(e: dict, idx: int) -> str:
     logger.info(f"🔍 DEBUG: ПЕРЕД final_html: venue_display='{venue_display}'")
     logger.info(f"🔍 DEBUG: venue_display repr: {repr(venue_display)}")
     logger.info(f"🔍 DEBUG: venue_display len: {len(venue_display)}")
-    final_html = f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n📍 {venue_display}\n{author_line}{map_part}\n"
+
+    # Проверяем venue_display прямо в f-string
+    test_venue = venue_display
+    logger.info(f"🔍 DEBUG: test_venue='{test_venue}'")
+
+    final_html = f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n📍 {test_venue}\n{author_line}{map_part}\n"
     logger.info(f"🔍 DEBUG: ПОСЛЕ final_html: venue_display='{venue_display}'")
     logger.info(f"🔍 FINAL HTML: {final_html}")
     return final_html
