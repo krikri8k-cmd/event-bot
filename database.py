@@ -48,6 +48,7 @@ class User(Base):
     )
     events_created_ids: Mapped[str | None] = mapped_column(Text)
     events_joined_ids: Mapped[str | None] = mapped_column(Text)
+    rockets_balance: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Event(Base):
@@ -104,6 +105,72 @@ class Report(Base):
     comment: Mapped[str | None] = mapped_column(Text)
     created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     status: Mapped[str] = mapped_column(String(16), default="new")
+
+
+class TaskPlace(Base):
+    __tablename__ = "task_places"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    category: Mapped[str] = mapped_column(String(20), nullable=False)  # 'body', 'spirit', 'career', 'social'
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    lat: Mapped[float] = mapped_column(Float, nullable=False)
+    lng: Mapped[float] = mapped_column(Float, nullable=False)
+    google_maps_url: Mapped[str | None] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class TaskTemplate(Base):
+    __tablename__ = "task_templates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    category: Mapped[str] = mapped_column(String(20), nullable=False)  # 'body', 'spirit', 'career', 'social'
+    place_type: Mapped[str] = mapped_column(String(50), nullable=False)  # 'park', 'cafe', 'library', etc.
+    title: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    rocket_value: Mapped[int] = mapped_column(Integer, default=1)
+    created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class UserTask(Base):
+    __tablename__ = "user_tasks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
+    template_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("task_templates.id"))
+    category: Mapped[str] = mapped_column(String(20), nullable=False)
+    title: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    rocket_value: Mapped[int] = mapped_column(Integer, default=1)
+
+    # Место выполнения
+    place_id: Mapped[str | None] = mapped_column(String(100))  # Google Places ID
+    place_name: Mapped[str | None] = mapped_column(String(255))
+    place_lat: Mapped[float | None] = mapped_column(Float)
+    place_lng: Mapped[float | None] = mapped_column(Float)
+    place_url: Mapped[str | None] = mapped_column(Text)  # Google Maps ссылка
+
+    # Статус и время
+    status: Mapped[str] = mapped_column(String(20), default="active")  # 'active', 'done', 'cancelled'
+    started_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+
+    # Заметка пользователя
+    user_note: Mapped[str | None] = mapped_column(Text)
+
+    created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class DailyView(Base):
+    __tablename__ = "daily_views"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
+    view_type: Mapped[str] = mapped_column(String(20), nullable=False)  # 'template', 'place'
+    view_key: Mapped[str] = mapped_column(String(100), nullable=False)  # template_id или place_id
+    view_date: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 engine: Engine | None = None
