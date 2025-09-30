@@ -832,8 +832,8 @@ def render_event_html(e: dict, idx: int) -> str:
 
     # Поддерживаем новую структуру venue и старую
     venue = e.get("venue", {})
-    venue_name = venue.get("name") or e.get("venue_name")
-    venue_address = venue.get("address") or e.get("address")
+    venue_name = venue.get("name") or e.get("venue_name") or e.get("location_name")
+    venue_address = venue.get("address") or e.get("address") or e.get("location_url")
 
     # Приоритет: venue_name → address → coords → description (для пользовательских событий)
     if venue_name:
