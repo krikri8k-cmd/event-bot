@@ -2803,7 +2803,17 @@ async def handle_expand_radius(callback: types.CallbackQuery):
                     "source_url": event.get("event_url", ""),
                     "type": "source" if event.get("source_type") == "parser" else "user",
                     "source": event.get("source_type", "user_created"),
+                    # Добавляем поля автора для пользовательских событий
+                    "organizer_id": event.get("organizer_id"),
+                    "organizer_username": event.get("organizer_username"),
                 }
+                # Логируем конвертацию для пользовательских событий
+                if event.get("source") == "user":
+                    logger.info(
+                        f"🔍 CONVERT USER EVENT (radius): title='{event.get('title')}', "
+                        f"organizer_id={event.get('organizer_id')} -> {converted_event.get('organizer_id')}, "
+                        f"organizer_username='{event.get('organizer_username')}' -> '{converted_event.get('organizer_username')}'"
+                    )
                 converted_events.append(converted_event)
 
             events = converted_events
