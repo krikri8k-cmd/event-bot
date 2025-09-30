@@ -231,6 +231,8 @@ def get_event_type_info(event: dict) -> tuple[str, str]:
 
     if event_type == "user":
         return "👥", "Пользовательские"
+    elif event_type == "moment":
+        return "👥", "Пользовательские"  # Моменты теперь отображаются как пользовательские
     elif source == "ai_generated":
         return "🤖", "AI генерация"
     elif source == "popular_places":
@@ -267,7 +269,7 @@ def group_events_by_type(events: list) -> dict[str, list]:
         event_type = event.get("type", "")
         event.get("source", "")
 
-        if event_type == "user":
+        if event_type in ("user", "moment"):
             groups["users"].append(event)
         else:
             # Все остальные считаем источниками
@@ -351,7 +353,7 @@ def prepare_events_for_feed(
             continue
 
         # Для user (moments) URL не обязателен
-        if event_type == "user" and not url:
+        if event_type in ("user", "moment") and not url:
             # Моменты могут не иметь URL
             pass
 
@@ -466,7 +468,7 @@ def prepare_events_for_feed(
         e = enrich_venue_name(e)
 
         # Логируем пользовательские события
-        if event_type == "user":
+        if event_type in ("user", "moment"):
             logger.info(
                 f"🔍 PREPARE: title='{title}', organizer_id={e.get('organizer_id')}, organizer_username='{e.get('organizer_username')}'"
             )
@@ -505,7 +507,7 @@ def create_events_summary(events: list) -> str:
     # Подсчитываем события по типам
     source_count = sum(1 for e in events if e.get("type") == "source")
     ai_parsed_count = sum(1 for e in events if e.get("type") == "ai_parsed")
-    moments_count = sum(1 for e in events if e.get("type") == "user")
+    moments_count = sum(1 for e in events if e.get("type") in ("user", "moment"))
 
     summary_lines = [f"🗺 Найдено {len(events)} событий рядом!"]
 
@@ -627,7 +629,7 @@ async def edit_events_list_message(
         event["distance_km"] = haversine_km(user_lat, user_lng, event["lat"], event["lng"])
 
     groups = {
-        "user": [e for e in prepared if e["type"] == "user"],
+        "user": [e for e in prepared if e["type"] in ("user", "moment")],
         "source": [e for e in prepared if e["type"] == "source"],
     }
     counts = {
@@ -793,7 +795,7 @@ def render_event_html(e: dict, idx: int) -> str:
         venue_display = "📍 Локация уточняется"
 
     # Источник/Автор - ТОЛЬКО из таблицы events
-    if event_type == "user":
+    if event_type in ("user", "moment"):
         organizer_id = e.get("organizer_id")
         organizer_username = e.get("organizer_username")  # Берем ТОЛЬКО из таблицы events
 
@@ -826,7 +828,7 @@ def render_event_html(e: dict, idx: int) -> str:
 
     # Добавляем таймер для моментов
     timer_part = ""
-    if event_type == "user":
+    if event_type in ("user", "moment"):
         expires_utc = e.get("expires_utc")
         if expires_utc:
             from datetime import UTC, datetime
@@ -944,7 +946,7 @@ def group_by_type(events):
     """Группирует события по типам согласно ТЗ"""
     return {
         "source": [e for e in events if e.get("type") == "source"],
-        "user": [e for e in events if e.get("type") == "user"],
+        "user": [e for e in events if e.get("type") in ("user", "moment")],
         "ai_parsed": [e for e in events if e.get("type") == "ai_parsed"],
         "ai": [e for e in events if e.get("type") == "ai"],
         "ai_generated": [e for e in events if e.get("type") == "ai_generated"],
