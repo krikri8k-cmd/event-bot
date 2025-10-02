@@ -2593,6 +2593,37 @@ async def process_date(message: types.Message, state: FSMContext):
     date = message.text.strip()
     logger.info(f"process_date: получили дату '{date}' от пользователя {message.from_user.id}")
 
+    # Валидация формата даты DD.MM.YYYY
+    import re
+
+    if not re.match(r"^\d{1,2}\.\d{1,2}\.\d{4}$", date):
+        await message.answer(
+            "❌ Неверный формат даты!\n\n"
+            "Используйте формат **DD.MM.YYYY** (например: 02.10.2025, 25.12.2025)\n\n"
+            "📅 Введите дату:",
+            parse_mode="Markdown",
+        )
+        return
+
+    # Дополнительная проверка: валидность даты
+    try:
+        day, month, year = map(int, date.split("."))
+        from datetime import datetime
+
+        datetime(year, month, day)  # Проверяем валидность даты
+    except ValueError:
+        await message.answer(
+            "❌ Неверная дата!\n\n"
+            "Проверьте правильность даты:\n"
+            "• День: 1-31\n"
+            "• Месяц: 1-12\n"
+            "• Год: 2024-2030\n\n"
+            "Например: 02.10.2025, 25.12.2025\n\n"
+            "📅 Введите дату:",
+            parse_mode="Markdown",
+        )
+        return
+
     await state.update_data(date=date)
     await state.set_state(EventCreation.waiting_for_time)
     await message.answer(
