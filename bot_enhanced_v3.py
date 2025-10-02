@@ -2606,6 +2606,33 @@ async def process_time(message: types.Message, state: FSMContext):
     time = message.text.strip()
     logger.info(f"process_time: получили время '{time}' от пользователя {message.from_user.id}")
 
+    # Валидация формата времени HH:MM
+    import re
+
+    if not re.match(r"^\d{1,2}:\d{2}$", time):
+        await message.answer(
+            "❌ Неверный формат времени!\n\n"
+            "Используйте формат **HH:MM** (например: 17:30, 9:00)\n\n"
+            "⏰ Введите время:",
+            parse_mode="Markdown",
+        )
+        return
+
+    # Дополнительная проверка: часы от 0 до 23, минуты от 0 до 59
+    try:
+        hours, minutes = map(int, time.split(":"))
+        if hours < 0 or hours > 23 or minutes < 0 or minutes > 59:
+            raise ValueError("Invalid time range")
+    except ValueError:
+        await message.answer(
+            "❌ Неверное время!\n\n"
+            "Часы: 0-23, минуты: 0-59\n"
+            "Например: 17:30, 9:00, 23:59\n\n"
+            "⏰ Введите время:",
+            parse_mode="Markdown",
+        )
+        return
+
     await state.update_data(time=time)
     await state.set_state(EventCreation.waiting_for_location_type)
 
