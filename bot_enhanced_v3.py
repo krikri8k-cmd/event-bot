@@ -418,10 +418,12 @@ def prepare_events_for_feed(
                 if venue.get("lat") is not None and venue.get("lon") is not None:
                     event_lat = venue.get("lat")
                     event_lng = venue.get("lon")
+                    logger.info(f"🔍 COORDS FROM VENUE: {event_lat}, {event_lng}")
                 # Проверяем старую структуру
                 elif e.get("lat") is not None and e.get("lng") is not None:
                     event_lat = e.get("lat")
                     event_lng = e.get("lng")
+                    logger.info(f"🔍 COORDS FROM EVENT: {event_lat}, {event_lng}")
 
                 if event_lat is not None and event_lng is not None:
                     # Вычисляем расстояние
