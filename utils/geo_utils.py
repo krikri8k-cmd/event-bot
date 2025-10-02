@@ -340,6 +340,11 @@ def parse_google_maps_link(link: str) -> dict | None:
                 # Координаты можно будет получить позже через геокодирование
                 return {"lat": None, "lng": None, "name": name, "raw_link": link}
 
+        # Паттерн 6: короткие ссылки без координат - пытаемся извлечь название
+        if "goo.gl/maps" in link or "maps.app.goo.gl" in link:
+            # Для коротких ссылок без координат возвращаем ссылку для геокодирования
+            return {"lat": None, "lng": None, "name": None, "raw_link": link}
+
         return None
 
     except (ValueError, AttributeError):

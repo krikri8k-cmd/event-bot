@@ -2665,18 +2665,41 @@ async def process_location_link(message: types.Message, state: FSMContext):
         )
         return
 
+    # Если координаты не найдены, пытаемся получить их через геокодирование
+    lat = location_data.get("lat")
+    lng = location_data.get("lng")
+
+    if lat is None or lng is None:
+        # Пытаемся получить координаты через геокодирование
+        from utils.geo_utils import geocode_address
+
+        # Используем название места или ссылку для геокодирования
+        address = location_data.get("name") or location_data.get("raw_link", "")
+
+        if address:
+            coords = await geocode_address(address)
+            if coords:
+                lat, lng = coords
+                logger.info(f"✅ Получили координаты через геокодирование: {lat}, {lng}")
+            else:
+                await message.answer(
+                    "❌ Не удалось определить координаты места.\n\n"
+                    "Попробуйте:\n"
+                    "• Ввести координаты в формате: широта,долгота\n"
+                    "• Или выбрать другое место"
+                )
+                return
+
     # Сохраняем данные локации
     await state.update_data(
         location_name=location_data.get("name", "Место на карте"),
-        location_lat=location_data["lat"],
-        location_lng=location_data["lng"],
+        location_lat=lat,
+        location_lng=lng,
         location_url=location_data["raw_link"],
     )
 
     # Показываем подтверждение
     location_name = location_data.get("name", "Место на карте")
-    lat = location_data.get("lat")
-    lng = location_data.get("lng")
 
     # Создаем кнопки подтверждения
     keyboard = InlineKeyboardMarkup(
