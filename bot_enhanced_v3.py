@@ -1113,16 +1113,40 @@ RADIUS_KEY = "radius_km"
 
 
 def get_user_radius(user_id: int, default_km: int) -> int:
-    """Получает радиус пользователя из состояния или возвращает дефолтный"""
-    state = user_state.get(user_id) or {}
-    value = state.get(RADIUS_KEY)
-    return int(value) if isinstance(value, int | float | str) and str(value).isdigit() else default_km
+    """Получает радиус пользователя из БД или возвращает дефолтный"""
+    try:
+        with get_session() as session:
+            user = session.get(User, user_id)
+            if user and user.default_radius_km:
+                return int(user.default_radius_km)
+    except Exception as e:
+        logger.warning(f"Ошибка получения радиуса пользователя {user_id}: {e}")
+    return default_km
 
 
-def set_user_radius(user_id: int, radius_km: int) -> None:
-    """Устанавливает радиус пользователя в состоянии"""
-    st = user_state.setdefault(user_id, {})
-    st[RADIUS_KEY] = int(radius_km)
+def set_user_radius(user_id: int, radius_km: int, tg_user=None) -> None:
+    """Устанавливает радиус пользователя в БД"""
+    try:
+        with get_session() as session:
+            user = session.get(User, user_id)
+            if user:
+                user.default_radius_km = radius_km
+                session.commit()
+            else:
+                # Создаем пользователя если его нет (требует объект tg_user)
+                if tg_user:
+                    user = User(
+                        id=user_id,
+                        username=tg_user.username,
+                        full_name=get_user_display_name(tg_user),
+                        default_radius_km=radius_km,
+                    )
+                    session.add(user)
+                    session.commit()
+                else:
+                    logger.warning(f"Пользователь {user_id} не найден в БД и tg_user не передан, радиус не сохранен")
+    except Exception as e:
+        logger.error(f"Ошибка сохранения радиуса пользователя {user_id}: {e}")
 
 
 # ---------- URL helpers ----------
@@ -1432,18 +1456,7 @@ def kb_radius(current: int | None = None) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[buttons])
 
 
-def radius_selection_kb() -> InlineKeyboardMarkup:
-    """Создаёт клавиатуру выбора радиуса поиска (legacy)"""
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text="🔍 5 км", callback_data="radius:5"),
-                InlineKeyboardButton(text="🔍 10 км", callback_data="radius:10"),
-                InlineKeyboardButton(text="🔍 15 км", callback_data="radius:15"),
-            ],
-            [InlineKeyboardButton(text="❌ Отмена", callback_data="radius:cancel")],
-        ]
-    )
+# Удалена старая функция radius_selection_kb() - используем только kb_radius()
 
 
 @dp.message(F.text == "🔧 Настройки радиуса")
@@ -3269,77 +3282,37 @@ async def on_radius_change(cb: types.CallbackQuery) -> None:
         await cb.answer("Недоступный радиус", show_alert=True)
         return
 
-    set_user_radius(cb.from_user.id, km)
+    user_id = cb.from_user.id
+
+    # Сохраняем выбранный радиус в БД
+    try:
+        with get_session() as session:
+            user = session.get(User, user_id)
+            if user:
+                user.default_radius_km = km
+                session.commit()
+            else:
+                # Создаем пользователя если его нет
+                user = User(
+                    id=user_id,
+                    username=cb.from_user.username,
+                    full_name=get_user_display_name(cb.from_user),
+                    default_radius_km=km,
+                )
+                session.add(user)
+                session.commit()
+    except Exception as e:
+        logger.error(f"Ошибка сохранения радиуса пользователя {user_id}: {e}")
+        await cb.answer("Ошибка сохранения", show_alert=True)
+        return
+
     await cb.answer(f"Радиус: {km} км")
 
     # Обновляем клавиатуру с новым выбранным радиусом
     await cb.message.edit_reply_markup(reply_markup=kb_radius(km))
 
 
-@dp.callback_query(F.data.startswith("radius:"))
-async def handle_radius_selection(callback: types.CallbackQuery):
-    """Обработчик выбора радиуса поиска"""
-    try:
-        if callback.data == "radius:cancel":
-            try:
-                await callback.message.edit_text("Настройки радиуса отменены.", reply_markup=main_menu_kb())
-            except TelegramBadRequest:
-                await callback.message.answer("Настройки радиуса отменены.", reply_markup=main_menu_kb())
-            await callback.answer()
-            return
-
-        # Извлекаем радиус из callback_data: radius:5
-        radius = int(callback.data.split(":")[1])
-        user_id = callback.from_user.id
-
-        # Сохраняем выбранный радиус в БД
-        with get_session() as session:
-            user = session.get(User, user_id)
-            if user:
-                user.default_radius_km = radius
-                session.commit()
-            else:
-                # Создаем пользователя если его нет
-                user = User(
-                    id=user_id,
-                    username=callback.from_user.username,
-                    full_name=get_user_display_name(callback.from_user),
-                    default_radius_km=radius,
-                )
-                session.add(user)
-                session.commit()
-
-        try:
-            await callback.message.edit_text(
-                f"✅ **Радиус поиска установлен: {radius} км**\n\n"
-                f"Теперь при поиске событий будет использоваться радиус {radius} км.\n"
-                f"Этот радиус также будет применяться для поиска моментов.",
-                parse_mode="Markdown",
-                reply_markup=main_menu_kb(),
-            )
-        except TelegramBadRequest:
-            await callback.message.answer(
-                f"✅ **Радиус поиска установлен: {radius} км**\n\n"
-                f"Теперь при поиске событий будет использоваться радиус {radius} км.\n"
-                f"Этот радиус также будет применяться для поиска моментов.",
-                parse_mode="Markdown",
-                reply_markup=main_menu_kb(),
-            )
-        await callback.answer(f"Радиус установлен: {radius} км")
-
-    except Exception as e:
-        logger.error(f"Ошибка при выборе радиуса: {e}")
-        try:
-            await callback.message.edit_text(
-                "Произошла ошибка при сохранении настроек. Попробуйте еще раз.",
-                reply_markup=main_menu_kb(),
-            )
-        except TelegramBadRequest:
-            await callback.message.answer(
-                "Произошла ошибка при сохранении настроек. Попробуйте еще раз.",
-                reply_markup=main_menu_kb(),
-            )
-        await callback.answer("Произошла ошибка")
+# Удален старый обработчик handle_radius_selection() - используем только on_radius_change()
 
 
 async def main():
