@@ -2516,6 +2516,24 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
         parse_mode="Markdown",
         reply_markup=reply_markup,
     )
+
+    # Создаем клавиатуру с кнопкой геолокации
+    location_keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📍 Отправить геолокацию", request_location=True)],
+            [KeyboardButton(text="🏠 Главное меню")],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+    )
+
+    # Отправляем отдельное сообщение с кнопкой геолокации
+    await callback.message.answer(
+        "📍 **Отправьте геолокацию**\n\n" "Нажмите кнопку ниже, чтобы отправить ваше местоположение:",
+        parse_mode="Markdown",
+        reply_markup=location_keyboard,
+    )
+
     await callback.answer()
 
 
@@ -2767,6 +2785,34 @@ async def handle_task_cancel(callback: types.CallbackQuery):
         )
 
     await callback.answer()
+
+
+@dp.message(F.location)
+async def on_location_for_tasks(message: types.Message, state: FSMContext):
+    """Обработчик геолокации для заданий"""
+    user_id = message.from_user.id
+    lat = message.location.latitude
+    lng = message.location.longitude
+
+    logger.info(f"📍 Получена геолокация от пользователя {user_id}: {lat}, {lng}")
+
+    # Сохраняем координаты пользователя
+    with get_session() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        if user:
+            user.lat = lat
+            user.lng = lng
+            session.commit()
+            logger.info(f"📍 Координаты пользователя {user_id} обновлены")
+
+    # Отправляем сообщение о том, что геолокация получена
+    await message.answer(
+        "✅ **Геолокация получена!**\n\n"
+        "Теперь вы можете выбрать задание из списка выше.\n"
+        "При выполнении задания учитывайте ваше местоположение! 🎯",
+        parse_mode="Markdown",
+        reply_markup=main_menu_kb(),
+    )
 
 
 @dp.message(EventCreation.waiting_for_feedback)
