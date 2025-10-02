@@ -1041,8 +1041,12 @@ def kb_pager(page: int, total: int, current_radius: int = None) -> InlineKeyboar
         current_radius = int(settings.default_radius_km)
 
     # Находим следующие доступные радиусы из RADIUS_OPTIONS
+    # Не предлагаем расширить до 5 км, если текущий радиус уже 5 км или больше
     for radius_option in RADIUS_OPTIONS:
         if radius_option > current_radius:
+            # Не показываем кнопку "расширить до 5 км", если текущий радиус уже 5 км или больше
+            if radius_option == 5 and current_radius >= 5:
+                continue
             buttons.append(
                 [
                     InlineKeyboardButton(
@@ -1722,6 +1726,9 @@ async def on_location(message: types.Message, state: FSMContext):
                 # Находим следующие доступные радиусы из RADIUS_OPTIONS
                 for radius_option in RADIUS_OPTIONS:
                     if radius_option > current_radius:
+                        # Не показываем кнопку "расширить до 5 км", если текущий радиус уже 5 км или больше
+                        if radius_option == 5 and current_radius >= 5:
+                            continue
                         keyboard_buttons.append(
                             [
                                 InlineKeyboardButton(
@@ -1775,7 +1782,7 @@ async def on_location(message: types.Message, state: FSMContext):
 
                 await message.answer(
                     f"📅 В радиусе {current_radius} км событий на сегодня не найдено.\n\n"
-                    f"💡 Попробуй расширить поиск до {next(iter([r for r in RADIUS_OPTIONS if r > current_radius]), '20')} км или создай своё событие!",
+                    f"💡 Попробуй расширить поиск до {next(iter([r for r in RADIUS_OPTIONS if r > current_radius and not (r == 5 and current_radius >= 5)]), '20')} км или создай своё событие!",
                     reply_markup=inline_kb,
                 )
 
@@ -1811,7 +1818,9 @@ async def on_location(message: types.Message, state: FSMContext):
 
             # Добавляем подсказку о расширении поиска, если событий мало
             if counts["all"] < 5:
-                next_radius = next(iter([r for r in RADIUS_OPTIONS if r > int(radius)]), 20)
+                next_radius = next(
+                    iter([r for r in RADIUS_OPTIONS if r > int(radius) and not (r == 5 and int(radius) >= 5)]), 20
+                )
                 short_caption += f"\n🔍 <i>Можно расширить поиск до {next_radius} км</i>"
 
             # Создаём карту с нумерованными метками
@@ -1844,6 +1853,9 @@ async def on_location(message: types.Message, state: FSMContext):
             # Находим следующие доступные радиусы из RADIUS_OPTIONS
             for radius_option in RADIUS_OPTIONS:
                 if radius_option > current_radius:
+                    # Не показываем кнопку "расширить до 5 км", если текущий радиус уже 5 км или больше
+                    if radius_option == 5 and current_radius >= 5:
+                        continue
                     keyboard_buttons.append(
                         [
                             InlineKeyboardButton(

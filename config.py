@@ -147,7 +147,7 @@ def load_settings(require_bot: bool = False) -> Settings:
     try:
         default_radius_km = float(default_radius_km_str)
     except ValueError:
-        default_radius_km = 4.0
+        default_radius_km = 5.0
 
     try:
         radius_step_km = float(radius_step_km_str)
