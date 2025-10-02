@@ -66,9 +66,7 @@ def spend_rockets(user_id: int, amount: int, reason: str = "") -> bool:
 def award_rockets_for_activity(user_id: int, activity_type: str) -> int:
     """Награждает ракетами за активность"""
     rewards = {
-        "first_search": 5,  # Первый поиск событий
         "daily_search": 1,  # Ежедневный поиск
-        "event_join": 2,  # Присоединение к событию
         "event_create": 10,  # Создание события
         "task_complete": 3,  # Выполнение задания "Цели на районе"
     }
