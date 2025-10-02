@@ -36,6 +36,13 @@ from simple_status_manager import (
     get_status_change_buttons,
     get_user_events,
 )
+from tasks_service import (
+    accept_task,
+    cancel_task,
+    complete_task,
+    get_daily_tasks,
+    get_user_active_tasks,
+)
 from utils.geo_utils import haversine_km
 from utils.static_map import build_static_map_url, fetch_static_map
 from utils.unified_events_service import UnifiedEventsService
@@ -1214,6 +1221,7 @@ class EventCreation(StatesGroup):
     waiting_for_location = State()  # Legacy - для обратной совместимости
     waiting_for_description = State()
     confirmation = State()
+    waiting_for_feedback = State()  # Ожидание фидбека для задания
 
 
 class EventEditing(StatesGroup):
@@ -2483,19 +2491,135 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
     """Обработчик выбора категории задания"""
     category = callback.data.split(":")[1]
 
-    category_names = {"body": "💪 Тело", "spirit": "🧘 Дух"}
+    # Получаем 3 задания на сегодня для выбранной категории
+    tasks = get_daily_tasks(category)
 
+    if not tasks:
+        await callback.message.edit_text("❌ Задания для этой категории пока не готовы.")
+        await callback.answer()
+        return
+
+    # Создаем клавиатуру с заданиями
+    keyboard = []
+    for task in tasks:
+        keyboard.append([InlineKeyboardButton(text=f"📋 {task.title}", callback_data=f"task_detail:{task.id}")])
+
+    keyboard.append([InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")])
+
+    reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+    category_names = {"body": "💪 Тело", "spirit": "🧘 Дух"}
     category_name = category_names.get(category, category)
 
-    # Сохраняем выбранную категорию в состоянии
-    await state.update_data(selected_category=category)
+    await callback.message.edit_text(
+        f"🎯 **{category_name}**\n\n" "Выберите задание для получения подробной информации:",
+        parse_mode="Markdown",
+        reply_markup=reply_markup,
+    )
+    await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("task_detail:"))
+async def handle_task_detail(callback: types.CallbackQuery, state: FSMContext):
+    """Обработчик просмотра деталей задания"""
+    task_id = int(callback.data.split(":")[1])
+
+    with get_session() as session:
+        from database import Task
+
+        task = session.query(Task).filter(Task.id == task_id).first()
+
+        if not task:
+            await callback.message.edit_text("❌ Задание не найдено.")
+            await callback.answer()
+            return
+
+        # Формируем сообщение с деталями задания
+        message = f"📋 **{task.title}**\n\n"
+        message += f"{task.description}\n\n"
+
+        if task.location_url:
+            message += "📍 **Предлагаемое место:**\n"
+            message += f"[🌍 Открыть на карте]({task.location_url})\n\n"
+
+        # Создаем клавиатуру
+        keyboard = []
+
+        if task.location_url:
+            keyboard.append(
+                [InlineKeyboardButton(text="📍 Вставить свою локацию", callback_data=f"task_custom_location:{task_id}")]
+            )
+
+        keyboard.extend(
+            [
+                [InlineKeyboardButton(text="✅ Принять задание", callback_data=f"task_accept:{task_id}")],
+                [InlineKeyboardButton(text="⬅️ Назад", callback_data=f"task_category:{task.category}")],
+            ]
+        )
+
+        reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+        await callback.message.edit_text(
+            message, parse_mode="Markdown", reply_markup=reply_markup, disable_web_page_preview=True
+        )
+        await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("task_accept:"))
+async def handle_task_accept(callback: types.CallbackQuery, state: FSMContext):
+    """Обработчик принятия задания"""
+    task_id = int(callback.data.split(":")[1])
+    user_id = callback.from_user.id
+
+    # Принимаем задание
+    success = accept_task(user_id, task_id)
+
+    if success:
+        await callback.message.edit_text(
+            "✅ **Задание принято!**\n\n"
+            "⏰ У вас есть **48 часов** на выполнение.\n"
+            "📋 Задание добавлено в 'Мои задания'.\n\n"
+            "Удачи! 🚀",
+            parse_mode="Markdown",
+        )
+    else:
+        await callback.message.edit_text(
+            "❌ **Не удалось принять задание**\n\n" "Возможно, у вас уже есть активное задание этого типа.",
+            parse_mode="Markdown",
+        )
+
+    await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("task_custom_location:"))
+async def handle_task_custom_location(callback: types.CallbackQuery, state: FSMContext):
+    """Обработчик ввода своей локации для задания"""
+    task_id = int(callback.data.split(":")[1])
+
+    await state.update_data(selected_task_id=task_id)
+    await state.set_state(EventCreation.waiting_for_location_link)
 
     await callback.message.edit_text(
-        f"🎯 **{category_name}**\n\n"
-        "Отлично! Теперь отправьте вашу геолокацию, чтобы я нашел ближайшие места для заданий.\n\n"
-        "📍 Нажмите кнопку 'Отправить геолокацию' или отправьте координаты.",
+        "📍 **Введите свою локацию**\n\n"
+        "Вы можете:\n"
+        "• Отправить ссылку Google Maps\n"
+        "• Ввести координаты (широта, долгота)\n"
+        "• Найти место на карте\n\n"
+        "Или нажмите кнопку ниже:",
         parse_mode="Markdown",
     )
+
+    # Добавляем кнопки для выбора типа локации
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="location_link")],
+            [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="location_map")],
+            [InlineKeyboardButton(text="📍 Ввести координаты", callback_data="location_coords")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data=f"task_detail:{task_id}")],
+        ]
+    )
+
+    await callback.message.answer("Выберите способ указания локации:", reply_markup=keyboard)
 
     await callback.answer()
 
@@ -2537,6 +2661,150 @@ async def handle_back_to_main_tasks(callback: types.CallbackQuery):
         "🏠 **Главное меню**\n\n" "Выберите действие:", parse_mode="Markdown", reply_markup=main_menu_kb()
     )
     await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("task_manage:"))
+async def handle_task_manage(callback: types.CallbackQuery):
+    """Обработчик управления заданием"""
+    user_task_id = int(callback.data.split(":")[1])
+    user_id = callback.from_user.id
+
+    # Получаем информацию о задании
+    active_tasks = get_user_active_tasks(user_id)
+    task_info = None
+
+    for task in active_tasks:
+        if task["id"] == user_task_id:
+            task_info = task
+            break
+
+    if not task_info:
+        await callback.message.edit_text("❌ Задание не найдено.")
+        await callback.answer()
+        return
+
+    # Проверяем, не истекло ли задание
+    now = datetime.now(UTC)
+    if now > task_info["expires_at"]:
+        await callback.message.edit_text(
+            "⏰ **Задание истекло**\n\n"
+            "Время выполнения задания закончилось.\n"
+            "Примите новое задание в '🎯 Цели на районе'!",
+            parse_mode="Markdown",
+        )
+        await callback.answer()
+        return
+
+    # Вычисляем оставшееся время
+    time_left = task_info["expires_at"] - now
+    hours_left = int(time_left.total_seconds() / 3600)
+    minutes_left = int((time_left.total_seconds() % 3600) / 60)
+
+    if hours_left > 0:
+        time_text = f"⏰ До: {hours_left}ч {minutes_left}м"
+    else:
+        time_text = f"⏰ До: {minutes_left}м"
+
+    category_emoji = "💪" if task_info["category"] == "body" else "🧘"
+
+    message = f"{category_emoji} **{task_info['title']}**\n\n"
+    message += f"{task_info['description']}\n\n"
+    message += f"{time_text}\n\n"
+
+    if task_info["location_url"]:
+        message += f"📍 [🌍 Открыть на карте]({task_info['location_url']})\n\n"
+
+    # Создаем клавиатуру
+    keyboard = [
+        [InlineKeyboardButton(text="✅ Выполнено", callback_data=f"task_complete:{user_task_id}")],
+        [InlineKeyboardButton(text="❌ Отменить", callback_data=f"task_cancel:{user_task_id}")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="my_tasks")],
+    ]
+
+    reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+    await callback.message.edit_text(
+        message, parse_mode="Markdown", reply_markup=reply_markup, disable_web_page_preview=True
+    )
+    await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("task_complete:"))
+async def handle_task_complete(callback: types.CallbackQuery, state: FSMContext):
+    """Обработчик завершения задания"""
+    user_task_id = int(callback.data.split(":")[1])
+
+    await state.update_data(completing_task_id=user_task_id)
+    await state.set_state(EventCreation.waiting_for_feedback)
+
+    await callback.message.edit_text(
+        "✅ **Задание выполнено!**\n\n"
+        "Поделитесь своими ощущениями:\n"
+        "• Как прошло выполнение?\n"
+        "• Что почувствовали?\n"
+        "• Как это помогло?\n\n"
+        "📝 Напишите ваш фидбек:",
+        parse_mode="Markdown",
+    )
+    await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("task_cancel:"))
+async def handle_task_cancel(callback: types.CallbackQuery):
+    """Обработчик отмены задания"""
+    user_task_id = int(callback.data.split(":")[1])
+
+    success = cancel_task(user_task_id)
+
+    if success:
+        await callback.message.edit_text(
+            "❌ **Задание отменено**\n\n" "Вы можете принять новое задание в '🎯 Цели на районе'.",
+            parse_mode="Markdown",
+        )
+    else:
+        await callback.message.edit_text(
+            "❌ **Не удалось отменить задание**\n\n" "Попробуйте еще раз.", parse_mode="Markdown"
+        )
+
+    await callback.answer()
+
+
+@dp.message(EventCreation.waiting_for_feedback)
+async def process_feedback(message: types.Message, state: FSMContext):
+    """Обработка фидбека для завершения задания"""
+    feedback = message.text.strip()
+    user_id = message.from_user.id
+
+    # Получаем ID задания из состояния
+    data = await state.get_data()
+    completing_task_id = data.get("completing_task_id")
+
+    if not completing_task_id:
+        await message.answer("❌ Ошибка: не найдено задание для завершения.")
+        await state.clear()
+        return
+
+    # Завершаем задание с фидбеком
+    success = complete_task(completing_task_id, feedback)
+
+    if success:
+        # Награждаем ракетами
+        rockets_awarded = award_rockets_for_activity(user_id, "task_complete")
+
+        await message.answer(
+            f"🎉 **Задание завершено!**\n\n"
+            f"📝 Спасибо за фидбек!\n"
+            f"🚀 Получено ракет: **{rockets_awarded}**\n\n"
+            f"Продолжайте в том же духе! 💪",
+            parse_mode="Markdown",
+        )
+    else:
+        await message.answer(
+            "❌ **Не удалось завершить задание**\n\n" "Возможно, время выполнения истекло или задание уже завершено.",
+            parse_mode="Markdown",
+        )
+
+    await state.clear()
 
 
 @dp.message(Command("help"))

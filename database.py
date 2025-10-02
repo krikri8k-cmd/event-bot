@@ -51,6 +51,32 @@ class User(Base):
     rockets_balance: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class Task(Base):
+    __tablename__ = "tasks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    category: Mapped[str] = mapped_column(String(20), nullable=False)  # 'body' или 'spirit'
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    location_url: Mapped[str | None] = mapped_column(String(500))
+    order_index: Mapped[int] = mapped_column(Integer, nullable=False)  # порядок показа (1-15)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class UserTask(Base):
+    __tablename__ = "user_tasks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    task_id: Mapped[int] = mapped_column(Integer, ForeignKey("tasks.id"), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="active")  # 'active', 'completed', 'cancelled', 'expired'
+    feedback: Mapped[str | None] = mapped_column(Text)
+    accepted_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+
+
 class Event(Base):
     __tablename__ = "events"
 
@@ -130,35 +156,6 @@ class TaskTemplate(Base):
     title: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     rocket_value: Mapped[int] = mapped_column(Integer, default=1)
-    created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-
-class UserTask(Base):
-    __tablename__ = "user_tasks"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
-    template_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("task_templates.id"))
-    category: Mapped[str] = mapped_column(String(20), nullable=False)
-    title: Mapped[str] = mapped_column(String(120), nullable=False)
-    description: Mapped[str] = mapped_column(Text, nullable=False)
-    rocket_value: Mapped[int] = mapped_column(Integer, default=1)
-
-    # Место выполнения
-    place_id: Mapped[str | None] = mapped_column(String(100))  # Google Places ID
-    place_name: Mapped[str | None] = mapped_column(String(255))
-    place_lat: Mapped[float | None] = mapped_column(Float)
-    place_lng: Mapped[float | None] = mapped_column(Float)
-    place_url: Mapped[str | None] = mapped_column(Text)  # Google Maps ссылка
-
-    # Статус и время
-    status: Mapped[str] = mapped_column(String(20), default="active")  # 'active', 'done', 'cancelled'
-    started_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    completed_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
-
-    # Заметка пользователя
-    user_note: Mapped[str | None] = mapped_column(Text)
-
     created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
