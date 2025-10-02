@@ -2460,27 +2460,8 @@ async def on_diag_search(message: types.Message):
 
 
 @dp.message(F.text == "🎯 Цель на Районе")
-async def on_tasks_goal(message: types.Message):
-    """Обработчик кнопки 'Цель на Районе' - объяснение и кнопка 'Я ТУТ'"""
-    keyboard = [
-        [InlineKeyboardButton(text="Я ТУТ", callback_data="tasks_confirm_location")],
-        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
-    ]
-    reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-    await message.answer(
-        "🎯 **Цель на Районе**\n\n"
-        "Это автоматизированный подбор квестов и мест!\n"
-        "Чтобы найти подходящие задания для тебя, нам нужно знать твое местоположение.\n\n"
-        "Нажми кнопку **'Я ТУТ'** чтобы начать!",
-        parse_mode="Markdown",
-        reply_markup=reply_markup,
-    )
-
-
-@dp.callback_query(F.data == "tasks_confirm_location")
-async def handle_tasks_confirm_location(callback: types.CallbackQuery, state: FSMContext):
-    """Обработчик кнопки 'Я ТУТ' - запрос геолокации"""
+async def on_tasks_goal(message: types.Message, state: FSMContext):
+    """Обработчик кнопки 'Цель на Районе' - объяснение и запрос геолокации"""
     # Устанавливаем состояние для заданий
     await state.set_state(TaskFlow.waiting_for_location)
 
@@ -2494,14 +2475,14 @@ async def handle_tasks_confirm_location(callback: types.CallbackQuery, state: FS
         one_time_keyboard=True,  # Кнопка исчезнет после использования
     )
 
-    # Отправляем сообщение с кнопкой геолокации
-    await callback.message.answer(
-        "📍 **Отправьте геолокацию**\n\n" "Нажмите кнопку ниже, чтобы отправить ваше местоположение:",
+    await message.answer(
+        "🎯 **Цель на Районе**\n\n"
+        "Это автоматизированный подбор квестов и мест!\n"
+        "Чтобы найти подходящие задания для тебя, нам нужно знать твое местоположение.\n\n"
+        "Нажмите кнопку **'📍 Отправить геолокацию'** чтобы начать!",
         parse_mode="Markdown",
         reply_markup=location_keyboard,
     )
-
-    await callback.answer()
 
 
 @dp.message(F.text == "📋 Мои задания")
