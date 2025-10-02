@@ -4,8 +4,15 @@
 """
 
 import logging
+import os
 
-from database import User, get_session
+from dotenv import load_dotenv
+
+from database import User, get_session, init_engine
+
+# Инициализируем базу данных
+load_dotenv("app.local.env")
+init_engine(os.getenv("DATABASE_URL"))
 
 logger = logging.getLogger(__name__)
 
