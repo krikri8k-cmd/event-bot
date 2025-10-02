@@ -14,9 +14,10 @@ from pathlib import Path
 # Добавляем корень проекта в путь
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from enhanced_event_search import enhanced_search_events
+
 from config import load_settings
 from database import init_engine
-from enhanced_event_search import enhanced_search_events
 from utils.geo_utils import haversine_km
 
 # Настройка логирования
