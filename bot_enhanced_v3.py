@@ -2455,24 +2455,26 @@ async def on_diag_search(message: types.Message):
 
 @dp.message(F.text == "🎯 Цель на Районе")
 async def on_tasks_goal(message: types.Message):
-    """Обработчик кнопки 'Цель на Районе' - выбор категории"""
+    """Обработчик кнопки 'Цель на Районе' - объяснение и кнопка 'Я ТУТ'"""
     keyboard = [
-        [InlineKeyboardButton(text="💪 Тело", callback_data="task_category:body")],
-        [InlineKeyboardButton(text="🧘 Дух", callback_data="task_category:spirit")],
+        [InlineKeyboardButton(text="Я ТУТ", callback_data="tasks_confirm_location")],
         [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
     ]
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
     await message.answer(
         "🎯 **Цель на Районе**\n\n"
-        "Выберите категорию для получения персонализированных заданий:\n\n"
-        "💪 **Тело** - спорт, йога, прогулки\n"
-        "🧘 **Дух** - медитация, храмы, природа\n\n"
-        "После выбора отправьте вашу геолокацию!",
+        "Это автоматизированный подбор квестов и мест!\n"
+        "Чтобы найти подходящие задания для тебя, нам нужно знать твое местоположение.\n\n"
+        "Нажми кнопку **'Я ТУТ'** чтобы начать!",
         parse_mode="Markdown",
         reply_markup=reply_markup,
     )
 
+
+@dp.callback_query(F.data == "tasks_confirm_location")
+async def handle_tasks_confirm_location(callback: types.CallbackQuery):
+    """Обработчик кнопки 'Я ТУТ' - запрос геолокации"""
     # Создаем клавиатуру с кнопкой геолокации
     location_keyboard = ReplyKeyboardMarkup(
         keyboard=[
@@ -2483,12 +2485,19 @@ async def on_tasks_goal(message: types.Message):
         one_time_keyboard=False,
     )
 
+    await callback.message.edit_text(
+        "📍 **Отправьте геолокацию**\n\n" "Нажмите кнопку ниже, чтобы отправить ваше местоположение:",
+        parse_mode="Markdown",
+    )
+
     # Отправляем отдельное сообщение с кнопкой геолокации
-    await message.answer(
+    await callback.message.answer(
         "📍 **Отправьте геолокацию**\n\n" "Нажмите кнопку ниже, чтобы отправить ваше местоположение:",
         parse_mode="Markdown",
         reply_markup=location_keyboard,
     )
+
+    await callback.answer()
 
 
 @dp.message(F.text == "📋 Мои задания")
@@ -2532,23 +2541,6 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
         f"🎯 **{category_name}**\n\n" "Выберите задание для получения подробной информации:",
         parse_mode="Markdown",
         reply_markup=reply_markup,
-    )
-
-    # Создаем клавиатуру с кнопкой геолокации
-    location_keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="📍 Отправить геолокацию", request_location=True)],
-            [KeyboardButton(text="🏠 Главное меню")],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=False,
-    )
-
-    # Отправляем отдельное сообщение с кнопкой геолокации
-    await callback.message.answer(
-        "📍 **Отправьте геолокацию**\n\n" "Нажмите кнопку ниже, чтобы отправить ваше местоположение:",
-        parse_mode="Markdown",
-        reply_markup=location_keyboard,
     )
 
     await callback.answer()
@@ -2822,13 +2814,21 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
             session.commit()
             logger.info(f"📍 Координаты пользователя {user_id} обновлены")
 
-    # Отправляем сообщение о том, что геолокация получена
+    # Показываем выбор категории после получения геолокации
+    keyboard = [
+        [InlineKeyboardButton(text="💪 Тело", callback_data="task_category:body")],
+        [InlineKeyboardButton(text="🧘 Дух", callback_data="task_category:spirit")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+    ]
+    reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
+
     await message.answer(
         "✅ **Геолокация получена!**\n\n"
-        "Теперь вы можете выбрать задание из списка выше.\n"
-        "При выполнении задания учитывайте ваше местоположение! 🎯",
+        "Выберите категорию для получения персонализированных заданий:\n\n"
+        "💪 **Тело** - спорт, йога, прогулки\n"
+        "🧘 **Дух** - медитация, храмы, природа",
         parse_mode="Markdown",
-        reply_markup=main_menu_kb(),
+        reply_markup=reply_markup,
     )
 
 
