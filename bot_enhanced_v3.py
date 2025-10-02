@@ -2721,6 +2721,43 @@ async def handle_location_type_text(message: types.Message, state: FSMContext):
                 "• Скопировать ссылку из приложения Google Maps\n"
                 "• Или нажать кнопку '🔗 Вставить готовую ссылку'"
             )
+
+    # Проверяем, являются ли это координаты (широта, долгота)
+    elif "," in text and len(text.split(",")) == 2:
+        try:
+            lat_str, lng_str = text.split(",")
+            lat = float(lat_str.strip())
+            lng = float(lng_str.strip())
+
+            # Проверяем валидность координат
+            if -90 <= lat <= 90 and -180 <= lng <= 180:
+                # Сохраняем координаты
+                await state.update_data(
+                    location_name="Место по координатам",
+                    location_lat=lat,
+                    location_lng=lng,
+                    location_url=text,
+                )
+
+                # Переходим к описанию
+                await state.set_state(EventCreation.waiting_for_description)
+                await message.answer(
+                    f"📍 Место определено по координатам: *{lat}, {lng}*\n\n" "📝 Теперь добавьте описание события:",
+                    parse_mode="Markdown",
+                )
+            else:
+                raise ValueError("Invalid coordinates range")
+
+        except ValueError:
+            await message.answer(
+                "❌ Неверный формат координат!\n\n"
+                "Используйте формат: **широта, долгота**\n"
+                "Например: 55.7558, 37.6176\n\n"
+                "Диапазоны:\n"
+                "• Широта: -90 до 90\n"
+                "• Долгота: -180 до 180",
+                parse_mode="Markdown",
+            )
     else:
         # Не ссылка - напоминаем о кнопках
         keyboard = InlineKeyboardMarkup(
