@@ -2813,11 +2813,50 @@ async def handle_location_coords_choice(callback: types.CallbackQuery, state: FS
 
 @dp.message(EventCreation.waiting_for_location_link)
 async def process_location_link(message: types.Message, state: FSMContext):
-    """Обработка ссылки Google Maps"""
+    """Обработка ссылки Google Maps или координат"""
     link = message.text.strip()
     logger.info(f"process_location_link: получили ссылку от пользователя {message.from_user.id}")
 
-    # Парсим ссылку
+    # Сначала проверяем, являются ли это координаты (широта, долгота)
+    if "," in link and len(link.split(",")) == 2:
+        try:
+            lat_str, lng_str = link.split(",")
+            lat = float(lat_str.strip())
+            lng = float(lng_str.strip())
+
+            # Проверяем валидность координат
+            if -90 <= lat <= 90 and -180 <= lng <= 180:
+                # Сохраняем координаты
+                await state.update_data(
+                    location_name="Место по координатам",
+                    location_lat=lat,
+                    location_lng=lng,
+                    location_url=link,
+                )
+
+                # Переходим к описанию
+                await state.set_state(EventCreation.waiting_for_description)
+                await message.answer(
+                    f"📍 Место определено по координатам: *{lat}, {lng}*\n\n" "📝 Теперь добавьте описание события:",
+                    parse_mode="Markdown",
+                )
+                return
+            else:
+                raise ValueError("Invalid coordinates range")
+
+        except ValueError:
+            await message.answer(
+                "❌ Неверный формат координат!\n\n"
+                "Используйте формат: **широта, долгота**\n"
+                "Например: 55.7558, 37.6176\n\n"
+                "Диапазоны:\n"
+                "• Широта: -90 до 90\n"
+                "• Долгота: -180 до 180",
+                parse_mode="Markdown",
+            )
+            return
+
+    # Если не координаты, пытаемся парсить как Google Maps ссылку
     from utils.geo_utils import parse_google_maps_link
 
     location_data = parse_google_maps_link(link)
