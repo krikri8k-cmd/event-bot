@@ -27,26 +27,55 @@ async def geocode_address(address: str, region_bias: str = "bali") -> tuple[floa
     if not settings.google_maps_api_key:
         return None
 
-    # Привязка к региону Бали для правильного геокодинга
+    # Умная привязка к региону
     if region_bias == "bali":
+        # Сначала пробуем с привязкой к Индонезии
         params = {
             "address": address,
             "key": settings.google_maps_api_key,
             "components": "country:ID",  # Только Индонезия
             "locationbias": "circle:100000@-8.67,115.21",  # Бали
         }
+
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get("https://maps.googleapis.com/maps/api/geocode/json", params=params)
+            r.raise_for_status()
+            data = r.json()
+
+            if data.get("status") == "OK" and data.get("results"):
+                loc = data["results"][0]["geometry"]["location"]
+                lat, lng = float(loc["lat"]), float(loc["lng"])
+
+                # Проверяем, что координаты в разумных пределах для Индонезии
+                if -11 <= lat <= -6 and 110 <= lng <= 120:  # Примерные границы Индонезии
+                    return lat, lng
+
+                # Если координаты не в Индонезии, пробуем без привязки к стране
+                params_no_country = {
+                    "address": address,
+                    "key": settings.google_maps_api_key,
+                    "locationbias": "circle:100000@-8.67,115.21",  # Только привязка к Бали
+                }
+
+                r2 = await client.get("https://maps.googleapis.com/maps/api/geocode/json", params=params_no_country)
+                r2.raise_for_status()
+                data2 = r2.json()
+
+                if data2.get("status") == "OK" and data2.get("results"):
+                    loc2 = data2["results"][0]["geometry"]["location"]
+                    return float(loc2["lat"]), float(loc2["lng"])
     else:
         params = {
             "address": address,
             "key": settings.google_maps_api_key,
         }
-    async with httpx.AsyncClient(timeout=15) as client:
-        r = await client.get("https://maps.googleapis.com/maps/api/geocode/json", params=params)
-        r.raise_for_status()
-        data = r.json()
-        if data.get("status") == "OK" and data.get("results"):
-            loc = data["results"][0]["geometry"]["location"]
-            return float(loc["lat"]), float(loc["lng"])
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get("https://maps.googleapis.com/maps/api/geocode/json", params=params)
+            r.raise_for_status()
+            data = r.json()
+            if data.get("status") == "OK" and data.get("results"):
+                loc = data["results"][0]["geometry"]["location"]
+                return float(loc["lat"]), float(loc["lng"])
     return None
 
 
