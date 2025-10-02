@@ -1218,10 +1218,16 @@ class EventCreation(StatesGroup):
     waiting_for_time = State()
     waiting_for_location_type = State()  # Выбор типа локации
     waiting_for_location_link = State()  # Ввод ссылки Google Maps
-    waiting_for_location = State()  # Legacy - для обратной совместимости
+    waiting_for_location = State()  # Legacy - для обратной совметимости
     waiting_for_description = State()
     confirmation = State()
     waiting_for_feedback = State()  # Ожидание фидбека для задания
+
+
+class TaskFlow(StatesGroup):
+    waiting_for_location = State()  # Ждем геолокацию для заданий
+    waiting_for_category = State()  # Ждем выбор категории
+    waiting_for_task_selection = State()  # Ждем выбор задания
 
 
 class EventEditing(StatesGroup):
@@ -2473,16 +2479,19 @@ async def on_tasks_goal(message: types.Message):
 
 
 @dp.callback_query(F.data == "tasks_confirm_location")
-async def handle_tasks_confirm_location(callback: types.CallbackQuery):
+async def handle_tasks_confirm_location(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик кнопки 'Я ТУТ' - запрос геолокации"""
-    # Создаем клавиатуру с кнопкой геолокации
+    # Устанавливаем состояние для заданий
+    await state.set_state(TaskFlow.waiting_for_location)
+
+    # Создаем клавиатуру с кнопкой геолокации (one_time_keyboard=True - кнопка исчезнет)
     location_keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="📍 Отправить геолокацию", request_location=True)],
             [KeyboardButton(text="🏠 Главное меню")],
         ],
         resize_keyboard=True,
-        one_time_keyboard=False,
+        one_time_keyboard=True,  # Кнопка исчезнет после использования
     )
 
     await callback.message.edit_text(
@@ -2796,7 +2805,7 @@ async def handle_task_cancel(callback: types.CallbackQuery):
     await callback.answer()
 
 
-@dp.message(F.location)
+@dp.message(F.location, TaskFlow.waiting_for_location)
 async def on_location_for_tasks(message: types.Message, state: FSMContext):
     """Обработчик геолокации для заданий"""
     user_id = message.from_user.id
@@ -2814,6 +2823,9 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
             session.commit()
             logger.info(f"📍 Координаты пользователя {user_id} обновлены")
 
+    # Переходим в состояние ожидания выбора категории
+    await state.set_state(TaskFlow.waiting_for_category)
+
     # Показываем выбор категории после получения геолокации
     keyboard = [
         [InlineKeyboardButton(text="💪 Тело", callback_data="task_category:body")],
@@ -2830,6 +2842,28 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
         parse_mode="Markdown",
         reply_markup=reply_markup,
     )
+
+
+@dp.message(F.location, ~TaskFlow.waiting_for_location)
+async def on_location_for_events(message: types.Message):
+    """Обработчик геолокации для поиска событий (отдельно от заданий)"""
+    user_id = message.from_user.id
+    lat = message.location.latitude
+    lng = message.location.longitude
+
+    logger.info(f"📍 Получена геолокация для поиска событий от пользователя {user_id}: {lat}, {lng}")
+
+    # Сохраняем координаты пользователя
+    with get_session() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        if user:
+            user.lat = lat
+            user.lng = lng
+            session.commit()
+            logger.info(f"📍 Координаты пользователя {user_id} обновлены")
+
+    # Выполняем поиск событий
+    await on_location(message)
 
 
 @dp.message(EventCreation.waiting_for_feedback)
