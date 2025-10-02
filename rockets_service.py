@@ -67,10 +67,10 @@ def award_rockets_for_activity(user_id: int, activity_type: str) -> int:
     """Награждает ракетами за активность"""
     rewards = {
         "first_search": 5,  # Первый поиск событий
-        "daily_search": 2,  # Ежедневный поиск
-        "event_join": 3,  # Присоединение к событию
+        "daily_search": 1,  # Ежедневный поиск
+        "event_join": 2,  # Присоединение к событию
         "event_create": 10,  # Создание события
-        "location_share": 1,  # Отправка геолокации
+        "task_complete": 3,  # Выполнение задания "Цели на районе"
     }
 
     amount = rewards.get(activity_type, 0)
