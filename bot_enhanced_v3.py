@@ -2844,9 +2844,14 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
     )
 
 
-@dp.message(F.location, ~TaskFlow.waiting_for_location)
-async def on_location_for_events(message: types.Message):
+@dp.message(F.location)
+async def on_location_for_events(message: types.Message, state: FSMContext):
     """Обработчик геолокации для поиска событий (отдельно от заданий)"""
+    # Проверяем состояние - если это для заданий, не обрабатываем здесь
+    current_state = await state.get_state()
+    if current_state == TaskFlow.waiting_for_location:
+        return  # Пропускаем - это для заданий
+
     user_id = message.from_user.id
     lat = message.location.latitude
     lng = message.location.longitude
