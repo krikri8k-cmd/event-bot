@@ -329,9 +329,13 @@ def prepare_events_for_feed(
     kept = []
     kept_by_type = {"source": 0, "user": 0, "ai_parsed": 0}
 
+    logger.info(f"🔍 PROCESSING {len(events)} events for filtering")
     for e in events:
         # 0) Сначала обогащаем локацию из текста
         e = enrich_venue_from_text(e)
+        logger.info(
+            f"🔍 EVENT: {e.get('title')}, coords: {e.get('lat')}, {e.get('lng')}, type: {e.get('type')}, source: {e.get('source')}"
+        )
 
         # Определяем тип события согласно ТЗ
         source = e.get("source", "")
@@ -408,6 +412,7 @@ def prepare_events_for_feed(
 
             # Для пользовательских событий используем радиус пользователя
             user_radius = radius_km
+            logger.info(f"🔍 FILTERING USER EVENTS: user_radius={user_radius}, user_point={user_point}")
             if user_point and user_radius is not None:
                 # Получаем координаты события
                 event_lat = None
