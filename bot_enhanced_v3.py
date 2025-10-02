@@ -1714,10 +1714,7 @@ async def on_location(message: types.Message, state: FSMContext):
         events = sort_events_by_time(events)
         logger.info("📅 События отсортированы по времени")
 
-        # Награждаем ракетами за ежедневный поиск
-        rockets_earned = award_rockets_for_activity(message.from_user.id, "daily_search")
-        if rockets_earned > 0:
-            logger.info(f"🚀 Пользователь {message.from_user.id} получил {rockets_earned} ракет за поиск")
+        # Ракеты за поиск убраны из системы
 
         # Единый конвейер: prepared → groups → counts → render
         try:
