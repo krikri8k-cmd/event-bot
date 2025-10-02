@@ -428,9 +428,17 @@ def prepare_events_for_feed(
                     from utils.geo_utils import haversine_km
 
                     distance = haversine_km(user_point[0], user_point[1], event_lat, event_lng)
+                    logger.info(
+                        f"🔍 FILTER CHECK: event='{title}', event_coords=({event_lat},{event_lng}), user_coords=({user_point[0]},{user_point[1]}), distance={distance:.2f}km, user_radius={user_radius}km"
+                    )
                     if distance > user_radius:
+                        logger.warning(
+                            f"❌ FILTERED OUT: '{title}' - distance {distance:.2f}km > radius {user_radius}km"
+                        )
                         drop.add("user_event_out_of_radius", title)
                         continue
+                    else:
+                        logger.info(f"✅ KEPT: '{title}' - distance {distance:.2f}km <= radius {user_radius}km")
                     # Добавляем расстояние к событию
                     e["distance_km"] = round(distance, 2)
 
