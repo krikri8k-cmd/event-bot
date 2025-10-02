@@ -1552,6 +1552,11 @@ async def on_what_nearby(message: types.Message):
 @dp.message(F.location)
 async def on_location(message: types.Message, state: FSMContext):
     """Обработчик получения геолокации"""
+    # Проверяем состояние - если это для заданий, не обрабатываем здесь
+    current_state = await state.get_state()
+    if current_state == TaskFlow.waiting_for_location:
+        return  # Пропускаем - это для заданий
+
     lat = message.location.latitude
     lng = message.location.longitude
 
