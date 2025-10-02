@@ -28,6 +28,7 @@ from aiogram.types import (
 
 from config import load_settings
 from database import Event, User, create_all, get_session, init_engine
+from rockets_service import award_rockets_for_activity
 from simple_status_manager import (
     auto_close_events,
     change_event_status,
@@ -1697,6 +1698,11 @@ async def on_location(message: types.Message, state: FSMContext):
         events = sort_events_by_time(events)
         logger.info("📅 События отсортированы по времени")
 
+        # Награждаем ракетами за ежедневный поиск
+        rockets_earned = award_rockets_for_activity(message.from_user.id, "daily_search")
+        if rockets_earned > 0:
+            logger.info(f"🚀 Пользователь {message.from_user.id} получил {rockets_earned} ракет за поиск")
+
         # Единый конвейер: prepared → groups → counts → render
         try:
             prepared, diag = prepare_events_for_feed(
@@ -2887,6 +2893,13 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
             )
 
             logger.info(f"✅ Событие создано с ID: {event_id}")
+
+            # Награждаем ракетами за создание события
+            rockets_earned = award_rockets_for_activity(callback.from_user.id, "event_create")
+            if rockets_earned > 0:
+                logger.info(
+                    f"🚀 Пользователь {callback.from_user.id} получил {rockets_earned} ракет за создание события"
+                )
 
         except Exception as e:
             logger.error(f"❌ Ошибка при создании события: {e}")
