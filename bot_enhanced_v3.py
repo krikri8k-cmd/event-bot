@@ -2825,33 +2825,6 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
     )
 
 
-@dp.message(F.location)
-async def on_location_for_events(message: types.Message, state: FSMContext):
-    """Обработчик геолокации для поиска событий (отдельно от заданий)"""
-    # Проверяем состояние - если это для заданий, не обрабатываем здесь
-    current_state = await state.get_state()
-    if current_state == TaskFlow.waiting_for_location:
-        return  # Пропускаем - это для заданий
-
-    user_id = message.from_user.id
-    lat = message.location.latitude
-    lng = message.location.longitude
-
-    logger.info(f"📍 Получена геолокация для поиска событий от пользователя {user_id}: {lat}, {lng}")
-
-    # Сохраняем координаты пользователя
-    with get_session() as session:
-        user = session.query(User).filter(User.id == user_id).first()
-        if user:
-            user.lat = lat
-            user.lng = lng
-            session.commit()
-            logger.info(f"📍 Координаты пользователя {user_id} обновлены")
-
-    # Выполняем поиск событий
-    await on_location(message)
-
-
 @dp.message(EventCreation.waiting_for_feedback)
 async def process_feedback(message: types.Message, state: FSMContext):
     """Обработка фидбека для завершения задания"""
