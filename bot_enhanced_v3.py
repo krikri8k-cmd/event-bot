@@ -406,8 +406,8 @@ def prepare_events_for_feed(
                     drop.add("event_expired", title)
                     continue
 
-            # Для пользовательских событий используем специальный радиус
-            user_radius = settings.moment_max_radius_km
+            # Для пользовательских событий используем радиус пользователя
+            user_radius = radius_km
             if user_point and user_radius is not None:
                 # Получаем координаты события
                 event_lat = None
