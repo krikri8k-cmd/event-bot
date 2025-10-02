@@ -1572,8 +1572,6 @@ async def on_location(message: types.Message, state: FSMContext):
             category_names = {
                 "body": "💪 Тело",
                 "spirit": "🧘 Дух",
-                "career": "💼 Карьера",
-                "social": "🤝 Взаимодействие",
             }
 
             category_name = category_names.get(selected_category, selected_category)
@@ -2453,8 +2451,6 @@ async def on_tasks_goal(message: types.Message):
     keyboard = [
         [InlineKeyboardButton(text="💪 Тело", callback_data="task_category:body")],
         [InlineKeyboardButton(text="🧘 Дух", callback_data="task_category:spirit")],
-        [InlineKeyboardButton(text="💼 Карьера", callback_data="task_category:career")],
-        [InlineKeyboardButton(text="🤝 Взаимодействие", callback_data="task_category:social")],
         [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
     ]
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -2463,9 +2459,7 @@ async def on_tasks_goal(message: types.Message):
         "🎯 **Цель на Районе**\n\n"
         "Выберите категорию для получения персонализированных заданий:\n\n"
         "💪 **Тело** - спорт, йога, прогулки\n"
-        "🧘 **Дух** - медитация, храмы, природа\n"
-        "💼 **Карьера** - работа, обучение, развитие\n"
-        "🤝 **Взаимодействие** - знакомства, общение\n\n"
+        "🧘 **Дух** - медитация, храмы, природа\n\n"
         "После выбора отправьте вашу геолокацию!",
         parse_mode="Markdown",
         reply_markup=reply_markup,
@@ -2489,7 +2483,7 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
     """Обработчик выбора категории задания"""
     category = callback.data.split(":")[1]
 
-    category_names = {"body": "💪 Тело", "spirit": "🧘 Дух", "career": "💼 Карьера", "social": "🤝 Взаимодействие"}
+    category_names = {"body": "💪 Тело", "spirit": "🧘 Дух"}
 
     category_name = category_names.get(category, category)
 
