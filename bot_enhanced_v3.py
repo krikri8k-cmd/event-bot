@@ -1640,6 +1640,7 @@ async def on_location(message: types.Message, state: FSMContext):
             logger.info(f"🌍 Определен город: {city}")
 
             # Ищем события
+            logger.info(f"🔍 SEARCH COORDS: lat={lat}, lng={lng}, radius={radius}")
             events = events_service.search_events_today(city=city, user_lat=lat, user_lng=lng, radius_km=int(radius))
 
             # Конвертируем в старый формат для совместимости
