@@ -1036,25 +1036,21 @@ def kb_pager(page: int, total: int, current_radius: int = None) -> InlineKeyboar
         [InlineKeyboardButton(text=f"Стр. {page}/{total}", callback_data="pg:noop")],
     ]
 
-    # Добавляем кнопки расширения радиуса, если текущий радиус меньше максимального
+    # Добавляем кнопки расширения радиуса, используя фиксированные RADIUS_OPTIONS
     if current_radius is None:
         current_radius = int(settings.default_radius_km)
 
-    radius_step = int(settings.radius_step_km)
-    max_radius = int(settings.max_radius_km)
-
-    # Добавляем кнопки расширения радиуса
-    next_radius = current_radius + radius_step
-    while next_radius <= max_radius:
-        buttons.append(
-            [
-                InlineKeyboardButton(
-                    text=f"🔍 Расширить до {next_radius} км",
-                    callback_data=f"rx:{next_radius}",
-                )
-            ]
-        )
-        next_radius += radius_step
+    # Находим следующие доступные радиусы из RADIUS_OPTIONS
+    for radius_option in RADIUS_OPTIONS:
+        if radius_option > current_radius:
+            buttons.append(
+                [
+                    InlineKeyboardButton(
+                        text=f"🔍 Расширить до {radius_option} км",
+                        callback_data=f"rx:{radius_option}",
+                    )
+                ]
+            )
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -1719,24 +1715,21 @@ async def on_location(message: types.Message, state: FSMContext):
             if not prepared:
                 logger.info("📭 События не найдены после фильтрации")
 
-                # Создаем кнопки расширения радиуса
+                # Создаем кнопки расширения радиуса, используя фиксированные RADIUS_OPTIONS
                 keyboard_buttons = []
                 current_radius = int(radius)
-                radius_step = int(settings.radius_step_km)
-                max_radius = int(settings.max_radius_km)
 
-                # Добавляем кнопки расширения радиуса
-                next_radius = current_radius + radius_step
-                while next_radius <= max_radius:
-                    keyboard_buttons.append(
-                        [
-                            InlineKeyboardButton(
-                                text=f"🔍 Расширить поиск до {next_radius} км",
-                                callback_data=f"rx:{next_radius}",
-                            )
-                        ]
-                    )
-                    next_radius += radius_step
+                # Находим следующие доступные радиусы из RADIUS_OPTIONS
+                for radius_option in RADIUS_OPTIONS:
+                    if radius_option > current_radius:
+                        keyboard_buttons.append(
+                            [
+                                InlineKeyboardButton(
+                                    text=f"🔍 Расширить поиск до {radius_option} км",
+                                    callback_data=f"rx:{radius_option}",
+                                )
+                            ]
+                        )
 
                 # Добавляем кнопку создания события
                 keyboard_buttons.append(
@@ -1782,7 +1775,7 @@ async def on_location(message: types.Message, state: FSMContext):
 
                 await message.answer(
                     f"📅 В радиусе {current_radius} км событий на сегодня не найдено.\n\n"
-                    f"💡 Попробуй расширить поиск до {current_radius + int(settings.radius_step_km)} км или создай своё событие!",
+                    f"💡 Попробуй расширить поиск до {next(iter([r for r in RADIUS_OPTIONS if r > current_radius]), '20')} км или создай своё событие!",
                     reply_markup=inline_kb,
                 )
 
@@ -1818,7 +1811,7 @@ async def on_location(message: types.Message, state: FSMContext):
 
             # Добавляем подсказку о расширении поиска, если событий мало
             if counts["all"] < 5:
-                next_radius = int(radius) + int(settings.radius_step_km)
+                next_radius = next(iter([r for r in RADIUS_OPTIONS if r > int(radius)]), 20)
                 short_caption += f"\n🔍 <i>Можно расширить поиск до {next_radius} км</i>"
 
             # Создаём карту с нумерованными метками
@@ -1845,23 +1838,20 @@ async def on_location(message: types.Message, state: FSMContext):
             # Создаем кнопки для расширения радиуса
             keyboard_buttons = [[InlineKeyboardButton(text="🗺️ Открыть в Google Maps с событиями", url=maps_url)]]
 
-            # Всегда добавляем кнопки расширения радиуса для лучшего UX
+            # Всегда добавляем кнопки расширения радиуса для лучшего UX, используя фиксированные RADIUS_OPTIONS
             current_radius = int(settings.default_radius_km)
-            radius_step = int(settings.radius_step_km)
-            max_radius = int(settings.max_radius_km)
 
-            # Создаем кнопки для расширения радиуса
-            next_radius = current_radius + radius_step
-            while next_radius <= max_radius:
-                keyboard_buttons.append(
-                    [
-                        InlineKeyboardButton(
-                            text=f"🔍 Расширить до {next_radius} км",
-                            callback_data=f"rx:{next_radius}",
-                        )
-                    ]
-                )
-                next_radius += radius_step
+            # Находим следующие доступные радиусы из RADIUS_OPTIONS
+            for radius_option in RADIUS_OPTIONS:
+                if radius_option > current_radius:
+                    keyboard_buttons.append(
+                        [
+                            InlineKeyboardButton(
+                                text=f"🔍 Расширить до {radius_option} км",
+                                callback_data=f"rx:{radius_option}",
+                            )
+                        ]
+                    )
 
             inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
