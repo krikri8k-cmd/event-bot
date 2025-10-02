@@ -22,14 +22,24 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return R * c
 
 
-async def geocode_address(address: str) -> tuple[float, float] | None:
+async def geocode_address(address: str, region_bias: str = "bali") -> tuple[float, float] | None:
     settings = load_settings()
     if not settings.google_maps_api_key:
         return None
-    params = {
-        "address": address,
-        "key": settings.google_maps_api_key,
-    }
+
+    # Привязка к региону Бали для правильного геокодинга
+    if region_bias == "bali":
+        params = {
+            "address": address,
+            "key": settings.google_maps_api_key,
+            "components": "country:ID",  # Только Индонезия
+            "locationbias": "circle:100000@-8.67,115.21",  # Бали
+        }
+    else:
+        params = {
+            "address": address,
+            "key": settings.google_maps_api_key,
+        }
     async with httpx.AsyncClient(timeout=15) as client:
         r = await client.get("https://maps.googleapis.com/maps/api/geocode/json", params=params)
         r.raise_for_status()
