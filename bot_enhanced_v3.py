@@ -2867,8 +2867,15 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
         import pytz
 
         try:
+            # Исправляем формат времени: заменяем точку на двоеточие в части времени
+            # "02.10.2025 19.00" -> "02.10.2025 19:00"
+            import re
+
+            time_local_fixed = re.sub(r"(\d{2}\.\d{2}\.\d{4}) (\d{2})\.(\d{2})", r"\1 \2:\3", time_local)
+            logger.info(f"🔍 TIME_LOCAL_FIXED: {time_local_fixed}")
+
             # Парсим время как локальное для региона
-            naive_dt = datetime.strptime(time_local, "%d.%m.%Y %H:%M")
+            naive_dt = datetime.strptime(time_local_fixed, "%d.%m.%Y %H:%M")
 
             # Определяем часовой пояс по городу
             if preliminary_city == "bali":
