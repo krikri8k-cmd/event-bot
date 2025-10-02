@@ -2473,6 +2473,23 @@ async def on_tasks_goal(message: types.Message):
         reply_markup=reply_markup,
     )
 
+    # Создаем клавиатуру с кнопкой геолокации
+    location_keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📍 Отправить геолокацию", request_location=True)],
+            [KeyboardButton(text="🏠 Главное меню")],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+    )
+
+    # Отправляем отдельное сообщение с кнопкой геолокации
+    await message.answer(
+        "📍 **Отправьте геолокацию**\n\n" "Нажмите кнопку ниже, чтобы отправить ваше местоположение:",
+        parse_mode="Markdown",
+        reply_markup=location_keyboard,
+    )
+
 
 @dp.message(F.text == "📋 Мои задания")
 async def on_my_tasks(message: types.Message):
