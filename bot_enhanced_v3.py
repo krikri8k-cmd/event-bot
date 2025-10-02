@@ -2676,8 +2676,67 @@ async def process_time(message: types.Message, state: FSMContext):
     )
 
     await message.answer(
-        f"Время сохранено: *{time}* ✅\n\n📍 Как укажем место?", parse_mode="Markdown", reply_markup=keyboard
+        f"Время сохранено: *{time}* ✅\n\n📍 Как укажем место?\n\n"
+        "⚠️ **Внимание:** Нажмите на одну из кнопок ниже, чтобы продолжить!",
+        parse_mode="Markdown",
+        reply_markup=keyboard,
     )
+
+
+@dp.message(EventCreation.waiting_for_location_type)
+async def handle_location_type_text(message: types.Message, state: FSMContext):
+    """Обработка текстовых сообщений в состоянии выбора типа локации"""
+    text = message.text.strip()
+
+    # Проверяем, является ли это Google Maps ссылкой
+    if any(domain in text.lower() for domain in ["maps.google.com", "goo.gl/maps", "maps.app.goo.gl"]):
+        # Пользователь отправил ссылку напрямую - обрабатываем как ссылку
+        await state.set_state(EventCreation.waiting_for_location_link)
+        await state.update_data(location_url=text)
+
+        # Парсим ссылку
+        from utils.geo_utils import parse_google_maps_link
+
+        location_data = parse_google_maps_link(text)
+
+        if location_data:
+            # Сохраняем данные локации
+            await state.update_data(
+                location_name=location_data.get("name", "Место на карте"),
+                location_lat=location_data.get("lat"),
+                location_lng=location_data.get("lng"),
+            )
+
+            # Переходим к описанию
+            await state.set_state(EventCreation.waiting_for_description)
+            await message.answer(
+                f"📍 Место определено: *{location_data.get('name', 'Место на карте')}*\n\n"
+                "📝 Теперь добавьте описание события:",
+                parse_mode="Markdown",
+            )
+        else:
+            await message.answer(
+                "❌ Не удалось распознать ссылку Google Maps.\n\n"
+                "Попробуйте:\n"
+                "• Скопировать ссылку из приложения Google Maps\n"
+                "• Или нажать кнопку '🔗 Вставить готовую ссылку'"
+            )
+    else:
+        # Не ссылка - напоминаем о кнопках
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="location_link")],
+                [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="location_map")],
+            ]
+        )
+
+        await message.answer(
+            "❌ Пожалуйста, используйте кнопки ниже для указания места:\n\n"
+            "• **🔗 Вставить готовую ссылку** - если у вас есть ссылка Google Maps\n"
+            "• **🌍 Найти на карте** - чтобы найти место на карте",
+            parse_mode="Markdown",
+            reply_markup=keyboard,
+        )
 
 
 # Обработчики для выбора типа локации
