@@ -1554,14 +1554,17 @@ async def on_location(message: types.Message, state: FSMContext):
     """Обработчик получения геолокации"""
     # Проверяем состояние - если это для заданий, не обрабатываем здесь
     current_state = await state.get_state()
+    logger.info(f"📍 Обработчик событий: состояние={current_state}")
+
     if current_state == TaskFlow.waiting_for_location:
+        logger.info("📍 Пропускаем - это для заданий")
         return  # Пропускаем - это для заданий
 
     lat = message.location.latitude
     lng = message.location.longitude
 
     # Логируем получение геолокации
-    logger.info(f"📍 Получена геолокация пользователя: lat={lat} lon={lng} (источник=пользователь)")
+    logger.info(f"📍 Получена геолокация для событий: lat={lat} lon={lng} (источник=пользователь)")
 
     # Показываем индикатор загрузки
     loading_message = await message.answer(
@@ -2607,8 +2610,11 @@ async def handle_start_task(callback: types.CallbackQuery):
 
 
 @dp.callback_query(F.data == "back_to_main")
-async def handle_back_to_main_tasks(callback: types.CallbackQuery):
+async def handle_back_to_main_tasks(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик возврата в главное меню из заданий"""
+    # Очищаем состояние FSM
+    await state.clear()
+
     await callback.message.edit_text(
         "🏠 **Главное меню**\n\n" "Выберите действие:", parse_mode="Markdown", reply_markup=main_menu_kb()
     )
@@ -2728,7 +2734,11 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
     lat = message.location.latitude
     lng = message.location.longitude
 
-    logger.info(f"📍 Получена геолокация от пользователя {user_id}: {lat}, {lng}")
+    # Логируем состояние для отладки
+    current_state = await state.get_state()
+    logger.info(
+        f"📍 Получена геолокация для заданий от пользователя {user_id}: {lat}, {lng}, состояние: {current_state}"
+    )
 
     # Сохраняем координаты пользователя
     with get_session() as session:
