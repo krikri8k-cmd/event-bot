@@ -2672,12 +2672,12 @@ async def process_time(message: types.Message, state: FSMContext):
         inline_keyboard=[
             [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="location_link")],
             [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="location_map")],
+            [InlineKeyboardButton(text="📍 Ввести координаты", callback_data="location_coords")],
         ]
     )
 
     await message.answer(
-        f"Время сохранено: *{time}* ✅\n\n📍 Как укажем место?\n\n"
-        "⚠️ **Внимание:** Нажмите на одну из кнопок ниже, чтобы продолжить!",
+        f"Время сохранено: *{time}* ✅\n\n📍 Как укажем место?\n\n" "Выберите один из способов:",
         parse_mode="Markdown",
         reply_markup=keyboard,
     )
@@ -2770,7 +2770,8 @@ async def handle_location_type_text(message: types.Message, state: FSMContext):
         await message.answer(
             "❌ Пожалуйста, используйте кнопки ниже для указания места:\n\n"
             "• **🔗 Вставить готовую ссылку** - если у вас есть ссылка Google Maps\n"
-            "• **🌍 Найти на карте** - чтобы найти место на карте",
+            "• **🌍 Найти на карте** - чтобы найти место на карте\n"
+            "• **📍 Ввести координаты** - если знаете широту и долготу",
             parse_mode="Markdown",
             reply_markup=keyboard,
         )
@@ -2796,6 +2797,17 @@ async def handle_location_map_choice(callback: types.CallbackQuery, state: FSMCo
     )
 
     await callback.message.answer("🌍 Открой карту, найди место и вставь ссылку сюда 👇", reply_markup=keyboard)
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "location_coords")
+async def handle_location_coords_choice(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор ввода координат"""
+    await state.set_state(EventCreation.waiting_for_location_link)
+    await callback.message.answer(
+        "📍 Введите координаты в формате: **широта, долгота**\n\n" "Например: 55.7558, 37.6176\n" "Или: -8.67, 115.21",
+        parse_mode="Markdown",
+    )
     await callback.answer()
 
 
@@ -2901,6 +2913,7 @@ async def handle_location_change(callback: types.CallbackQuery, state: FSMContex
         inline_keyboard=[
             [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="location_link")],
             [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="location_map")],
+            [InlineKeyboardButton(text="📍 Ввести координаты", callback_data="location_coords")],
         ]
     )
 
