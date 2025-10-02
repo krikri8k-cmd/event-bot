@@ -48,7 +48,7 @@ class User(Base):
     )
     events_created_ids: Mapped[str | None] = mapped_column(Text)
     events_joined_ids: Mapped[str | None] = mapped_column(Text)
-    # rockets_balance: Mapped[int] = mapped_column(Integer, default=0)  # Временно отключено до миграции
+    rockets_balance: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Event(Base):
