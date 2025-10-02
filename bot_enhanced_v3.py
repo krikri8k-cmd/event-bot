@@ -2853,7 +2853,9 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
             session.commit()
 
         # Объединяем дату и время
+        logger.info(f"🔍 DATA: {data}")
         time_local = f"{data['date']} {data['time']}"
+        logger.info(f"🔍 TIME_LOCAL: {time_local}")
 
         # Определяем предварительный город (для правильного часового пояса)
         # Позже будет уточнен по координатам
@@ -2881,7 +2883,8 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
             starts_at = local_dt.astimezone(pytz.UTC)
 
             logger.info(f"🕐 Время события: {time_local} ({preliminary_city}) → {starts_at} UTC")
-        except ValueError:
+        except ValueError as e:
+            logger.error(f"❌ Ошибка парсинга времени: {e}, time_local: {time_local}")
             starts_at = None
 
         # Определяем данные локации
