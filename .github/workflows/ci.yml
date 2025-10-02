@@ -66,9 +66,17 @@ jobs:
           python -m pip install -U pip
           pip install -r requirements-dev.txt
 
+      - name: Debug Python path
+        run: |
+          python -c "import sys; print('Python path:'); [print(p) for p in sys.path]"
+          python -c "import os; print('Current dir:', os.getcwd()); print('Files:', os.listdir('.'))"
+          python -c "import tasks_service; print('tasks_service imported successfully')"
+
       - name: Run tests (light)
         run: pytest -q
         env:
+          # PYTHONPATH для поиска модулей
+          PYTHONPATH: ${{ github.workspace }}
           # Фейковые/безопасные значения только для CI:
           TELEGRAM_TOKEN: "1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi"
           DATABASE_URL: "sqlite:///./test.db"
