@@ -1228,6 +1228,7 @@ class TaskFlow(StatesGroup):
     waiting_for_location = State()  # Ждем геолокацию для заданий
     waiting_for_category = State()  # Ждем выбор категории
     waiting_for_task_selection = State()  # Ждем выбор задания
+    waiting_for_custom_location = State()  # Ждем ввод своей локации для задания
 
 
 class EventSearch(StatesGroup):
@@ -2696,7 +2697,7 @@ async def handle_task_custom_location(callback: types.CallbackQuery, state: FSMC
     task_id = int(callback.data.split(":")[1])
 
     await state.update_data(selected_task_id=task_id)
-    await state.set_state(EventCreation.waiting_for_location_link)
+    await state.set_state(TaskFlow.waiting_for_custom_location)
 
     await callback.message.edit_text(
         "📍 **Введите свою локацию**\n\n"
@@ -3132,9 +3133,134 @@ async def handle_location_coords_choice(callback: types.CallbackQuery, state: FS
     await callback.answer()
 
 
+@dp.message(TaskFlow.waiting_for_custom_location)
+async def process_task_custom_location(message: types.Message, state: FSMContext):
+    """Обработка ввода своей локации для задания"""
+    link = message.text.strip()
+    user_id = message.from_user.id
+    logger.info(f"process_task_custom_location: получили ссылку от пользователя {user_id}")
+
+    # Получаем ID задания из состояния
+    data = await state.get_data()
+    task_id = data.get("selected_task_id")
+
+    if not task_id:
+        await message.answer("❌ Ошибка: не найдено задание.")
+        await state.clear()
+        return
+
+    # Проверяем, являются ли это координаты (широта, долгота)
+    if "," in link and len(link.split(",")) == 2:
+        try:
+            lat_str, lng_str = link.split(",")
+            lat = float(lat_str.strip())
+            lng = float(lng_str.strip())
+
+            # Проверяем валидность координат
+            if -90 <= lat <= 90 and -180 <= lng <= 180:
+                # Сохраняем координаты пользователя
+                with get_session() as session:
+                    user = session.query(User).filter(User.id == user_id).first()
+                    if user:
+                        user.last_lat = lat
+                        user.last_lng = lng
+                        user.last_geo_at_utc = datetime.now(UTC)
+                        session.commit()
+
+                # Принимаем задание с кастомной локацией
+                success = accept_task(user_id, task_id)
+
+                if success:
+                    await message.answer(
+                        "✅ **Задание принято с вашей локацией!**\n\n"
+                        f"📍 Место: {lat}, {lng}\n"
+                        "⏰ У вас есть **48 часов** на выполнение.\n"
+                        "📋 Задание добавлено в 'Мои задания'.\n\n"
+                        "Удачи! 🚀",
+                        parse_mode="Markdown",
+                    )
+                else:
+                    await message.answer(
+                        "❌ **Не удалось принять задание**\n\n" "Возможно, у вас уже есть активное задание этого типа.",
+                        parse_mode="Markdown",
+                    )
+
+                # Очищаем состояние
+                await state.clear()
+                return
+            else:
+                await message.answer("❌ Неверные координаты. Широта должна быть от -90 до 90, долгота от -180 до 180.")
+                return
+
+        except ValueError:
+            await message.answer("❌ Неверный формат координат. Используйте: широта, долгота")
+            return
+
+    # Проверяем, является ли это Google Maps ссылкой
+    if any(domain in link.lower() for domain in ["maps.google.com", "goo.gl/maps", "maps.app.goo.gl"]):
+        # Парсим ссылку
+        from utils.geo_utils import parse_google_maps_link
+
+        result = await parse_google_maps_link(link)
+
+        if result.get("lat") and result.get("lng"):
+            lat, lng = result["lat"], result["lng"]
+            location_name = result.get("name", "Место по ссылке")
+
+            # Сохраняем координаты пользователя
+            with get_session() as session:
+                user = session.query(User).filter(User.id == user_id).first()
+                if user:
+                    user.last_lat = lat
+                    user.last_lng = lng
+                    user.last_geo_at_utc = datetime.now(UTC)
+                    session.commit()
+
+            # Принимаем задание с кастомной локацией
+            success = accept_task(user_id, task_id)
+
+            if success:
+                await message.answer(
+                    "✅ **Задание принято с вашей локацией!**\n\n"
+                    f"📍 Место: {location_name}\n"
+                    f"🌍 Координаты: {lat}, {lng}\n"
+                    "⏰ У вас есть **48 часов** на выполнение.\n"
+                    "📋 Задание добавлено в 'Мои задания'.\n\n"
+                    "Удачи! 🚀",
+                    parse_mode="Markdown",
+                )
+            else:
+                await message.answer(
+                    "❌ **Не удалось принять задание**\n\n" "Возможно, у вас уже есть активное задание этого типа.",
+                    parse_mode="Markdown",
+                )
+
+            # Очищаем состояние
+            await state.clear()
+            return
+        else:
+            await message.answer("❌ Не удалось определить координаты по ссылке. Попробуйте ввести координаты вручную.")
+            return
+
+    # Если это не координаты и не ссылка
+    await message.answer(
+        "❌ Неверный формат.\n\n"
+        "Введите:\n"
+        "• Ссылку Google Maps\n"
+        "• Координаты в формате: широта, долгота\n\n"
+        "Например: -8.67, 115.21"
+    )
+
+
 @dp.message(EventCreation.waiting_for_location_link)
 async def process_location_link(message: types.Message, state: FSMContext):
     """Обработка ссылки Google Maps или координат"""
+    # Проверяем состояние - если это для заданий, не обрабатываем здесь
+    current_state = await state.get_state()
+    if current_state == TaskFlow.waiting_for_custom_location:
+        logger.info("📍 Пропускаем - это для заданий")
+        return  # Пропускаем - это для заданий
+
     link = message.text.strip()
     logger.info(f"process_location_link: получили ссылку от пользователя {message.from_user.id}")
 
