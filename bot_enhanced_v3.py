@@ -2699,16 +2699,6 @@ async def handle_task_custom_location(callback: types.CallbackQuery, state: FSMC
     await state.update_data(selected_task_id=task_id)
     await state.set_state(TaskFlow.waiting_for_custom_location)
 
-    await callback.message.edit_text(
-        "📍 **Введите свою локацию**\n\n"
-        "Вы можете:\n"
-        "• Отправить ссылку Google Maps\n"
-        "• Ввести координаты (широта, долгота)\n"
-        "• Найти место на карте\n\n"
-        "Или нажмите кнопку ниже:",
-        parse_mode="Markdown",
-    )
-
     # Добавляем кнопки для выбора типа локации
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -2719,7 +2709,16 @@ async def handle_task_custom_location(callback: types.CallbackQuery, state: FSMC
         ]
     )
 
-    await callback.message.answer("Выберите способ указания локации:", reply_markup=keyboard)
+    await callback.message.edit_text(
+        "📍 **Введите свою локацию**\n\n"
+        "Вы можете:\n"
+        "• Отправить ссылку Google Maps\n"
+        "• Ввести координаты (широта, долгота)\n"
+        "• Найти место на карте\n\n"
+        "Или выберите способ ниже:",
+        parse_mode="Markdown",
+        reply_markup=keyboard,
+    )
 
     await callback.answer()
 
@@ -3103,33 +3102,63 @@ async def handle_location_type_text(message: types.Message, state: FSMContext):
 @dp.callback_query(F.data == "location_link")
 async def handle_location_link_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор ввода готовой ссылки"""
-    await state.set_state(EventCreation.waiting_for_location_link)
-    await callback.message.answer("🔗 Вставьте сюда ссылку из Google Maps:")
+    current_state = await state.get_state()
+
+    if current_state == TaskFlow.waiting_for_custom_location:
+        # Для заданий
+        await callback.message.answer("🔗 Вставьте сюда ссылку из Google Maps:")
+    else:
+        # Для событий
+        await state.set_state(EventCreation.waiting_for_location_link)
+        await callback.message.answer("🔗 Вставьте сюда ссылку из Google Maps:")
+
     await callback.answer()
 
 
 @dp.callback_query(F.data == "location_map")
 async def handle_location_map_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор поиска на карте"""
-    await state.set_state(EventCreation.waiting_for_location_link)
+    current_state = await state.get_state()
 
     # Создаем кнопку для открытия Google Maps
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text="🌍 Открыть Google Maps", url="https://www.google.com/maps")]]
     )
 
-    await callback.message.answer("🌍 Открой карту, найди место и вставь ссылку сюда 👇", reply_markup=keyboard)
+    if current_state == TaskFlow.waiting_for_custom_location:
+        # Для заданий
+        await callback.message.answer("🌍 Открой карту, найди место и вставь ссылку сюда 👇", reply_markup=keyboard)
+    else:
+        # Для событий
+        await state.set_state(EventCreation.waiting_for_location_link)
+        await callback.message.answer("🌍 Открой карту, найди место и вставь ссылку сюда 👇", reply_markup=keyboard)
+
     await callback.answer()
 
 
 @dp.callback_query(F.data == "location_coords")
 async def handle_location_coords_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор ввода координат"""
-    await state.set_state(EventCreation.waiting_for_location_link)
-    await callback.message.answer(
-        "📍 Введите координаты в формате: **широта, долгота**\n\n" "Например: 55.7558, 37.6176\n" "Или: -8.67, 115.21",
-        parse_mode="Markdown",
-    )
+    current_state = await state.get_state()
+
+    if current_state == TaskFlow.waiting_for_custom_location:
+        # Для заданий
+        await callback.message.answer(
+            "📍 Введите координаты в формате: **широта, долгота**\n\n"
+            "Например: 55.7558, 37.6176\n"
+            "Или: -8.67, 115.21",
+            parse_mode="Markdown",
+        )
+    else:
+        # Для событий
+        await state.set_state(EventCreation.waiting_for_location_link)
+        await callback.message.answer(
+            "📍 Введите координаты в формате: **широта, долгота**\n\n"
+            "Например: 55.7558, 37.6176\n"
+            "Или: -8.67, 115.21",
+            parse_mode="Markdown",
+        )
+
     await callback.answer()
 
 
