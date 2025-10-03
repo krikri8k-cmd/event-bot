@@ -1556,6 +1556,50 @@ async def on_what_nearby(message: types.Message, state: FSMContext):
     )
 
 
+@dp.message(F.location, TaskFlow.waiting_for_location)
+async def on_location_for_tasks(message: types.Message, state: FSMContext):
+    """Обработчик геолокации для заданий"""
+    user_id = message.from_user.id
+    lat = message.location.latitude
+    lng = message.location.longitude
+
+    # Логируем состояние для отладки
+    current_state = await state.get_state()
+    logger.info(f"📍 [ЗАДАНИЯ] Получена геолокация от пользователя {user_id}: {lat}, {lng}, состояние: {current_state}")
+
+    # Сохраняем координаты пользователя
+    with get_session() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        if user:
+            user.last_lat = lat
+            user.last_lng = lng
+            user.last_geo_at_utc = datetime.now(UTC)
+            session.commit()
+            logger.info(f"📍 Координаты пользователя {user_id} обновлены")
+
+    # Переходим в состояние ожидания выбора категории
+    await state.set_state(TaskFlow.waiting_for_category)
+
+    # Показываем выбор категории после получения геолокации
+    keyboard = [
+        [InlineKeyboardButton(text="💪 Тело", callback_data="task_category:body")],
+        [InlineKeyboardButton(text="🧘 Дух", callback_data="task_category:spirit")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+    ]
+    reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+    await message.answer(
+        "✅ **Геолокация получена!**\n\n"
+        "Выберите категорию для получения персонализированных заданий:\n\n"
+        "💪 **Тело** - спорт, йога, прогулки\n"
+        "🧘 **Дух** - медитация, храмы, природа",
+        parse_mode="Markdown",
+        reply_markup=reply_markup,
+    )
+
+    logger.info(f"📍 [ЗАДАНИЯ] Показаны категории для пользователя {user_id}")
+
+
 @dp.message(F.location)
 async def on_location(message: types.Message, state: FSMContext):
     """Обработчик получения геолокации"""
@@ -2741,50 +2785,6 @@ async def handle_task_cancel(callback: types.CallbackQuery):
         )
 
     await callback.answer()
-
-
-@dp.message(F.location, TaskFlow.waiting_for_location)
-async def on_location_for_tasks(message: types.Message, state: FSMContext):
-    """Обработчик геолокации для заданий"""
-    user_id = message.from_user.id
-    lat = message.location.latitude
-    lng = message.location.longitude
-
-    # Логируем состояние для отладки
-    current_state = await state.get_state()
-    logger.info(f"📍 [ЗАДАНИЯ] Получена геолокация от пользователя {user_id}: {lat}, {lng}, состояние: {current_state}")
-
-    # Сохраняем координаты пользователя
-    with get_session() as session:
-        user = session.query(User).filter(User.id == user_id).first()
-        if user:
-            user.last_lat = lat
-            user.last_lng = lng
-            user.last_geo_at_utc = datetime.now(UTC)
-            session.commit()
-            logger.info(f"📍 Координаты пользователя {user_id} обновлены")
-
-    # Переходим в состояние ожидания выбора категории
-    await state.set_state(TaskFlow.waiting_for_category)
-
-    # Показываем выбор категории после получения геолокации
-    keyboard = [
-        [InlineKeyboardButton(text="💪 Тело", callback_data="task_category:body")],
-        [InlineKeyboardButton(text="🧘 Дух", callback_data="task_category:spirit")],
-        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
-    ]
-    reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-    await message.answer(
-        "✅ **Геолокация получена!**\n\n"
-        "Выберите категорию для получения персонализированных заданий:\n\n"
-        "💪 **Тело** - спорт, йога, прогулки\n"
-        "🧘 **Дух** - медитация, храмы, природа",
-        parse_mode="Markdown",
-        reply_markup=reply_markup,
-    )
-
-    logger.info(f"📍 [ЗАДАНИЯ] Показаны категории для пользователя {user_id}")
 
 
 @dp.message(EventCreation.waiting_for_feedback)
