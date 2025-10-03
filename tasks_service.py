@@ -34,7 +34,7 @@ def get_daily_tasks(category: str, date: datetime | None = None) -> list[Task]:
     days_since_start = (date - START_DATE).days
     day_number = (days_since_start % 5) + 1  # 1-5, потом снова 1
 
-    # Получаем 3 задания подряд
+    # Получаем 3 задания подряд (используем order_index 1-15 напрямую)
     start_index = (day_number - 1) * 3 + 1
     end_index = start_index + 2
 
@@ -53,7 +53,30 @@ def get_daily_tasks(category: str, date: datetime | None = None) -> list[Task]:
             .all()
         )
 
-        logger.info(f"Получены задания для {category}, день {day_number}: {len(tasks)} заданий")
+        logger.info(
+            f"Получены задания для {category}, день {day_number}: {len(tasks)} заданий "
+            f"(индексы {start_index}-{end_index})"
+        )
+
+        # Если не найдено заданий, попробуем получить любые 3 активных задания
+        if not tasks:
+            logger.warning(
+                f"Задания не найдены для {category} с индексами {start_index}-{end_index}, пробуем любые активные"
+            )
+            tasks = (
+                session.query(Task)
+                .filter(
+                    and_(
+                        Task.category == category,
+                        Task.is_active is True,
+                    )
+                )
+                .order_by(Task.order_index)
+                .limit(3)
+                .all()
+            )
+            logger.info(f"Получены альтернативные задания для {category}: {len(tasks)} заданий")
+
         return tasks
 
 
