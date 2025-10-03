@@ -1230,6 +1230,10 @@ class TaskFlow(StatesGroup):
     waiting_for_task_selection = State()  # Ждем выбор задания
 
 
+class EventSearch(StatesGroup):
+    waiting_for_location = State()  # Ждем геолокацию для поиска событий
+
+
 class EventEditing(StatesGroup):
     choosing_field = State()
     waiting_for_title = State()
@@ -1538,8 +1542,11 @@ async def cmd_start(message: types.Message):
 
 @dp.message(Command("nearby"))
 @dp.message(F.text == "📍 Что рядом")
-async def on_what_nearby(message: types.Message):
+async def on_what_nearby(message: types.Message, state: FSMContext):
     """Обработчик кнопки 'Что рядом'"""
+    # Устанавливаем состояние для поиска событий
+    await state.set_state(EventSearch.waiting_for_location)
+
     await message.answer(
         "Отправь свежую геопозицию, чтобы я нашла события рядом ✨",
         reply_markup=types.ReplyKeyboardMarkup(
@@ -1559,6 +1566,11 @@ async def on_location(message: types.Message, state: FSMContext):
     if current_state == TaskFlow.waiting_for_location:
         logger.info("📍 Пропускаем - это для заданий")
         return  # Пропускаем - это для заданий
+
+    # Проверяем, что это состояние для поиска событий
+    if current_state != EventSearch.waiting_for_location:
+        logger.info(f"📍 Неизвестное состояние для геолокации: {current_state}")
+        return
 
     lat = message.location.latitude
     lng = message.location.longitude
@@ -1762,6 +1774,8 @@ async def on_location(message: types.Message, state: FSMContext):
 
                 # Отправляем главное меню после сообщения о том, что события не найдены
                 await send_spinning_menu(message)
+                # Очищаем состояние FSM после завершения поиска
+                await state.clear()
                 return
 
             # Сохраняем состояние для пагинации и расширения радиуса
@@ -1912,6 +1926,8 @@ async def on_location(message: types.Message, state: FSMContext):
                 logger.info("✅ Компактный список событий отправлен")
                 # Отправляем главное меню после списка событий
                 await send_spinning_menu(message)
+                # Очищаем состояние FSM после завершения поиска
+                await state.clear()
             except Exception as e:
                 logger.error(f"❌ Ошибка отправки компактного списка: {e}")
                 # Fallback - отправляем простой список событий
