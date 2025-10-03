@@ -3230,7 +3230,7 @@ async def process_task_custom_location(message: types.Message, state: FSMContext
         # Парсим ссылку
         from utils.geo_utils import parse_google_maps_link
 
-        result = await parse_google_maps_link(link)
+        result = parse_google_maps_link(link)
 
         if result.get("lat") and result.get("lng"):
             lat, lng = result["lat"], result["lng"]
