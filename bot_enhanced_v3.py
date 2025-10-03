@@ -2490,14 +2490,98 @@ async def on_tasks_goal(message: types.Message, state: FSMContext):
 
 @dp.message(F.text == "📋 Мои задания")
 async def on_my_tasks(message: types.Message):
-    """Обработчик кнопки 'Мои задания' - пока заглушка"""
+    """Обработчик кнопки 'Мои задания'"""
+    user_id = message.from_user.id
+
+    # Получаем активные задания пользователя
+    active_tasks = get_user_active_tasks(user_id)
+
+    if not active_tasks:
+        await message.answer(
+            "📋 **Мои задания**\n\n"
+            "У вас пока нет активных заданий.\n\n"
+            "🎯 Нажмите 'Цель на районе' чтобы получить новые задания!",
+            parse_mode="Markdown",
+        )
+        return
+
+    # Формируем сообщение с активными заданиями
+    message_text = "📋 **Мои активные задания**\n\n"
+
+    keyboard = []
+    for task in active_tasks:
+        # Вычисляем оставшееся время
+        time_left = task["expires_at"] - datetime.now(UTC)
+        hours_left = int(time_left.total_seconds() / 3600)
+
+        category_emoji = "💪" if task["category"] == "body" else "🧘"
+        status_text = f"⏰ Осталось: {hours_left}ч"
+
+        message_text += f"{category_emoji} **{task['title']}**\n"
+        message_text += f"📝 {task['description'][:100]}...\n"
+        message_text += f"{status_text}\n\n"
+
+        # Добавляем кнопки для управления заданием
+        keyboard.append(
+            [
+                InlineKeyboardButton(text="✅ Выполнено", callback_data=f"task_complete:{task['id']}"),
+                InlineKeyboardButton(text="❌ Отменить", callback_data=f"task_cancel:{task['id']}"),
+            ]
+        )
+
+    keyboard.append([InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")])
+
+    reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
+
     await message.answer(
-        "📋 **Мои задания**\n\n"
-        "Эта функция в разработке!\n"
-        "Скоро здесь будут ваши активные и выполненные задания.\n\n"
-        "Пока используйте '📋 Мои события' для управления событиями!",
+        message_text,
+        parse_mode="Markdown",
+        reply_markup=reply_markup,
+    )
+
+
+@dp.callback_query(F.data.startswith("task_complete:"))
+async def handle_task_complete(callback: types.CallbackQuery, state: FSMContext):
+    """Обработчик завершения задания"""
+    user_task_id = int(callback.data.split(":")[1])
+
+    # Переходим в состояние ожидания фидбека
+    await state.set_state(EventCreation.waiting_for_feedback)
+    await state.update_data(user_task_id=user_task_id)
+
+    await callback.message.edit_text(
+        "✅ **Задание выполнено!**\n\n"
+        "Поделитесь своими впечатлениями:\n"
+        "• Как прошло выполнение?\n"
+        "• Что вы почувствовали?\n"
+        "• Как это помогло вам?\n\n"
+        "Напишите ваш отзыв:",
         parse_mode="Markdown",
     )
+
+    await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("task_cancel:"))
+async def handle_task_cancel(callback: types.CallbackQuery):
+    """Обработчик отмены задания"""
+    user_task_id = int(callback.data.split(":")[1])
+
+    # Отменяем задание
+    success = cancel_task(user_task_id)
+
+    if success:
+        await callback.message.edit_text(
+            "❌ **Задание отменено**\n\n" "Задание удалено из вашего списка активных заданий.",
+            parse_mode="Markdown",
+        )
+    else:
+        await callback.message.edit_text(
+            "❌ **Ошибка отмены задания**\n\n" "Не удалось отменить задание. Попробуйте позже.",
+            parse_mode="Markdown",
+        )
+
+    await callback.answer()
 
 
 @dp.callback_query(F.data.startswith("task_category:"))
@@ -2747,46 +2831,6 @@ async def handle_task_manage(callback: types.CallbackQuery):
     await callback.answer()
 
 
-@dp.callback_query(F.data.startswith("task_complete:"))
-async def handle_task_complete(callback: types.CallbackQuery, state: FSMContext):
-    """Обработчик завершения задания"""
-    user_task_id = int(callback.data.split(":")[1])
-
-    await state.update_data(completing_task_id=user_task_id)
-    await state.set_state(EventCreation.waiting_for_feedback)
-
-    await callback.message.edit_text(
-        "✅ **Задание выполнено!**\n\n"
-        "Поделитесь своими ощущениями:\n"
-        "• Как прошло выполнение?\n"
-        "• Что почувствовали?\n"
-        "• Как это помогло?\n\n"
-        "📝 Напишите ваш фидбек:",
-        parse_mode="Markdown",
-    )
-    await callback.answer()
-
-
-@dp.callback_query(F.data.startswith("task_cancel:"))
-async def handle_task_cancel(callback: types.CallbackQuery):
-    """Обработчик отмены задания"""
-    user_task_id = int(callback.data.split(":")[1])
-
-    success = cancel_task(user_task_id)
-
-    if success:
-        await callback.message.edit_text(
-            "❌ **Задание отменено**\n\n" "Вы можете принять новое задание в '🎯 Цели на районе'.",
-            parse_mode="Markdown",
-        )
-    else:
-        await callback.message.edit_text(
-            "❌ **Не удалось отменить задание**\n\n" "Попробуйте еще раз.", parse_mode="Markdown"
-        )
-
-    await callback.answer()
-
-
 @dp.message(EventCreation.waiting_for_feedback)
 async def process_feedback(message: types.Message, state: FSMContext):
     """Обработка фидбека для завершения задания"""
@@ -2795,7 +2839,7 @@ async def process_feedback(message: types.Message, state: FSMContext):
 
     # Получаем ID задания из состояния
     data = await state.get_data()
-    completing_task_id = data.get("completing_task_id")
+    completing_task_id = data.get("completing_task_id") or data.get("user_task_id")
 
     if not completing_task_id:
         await message.answer("❌ Ошибка: не найдено задание для завершения.")
