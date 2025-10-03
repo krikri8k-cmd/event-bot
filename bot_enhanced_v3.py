@@ -2752,16 +2752,15 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
 
     # Логируем состояние для отладки
     current_state = await state.get_state()
-    logger.info(
-        f"📍 Получена геолокация для заданий от пользователя {user_id}: {lat}, {lng}, состояние: {current_state}"
-    )
+    logger.info(f"📍 [ЗАДАНИЯ] Получена геолокация от пользователя {user_id}: {lat}, {lng}, состояние: {current_state}")
 
     # Сохраняем координаты пользователя
     with get_session() as session:
         user = session.query(User).filter(User.id == user_id).first()
         if user:
-            user.lat = lat
-            user.lng = lng
+            user.last_lat = lat
+            user.last_lng = lng
+            user.last_geo_at_utc = datetime.now(UTC)
             session.commit()
             logger.info(f"📍 Координаты пользователя {user_id} обновлены")
 
@@ -2784,6 +2783,8 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
         parse_mode="Markdown",
         reply_markup=reply_markup,
     )
+
+    logger.info(f"📍 [ЗАДАНИЯ] Показаны категории для пользователя {user_id}")
 
 
 @dp.message(EventCreation.waiting_for_feedback)
