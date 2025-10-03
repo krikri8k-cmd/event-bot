@@ -44,7 +44,7 @@ def get_daily_tasks(category: str, date: datetime | None = None) -> list[Task]:
             .filter(
                 and_(
                     Task.category == category,
-                    Task.is_active is True,
+                    Task.is_active == True,  # noqa: E712
                     Task.order_index >= start_index,
                     Task.order_index <= end_index,
                 )
@@ -68,7 +68,7 @@ def get_daily_tasks(category: str, date: datetime | None = None) -> list[Task]:
                 .filter(
                     and_(
                         Task.category == category,
-                        Task.is_active is True,
+                        Task.is_active == True,  # noqa: E712
                     )
                 )
                 .order_by(Task.order_index)
@@ -94,7 +94,7 @@ def accept_task(user_id: int, task_id: int) -> bool:
     try:
         with get_session() as session:
             # Проверяем, что задание существует и активно
-            task = session.query(Task).filter(and_(Task.id == task_id, Task.is_active is True)).first()
+            task = session.query(Task).filter(and_(Task.id == task_id, Task.is_active == True)).first()  # noqa: E712
 
             if not task:
                 logger.error(f"Задание {task_id} не найдено или неактивно")
