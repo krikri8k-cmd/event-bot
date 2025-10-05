@@ -112,9 +112,12 @@ def accept_task(user_id: int, task_id: int) -> bool:
                 return False
 
             # Создаем новое принятое задание
-            expires_at = datetime.now(UTC) + timedelta(hours=48)
+            accepted_at = datetime.now(UTC)
+            expires_at = accepted_at + timedelta(hours=48)
 
-            user_task = UserTask(user_id=user_id, task_id=task_id, status="active", expires_at=expires_at)
+            user_task = UserTask(
+                user_id=user_id, task_id=task_id, status="active", accepted_at=accepted_at, expires_at=expires_at
+            )
 
             session.add(user_task)
             session.commit()
