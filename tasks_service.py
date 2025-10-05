@@ -186,7 +186,12 @@ def complete_task(user_task_id: int, feedback: str) -> bool:
                 return False
 
             # Проверяем, что задание не просрочено
-            if datetime.now(UTC) > user_task.expires_at:
+            expires_at = user_task.expires_at
+            if expires_at.tzinfo is None:
+                # Если нет информации о часовом поясе, считаем что это UTC
+                expires_at = expires_at.replace(tzinfo=UTC)
+
+            if datetime.now(UTC) > expires_at:
                 logger.warning(f"Задание {user_task_id} просрочено")
                 return False
 
