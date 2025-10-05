@@ -2683,14 +2683,14 @@ async def handle_task_accept(callback: types.CallbackQuery, state: FSMContext):
             parse_mode="Markdown",
         )
         # Показываем главное меню
-        await callback.message.answer("🏠", reply_markup=main_menu_kb())
+        await callback.message.answer("🚀", reply_markup=main_menu_kb())
     else:
         await callback.message.edit_text(
             "❌ **Не удалось принять задание**\n\n" "Возможно, у вас уже есть активное задание этого типа.",
             parse_mode="Markdown",
         )
         # Показываем главное меню
-        await callback.message.answer("🏠", reply_markup=main_menu_kb())
+        await callback.message.answer("🚀", reply_markup=main_menu_kb())
 
     await callback.answer()
 
