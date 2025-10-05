@@ -1467,7 +1467,7 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
 
     keyboard = [
         [KeyboardButton(text="📍 Что рядом"), KeyboardButton(text="➕ Создать")],
-        [KeyboardButton(text="🎯 Квесты на районе"), KeyboardButton(text="📋 Мои задания")],
+        [KeyboardButton(text="🎯 Квесты на районе"), KeyboardButton(text="🏆 Мои квесты")],
     ]
 
     keyboard.extend(
@@ -2496,9 +2496,9 @@ async def on_tasks_goal(message: types.Message, state: FSMContext):
     )
 
 
-@dp.message(F.text == "📋 Мои задания")
+@dp.message(F.text == "🏆 Мои квесты")
 async def on_my_tasks(message: types.Message):
-    """Обработчик кнопки 'Мои задания'"""
+    """Обработчик кнопки 'Мои квесты'"""
     user_id = message.from_user.id
 
     # Получаем активные задания пользователя
@@ -2506,7 +2506,7 @@ async def on_my_tasks(message: types.Message):
 
     if not active_tasks:
         await message.answer(
-            "📋 **Мои задания**\n\n"
+            "🏆 **Мои квесты**\n\n"
             "У вас пока нет активных заданий.\n\n"
             "🎯 Нажмите 'Квесты на районе' чтобы получить новые задания!",
             parse_mode="Markdown",
@@ -2557,7 +2557,7 @@ async def handle_manage_tasks(callback: types.CallbackQuery):
 
     if not active_tasks:
         await callback.message.edit_text(
-            "📋 **Мои задания**\n\n" "У вас нет активных заданий.",
+            "🏆 **Мои квесты**\n\n" "У вас нет активных заданий.",
             parse_mode="Markdown",
         )
         return
@@ -2652,7 +2652,7 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
 
     if not active_tasks:
         await callback.message.edit_text(
-            "📋 **Мои задания**\n\n"
+            "🏆 **Мои квесты**\n\n"
             "У вас пока нет активных заданий.\n\n"
             "🎯 Нажмите 'Квесты на районе' чтобы получить новые задания!",
             parse_mode="Markdown",
@@ -2845,7 +2845,7 @@ async def handle_task_accept(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.edit_text(
             "✅ **Задание принято!**\n\n"
             "⏰ У вас есть **48 часов** на выполнение.\n"
-            "📋 Задание добавлено в 'Мои задания'.\n\n"
+            "🏆 Задание добавлено в 'Мои квесты'.\n\n"
             "Удачи! 🚀",
             parse_mode="Markdown",
         )
@@ -2912,7 +2912,7 @@ async def handle_start_task(callback: types.CallbackQuery):
         await callback.message.edit_text(
             "🎯 **Задание начато!**\n\n"
             "Ваше задание добавлено в активные.\n"
-            "Перейдите в '📋 Мои задания' для управления.\n\n"
+            "Перейдите в '🏆 Мои квесты' для управления.\n\n"
             "🚀 Удачи в выполнении!",
             parse_mode="Markdown",
         )
@@ -3422,7 +3422,7 @@ async def process_task_custom_location(message: types.Message, state: FSMContext
                         "✅ **Задание принято с вашей локацией!**\n\n"
                         f"📍 Место: {lat}, {lng}\n"
                         "⏰ У вас есть **48 часов** на выполнение.\n"
-                        "📋 Задание добавлено в 'Мои задания'.\n\n"
+                        "🏆 Задание добавлено в 'Мои квесты'.\n\n"
                         "Удачи! 🚀",
                         parse_mode="Markdown",
                         reply_markup=main_menu_kb(),
@@ -3474,7 +3474,7 @@ async def process_task_custom_location(message: types.Message, state: FSMContext
                     f"📍 Место: {location_name}\n"
                     f"🌍 Координаты: {lat}, {lng}\n"
                     "⏰ У вас есть **48 часов** на выполнение.\n"
-                    "📋 Задание добавлено в 'Мои задания'.\n\n"
+                    "🏆 Задание добавлено в 'Мои квесты'.\n\n"
                     "Удачи! 🚀",
                     parse_mode="Markdown",
                     reply_markup=main_menu_kb(),
