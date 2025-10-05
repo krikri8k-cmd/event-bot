@@ -3019,8 +3019,8 @@ async def process_feedback(message: types.Message, state: FSMContext):
             parse_mode="Markdown",
         )
 
-        # Отправляем стикер ракеты
-        await message.answer_sticker("🚀")
+        # Отправляем ракету
+        await message.answer("🚀")
     else:
         await message.answer(
             "❌ **Не удалось завершить задание**\n\n" "Возможно, время выполнения истекло или задание уже завершено.",
