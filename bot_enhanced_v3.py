@@ -2518,10 +2518,13 @@ async def on_my_tasks(message: types.Message):
         hours_left = int(time_left.total_seconds() / 3600)
 
         category_emoji = "💪" if task["category"] == "body" else "🧘"
-        status_text = f"⏰ Осталось: {hours_left}ч"
+        # Форматируем время выполнения в компактном виде
+        start_time = task["accepted_at"]
+        end_time = expires_at
+        time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')} ({hours_left}ч)"
 
         message_text += f"{i}) {category_emoji} **{task['title']}**\n"
-        message_text += f"📅 {task['accepted_at'].strftime('%d.%m.%Y')} | {status_text}\n\n"
+        message_text += f"⏰ {time_period}\n\n"
 
     # Добавляем кнопку управления заданиями
     keyboard = InlineKeyboardMarkup(
@@ -2573,8 +2576,11 @@ async def show_task_detail(message, tasks: list, task_index: int, user_id: int):
     message_text = f"📋 **{task['title']}**\n\n"
     message_text += f"{category_emoji} **Категория:** {category_name}\n"
     message_text += f"📝 **Описание:** {task['description']}\n"
-    message_text += f"📅 **Принято:** {task['accepted_at'].strftime('%d.%m.%Y %H:%M')}\n"
-    message_text += f"⏰ **Осталось:** {hours_left}ч\n"
+    # Форматируем время выполнения в компактном виде
+    start_time = task["accepted_at"]
+    end_time = expires_at
+
+    message_text += f"⏰ **Время на выполнение:** {start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')} ({hours_left}ч)\n"
 
     if task.get("location_url"):
         message_text += f"📍 **Место:** [Открыть на карте]({task['location_url']})\n"
@@ -2657,10 +2663,13 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
         hours_left = int(time_left.total_seconds() / 3600)
 
         category_emoji = "💪" if task["category"] == "body" else "🧘"
-        status_text = f"⏰ Осталось: {hours_left}ч"
+        # Форматируем время выполнения в компактном виде
+        start_time = task["accepted_at"]
+        end_time = expires_at
+        time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')} ({hours_left}ч)"
 
         message_text += f"{i}) {category_emoji} **{task['title']}**\n"
-        message_text += f"📅 {task['accepted_at'].strftime('%d.%m.%Y')} | {status_text}\n\n"
+        message_text += f"⏰ {time_period}\n\n"
 
     # Добавляем кнопку управления заданиями
     keyboard = InlineKeyboardMarkup(
