@@ -1548,12 +1548,19 @@ async def on_what_nearby(message: types.Message, state: FSMContext):
     # Устанавливаем состояние для поиска событий
     await state.set_state(EventSearch.waiting_for_location)
 
+    # Создаем клавиатуру с кнопкой геолокации и главным меню
+    location_keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📍 Отправить геолокацию", request_location=True)],
+            [KeyboardButton(text="🏠 Главное меню")],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True,  # Кнопка исчезнет после использования
+    )
+
     await message.answer(
         "Отправь свежую геопозицию, чтобы я нашла события рядом ✨",
-        reply_markup=types.ReplyKeyboardMarkup(
-            keyboard=[[KeyboardButton(text="📍 Отправить геолокацию", request_location=True)]],
-            resize_keyboard=True,
-        ),
+        reply_markup=location_keyboard,
     )
 
 
