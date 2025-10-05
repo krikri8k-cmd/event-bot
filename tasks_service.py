@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import and_
 
-from database import Task, UserTask, get_session
+from database import Task, User, UserTask, get_session
 
 logger = logging.getLogger(__name__)
 
@@ -155,15 +155,34 @@ def accept_task(user_id: int, task_id: int, user_lat: float = None, user_lng: fl
 
 def get_user_active_tasks(user_id: int) -> list[dict]:
     """
-    Получает активные задания пользователя
+    Получает активные задания пользователя с конвертацией времени в местный часовой пояс
 
     Args:
         user_id: ID пользователя
 
     Returns:
-        Список активных заданий с информацией
+        Список активных заданий с информацией (время в местном часовом поясе)
     """
     with get_session() as session:
+        # Получаем пользователя для определения часового пояса
+        user = session.get(User, user_id)
+
+        # Определяем часовой пояс пользователя
+        user_tz = None
+        if user and user.last_lat is not None and user.last_lng is not None:
+            try:
+                from zoneinfo import ZoneInfo
+
+                from utils.simple_timezone import get_city_from_coordinates, get_city_timezone
+
+                city = get_city_from_coordinates(user.last_lat, user.last_lng)
+                tz_name = get_city_timezone(city)
+                user_tz = ZoneInfo(tz_name)
+
+                logger.info(f"Пользователь {user_id} в городе {city} (часовой пояс {tz_name})")
+            except Exception as e:
+                logger.warning(f"Не удалось определить часовой пояс для пользователя {user_id}: {e}")
+
         user_tasks = (
             session.query(UserTask, Task)
             .join(Task)
@@ -173,6 +192,20 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
 
         result = []
         for user_task, task in user_tasks:
+            # Конвертируем время в местный часовой пояс
+            accepted_at = user_task.accepted_at
+            expires_at = user_task.expires_at
+
+            if user_tz is not None:
+                # Конвертируем UTC время в местное время пользователя
+                if accepted_at.tzinfo is None:
+                    accepted_at = accepted_at.replace(tzinfo=UTC)
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=UTC)
+
+                accepted_at = accepted_at.astimezone(user_tz)
+                expires_at = expires_at.astimezone(user_tz)
+
             result.append(
                 {
                     "id": user_task.id,
@@ -181,8 +214,8 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                     "description": task.description,
                     "category": task.category,
                     "location_url": task.location_url,
-                    "accepted_at": user_task.accepted_at,
-                    "expires_at": user_task.expires_at,
+                    "accepted_at": accepted_at,
+                    "expires_at": expires_at,
                     "status": user_task.status,
                 }
             )
