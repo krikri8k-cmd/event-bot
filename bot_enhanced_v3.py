@@ -2512,7 +2512,11 @@ async def on_my_tasks(message: types.Message):
     keyboard = []
     for task in active_tasks:
         # Вычисляем оставшееся время
-        time_left = task["expires_at"] - datetime.now(UTC)
+        expires_at = task["expires_at"]
+        if expires_at.tzinfo is None:
+            # Если нет информации о часовом поясе, считаем что это UTC
+            expires_at = expires_at.replace(tzinfo=UTC)
+        time_left = expires_at - datetime.now(UTC)
         hours_left = int(time_left.total_seconds() / 3600)
 
         category_emoji = "💪" if task["category"] == "body" else "🧘"
