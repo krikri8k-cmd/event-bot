@@ -2838,8 +2838,14 @@ async def handle_task_accept(callback: types.CallbackQuery, state: FSMContext):
     task_id = int(callback.data.split(":")[1])
     user_id = callback.from_user.id
 
-    # Принимаем задание
-    success = accept_task(user_id, task_id)
+    # Получаем координаты пользователя из БД
+    with get_session() as session:
+        user = session.get(User, user_id)
+        user_lat = user.last_lat if user else None
+        user_lng = user.last_lng if user else None
+
+    # Принимаем задание с учетом часового пояса пользователя
+    success = accept_task(user_id, task_id, user_lat, user_lng)
 
     if success:
         await callback.message.edit_text(
@@ -3415,7 +3421,7 @@ async def process_task_custom_location(message: types.Message, state: FSMContext
                         session.commit()
 
                 # Принимаем задание с кастомной локацией
-                success = accept_task(user_id, task_id)
+                success = accept_task(user_id, task_id, lat, lng)
 
                 if success:
                     await message.answer(
@@ -3466,7 +3472,7 @@ async def process_task_custom_location(message: types.Message, state: FSMContext
                     session.commit()
 
             # Принимаем задание с кастомной локацией
-            success = accept_task(user_id, task_id)
+            success = accept_task(user_id, task_id, lat, lng)
 
             if success:
                 await message.answer(

@@ -80,13 +80,15 @@ def get_daily_tasks(category: str, date: datetime | None = None) -> list[Task]:
         return tasks
 
 
-def accept_task(user_id: int, task_id: int) -> bool:
+def accept_task(user_id: int, task_id: int, user_lat: float = None, user_lng: float = None) -> bool:
     """
     Принимает задание пользователем
 
     Args:
         user_id: ID пользователя
         task_id: ID задания
+        user_lat: Широта пользователя (для определения часового пояса)
+        user_lng: Долгота пользователя (для определения часового пояса)
 
     Returns:
         True если задание принято успешно
@@ -111,8 +113,29 @@ def accept_task(user_id: int, task_id: int) -> bool:
                 logger.warning(f"Пользователь {user_id} уже имеет активное задание {task_id}")
                 return False
 
-            # Создаем новое принятое задание
-            accepted_at = datetime.now(UTC)
+            # Определяем часовой пояс пользователя
+            if user_lat is not None and user_lng is not None:
+                from zoneinfo import ZoneInfo
+
+                from utils.simple_timezone import get_city_from_coordinates, get_city_timezone
+
+                city = get_city_from_coordinates(user_lat, user_lng)
+                tz_name = get_city_timezone(city)
+                user_tz = ZoneInfo(tz_name)
+
+                # Используем местное время пользователя
+                accepted_at_local = datetime.now(user_tz)
+                accepted_at = accepted_at_local.astimezone(UTC)
+
+                logger.info(
+                    f"Пользователь {user_id} в городе {city} (часовой пояс {tz_name}), "
+                    f"местное время: {accepted_at_local.strftime('%Y-%m-%d %H:%M:%S')}"
+                )
+            else:
+                # Fallback на UTC если координаты не переданы
+                accepted_at = datetime.now(UTC)
+                logger.info(f"Пользователь {user_id} без координат, используется UTC время")
+
             expires_at = accepted_at + timedelta(hours=48)
 
             user_task = UserTask(
