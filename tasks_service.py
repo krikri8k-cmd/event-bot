@@ -153,6 +153,28 @@ def accept_task(user_id: int, task_id: int, user_lat: float = None, user_lng: fl
         return False
 
 
+def expire_old_48h_tasks(user_id: int) -> None:
+    """
+    Автоматически истекает старые задания с 48-часовым сроком (созданные до изменения на 24 часа)
+    """
+    with get_session() as session:
+        # Находим задания с 48-часовым сроком (больше 25 часов)
+        user_tasks = (
+            session.query(UserTask).filter(and_(UserTask.user_id == user_id, UserTask.status == "active")).all()
+        )
+
+        for user_task in user_tasks:
+            # Проверяем, если срок больше 25 часов - это старое 48-часовое задание
+            duration = user_task.expires_at - user_task.accepted_at
+            if duration.total_seconds() > 25 * 3600:  # Больше 25 часов
+                user_task.status = "expired"
+                logger.info(
+                    f"Автоматически истекло старое 48-часовое задание {user_task.id} для пользователя {user_id}"
+                )
+
+        session.commit()
+
+
 def get_user_active_tasks(user_id: int) -> list[dict]:
     """
     Получает активные задания пользователя с конвертацией времени в местный часовой пояс
@@ -163,6 +185,9 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
     Returns:
         Список активных заданий с информацией (время в местном часовом поясе)
     """
+    # Сначала истекаем старые 48-часовые задания
+    expire_old_48h_tasks(user_id)
+
     with get_session() as session:
         # Получаем пользователя для определения часового пояса
         user = session.get(User, user_id)
