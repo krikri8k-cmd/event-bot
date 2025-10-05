@@ -2923,9 +2923,8 @@ async def handle_back_to_main_tasks(callback: types.CallbackQuery, state: FSMCon
     # Очищаем состояние FSM
     await state.clear()
 
-    await callback.message.edit_text(
-        "🏠 **Главное меню**\n\n" "Выберите действие:", parse_mode="Markdown", reply_markup=main_menu_kb()
-    )
+    # Показываем анимацию ракеты с главным меню
+    await send_spinning_menu(callback.message)
     await callback.answer()
 
 
@@ -3918,14 +3917,12 @@ async def handle_manage_events(callback: types.CallbackQuery):
 
 @dp.message(F.text == "🏠 Главное меню")
 async def on_main_menu_button(message: types.Message, state: FSMContext):
-    """Обработчик кнопки 'Главное меню' - очищает состояние и показывает главное меню"""
+    """Обработчик кнопки 'Главное меню' - очищает состояние и показывает анимацию ракеты"""
     # Очищаем состояние FSM
     await state.clear()
 
-    # Показываем главное меню
-    await message.answer(
-        "🏠 **Главное меню**\n\nВыберите действие:", parse_mode="Markdown", reply_markup=main_menu_kb()
-    )
+    # Показываем анимацию ракеты с главным меню
+    await send_spinning_menu(message)
 
 
 @dp.message(~StateFilter(EventCreation, EventEditing, TaskFlow))
@@ -4832,9 +4829,9 @@ async def handle_next_event(callback: types.CallbackQuery):
 @dp.callback_query(F.data.startswith("back_to_main_"))
 async def handle_back_to_main(callback: types.CallbackQuery):
     """Возврат в главное меню"""
-    # Отправляем ракету и возвращаемся в главное меню
+    # Показываем анимацию ракеты с главным меню
     await callback.answer("🎯 Возврат в главное меню")
-    await callback.message.answer("🚀", reply_markup=main_menu_kb())
+    await send_spinning_menu(callback.message)
 
 
 @dp.callback_query(F.data.startswith("prev_event_"))
