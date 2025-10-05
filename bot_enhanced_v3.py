@@ -2682,11 +2682,15 @@ async def handle_task_accept(callback: types.CallbackQuery, state: FSMContext):
             "Удачи! 🚀",
             parse_mode="Markdown",
         )
+        # Показываем главное меню
+        await callback.message.answer("🏠", reply_markup=main_menu_kb())
     else:
         await callback.message.edit_text(
             "❌ **Не удалось принять задание**\n\n" "Возможно, у вас уже есть активное задание этого типа.",
             parse_mode="Markdown",
         )
+        # Показываем главное меню
+        await callback.message.answer("🏠", reply_markup=main_menu_kb())
 
     await callback.answer()
 
@@ -3207,11 +3211,13 @@ async def process_task_custom_location(message: types.Message, state: FSMContext
                         "📋 Задание добавлено в 'Мои задания'.\n\n"
                         "Удачи! 🚀",
                         parse_mode="Markdown",
+                        reply_markup=main_menu_kb(),
                     )
                 else:
                     await message.answer(
                         "❌ **Не удалось принять задание**\n\n" "Возможно, у вас уже есть активное задание этого типа.",
                         parse_mode="Markdown",
+                        reply_markup=main_menu_kb(),
                     )
 
                 # Очищаем состояние
@@ -3257,11 +3263,13 @@ async def process_task_custom_location(message: types.Message, state: FSMContext
                     "📋 Задание добавлено в 'Мои задания'.\n\n"
                     "Удачи! 🚀",
                     parse_mode="Markdown",
+                    reply_markup=main_menu_kb(),
                 )
             else:
                 await message.answer(
                     "❌ **Не удалось принять задание**\n\n" "Возможно, у вас уже есть активное задание этого типа.",
                     parse_mode="Markdown",
+                    reply_markup=main_menu_kb(),
                 )
 
             # Очищаем состояние
