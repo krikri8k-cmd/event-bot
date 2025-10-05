@@ -2506,15 +2506,13 @@ async def on_my_tasks(message: types.Message):
         )
         return
 
-    # Формируем сообщение с активными заданиями
-    message_text = "📋 **Мои активные задания**\n\n"
+    # Формируем сообщение со списком активных заданий
+    message_text = "📋 **Ваши активные задания:**\n\n"
 
-    keyboard = []
-    for task in active_tasks:
+    for i, task in enumerate(active_tasks, 1):
         # Вычисляем оставшееся время
         expires_at = task["expires_at"]
         if expires_at.tzinfo is None:
-            # Если нет информации о часовом поясе, считаем что это UTC
             expires_at = expires_at.replace(tzinfo=UTC)
         time_left = expires_at - datetime.now(UTC)
         hours_left = int(time_left.total_seconds() / 3600)
@@ -2522,27 +2520,170 @@ async def on_my_tasks(message: types.Message):
         category_emoji = "💪" if task["category"] == "body" else "🧘"
         status_text = f"⏰ Осталось: {hours_left}ч"
 
-        message_text += f"{category_emoji} **{task['title']}**\n"
-        message_text += f"📝 {task['description'][:100]}...\n"
-        message_text += f"{status_text}\n\n"
+        message_text += f"{i}) {category_emoji} **{task['title']}**\n"
+        message_text += f"📅 {task['accepted_at'].strftime('%d.%m.%Y')} | {status_text}\n"
+        message_text += f"📍 {task['description'][:50]}...\n\n"
 
-        # Добавляем кнопки для управления заданием
-        keyboard.append(
-            [
-                InlineKeyboardButton(text="✅ Выполнено", callback_data=f"task_complete:{task['id']}"),
-                InlineKeyboardButton(text="❌ Отменить", callback_data=f"task_cancel:{task['id']}"),
-            ]
-        )
-
-    keyboard.append([InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")])
-
-    reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
+    # Добавляем кнопку управления заданиями
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔧 Управление заданиями", callback_data="manage_tasks")],
+            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+        ]
+    )
 
     await message.answer(
         message_text,
         parse_mode="Markdown",
+        reply_markup=keyboard,
+    )
+
+
+@dp.callback_query(F.data == "manage_tasks")
+async def handle_manage_tasks(callback: types.CallbackQuery):
+    """Обработчик кнопки 'Управление заданиями'"""
+    user_id = callback.from_user.id
+    active_tasks = get_user_active_tasks(user_id)
+
+    if not active_tasks:
+        await callback.message.edit_text(
+            "📋 **Мои задания**\n\n" "У вас нет активных заданий.",
+            parse_mode="Markdown",
+        )
+        return
+
+    # Показываем первое задание
+    await show_task_detail(callback.message, active_tasks, 0, user_id)
+    await callback.answer()
+
+
+async def show_task_detail(message, tasks: list, task_index: int, user_id: int):
+    """Показывает детальную информацию о задании"""
+    task = tasks[task_index]
+
+    # Вычисляем оставшееся время
+    expires_at = task["expires_at"]
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=UTC)
+    time_left = expires_at - datetime.now(UTC)
+    hours_left = int(time_left.total_seconds() / 3600)
+
+    category_emoji = "💪" if task["category"] == "body" else "🧘"
+    category_name = "Тело" if task["category"] == "body" else "Дух"
+
+    message_text = f"📋 **{task['title']}**\n\n"
+    message_text += f"{category_emoji} **Категория:** {category_name}\n"
+    message_text += f"📝 **Описание:** {task['description']}\n"
+    message_text += f"📅 **Принято:** {task['accepted_at'].strftime('%d.%m.%Y %H:%M')}\n"
+    message_text += f"⏰ **Осталось:** {hours_left}ч\n"
+
+    if task.get("location_url"):
+        message_text += f"📍 **Место:** [Открыть на карте]({task['location_url']})\n"
+
+    # Создаем клавиатуру для навигации
+    keyboard = []
+
+    # Кнопки управления заданием
+    keyboard.append(
+        [
+            InlineKeyboardButton(text="✅ Выполнено", callback_data=f"task_complete:{task['id']}"),
+            InlineKeyboardButton(text="❌ Отменить", callback_data=f"task_cancel:{task['id']}"),
+        ]
+    )
+
+    # Кнопки навигации
+    nav_buttons = []
+    if len(tasks) > 1:
+        if task_index > 0:
+            nav_buttons.append(InlineKeyboardButton(text="⬅️", callback_data=f"task_nav:{task_index-1}"))
+        nav_buttons.append(InlineKeyboardButton(text=f"{task_index + 1}/{len(tasks)}", callback_data="noop"))
+        if task_index < len(tasks) - 1:
+            nav_buttons.append(InlineKeyboardButton(text="➡️", callback_data=f"task_nav:{task_index+1}"))
+
+    if nav_buttons:
+        keyboard.append(nav_buttons)
+
+    # Кнопки возврата
+    keyboard.append([InlineKeyboardButton(text="🔧 К списку заданий", callback_data="my_tasks_list")])
+    keyboard.append([InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")])
+
+    reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+    await message.edit_text(
+        message_text,
+        parse_mode="Markdown",
         reply_markup=reply_markup,
     )
+
+
+@dp.callback_query(F.data.startswith("task_nav:"))
+async def handle_task_navigation(callback: types.CallbackQuery):
+    """Обработчик навигации по заданиям"""
+    task_index = int(callback.data.split(":")[1])
+    user_id = callback.from_user.id
+
+    active_tasks = get_user_active_tasks(user_id)
+    if not active_tasks or task_index >= len(active_tasks):
+        await callback.answer("Задание не найдено")
+        return
+
+    await show_task_detail(callback.message, active_tasks, task_index, user_id)
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "my_tasks_list")
+async def handle_back_to_tasks_list(callback: types.CallbackQuery):
+    """Возврат к списку заданий"""
+    user_id = callback.from_user.id
+    active_tasks = get_user_active_tasks(user_id)
+
+    if not active_tasks:
+        await callback.message.edit_text(
+            "📋 **Мои задания**\n\n"
+            "У вас пока нет активных заданий.\n\n"
+            "🎯 Нажмите 'Цель на районе' чтобы получить новые задания!",
+            parse_mode="Markdown",
+        )
+        return
+
+    # Формируем сообщение со списком активных заданий
+    message_text = "📋 **Ваши активные задания:**\n\n"
+
+    for i, task in enumerate(active_tasks, 1):
+        # Вычисляем оставшееся время
+        expires_at = task["expires_at"]
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=UTC)
+        time_left = expires_at - datetime.now(UTC)
+        hours_left = int(time_left.total_seconds() / 3600)
+
+        category_emoji = "💪" if task["category"] == "body" else "🧘"
+        status_text = f"⏰ Осталось: {hours_left}ч"
+
+        message_text += f"{i}) {category_emoji} **{task['title']}**\n"
+        message_text += f"📅 {task['accepted_at'].strftime('%d.%m.%Y')} | {status_text}\n"
+        message_text += f"📍 {task['description'][:50]}...\n\n"
+
+    # Добавляем кнопку управления заданиями
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔧 Управление заданиями", callback_data="manage_tasks")],
+            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+        ]
+    )
+
+    await callback.message.edit_text(
+        message_text,
+        parse_mode="Markdown",
+        reply_markup=keyboard,
+    )
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "noop")
+async def handle_noop(callback: types.CallbackQuery):
+    """Заглушка для кнопок без действия"""
+    await callback.answer()
 
 
 @dp.callback_query(F.data.startswith("task_complete:"))
