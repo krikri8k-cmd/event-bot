@@ -2775,7 +2775,7 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
     # Добавляем кнопки управления
     keyboard.append(
         [
-            InlineKeyboardButton(text="📋 Команды бота", callback_data="show_bot_commands"),
+            InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_tasks"),
             InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
         ]
     )
