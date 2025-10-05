@@ -2757,7 +2757,13 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
     for task in tasks:
         keyboard.append([InlineKeyboardButton(text=f"📋 {task.title}", callback_data=f"task_detail:{task.id}")])
 
-    keyboard.append([InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")])
+    # Добавляем кнопки управления
+    keyboard.append(
+        [
+            InlineKeyboardButton(text="📋 Команды бота", callback_data="show_bot_commands"),
+            InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
+        ]
+    )
 
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
@@ -2919,6 +2925,51 @@ async def handle_back_to_main_tasks(callback: types.CallbackQuery, state: FSMCon
 
     await callback.message.edit_text(
         "🏠 **Главное меню**\n\n" "Выберите действие:", parse_mode="Markdown", reply_markup=main_menu_kb()
+    )
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "show_bot_commands")
+async def handle_show_bot_commands(callback: types.CallbackQuery):
+    """Обработчик показа команд бота"""
+    commands_text = (
+        "📋 **Команды бота:**\n\n"
+        "🚀 /start - Запустить бота и показать меню\n"
+        "❓ /help - Показать справку\n"
+        "📍 /nearby - Найти события рядом\n"
+        "➕ /create - Создать событие\n"
+        "📋 /myevents - Мои события\n"
+        "🔗 /share - Поделиться ботом\n\n"
+        "💡 **Совет:** Используйте кнопки меню для удобной навигации!"
+    )
+
+    # Создаем клавиатуру с кнопкой возврата
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Назад к заданиям", callback_data="back_to_tasks")],
+            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+        ]
+    )
+
+    await callback.message.edit_text(commands_text, parse_mode="Markdown", reply_markup=keyboard)
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "back_to_tasks")
+async def handle_back_to_tasks(callback: types.CallbackQuery):
+    """Обработчик возврата к выбору категории заданий"""
+    # Показываем выбор категории
+    keyboard = [
+        [InlineKeyboardButton(text="💪 Тело", callback_data="task_category:body")],
+        [InlineKeyboardButton(text="🧘 Дух", callback_data="task_category:spirit")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+    ]
+    reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+    await callback.message.edit_text(
+        "🎯 **Цель на Районе**\n\n" "Выберите категорию заданий:",
+        parse_mode="Markdown",
+        reply_markup=reply_markup,
     )
     await callback.answer()
 
@@ -3865,7 +3916,19 @@ async def handle_manage_events(callback: types.CallbackQuery):
     await callback.answer()
 
 
-@dp.message(~StateFilter(EventCreation, EventEditing))
+@dp.message(F.text == "🏠 Главное меню")
+async def on_main_menu_button(message: types.Message, state: FSMContext):
+    """Обработчик кнопки 'Главное меню' - очищает состояние и показывает главное меню"""
+    # Очищаем состояние FSM
+    await state.clear()
+
+    # Показываем главное меню
+    await message.answer(
+        "🏠 **Главное меню**\n\nВыберите действие:", parse_mode="Markdown", reply_markup=main_menu_kb()
+    )
+
+
+@dp.message(~StateFilter(EventCreation, EventEditing, TaskFlow))
 async def echo_message(message: types.Message, state: FSMContext):
     """Обработчик всех остальных сообщений (кроме FSM состояний)"""
     current_state = await state.get_state()
