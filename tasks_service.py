@@ -136,7 +136,7 @@ def accept_task(user_id: int, task_id: int, user_lat: float = None, user_lng: fl
                 accepted_at = datetime.now(UTC)
                 logger.info(f"Пользователь {user_id} без координат, используется UTC время")
 
-            expires_at = accepted_at + timedelta(hours=48)
+            expires_at = accepted_at + timedelta(hours=24)
 
             user_task = UserTask(
                 user_id=user_id, task_id=task_id, status="active", accepted_at=accepted_at, expires_at=expires_at

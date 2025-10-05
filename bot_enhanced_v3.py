@@ -2515,7 +2515,8 @@ async def on_my_tasks(message: types.Message):
 
     # Формируем сообщение со списком активных заданий
     message_text = "📋 **Ваши активные задания:**\n"
-    message_text += "🚀 **Награда:** каждое выполненное задание дает 3 ракеты\n\n"
+    message_text += "🚀 **Награда:** каждое выполненное задание дает 3 ракеты\n"
+    message_text += "⏰ мы даем 24 часа на выполнение, после задание сгорает\n\n"
 
     for i, task in enumerate(active_tasks, 1):
         # Вычисляем оставшееся время
@@ -2523,13 +2524,13 @@ async def on_my_tasks(message: types.Message):
         if expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=UTC)
         time_left = expires_at - datetime.now(UTC)
-        hours_left = int(time_left.total_seconds() / 3600)
+        int(time_left.total_seconds() / 3600)
 
         category_emoji = "💪" if task["category"] == "body" else "🧘"
         # Форматируем время выполнения в компактном виде
         start_time = task["accepted_at"]
         end_time = expires_at
-        time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')} ({hours_left}ч)"
+        time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')}"
 
         message_text += f"{i}) {category_emoji} **{task['title']}**\n"
         message_text += f"⏰ **Время на выполнение:** {time_period}\n\n"
@@ -2576,7 +2577,7 @@ async def show_task_detail(message, tasks: list, task_index: int, user_id: int):
     if expires_at.tzinfo is None:
         expires_at = expires_at.replace(tzinfo=UTC)
     time_left = expires_at - datetime.now(UTC)
-    hours_left = int(time_left.total_seconds() / 3600)
+    int(time_left.total_seconds() / 3600)
 
     category_emoji = "💪" if task["category"] == "body" else "🧘"
     category_name = "Тело" if task["category"] == "body" else "Дух"
@@ -2588,7 +2589,9 @@ async def show_task_detail(message, tasks: list, task_index: int, user_id: int):
     start_time = task["accepted_at"]
     end_time = expires_at
 
-    message_text += f"⏰ **Время на выполнение:** {start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')} ({hours_left}ч)\n"
+    message_text += (
+        f"⏰ **Время на выполнение:** {start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')}\n"
+    )
 
     if task.get("location_url"):
         message_text += f"📍 **Место:** [Открыть на карте]({task['location_url']})\n"
@@ -2661,7 +2664,8 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
 
     # Формируем сообщение со списком активных заданий
     message_text = "📋 **Ваши активные задания:**\n"
-    message_text += "🚀 **Награда:** каждое выполненное задание дает 3 ракеты\n\n"
+    message_text += "🚀 **Награда:** каждое выполненное задание дает 3 ракеты\n"
+    message_text += "⏰ мы даем 24 часа на выполнение, после задание сгорает\n\n"
 
     for i, task in enumerate(active_tasks, 1):
         # Вычисляем оставшееся время
@@ -2669,13 +2673,13 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
         if expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=UTC)
         time_left = expires_at - datetime.now(UTC)
-        hours_left = int(time_left.total_seconds() / 3600)
+        int(time_left.total_seconds() / 3600)
 
         category_emoji = "💪" if task["category"] == "body" else "🧘"
         # Форматируем время выполнения в компактном виде
         start_time = task["accepted_at"]
         end_time = expires_at
-        time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')} ({hours_left}ч)"
+        time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')}"
 
         message_text += f"{i}) {category_emoji} **{task['title']}**\n"
         message_text += f"⏰ **Время на выполнение:** {time_period}\n\n"
