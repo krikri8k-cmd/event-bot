@@ -2521,8 +2521,7 @@ async def on_my_tasks(message: types.Message):
         status_text = f"⏰ Осталось: {hours_left}ч"
 
         message_text += f"{i}) {category_emoji} **{task['title']}**\n"
-        message_text += f"📅 {task['accepted_at'].strftime('%d.%m.%Y')} | {status_text}\n"
-        message_text += f"📍 {task['description'][:50]}...\n\n"
+        message_text += f"📅 {task['accepted_at'].strftime('%d.%m.%Y')} | {status_text}\n\n"
 
     # Добавляем кнопку управления заданиями
     keyboard = InlineKeyboardMarkup(
@@ -2661,8 +2660,7 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
         status_text = f"⏰ Осталось: {hours_left}ч"
 
         message_text += f"{i}) {category_emoji} **{task['title']}**\n"
-        message_text += f"📅 {task['accepted_at'].strftime('%d.%m.%Y')} | {status_text}\n"
-        message_text += f"📍 {task['description'][:50]}...\n\n"
+        message_text += f"📅 {task['accepted_at'].strftime('%d.%m.%Y')} | {status_text}\n\n"
 
     # Добавляем кнопку управления заданиями
     keyboard = InlineKeyboardMarkup(
