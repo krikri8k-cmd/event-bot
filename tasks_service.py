@@ -12,8 +12,8 @@ from database import Task, UserTask, get_session
 
 logger = logging.getLogger(__name__)
 
-# Дата начала системы заданий (сегодня)
-START_DATE = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+# Дата начала системы заданий (фиксированная дата)
+START_DATE = datetime(2025, 10, 3, 0, 0, 0, tzinfo=UTC)  # 3 октября 2025
 
 
 def get_daily_tasks(category: str, date: datetime | None = None) -> list[Task]:
