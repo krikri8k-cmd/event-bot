@@ -2507,7 +2507,8 @@ async def on_my_tasks(message: types.Message):
         return
 
     # Формируем сообщение со списком активных заданий
-    message_text = "📋 **Ваши активные задания:**\n\n"
+    message_text = "📋 **Ваши активные задания:**\n"
+    message_text += "🚀 **Награда:** каждое выполненное задание дает 3 ракеты\n\n"
 
     for i, task in enumerate(active_tasks, 1):
         # Вычисляем оставшееся время
@@ -2524,7 +2525,7 @@ async def on_my_tasks(message: types.Message):
         time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')} ({hours_left}ч)"
 
         message_text += f"{i}) {category_emoji} **{task['title']}**\n"
-        message_text += f"⏰ {time_period}\n\n"
+        message_text += f"⏰ **Время на выполнение:** {time_period}\n\n"
 
     # Добавляем кнопку управления заданиями
     keyboard = InlineKeyboardMarkup(
@@ -2652,7 +2653,8 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
         return
 
     # Формируем сообщение со списком активных заданий
-    message_text = "📋 **Ваши активные задания:**\n\n"
+    message_text = "📋 **Ваши активные задания:**\n"
+    message_text += "🚀 **Награда:** каждое выполненное задание дает 3 ракеты\n\n"
 
     for i, task in enumerate(active_tasks, 1):
         # Вычисляем оставшееся время
@@ -2669,7 +2671,7 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
         time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')} ({hours_left}ч)"
 
         message_text += f"{i}) {category_emoji} **{task['title']}**\n"
-        message_text += f"⏰ {time_period}\n\n"
+        message_text += f"⏰ **Время на выполнение:** {time_period}\n\n"
 
     # Добавляем кнопку управления заданиями
     keyboard = InlineKeyboardMarkup(
