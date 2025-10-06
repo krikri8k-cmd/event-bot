@@ -230,6 +230,7 @@ class UnifiedEventsService:
         location_name: str,
         location_url: str = None,
         max_participants: int = None,
+        chat_id: int = None,
         organizer_username: str = None,
     ) -> int:
         """
@@ -240,10 +241,10 @@ class UnifiedEventsService:
             user_event_query = text("""
                 INSERT INTO events_user
                 (organizer_id, organizer_username, title, description, starts_at, city, lat, lng,
-                 location_name, location_url, max_participants, country)
+                 location_name, location_url, max_participants, country, chat_id)
                 VALUES
                 (:organizer_id, :organizer_username, :title, :description, :starts_at, :city, :lat, :lng,
-                 :location_name, :location_url, :max_participants, :country)
+                 :location_name, :location_url, :max_participants, :country, :chat_id)
                 RETURNING id
             """)
 
@@ -264,6 +265,7 @@ class UnifiedEventsService:
                     "location_url": location_url,
                     "max_participants": max_participants,
                     "country": country,
+                    "chat_id": chat_id,
                 },
             )
 
@@ -275,7 +277,7 @@ class UnifiedEventsService:
                     source, external_id, title, description, starts_at, ends_at,
                     url, location_name, location_url, lat, lng, country, city,
                     organizer_id, organizer_username, max_participants, current_participants,
-                    participants_ids, status, created_at_utc, updated_at_utc, is_generated_by_ai
+                    participants_ids, status, created_at_utc, updated_at_utc, is_generated_by_ai, chat_id
                 )
                 SELECT
                     'user' as source,
@@ -283,7 +285,7 @@ class UnifiedEventsService:
                     title, description, starts_at, NULL as ends_at,
                     NULL as url, location_name, location_url, lat, lng, country, city,
                     organizer_id, organizer_username, max_participants, 0 as current_participants,
-                    NULL as participants_ids, 'open' as status, NOW(), NOW(), false as is_generated_by_ai
+                    NULL as participants_ids, 'open' as status, NOW(), NOW(), false as is_generated_by_ai, chat_id
                 FROM events_user
                 WHERE id = :user_event_id
             """)

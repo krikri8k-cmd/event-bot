@@ -3330,14 +3330,34 @@ async def on_help(message: types.Message):
 async def process_title(message: types.Message, state: FSMContext):
     """Шаг 1: Обработка названия события"""
     title = message.text.strip()
-    logger.info(f"process_title: получили название '{title}' от пользователя {message.from_user.id}")
+    chat_id = message.chat.id
+    chat_type = message.chat.type
 
-    await state.update_data(title=title)
+    logger.info(
+        f"process_title: получили название '{title}' от пользователя {message.from_user.id} в чате {chat_id} (тип: {chat_type})"
+    )
+
+    # Сохраняем chat_id для групповых чатов
+    await state.update_data(title=title, chat_id=chat_id, chat_type=chat_type)
     await state.set_state(EventCreation.waiting_for_date)
     example_date = get_example_date()
-    await message.answer(
-        f"Название сохранено: *{title}* ✅\n\n📅 Теперь введите дату (например: {example_date}):", parse_mode="Markdown"
-    )
+
+    # Разные сообщения для личных и групповых чатов
+    if chat_type == "private":
+        await message.answer(
+            f"Название сохранено: *{title}* ✅\n\n📅 Теперь введите дату (например: {example_date}):",
+            parse_mode="Markdown",
+        )
+    else:
+        # Для групповых чатов используем edit_text
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+        )
+        await message.edit_text(
+            f"**Название сохранено:** *{title}* ✅\n\n📅 **Теперь введите дату** (например: {example_date}):",
+            parse_mode="Markdown",
+            reply_markup=keyboard,
+        )
 
 
 @dp.message(EventCreation.waiting_for_date)
@@ -4056,6 +4076,7 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
                 location_name=location_name,
                 location_url=location_url,
                 max_participants=data.get("max_participants"),
+                chat_id=data.get("chat_id"),  # Добавляем chat_id для групповых чатов
                 organizer_username=callback.from_user.username,
             )
 
