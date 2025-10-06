@@ -1585,8 +1585,10 @@ async def handle_group_create_event(callback: types.CallbackQuery, state: FSMCon
     logger.info(
         f"🔥 handle_group_create_event: пользователь {callback.from_user.id} нажал кнопку создания события в чате {callback.message.chat.id}"
     )
-    await state.set_state(CommunityEventCreation.waiting_for_title)
-    logger.info("🔥 handle_group_create_event: состояние изменено на CommunityEventCreation.waiting_for_title")
+
+    # Сохраняем данные в state для группового чата
+    await state.update_data(chat_id=callback.message.chat.id, step="title")
+    logger.info("🔥 handle_group_create_event: данные сохранены в state")
 
     text = (
         "➕ **Создание события в чате**\n\n"
@@ -3989,16 +3991,252 @@ async def process_description(message: types.Message, state: FSMContext):
 # ===== ОБРАБОТЧИКИ ДЛЯ СОБЫТИЙ СООБЩЕСТВ (ГРУППОВЫЕ ЧАТЫ) =====
 
 
-# Общий обработчик для отладки FSM состояний в групповых чатах
+# Простой обработчик для создания событий в групповых чатах (без FSM)
 @dp.message()
-async def debug_community_fsm(message: types.Message, state: FSMContext):
-    """Отладочный обработчик для FSM состояний сообществ"""
-    current_state = await state.get_state()
-    if current_state and current_state.startswith("CommunityEventCreation"):
-        logger.info(
-            f"🔥 DEBUG: сообщение в состоянии {current_state} от пользователя {message.from_user.id} в чате {message.chat.id}, текст: '{message.text}'"
+async def handle_group_chat_messages(message: types.Message, state: FSMContext):
+    """Обработчик сообщений в групповых чатах для создания событий"""
+    # Проверяем, что это групповой чат
+    if message.chat.type not in ["group", "supergroup"]:
+        return
+
+    # Получаем данные из state
+    data = await state.get_data()
+    current_step = data.get("step")
+    chat_id = data.get("chat_id")
+
+    # Проверяем, что мы в процессе создания события
+    if not current_step or not chat_id or chat_id != message.chat.id:
+        return
+
+    logger.info(
+        f"🔥 handle_group_chat_messages: получено сообщение в чате {message.chat.id}, шаг: {current_step}, текст: '{message.text}'"
+    )
+
+    # Обрабатываем по шагам
+    if current_step == "title":
+        await handle_community_title_step(message, state)
+    elif current_step == "date":
+        await handle_community_date_step(message, state)
+    elif current_step == "time":
+        await handle_community_time_step(message, state)
+    elif current_step == "city":
+        await handle_community_city_step(message, state)
+    elif current_step == "location_name":
+        await handle_community_location_name_step(message, state)
+    elif current_step == "location_url":
+        await handle_community_location_url_step(message, state)
+    elif current_step == "description":
+        await handle_community_description_step(message, state)
+
+
+# Функции для обработки каждого шага создания события
+async def handle_community_title_step(message: types.Message, state: FSMContext):
+    """Обработка названия события"""
+    if not message.text:
+        await message.answer(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n"
+            "✍ **Введите название мероприятия** (например: Встреча в кафе):",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+            ),
         )
-        # Не обрабатываем здесь, просто логируем
+        return
+
+    title = message.text.strip()
+    await state.update_data(title=title, step="date")
+
+    example_date = get_example_date()
+    await message.answer(
+        f"**Название сохранено:** *{title}* ✅\n\n📅 **Введите дату** (например: {example_date}):",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+        ),
+    )
+
+
+async def handle_community_date_step(message: types.Message, state: FSMContext):
+    """Обработка даты события"""
+    if not message.text:
+        await message.answer(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n" "📅 **Введите дату** (например: 15.12.2024):",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+            ),
+        )
+        return
+
+    date = message.text.strip()
+    import re
+
+    if not re.match(r"^\d{1,2}\.\d{1,2}\.\d{4}$", date):
+        await message.answer(
+            "❌ **Неверный формат даты!**\n\n" "📅 Введите дату в формате **ДД.ММ.ГГГГ**\n" "Например: 15.12.2024",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+            ),
+        )
+        return
+
+    await state.update_data(date=date, step="time")
+    await message.answer(
+        f"**Дата сохранена:** {date} ✅\n\n⏰ **Введите время** (например: 19:00):",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+        ),
+    )
+
+
+async def handle_community_time_step(message: types.Message, state: FSMContext):
+    """Обработка времени события"""
+    if not message.text:
+        await message.answer(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n" "⏰ **Введите время** (например: 19:00):",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+            ),
+        )
+        return
+
+    time = message.text.strip()
+    import re
+
+    if not re.match(r"^\d{1,2}:\d{2}$", time):
+        await message.answer(
+            "❌ **Неверный формат времени!**\n\n" "⏰ Введите время в формате **ЧЧ:ММ**\n" "Например: 19:00",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+            ),
+        )
+        return
+
+    await state.update_data(time=time, step="city")
+    await message.answer(
+        f"**Время сохранено:** {time} ✅\n\n🏙️ **Введите город** (например: Москва):",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+        ),
+    )
+
+
+async def handle_community_city_step(message: types.Message, state: FSMContext):
+    """Обработка города события"""
+    if not message.text:
+        await message.answer(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n" "🏙️ **Введите город** (например: Москва):",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+            ),
+        )
+        return
+
+    city = message.text.strip()
+    await state.update_data(city=city, step="location_name")
+    await message.answer(
+        f"**Город сохранен:** {city} ✅\n\n📍 **Введите название места** (например: Кафе 'Уют'):",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+        ),
+    )
+
+
+async def handle_community_location_name_step(message: types.Message, state: FSMContext):
+    """Обработка названия места"""
+    if not message.text:
+        await message.answer(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n"
+            "📍 **Введите название места** (например: Кафе 'Уют'):",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+            ),
+        )
+        return
+
+    location_name = message.text.strip()
+    await state.update_data(location_name=location_name, step="location_url")
+    await message.answer(
+        f"**Место сохранено:** {location_name} ✅\n\n🔗 **Введите ссылку на место** (Google Maps или адрес):",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+        ),
+    )
+
+
+async def handle_community_location_url_step(message: types.Message, state: FSMContext):
+    """Обработка ссылки на место"""
+    if not message.text:
+        await message.answer(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n"
+            "🔗 **Введите ссылку на место** (Google Maps или адрес):",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+            ),
+        )
+        return
+
+    location_url = message.text.strip()
+    await state.update_data(location_url=location_url, step="description")
+    await message.answer(
+        "**Ссылка сохранена** ✅\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+        ),
+    )
+
+
+async def handle_community_description_step(message: types.Message, state: FSMContext):
+    """Обработка описания события"""
+    if not message.text:
+        await message.answer(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n"
+            "📝 **Введите описание события** (что будет происходить, кому интересно):",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+            ),
+        )
+        return
+
+    description = message.text.strip()
+    data = await state.get_data()
+
+    # Показываем итог перед подтверждением
+    await message.answer(
+        f"📌 **Проверьте данные события сообщества:**\n\n"
+        f"**Название:** {data['title']}\n"
+        f"**Дата:** {data['date']}\n"
+        f"**Время:** {data['time']}\n"
+        f"**Город:** {data['city']}\n"
+        f"**Место:** {data['location_name']}\n"
+        f"**Ссылка:** {data['location_url']}\n"
+        f"**Описание:** {description}\n\n"
+        f"Если всё верно, нажмите ✅ Сохранить. Если нужно изменить — нажмите ❌ Отмена.",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="✅ Сохранить", callback_data="community_event_confirm"),
+                    InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create"),
+                ]
+            ]
+        ),
+    )
+
+    # Сохраняем описание
+    await state.update_data(description=description)
 
 
 @dp.message(CommunityEventCreation.waiting_for_title)
