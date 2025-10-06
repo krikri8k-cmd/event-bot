@@ -3989,6 +3989,18 @@ async def process_description(message: types.Message, state: FSMContext):
 # ===== ОБРАБОТЧИКИ ДЛЯ СОБЫТИЙ СООБЩЕСТВ (ГРУППОВЫЕ ЧАТЫ) =====
 
 
+# Общий обработчик для отладки FSM состояний в групповых чатах
+@dp.message()
+async def debug_community_fsm(message: types.Message, state: FSMContext):
+    """Отладочный обработчик для FSM состояний сообществ"""
+    current_state = await state.get_state()
+    if current_state and current_state.startswith("CommunityEventCreation"):
+        logger.info(
+            f"🔥 DEBUG: сообщение в состоянии {current_state} от пользователя {message.from_user.id} в чате {message.chat.id}, текст: '{message.text}'"
+        )
+        # Не обрабатываем здесь, просто логируем
+
+
 @dp.message(CommunityEventCreation.waiting_for_title)
 async def process_community_title(message: types.Message, state: FSMContext):
     """Шаг 1: Обработка названия события сообщества"""
