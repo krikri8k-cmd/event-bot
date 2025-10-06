@@ -1590,6 +1590,20 @@ async def handle_group_create_event(callback: types.CallbackQuery, state: FSMCon
         f"🔥 handle_group_create_event: пользователь {callback.from_user.id} нажал кнопку создания события в чате {callback.message.chat.id}"
     )
 
+    # Антидребезг: предотвращаем двойной старт FSM
+    from time import time
+
+    from group_chat_handlers import LAST_START
+
+    chat_id = callback.message.chat.id
+    current_time = time()
+    if current_time - LAST_START.get(chat_id, 0) < 2:
+        logger.info(f"🔥 handle_group_create_event: игнорируем двойной клик в чате {chat_id}")
+        await callback.answer("⏳ Подождите, создание события уже запущено...")
+        return
+
+    LAST_START[chat_id] = current_time
+
     # Импортируем GroupCreate FSM
     from group_chat_handlers import GroupCreate
 

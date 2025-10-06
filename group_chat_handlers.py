@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 # BOT_ID будет импортирован из основного модуля
 BOT_ID = None
 
+# Антидребезг для предотвращения двойного старта FSM
+LAST_START = {}
+
 
 class GroupCreate(StatesGroup):
     """FSM состояния для создания событий в групповых чатах"""
@@ -341,12 +344,30 @@ async def debug_all_group_messages(message: types.Message, state: FSMContext):
     )
 
     current_state = await state.get_state()
+    data = await state.get_data()
+
     if current_state:
-        logger.warning(
-            f"[DEBUG] ВНЕШАГОВОЕ сообщение при state={current_state}: "
-            f"chat={message.chat.id} user={message.from_user.id} "
-            f"text={message.text!r} reply_to={reply_to_id} reply_to_user={reply_to_user_id}"
+        # Проверяем, это ли ожидаемый ответ
+        is_expected_reply = (
+            message.reply_to_message
+            and message.reply_to_message.from_user.id == BOT_ID
+            and message.reply_to_message.message_id == data.get("prompt_msg_id")
+            and message.from_user.id == data.get("initiator_id")
         )
+
+        if is_expected_reply:
+            logger.info(
+                f"[DEBUG] ✅ ОЖИДАЕМЫЙ ОТВЕТ: state={current_state} "
+                f"chat={message.chat.id} user={message.from_user.id} "
+                f"text={message.text!r} reply_to={reply_to_id} prompt={data.get('prompt_msg_id')}"
+            )
+        else:
+            logger.warning(
+                f"[DEBUG] ❌ ВНЕШАГОВОЕ сообщение при state={current_state}: "
+                f"chat={message.chat.id} user={message.from_user.id} "
+                f"text={message.text!r} reply_to={reply_to_id} reply_to_user={reply_to_user_id} "
+                f"prompt={data.get('prompt_msg_id')} initiator={data.get('initiator_id')}"
+            )
     else:
         logger.info(
             f"[DEBUG] Групповое сообщение: chat={message.chat.id} user={message.from_user.id} "
@@ -363,9 +384,6 @@ def register_group_handlers(dp, bot_id: int):
     BOT_ID = bot_id
 
     logger.info(f"🔥 Регистрация обработчиков для групповых чатов, BOT_ID={BOT_ID}")
-
-    # ВРЕМЕННО: обработчик для отладки всех сообщений в группах
-    dp.message.register(debug_all_group_messages, F.chat.type.in_({"group", "supergroup"}))
 
     # Команда /create только для групп
     dp.message.register(group_create_start, Command("create"), F.chat.type.in_({"group", "supergroup"}))
@@ -410,5 +428,8 @@ def register_group_handlers(dp, bot_id: int):
         F.reply_to_message,
         F.reply_to_message.from_user.id == BOT_ID,
     )
+
+    # ВРЕМЕННО: обработчик для отладки всех сообщений в группах (регистрируется последним)
+    dp.message.register(debug_all_group_messages, F.chat.type.in_({"group", "supergroup"}))
 
     logger.info("✅ Обработчики для групповых чатов зарегистрированы")
