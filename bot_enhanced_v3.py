@@ -1516,6 +1516,7 @@ async def cmd_radius_settings(message: types.Message):
 async def cmd_start(message: types.Message):
     """Обработчик команды /start"""
     user_id = message.from_user.id
+    chat_type = message.chat.type
 
     # Сохраняем пользователя в БД
     with get_session() as session:
@@ -1529,16 +1530,180 @@ async def cmd_start(message: types.Message):
             session.add(user)
             session.commit()
 
+    # Разная логика для личных и групповых чатов
+    if chat_type == "private":
+        # Личный чат - показываем кнопки
+        welcome_text = (
+            "Привет! Я EventAroundBot. Помогаю находить события рядом и создавать свои.\n\n"
+            "🎯 Что я умею:\n"
+            "• Искать события в радиусе 5-20 км от вас\n"
+            "• Генерировать AI события\n"
+            "• Создавать ваши собственные события и встречи\n\n"
+            "Нажмите '📍 Что рядом' и отправьте геолокацию!"
+        )
+        await message.answer(welcome_text, reply_markup=main_menu_kb())
+    else:
+        # Групповой чат - показываем команды
+        welcome_text = (
+            "Привет! Я EventAroundBot. Помогаю находить события рядом и создавать свои.\n\n"
+            "🎯 Что я умею:\n"
+            "• Искать события в радиусе 5-20 км от вас\n"
+            "• Генерировать AI события\n"
+            "• Создавать ваши собственные события и встречи\n\n"
+            "📋 **Доступные команды:**\n"
+            "• `/nearby` - найти события рядом (отправьте геолокацию)\n"
+            "• `/create` - создать событие\n"
+            "• `/myevents` - мои события\n"
+            "• `/help` - написать отзыв разработчику\n"
+            "• `/share` - поделиться ботом\n\n"
+            "💡 **Как использовать:**\n"
+            "1. Напишите `/nearby`\n"
+            "2. Отправьте геолокацию\n"
+            "3. Получите список событий с картой!"
+        )
+
+        # Создаем inline кнопки для групповых чатов
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="📍 Найти события рядом", callback_data="group_nearby")],
+                [InlineKeyboardButton(text="➕ Создать событие", callback_data="group_create")],
+                [InlineKeyboardButton(text="📋 Мои события", callback_data="group_myevents")],
+                [InlineKeyboardButton(text="💬 Написать отзыв", callback_data="group_help")],
+            ]
+        )
+
+        await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
+
+
+# Обработчики для inline кнопок в групповых чатах
+@dp.callback_query(F.data == "group_nearby")
+async def handle_group_nearby(callback: types.CallbackQuery, state: FSMContext):
+    """Обработчик кнопки 'Найти события рядом' в групповых чатах"""
+    await state.set_state(EventSearch.waiting_for_location)
+
+    text = (
+        "📍 **Поиск событий рядом**\n\n"
+        "Отправьте геолокацию, чтобы найти события в радиусе 5 км от вас.\n\n"
+        "💡 **Как отправить геолокацию:**\n"
+        "1. Нажмите на скрепку 📎\n"
+        "2. Выберите 'Геолокация' или 'Местоположение'\n"
+        "3. Отправьте текущее местоположение"
+    )
+
+    await callback.message.edit_text(text, parse_mode="Markdown")
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "group_create")
+async def handle_group_create(callback: types.CallbackQuery, state: FSMContext):
+    """Обработчик кнопки 'Создать событие' в групповых чатах"""
+    await state.set_state(EventCreation.waiting_for_title)
+
+    text = (
+        "➕ **Создание события**\n\n"
+        "Создаём новое событие! 📝\n\n"
+        "✍ Введите название мероприятия (например: Прогулка):"
+    )
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+    )
+
+    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "group_myevents")
+async def handle_group_myevents(callback: types.CallbackQuery):
+    """Обработчик кнопки 'Мои события' в групповых чатах"""
+    user_id = callback.from_user.id
+
+    # Получаем события пользователя
+    events = get_user_events(user_id)
+
+    if not events:
+        text = "📋 **Мои события**\n\nУ вас пока нет созданных событий.\n\nИспользуйте команду `/create` для создания нового события!"
+    else:
+        # Показываем только активные события
+        active_events = [e for e in events if e.get("status") == "open"]
+
+        if not active_events:
+            text = "📋 **Мои события**\n\nУ вас нет активных событий.\n\nИспользуйте команду `/create` для создания нового события!"
+        else:
+            text = "📋 **Ваши активные события:**\n\n"
+            for i, event in enumerate(active_events[:5], 1):
+                event_text = format_event_for_display(event)
+                text += f"{i}) {event_text}\n\n"
+
+    await callback.message.edit_text(text, parse_mode="Markdown")
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "group_help")
+async def handle_group_help(callback: types.CallbackQuery):
+    """Обработчик кнопки 'Написать отзыв' в групповых чатах"""
+    feedback_text = (
+        "💬 **Написать отзыв Разработчику**\n\n"
+        "Спасибо за использование EventAroundBot! 🚀\n\n"
+        "Если у вас есть предложения, замечания или просто хотите поблагодарить - "
+        "напишите мне лично:\n\n"
+        "👨‍💻 **@Fincontro**\n\n"
+        "Я всегда рад обратной связи и готов помочь! 😊"
+    )
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💬 Написать @Fincontro", url="https://t.me/Fincontro")],
+            [InlineKeyboardButton(text="🔙 Назад", callback_data="group_back_to_start")],
+        ]
+    )
+
+    await callback.message.edit_text(feedback_text, reply_markup=keyboard, parse_mode="Markdown")
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "group_cancel_create")
+async def handle_group_cancel_create(callback: types.CallbackQuery, state: FSMContext):
+    """Обработчик отмены создания события в групповых чатах"""
+    await state.clear()
+
+    text = "❌ Создание события отменено."
+    await callback.message.edit_text(text)
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "group_back_to_start")
+async def handle_group_back_to_start(callback: types.CallbackQuery):
+    """Обработчик возврата в главное меню группового чата"""
     welcome_text = (
         "Привет! Я EventAroundBot. Помогаю находить события рядом и создавать свои.\n\n"
         "🎯 Что я умею:\n"
         "• Искать события в радиусе 5-20 км от вас\n"
         "• Генерировать AI события\n"
         "• Создавать ваши собственные события и встречи\n\n"
-        "Нажмите '📍 Что рядом' и отправьте геолокацию!"
+        "📋 **Доступные команды:**\n"
+        "• `/nearby` - найти события рядом (отправьте геолокацию)\n"
+        "• `/create` - создать событие\n"
+        "• `/myevents` - мои события\n"
+        "• `/help` - написать отзыв разработчику\n"
+        "• `/share` - поделиться ботом\n\n"
+        "💡 **Как использовать:**\n"
+        "1. Напишите `/nearby`\n"
+        "2. Отправьте геолокацию\n"
+        "3. Получите список событий с картой!"
     )
 
-    await message.answer(welcome_text, reply_markup=main_menu_kb())
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📍 Найти события рядом", callback_data="group_nearby")],
+            [InlineKeyboardButton(text="➕ Создать событие", callback_data="group_create")],
+            [InlineKeyboardButton(text="📋 Мои события", callback_data="group_myevents")],
+            [InlineKeyboardButton(text="💬 Написать отзыв", callback_data="group_help")],
+        ]
+    )
+
+    await callback.message.edit_text(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
+    await callback.answer()
 
 
 @dp.message(Command("nearby"))
