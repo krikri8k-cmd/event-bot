@@ -46,7 +46,10 @@ async def group_create_start(message: types.Message, state: FSMContext):
 
 async def group_title_step(message: types.Message, state: FSMContext):
     """Обработка названия события в групповом чате"""
+    logger.info(f"🔥 group_title_step: ОБРАБОТЧИК ВЫЗВАН! chat={message.chat.id} user={message.from_user.id}")
+
     data = await state.get_data()
+    logger.info(f"🔥 group_title_step: данные FSM: {data}")
 
     # Страховка: проверяем "жёсткую привязку"
     if message.from_user.id != data.get("initiator_id"):
@@ -302,6 +305,21 @@ async def group_finish(message: types.Message, state: FSMContext):
     await state.clear()
 
 
+async def debug_all_group_messages(message: types.Message):
+    """Временный обработчик для отладки всех сообщений в группах"""
+    reply_to_id = message.reply_to_message.message_id if message.reply_to_message else None
+    reply_to_user_id = (
+        message.reply_to_message.from_user.id
+        if message.reply_to_message and message.reply_to_message.from_user
+        else None
+    )
+
+    logger.info(
+        f"[DEBUG] Групповое сообщение: chat={message.chat.id} user={message.from_user.id} "
+        f"text={message.text!r} reply_to={reply_to_id} reply_to_user={reply_to_user_id}"
+    )
+
+
 def register_group_handlers(dp, bot_id: int):
     """
     Регистрация обработчиков для групповых чатов
@@ -311,6 +329,9 @@ def register_group_handlers(dp, bot_id: int):
     BOT_ID = bot_id
 
     logger.info(f"🔥 Регистрация обработчиков для групповых чатов, BOT_ID={BOT_ID}")
+
+    # ВРЕМЕННО: обработчик для отладки всех сообщений в группах
+    dp.message.register(debug_all_group_messages, F.chat.type.in_({"group", "supergroup"}))
 
     # Команда /create только для групп
     dp.message.register(group_create_start, Command("create"), F.chat.type.in_({"group", "supergroup"}))
