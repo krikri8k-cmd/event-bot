@@ -1892,10 +1892,11 @@ async def handle_group_chat_events(callback: types.CallbackQuery):
                 text += f"   {event['description'][:100]}{'...' if len(event['description']) > 100 else ''}\n"
             text += f"   📅 {event['starts_at'].strftime('%d.%m.%Y %H:%M')}\n"
             text += f"   🏙️ {event['city']}\n"
-            if event["location_name"]:
-                text += f"   📍 {event['location_name']}\n"
             if event["location_url"]:
-                text += f"   🔗 [Ссылка на место]({event['location_url']})\n"
+                location_name = event.get("location_name", "Место")
+                text += f"   📍 [{location_name}]({event['location_url']})\n"
+            elif event["location_name"]:
+                text += f"   📍 {event['location_name']}\n"
             text += f"   👤 Создал: @{event['organizer_username'] or 'Неизвестно'}\n\n"
 
     keyboard = InlineKeyboardMarkup(
@@ -2011,6 +2012,7 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
         event_id = community_service.create_community_event(
             group_id=data["group_id"],
             creator_id=callback.from_user.id,
+            creator_username=callback.from_user.username or callback.from_user.first_name,
             title=data["title"],
             date=starts_at,
             description=data["description"],
@@ -5100,6 +5102,7 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
         event_id = community_service.create_community_event(
             group_id=data["chat_id"],
             creator_id=callback.from_user.id,
+            creator_username=callback.from_user.username or callback.from_user.first_name,
             title=data["title"],
             date=starts_at,
             description=data["description"],

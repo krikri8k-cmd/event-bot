@@ -24,6 +24,7 @@ class CommunityEventsService:
         self,
         group_id: int,
         creator_id: int,
+        creator_username: str,
         title: str,
         date: datetime,
         description: str,
@@ -66,7 +67,7 @@ class CommunityEventsService:
                 {
                     "chat_id": group_id,
                     "organizer_id": creator_id,
-                    "organizer_username": "user",  # Временно
+                    "organizer_username": creator_username,
                     "title": title,
                     "starts_at": date,
                     "description": description,
