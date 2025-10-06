@@ -116,6 +116,7 @@ class SimpleEventsService:
         location_name: str,
         location_url: str = None,
         max_participants: int = None,
+        chat_id: int = None,
     ) -> int:
         """
         Создание пользовательского события
@@ -138,10 +139,10 @@ class SimpleEventsService:
             query = text("""
                 INSERT INTO events_user
                 (organizer_id, title, description, starts_at, city, lat, lng,
-                 location_name, location_url, max_participants)
+                 location_name, location_url, max_participants, chat_id)
                 VALUES
                 (:organizer_id, :title, :description, :starts_at, :city, :lat, :lng,
-                 :location_name, :location_url, :max_participants)
+                 :location_name, :location_url, :max_participants, :chat_id)
                 RETURNING id
             """)
 
@@ -158,6 +159,7 @@ class SimpleEventsService:
                     "location_name": location_name,
                     "location_url": location_url,
                     "max_participants": max_participants,
+                    "chat_id": chat_id,
                 },
             )
 

@@ -1543,31 +1543,22 @@ async def cmd_start(message: types.Message):
         )
         await message.answer(welcome_text, reply_markup=main_menu_kb())
     else:
-        # Групповой чат - показываем команды
+        # Групповой чат - упрощенный функционал для событий участников
         welcome_text = (
-            "Привет! Я EventAroundBot. Помогаю находить события рядом и создавать свои.\n\n"
-            "🎯 Что я умею:\n"
-            "• Искать события в радиусе 5-20 км от вас\n"
-            "• Генерировать AI события\n"
-            "• Создавать ваши собственные события и встречи\n\n"
-            "📋 **Доступные команды:**\n"
-            "• `/nearby` - найти события рядом (отправьте геолокацию)\n"
-            "• `/create` - создать событие\n"
-            "• `/myevents` - мои события\n"
-            "• `/help` - написать отзыв разработчику\n"
-            "• `/share` - поделиться ботом\n\n"
-            "💡 **Как использовать:**\n"
-            "1. Напишите `/nearby`\n"
-            "2. Отправьте геолокацию\n"
-            "3. Получите список событий с картой!"
+            "👋 **Привет! Я EventAroundBot для группового чата!**\n\n"
+            "🎯 **В этом чате я помогаю:**\n"
+            "• Создавать события участников чата\n"
+            "• Показывать все события, созданные в этом чате\n"
+            "• Переходить к полному боту для поиска по геолокации\n\n"
+            "💡 **Выберите действие:**"
         )
 
         # Создаем inline кнопки для групповых чатов
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="📍 Найти события рядом", callback_data="group_nearby")],
-                [InlineKeyboardButton(text="➕ Создать событие", callback_data="group_create")],
-                [InlineKeyboardButton(text="📋 Мои события", callback_data="group_myevents")],
+                [InlineKeyboardButton(text="➕ Создать событие в чате", callback_data="group_create_event")],
+                [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_chat_events")],
+                [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", callback_data="group_full_bot")],
                 [InlineKeyboardButton(text="💬 Написать отзыв", callback_data="group_help")],
             ]
         )
@@ -1576,37 +1567,90 @@ async def cmd_start(message: types.Message):
 
 
 # Обработчики для inline кнопок в групповых чатах
-@dp.callback_query(F.data == "group_nearby")
-async def handle_group_nearby(callback: types.CallbackQuery, state: FSMContext):
-    """Обработчик кнопки 'Найти события рядом' в групповых чатах"""
-    await state.set_state(EventSearch.waiting_for_location)
-
-    text = (
-        "📍 **Поиск событий рядом**\n\n"
-        "Отправьте геолокацию, чтобы найти события в радиусе 5 км от вас.\n\n"
-        "💡 **Как отправить геолокацию:**\n"
-        "1. Нажмите на скрепку 📎\n"
-        "2. Выберите 'Геолокация' или 'Местоположение'\n"
-        "3. Отправьте текущее местоположение"
-    )
-
-    await callback.message.edit_text(text, parse_mode="Markdown")
-    await callback.answer()
-
-
-@dp.callback_query(F.data == "group_create")
-async def handle_group_create(callback: types.CallbackQuery, state: FSMContext):
-    """Обработчик кнопки 'Создать событие' в групповых чатах"""
+@dp.callback_query(F.data == "group_create_event")
+async def handle_group_create_event(callback: types.CallbackQuery, state: FSMContext):
+    """Обработчик кнопки 'Создать событие в чате' в групповых чатах"""
     await state.set_state(EventCreation.waiting_for_title)
 
     text = (
-        "➕ **Создание события**\n\n"
-        "Создаём новое событие! 📝\n\n"
-        "✍ Введите название мероприятия (например: Прогулка):"
+        "➕ **Создание события в чате**\n\n"
+        "Создаём новое событие для участников этого чата! 📝\n\n"
+        "✍ **Введите название мероприятия** (например: Встреча в кафе):"
     )
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+    )
+
+    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "group_chat_events")
+async def handle_group_chat_events(callback: types.CallbackQuery):
+    """Обработчик кнопки 'События этого чата' в групповых чатах"""
+    chat_id = callback.message.chat.id
+
+    # Получаем события, созданные в этом чате
+    from sqlalchemy import and_
+
+    with get_session() as session:
+        events = (
+            session.query(Event)
+            .filter(and_(Event.chat_id == chat_id, Event.status == "open"))
+            .order_by(Event.created_at.desc())
+            .limit(10)
+            .all()
+        )
+
+    if not events:
+        text = (
+            "📋 **События этого чата**\n\n"
+            "В этом чате пока нет созданных событий.\n\n"
+            "💡 Создайте первое событие, нажав кнопку '➕ Создать событие в чате'!"
+        )
+    else:
+        text = f"📋 **События этого чата** ({len(events)} событий):\n\n"
+        for i, event in enumerate(events, 1):
+            text += f"**{i}. {event.title}**\n"
+            if event.description:
+                text += f"   {event.description[:100]}{'...' if len(event.description) > 100 else ''}\n"
+            if event.location_url:
+                text += f"   🔗 [Ссылка на место]({event.location_url})\n"
+            text += f"   👤 Создал: {event.author_name or 'Неизвестно'}\n"
+            text += f"   📅 {event.created_at.strftime('%d.%m.%Y %H:%M')}\n\n"
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="group_back_to_start")]]
+    )
+
+    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "group_full_bot")
+async def handle_group_full_bot(callback: types.CallbackQuery):
+    """Обработчик кнопки 'Полный бот' в групповых чатах"""
+    bot_info = await bot.get_me()
+
+    text = (
+        "🚀 **Переход к полному боту**\n\n"
+        "Для полноценной работы с поиском событий по геолокации, "
+        "создания квестов и всех функций перейдите в личный чат с ботом:\n\n"
+        f"👤 **Личный чат:** @{bot_info.username}\n\n"
+        "💡 **В личном чате доступно:**\n"
+        "• Поиск событий по геолокации\n"
+        "• Система квестов на районе\n"
+        "• Создание событий с координатами\n"
+        "• Настройки радиуса поиска\n"
+        "• И многое другое!"
+    )
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🚀 Перейти к боту", url=f"https://t.me/{bot_info.username}")],
+            [InlineKeyboardButton(text="🔙 Назад", callback_data="group_back_to_start")],
+        ]
     )
 
     await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
@@ -1676,28 +1720,19 @@ async def handle_group_cancel_create(callback: types.CallbackQuery, state: FSMCo
 async def handle_group_back_to_start(callback: types.CallbackQuery):
     """Обработчик возврата в главное меню группового чата"""
     welcome_text = (
-        "Привет! Я EventAroundBot. Помогаю находить события рядом и создавать свои.\n\n"
-        "🎯 Что я умею:\n"
-        "• Искать события в радиусе 5-20 км от вас\n"
-        "• Генерировать AI события\n"
-        "• Создавать ваши собственные события и встречи\n\n"
-        "📋 **Доступные команды:**\n"
-        "• `/nearby` - найти события рядом (отправьте геолокацию)\n"
-        "• `/create` - создать событие\n"
-        "• `/myevents` - мои события\n"
-        "• `/help` - написать отзыв разработчику\n"
-        "• `/share` - поделиться ботом\n\n"
-        "💡 **Как использовать:**\n"
-        "1. Напишите `/nearby`\n"
-        "2. Отправьте геолокацию\n"
-        "3. Получите список событий с картой!"
+        "👋 **Привет! Я EventAroundBot для группового чата!**\n\n"
+        "🎯 **В этом чате я помогаю:**\n"
+        "• Создавать события участников чата\n"
+        "• Показывать все события, созданные в этом чате\n"
+        "• Переходить к полному боту для поиска по геолокации\n\n"
+        "💡 **Выберите действие:**"
     )
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="📍 Найти события рядом", callback_data="group_nearby")],
-            [InlineKeyboardButton(text="➕ Создать событие", callback_data="group_create")],
-            [InlineKeyboardButton(text="📋 Мои события", callback_data="group_myevents")],
+            [InlineKeyboardButton(text="➕ Создать событие в чате", callback_data="group_create_event")],
+            [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_chat_events")],
+            [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", callback_data="group_full_bot")],
             [InlineKeyboardButton(text="💬 Написать отзыв", callback_data="group_help")],
         ]
     )

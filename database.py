@@ -99,6 +99,7 @@ class Event(Base):
     lng: Mapped[float | None] = mapped_column(Float)
     organizer_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
     organizer_username: Mapped[str | None] = mapped_column(String(255))
+    chat_id: Mapped[int | None] = mapped_column(BigInteger, index=True)  # ID чата, где создано событие
     max_participants: Mapped[int | None] = mapped_column(Integer)
     participants_ids: Mapped[str | None] = mapped_column(Text)
     current_participants: Mapped[int] = mapped_column(Integer, default=0)
