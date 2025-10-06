@@ -2829,7 +2829,7 @@ async def show_task_detail(message, tasks: list, task_index: int, user_id: int):
     nav_buttons = []
     if len(tasks) > 1:
         if task_index > 0:
-            nav_buttons.append(InlineKeyboardButton(text="⬅️", callback_data=f"task_nav:{task_index-1}"))
+            nav_buttons.append(InlineKeyboardButton(text="🔙", callback_data=f"task_nav:{task_index-1}"))
         nav_buttons.append(InlineKeyboardButton(text=f"{task_index + 1}/{len(tasks)}", callback_data="noop"))
         if task_index < len(tasks) - 1:
             nav_buttons.append(InlineKeyboardButton(text="➡️", callback_data=f"task_nav:{task_index+1}"))
@@ -5014,7 +5014,7 @@ async def handle_manage_events(callback: types.CallbackQuery):
     if len(active_events) > 1:
         keyboard.inline_keyboard.append(
             [
-                InlineKeyboardButton(text="⬅️ Предыдущее", callback_data="prev_event_0"),
+                InlineKeyboardButton(text="🔙 Предыдущее", callback_data="prev_event_0"),
                 InlineKeyboardButton(text="➡️ Следующее", callback_data="next_event_1"),
             ]
         )
@@ -5954,7 +5954,7 @@ async def handle_next_event(callback: types.CallbackQuery):
         )
 
         # Добавляем кнопку "Предыдущее событие"
-        keyboard.inline_keyboard.append([InlineKeyboardButton(text="⬅️ Предыдущее", callback_data="prev_event_0")])
+        keyboard.inline_keyboard.append([InlineKeyboardButton(text="🔙 Предыдущее", callback_data="prev_event_0")])
 
         await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
         await callback.answer()
