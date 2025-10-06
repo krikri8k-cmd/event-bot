@@ -14,7 +14,7 @@ from urllib.parse import quote_plus, urlparse
 
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.filters import Command, StateFilter
+from aiogram.filters import Command, CommandObject, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -1529,10 +1529,24 @@ async def cmd_radius_settings(message: types.Message):
 
 @dp.message(Command("start"))
 @dp.message(F.text == "🚀 Старт")
-async def cmd_start(message: types.Message):
+async def cmd_start(message: types.Message, command: CommandObject = None):
     """Обработчик команды /start"""
     user_id = message.from_user.id
     chat_type = message.chat.type
+
+    # Проверяем, есть ли параметр group_ (deep-link из группы)
+    group_id = None
+    if command and command.args and command.args.startswith("group_"):
+        try:
+            group_id = int(command.args.replace("group_", ""))
+            logger.info(f"🔥 cmd_start: пользователь {user_id} перешёл из группы {group_id}")
+        except ValueError:
+            logger.warning(f"🔥 cmd_start: неверный параметр group_ {command.args}")
+
+    # Если это переход из группы, запускаем FSM для создания группового события
+    if group_id and chat_type == "private":
+        await start_group_event_creation(message, group_id)
+        return
 
     # Сохраняем пользователя в БД
     with get_session() as session:
@@ -1569,10 +1583,17 @@ async def cmd_start(message: types.Message):
             "💡 **Выберите действие:**"
         )
 
+        # Получаем username бота для создания ссылки
+        bot_info = await bot.get_me()
+
         # Создаем inline кнопки для групповых чатов
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="➕ Создать событие в чате", callback_data="group_create_event")],
+                [
+                    InlineKeyboardButton(
+                        text="➕ Создать событие", url=f"https://t.me/{bot_info.username}?start=group_{message.chat.id}"
+                    )
+                ],
                 [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_chat_events")],
                 [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", callback_data="group_full_bot")],
                 [InlineKeyboardButton(text="💬 Написать отзыв", callback_data="group_help")],
@@ -1582,7 +1603,230 @@ async def cmd_start(message: types.Message):
         await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
 
 
-# Обработчики для inline кнопок в групповых чатах
+async def start_group_event_creation(message: types.Message, group_id: int):
+    """Запуск создания события для группы в ЛС"""
+    logger.info(f"🔥 start_group_event_creation: запуск FSM для группы {group_id}, пользователь {message.from_user.id}")
+
+    # Запускаем FSM для создания группового события
+    from aiogram.fsm.context import FSMContext
+
+    state = FSMContext(storage=storage, key=f"user:{message.from_user.id}:{message.chat.id}")
+
+    await state.set_state(CommunityEventCreation.waiting_for_title)
+    await state.update_data(group_id=group_id, creator_id=message.from_user.id, scope="group")
+
+    welcome_text = (
+        "🎉 **Создание события для группы**\n\n"
+        "Вы перешли из группы для создания события. "
+        "Давайте создадим интересное мероприятие!\n\n"
+        "✍️ **Введите название события:**"
+    )
+
+    await message.answer(welcome_text, parse_mode="Markdown")
+
+
+# Обработчики FSM для создания событий в ЛС (для групп)
+@dp.message(CommunityEventCreation.waiting_for_title, F.chat.type == "private")
+async def process_community_title_pm(message: types.Message, state: FSMContext):
+    """Обработка названия события в ЛС для группы"""
+    logger.info(
+        f"🔥 process_community_title_pm: получено сообщение от пользователя {message.from_user.id}, текст: '{message.text}'"
+    )
+
+    if not message.text:
+        await message.answer(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n✍️ **Введите название события:**",
+            parse_mode="Markdown",
+        )
+        return
+
+    title = message.text.strip()
+    logger.info(f"🔥 process_community_title_pm: получили название '{title}' от пользователя {message.from_user.id}")
+
+    await state.update_data(title=title)
+    await state.set_state(CommunityEventCreation.waiting_for_date)
+    example_date = get_example_date()
+
+    await message.answer(
+        f"**Название сохранено:** *{title}* ✅\n\n📅 **Введите дату** (например: {example_date}):",
+        parse_mode="Markdown",
+    )
+
+
+@dp.message(CommunityEventCreation.waiting_for_date, F.chat.type == "private")
+async def process_community_date_pm(message: types.Message, state: FSMContext):
+    """Обработка даты события в ЛС для группы"""
+    logger.info(
+        f"🔥 process_community_date_pm: получено сообщение от пользователя {message.from_user.id}, текст: '{message.text}'"
+    )
+
+    if not message.text:
+        await message.answer(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n📅 **Введите дату** (например: 15.12.2024):",
+            parse_mode="Markdown",
+        )
+        return
+
+    date = message.text.strip()
+    logger.info(f"🔥 process_community_date_pm: получили дату '{date}' от пользователя {message.from_user.id}")
+
+    await state.update_data(date=date)
+    await state.set_state(CommunityEventCreation.waiting_for_time)
+
+    await message.answer(
+        f"**Дата сохранена:** {date} ✅\n\n⏰ **Введите время** (например: 19:00):", parse_mode="Markdown"
+    )
+
+
+@dp.message(CommunityEventCreation.waiting_for_time, F.chat.type == "private")
+async def process_community_time_pm(message: types.Message, state: FSMContext):
+    """Обработка времени события в ЛС для группы"""
+    logger.info(
+        f"🔥 process_community_time_pm: получено сообщение от пользователя {message.from_user.id}, текст: '{message.text}'"
+    )
+
+    if not message.text:
+        await message.answer(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n⏰ **Введите время** (например: 19:00):",
+            parse_mode="Markdown",
+        )
+        return
+
+    time = message.text.strip()
+    logger.info(f"🔥 process_community_time_pm: получили время '{time}' от пользователя {message.from_user.id}")
+
+    await state.update_data(time=time)
+    await state.set_state(CommunityEventCreation.waiting_for_city)
+
+    await message.answer(
+        f"**Время сохранено:** {time} ✅\n\n🏙️ **Введите город** (например: Москва):", parse_mode="Markdown"
+    )
+
+
+@dp.message(CommunityEventCreation.waiting_for_city, F.chat.type == "private")
+async def process_community_city_pm(message: types.Message, state: FSMContext):
+    """Обработка города события в ЛС для группы"""
+    logger.info(
+        f"🔥 process_community_city_pm: получено сообщение от пользователя {message.from_user.id}, текст: '{message.text}'"
+    )
+
+    if not message.text:
+        await message.answer(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n🏙️ **Введите город** (например: Москва):",
+            parse_mode="Markdown",
+        )
+        return
+
+    city = message.text.strip()
+    logger.info(f"🔥 process_community_city_pm: получили город '{city}' от пользователя {message.from_user.id}")
+
+    await state.update_data(city=city)
+    await state.set_state(CommunityEventCreation.waiting_for_location_name)
+
+    await message.answer(
+        f"**Город сохранен:** {city} ✅\n\n📍 **Введите название места** (например: Кафе 'Уют'):", parse_mode="Markdown"
+    )
+
+
+@dp.message(CommunityEventCreation.waiting_for_location_name, F.chat.type == "private")
+async def process_community_location_name_pm(message: types.Message, state: FSMContext):
+    """Обработка названия места события в ЛС для группы"""
+    logger.info(
+        f"🔥 process_community_location_name_pm: получено сообщение от пользователя {message.from_user.id}, текст: '{message.text}'"
+    )
+
+    if not message.text:
+        await message.answer(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n📍 **Введите название места** (например: Кафе 'Уют'):",
+            parse_mode="Markdown",
+        )
+        return
+
+    location_name = message.text.strip()
+    logger.info(
+        f"🔥 process_community_location_name_pm: получили место '{location_name}' от пользователя {message.from_user.id}"
+    )
+
+    await state.update_data(location_name=location_name)
+    await state.set_state(CommunityEventCreation.waiting_for_location_url)
+
+    await message.answer(
+        f"**Место сохранено:** {location_name} ✅\n\n🔗 **Введите ссылку на место** (Google Maps или адрес):",
+        parse_mode="Markdown",
+    )
+
+
+@dp.message(CommunityEventCreation.waiting_for_location_url, F.chat.type == "private")
+async def process_community_location_url_pm(message: types.Message, state: FSMContext):
+    """Обработка ссылки на место события в ЛС для группы"""
+    logger.info(
+        f"🔥 process_community_location_url_pm: получено сообщение от пользователя {message.from_user.id}, текст: '{message.text}'"
+    )
+
+    if not message.text:
+        await message.answer(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n🔗 **Введите ссылку на место** (Google Maps или адрес):",
+            parse_mode="Markdown",
+        )
+        return
+
+    location_url = message.text.strip()
+    logger.info(f"🔥 process_community_location_url_pm: получили ссылку от пользователя {message.from_user.id}")
+
+    await state.update_data(location_url=location_url)
+    await state.set_state(CommunityEventCreation.waiting_for_description)
+
+    await message.answer(
+        "**Ссылка сохранена** ✅\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
+        parse_mode="Markdown",
+    )
+
+
+@dp.message(CommunityEventCreation.waiting_for_description, F.chat.type == "private")
+async def process_community_description_pm(message: types.Message, state: FSMContext):
+    """Обработка описания события в ЛС для группы"""
+    logger.info(
+        f"🔥 process_community_description_pm: получено сообщение от пользователя {message.from_user.id}, текст: '{message.text}'"
+    )
+
+    if not message.text:
+        await message.answer(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
+            parse_mode="Markdown",
+        )
+        return
+
+    description = message.text.strip()
+    logger.info(f"🔥 process_community_description_pm: получили описание от пользователя {message.from_user.id}")
+
+    await state.update_data(description=description)
+    data = await state.get_data()
+    await state.set_state(CommunityEventCreation.confirmation)
+
+    # Показываем итог перед подтверждением
+    await message.answer(
+        f"📌 **Проверьте данные события:**\n\n"
+        f"**Название:** {data['title']}\n"
+        f"**Дата:** {data['date']}\n"
+        f"**Время:** {data['time']}\n"
+        f"**Город:** {data['city']}\n"
+        f"**Место:** {data['location_name']}\n"
+        f"**Ссылка:** {data['location_url']}\n"
+        f"**Описание:** {data['description']}\n\n"
+        f"Если всё верно, нажмите ✅ Сохранить. Если нужно изменить — нажмите ❌ Отмена.",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="✅ Сохранить", callback_data="community_event_confirm_pm"),
+                    InlineKeyboardButton(text="❌ Отмена", callback_data="community_event_cancel_pm"),
+                ]
+            ]
+        ),
+    )
+
+
+# Обработчики для inline кнопок в групповых чатов
 @dp.callback_query(F.data == "group_create_event")
 async def handle_group_create_event(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик кнопки 'Создать событие в чате' в групповых чатах"""
@@ -1756,6 +2000,109 @@ async def handle_group_help(callback: types.CallbackQuery):
     await callback.answer()
 
 
+@dp.callback_query(F.data == "community_event_confirm_pm")
+async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMContext):
+    """Подтверждение создания события сообщества в ЛС"""
+    logger.info(
+        f"🔥 confirm_community_event_pm: пользователь {callback.from_user.id} подтверждает создание события в ЛС"
+    )
+
+    try:
+        data = await state.get_data()
+        logger.info(f"🔥 confirm_community_event_pm: данные события: {data}")
+
+        # Парсим дату и время
+        from datetime import datetime
+
+        date_str = data["date"]
+        time_str = data["time"]
+        starts_at = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
+
+        # Импортируем сервис для событий сообществ
+        from utils.community_events_service import CommunityEventsService
+
+        community_service = CommunityEventsService()
+
+        # Создаем событие в сообществе
+        event_id = community_service.create_community_event(
+            chat_id=data["group_id"],
+            organizer_id=callback.from_user.id,
+            organizer_username=callback.from_user.username,
+            title=data["title"],
+            description=data["description"],
+            starts_at=starts_at,
+            city=data["city"],
+            location_name=data["location_name"],
+            location_url=data["location_url"],
+        )
+
+        logger.info(f"✅ Событие сообщества создано с ID: {event_id}")
+
+        # Публикуем событие в группу
+        group_id = data["group_id"]
+        event_text = (
+            f"🎉 **Новое событие!**\n\n"
+            f"**{data['title']}**\n"
+            f"📅 {data['date']} в {data['time']}\n"
+            f"🏙️ {data['city']}\n"
+            f"📍 {data['location_name']}\n"
+            f"🔗 {data['location_url']}\n\n"
+            f"📝 {data['description']}\n\n"
+            f"*Создано пользователем @{callback.from_user.username or callback.from_user.first_name}*"
+        )
+
+        try:
+            group_message = await bot.send_message(chat_id=group_id, text=event_text, parse_mode="Markdown")
+
+            # Показываем ссылку на опубликованное сообщение
+            group_link = f"https://t.me/c/{str(group_id)[4:]}/{group_message.message_id}"
+
+            await callback.message.edit_text(
+                f"🎉 **Событие создано и опубликовано!**\n\n"
+                f"**{data['title']}**\n"
+                f"📅 {data['date']} в {data['time']}\n"
+                f"🏙️ {data['city']}\n"
+                f"📍 {data['location_name']}\n\n"
+                f"✅ Событие опубликовано в группе!\n"
+                f"🔗 [Ссылка на сообщение]({group_link})",
+                parse_mode="Markdown",
+            )
+
+        except Exception as e:
+            logger.error(f"Ошибка публикации в группу: {e}")
+            await callback.message.edit_text(
+                f"✅ **Событие создано!**\n\n"
+                f"**{data['title']}**\n"
+                f"📅 {data['date']} в {data['time']}\n"
+                f"🏙️ {data['city']}\n"
+                f"📍 {data['location_name']}\n\n"
+                f"⚠️ Не удалось опубликовать в группу, но событие сохранено.",
+                parse_mode="Markdown",
+            )
+
+        await state.clear()
+
+    except Exception as e:
+        logger.error(f"Ошибка создания события: {e}")
+        await callback.message.edit_text(
+            "❌ **Произошла ошибка при создании события.** Попробуйте еще раз.", parse_mode="Markdown"
+        )
+
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "community_event_cancel_pm")
+async def cancel_community_event_pm(callback: types.CallbackQuery, state: FSMContext):
+    """Отмена создания события сообщества в ЛС"""
+    logger.info(f"🔥 cancel_community_event_pm: пользователь {callback.from_user.id} отменил создание события в ЛС")
+
+    await state.clear()
+    await callback.message.edit_text(
+        "❌ **Создание события отменено.**\n\n" "Если хотите создать событие, нажмите /start", parse_mode="Markdown"
+    )
+    await callback.answer()
+
+
 @dp.callback_query(F.data == "group_cancel_create")
 async def handle_group_cancel_create(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик отмены создания события в групповых чатах"""
@@ -1778,9 +2125,17 @@ async def handle_group_back_to_start(callback: types.CallbackQuery):
         "💡 **Выберите действие:**"
     )
 
+    # Получаем username бота для создания ссылки
+    bot_info = await bot.get_me()
+
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="➕ Создать событие в чате", callback_data="group_create_event")],
+            [
+                InlineKeyboardButton(
+                    text="➕ Создать событие",
+                    url=f"https://t.me/{bot_info.username}?start=group_{callback.message.chat.id}",
+                )
+            ],
             [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_chat_events")],
             [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", callback_data="group_full_bot")],
             [InlineKeyboardButton(text="💬 Написать отзыв", callback_data="group_help")],
