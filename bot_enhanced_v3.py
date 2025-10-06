@@ -3995,8 +3995,13 @@ async def process_description(message: types.Message, state: FSMContext):
 @dp.message()
 async def handle_group_chat_messages(message: types.Message, state: FSMContext):
     """Обработчик сообщений в групповых чатах для создания событий"""
+    logger.info(
+        f"🔥 DEBUG: получено сообщение от пользователя {message.from_user.id} в чате {message.chat.id} (тип: {message.chat.type}), текст: '{message.text}'"
+    )
+
     # Проверяем, что это групповой чат
     if message.chat.type not in ["group", "supergroup"]:
+        logger.info("🔥 DEBUG: не групповой чат, пропускаем")
         return
 
     # Получаем данные из state
@@ -4004,8 +4009,13 @@ async def handle_group_chat_messages(message: types.Message, state: FSMContext):
     current_step = data.get("step")
     chat_id = data.get("chat_id")
 
+    logger.info(
+        f"🔥 DEBUG: данные из state - step: {current_step}, chat_id: {chat_id}, message.chat.id: {message.chat.id}"
+    )
+
     # Проверяем, что мы в процессе создания события
     if not current_step or not chat_id or chat_id != message.chat.id:
+        logger.info("🔥 DEBUG: не в процессе создания события, пропускаем")
         return
 
     logger.info(
