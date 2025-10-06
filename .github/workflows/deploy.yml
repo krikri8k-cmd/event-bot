@@ -65,22 +65,7 @@ jobs:
         
     - name: 🎯 Validate configuration
       run: |
-        python -c "
-        from config import load_settings
-        
-        # Проверяем что конфиг загружается
-        try:
-            settings = load_settings()
-            print('✅ Configuration loaded successfully')
-            print(f'   BaliForum enabled: {settings.enable_baliforum}')
-            print(f'   KudaGo enabled: {settings.kudago_enabled}')
-            print(f'   AI parsing enabled: {settings.ai_parse_enable}')
-            print(f'   Moments enabled: {settings.moments_enable}')
-            print('   (Using GitHub Secrets)')
-        except Exception as e:
-            print(f'❌ Config error: {e}')
-            exit(1)
-        "
+        python validate_config.py
         
     - name: 🗄️ Check database connection
       run: |
