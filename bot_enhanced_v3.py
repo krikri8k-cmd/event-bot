@@ -3044,7 +3044,7 @@ async def handle_task_detail(callback: types.CallbackQuery, state: FSMContext):
         keyboard.extend(
             [
                 [InlineKeyboardButton(text="✅ Принять задание", callback_data=f"task_accept:{task_id}")],
-                [InlineKeyboardButton(text="⬅️ Назад", callback_data=f"task_category:{task.category}")],
+                [InlineKeyboardButton(text="🔙 Назад", callback_data=f"task_category:{task.category}")],
             ]
         )
 
@@ -3106,7 +3106,7 @@ async def handle_task_custom_location(callback: types.CallbackQuery, state: FSMC
             [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="location_link")],
             [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="location_map")],
             [InlineKeyboardButton(text="📍 Ввести координаты", callback_data="location_coords")],
-            [InlineKeyboardButton(text="⬅️ Назад", callback_data=f"task_detail:{task_id}")],
+            [InlineKeyboardButton(text="🔙 Назад", callback_data=f"task_detail:{task_id}")],
         ]
     )
 
@@ -3265,7 +3265,7 @@ async def handle_task_manage(callback: types.CallbackQuery):
     keyboard = [
         [InlineKeyboardButton(text="✅ Выполнено", callback_data=f"task_complete:{user_task_id}")],
         [InlineKeyboardButton(text="❌ Отменить", callback_data=f"task_cancel:{user_task_id}")],
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="my_tasks")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="my_tasks")],
     ]
 
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
