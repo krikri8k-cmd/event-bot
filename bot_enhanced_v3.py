@@ -3988,6 +3988,18 @@ async def process_description(message: types.Message, state: FSMContext):
 @dp.message(CommunityEventCreation.waiting_for_title)
 async def process_community_title(message: types.Message, state: FSMContext):
     """Шаг 1: Обработка названия события сообщества"""
+    # Проверяем, что сообщение содержит текст
+    if not message.text:
+        await message.answer(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n"
+            "✍ **Введите название мероприятия** (например: Встреча в кафе):",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+            ),
+        )
+        return
+
     title = message.text.strip()
     chat_id = message.chat.id
 
@@ -4013,6 +4025,17 @@ async def process_community_title(message: types.Message, state: FSMContext):
 @dp.message(CommunityEventCreation.waiting_for_date)
 async def process_community_date(message: types.Message, state: FSMContext):
     """Шаг 2: Обработка даты события сообщества"""
+    # Проверяем, что сообщение содержит текст
+    if not message.text:
+        await message.edit_text(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n" "📅 **Введите дату** (например: 15.12.2024):",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+            ),
+        )
+        return
+
     date = message.text.strip()
     logger.info(f"process_community_date: получили дату '{date}' от пользователя {message.from_user.id}")
 
@@ -4046,6 +4069,17 @@ async def process_community_date(message: types.Message, state: FSMContext):
 @dp.message(CommunityEventCreation.waiting_for_time)
 async def process_community_time(message: types.Message, state: FSMContext):
     """Шаг 3: Обработка времени события сообщества"""
+    # Проверяем, что сообщение содержит текст
+    if not message.text:
+        await message.edit_text(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n" "⏰ **Введите время** (например: 19:00):",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+            ),
+        )
+        return
+
     time = message.text.strip()
     logger.info(f"process_community_time: получили время '{time}' от пользователя {message.from_user.id}")
 
@@ -4079,6 +4113,17 @@ async def process_community_time(message: types.Message, state: FSMContext):
 @dp.message(CommunityEventCreation.waiting_for_city)
 async def process_community_city(message: types.Message, state: FSMContext):
     """Шаг 4: Обработка города события сообщества"""
+    # Проверяем, что сообщение содержит текст
+    if not message.text:
+        await message.edit_text(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n" "🏙️ **Введите город** (например: Москва):",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+            ),
+        )
+        return
+
     city = message.text.strip()
     logger.info(f"process_community_city: получили город '{city}' от пользователя {message.from_user.id}")
 
@@ -4099,6 +4144,18 @@ async def process_community_city(message: types.Message, state: FSMContext):
 @dp.message(CommunityEventCreation.waiting_for_location_name)
 async def process_community_location_name(message: types.Message, state: FSMContext):
     """Шаг 5: Обработка названия места события сообщества"""
+    # Проверяем, что сообщение содержит текст
+    if not message.text:
+        await message.edit_text(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n"
+            "📍 **Введите название места** (например: Кафе 'Уют'):",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+            ),
+        )
+        return
+
     location_name = message.text.strip()
     logger.info(
         f"process_community_location_name: получили место '{location_name}' от пользователя {message.from_user.id}"
@@ -4121,6 +4178,18 @@ async def process_community_location_name(message: types.Message, state: FSMCont
 @dp.message(CommunityEventCreation.waiting_for_location_url)
 async def process_community_location_url(message: types.Message, state: FSMContext):
     """Шаг 6: Обработка ссылки на место события сообщества"""
+    # Проверяем, что сообщение содержит текст
+    if not message.text:
+        await message.edit_text(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n"
+            "🔗 **Введите ссылку на место** (Google Maps или адрес):",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+            ),
+        )
+        return
+
     location_url = message.text.strip()
     logger.info(f"process_community_location_url: получили ссылку от пользователя {message.from_user.id}")
 
@@ -4141,6 +4210,18 @@ async def process_community_location_url(message: types.Message, state: FSMConte
 @dp.message(CommunityEventCreation.waiting_for_description)
 async def process_community_description(message: types.Message, state: FSMContext):
     """Шаг 7: Обработка описания события сообщества"""
+    # Проверяем, что сообщение содержит текст
+    if not message.text:
+        await message.edit_text(
+            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n"
+            "📝 **Введите описание события** (что будет происходить, кому интересно):",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+            ),
+        )
+        return
+
     description = message.text.strip()
     logger.info(f"process_community_description: получили описание от пользователя {message.from_user.id}")
 
