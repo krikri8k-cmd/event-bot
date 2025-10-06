@@ -87,8 +87,9 @@ async def group_title_step(message: types.Message, state: FSMContext):
         return  # игнорим чужие ответы
 
     logger.info(
-        f"[FSM] chat={message.chat.id} user={message.from_user.id} "
-        f"reply_to={message.reply_to_message.message_id} state=title text={message.text!r}"
+        f"[FSM] title_ok chat={message.chat.id} user={message.from_user.id} "
+        f"reply_to={message.reply_to_message.message_id} prompt={data.get('prompt_msg_id')} "
+        f"text={message.text!r}"
     )
 
     if not message.text:
@@ -353,62 +354,14 @@ async def group_finish(message: types.Message, state: FSMContext):
     await state.clear()
 
 
-async def debug_all_group_messages(message: types.Message, state: FSMContext):
-    """Временный обработчик для отладки всех сообщений в группах"""
-    reply_to_id = message.reply_to_message.message_id if message.reply_to_message else None
-    reply_to_user_id = (
-        message.reply_to_message.from_user.id
-        if message.reply_to_message and message.reply_to_message.from_user
-        else None
-    )
-
-    current_state = await state.get_state()
-    data = await state.get_data()
-
-    if current_state:
-        # Проверяем, это ли ожидаемый ответ
-        is_expected_reply = (
-            message.reply_to_message
-            and message.reply_to_message.from_user.id == BOT_ID
-            and message.reply_to_message.message_id == data.get("prompt_msg_id")
-            and message.from_user.id == data.get("initiator_id")
-        )
-
-        if is_expected_reply:
-            logger.info(
-                f"[DEBUG] ✅ ОЖИДАЕМЫЙ ОТВЕТ: state={current_state} "
-                f"chat={message.chat.id} user={message.from_user.id} "
-                f"text={message.text!r} reply_to={reply_to_id} prompt={data.get('prompt_msg_id')}"
-            )
-        else:
-            logger.warning(
-                f"[DEBUG] ❌ ВНЕШАГОВОЕ сообщение при state={current_state}: "
-                f"chat={message.chat.id} user={message.from_user.id} "
-                f"text={message.text!r} reply_to={reply_to_id} reply_to_user={reply_to_user_id} "
-                f"prompt={data.get('prompt_msg_id')} initiator={data.get('initiator_id')}"
-            )
-    else:
-        logger.info(
-            f"[DEBUG] Групповое сообщение: chat={message.chat.id} user={message.from_user.id} "
-            f"text={message.text!r} reply_to={reply_to_id} reply_to_user={reply_to_user_id}"
-        )
-
-
 async def debug_final_trap(message: types.Message, state: FSMContext):
     """Финальная ловушка для диагностики - перехватывает ВСЕ сообщения в группах"""
     current_state = await state.get_state()
-    reply_to_id = message.reply_to_message.message_id if message.reply_to_message else None
-    reply_to_user_id = (
-        message.reply_to_message.from_user.id
-        if message.reply_to_message and message.reply_to_message.from_user
-        else None
-    )
+    reply_to_id = getattr(message.reply_to_message, "message_id", None) if message.reply_to_message else None
 
     logger.warning(
-        f"[FINAL_TRAP] ВСЕ сообщения в группах: state={current_state} "
-        f"chat={message.chat.id} user={message.from_user.id} "
-        f"text={message.text!r} reply_to={reply_to_id} reply_to_user={reply_to_user_id} "
-        f"BOT_ID={BOT_ID}"
+        f"[DEBUG] state={current_state}, text={message.text!r}, "
+        f"reply_to={reply_to_id}, chat={message.chat.id}, user={message.from_user.id}"
     )
 
 
@@ -425,13 +378,13 @@ def register_group_handlers(dp, bot_id: int):
     # Команда /create только для групп
     dp.message.register(group_create_start, Command("create"), F.chat.type.in_({"group", "supergroup"}))
 
-    # FSM обработчики только для групп с фильтром на ответы боту
+    # FSM обработчики только для групп с жёстким фильтром на ответы боту
     dp.message.register(
         group_title_step,
         GroupCreate.waiting_for_title,
         F.chat.type.in_({"group", "supergroup"}),
-        F.reply_to_message,
-        F.reply_to_message.from_user.id == BOT_ID,
+        F.reply_to_message,  # это должен быть ответ
+        F.reply_to_message.from_user.id == BOT_ID,  # на сообщение бота
     )
 
     dp.message.register(
@@ -466,10 +419,7 @@ def register_group_handlers(dp, bot_id: int):
         F.reply_to_message.from_user.id == BOT_ID,
     )
 
-    # ВРЕМЕННО: обработчик для отладки всех сообщений в группах (регистрируется последним)
-    dp.message.register(debug_all_group_messages, F.chat.type.in_({"group", "supergroup"}))
-
-    # ФИНАЛЬНАЯ ЛОВУШКА: перехватывает ВСЕ сообщения в группах для диагностики
+    # ФИНАЛЬНАЯ ЛОВУШКА: перехватывает ВСЕ сообщения в группах для диагностики (самый низкий приоритет)
     dp.message.register(debug_final_trap, F.chat.type.in_({"group", "supergroup"}))
 
     logger.info("✅ Обработчики для групповых чатов зарегистрированы")
