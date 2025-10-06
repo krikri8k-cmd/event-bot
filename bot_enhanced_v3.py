@@ -1211,6 +1211,9 @@ bot = Bot(token=settings.telegram_token)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
+# BOT_ID для корректной фильтрации в групповых чатах
+BOT_ID: int = None
+
 
 # Состояния для FSM
 class EventCreation(StatesGroup):
@@ -1590,27 +1593,23 @@ async def handle_group_create_event(callback: types.CallbackQuery, state: FSMCon
     # Импортируем GroupCreate FSM
     from group_chat_handlers import GroupCreate
 
+    # Получаем thread_id для поддержки тредов в супергруппах
+    thread_id = callback.message.message_thread_id
+
     # Устанавливаем FSM состояние
     await state.set_state(GroupCreate.waiting_for_title)
-    logger.info("🔥 handle_group_create_event: FSM состояние установлено в waiting_for_title")
-
-    text = (
-        "➕ **Создание события в чате**\n\n"
-        "Создаём новое событие для участников этого чата! 📝\n\n"
-        "✍️ **Введите название мероприятия:**"
-    )
-
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
-    )
-
-    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
-    await callback.answer()
+    logger.info(f"🔥 handle_group_create_event: FSM состояние установлено в waiting_for_title, thread_id={thread_id}")
 
     # Отправляем сообщение с ForceReply для следующего шага
-    await callback.message.reply(
-        "✍️ **Введите название мероприятия:**", parse_mode="Markdown", reply_markup=ForceReply(selective=True)
+    await bot.send_message(
+        chat_id=callback.message.chat.id,
+        text="✍️ **Введите название мероприятия:**",
+        parse_mode="Markdown",
+        reply_markup=ForceReply(selective=True),
+        message_thread_id=thread_id,
     )
+
+    await callback.answer()
 
 
 @dp.callback_query(F.data == "group_chat_events")
@@ -5405,6 +5404,11 @@ async def main():
     """Главная функция"""
     logger.info("Запуск улучшенного EventBot (aiogram 3.x)...")
 
+    # Инициализируем BOT_ID для корректной фильтрации в групповых чатах
+    global BOT_ID
+    BOT_ID = (await bot.me()).id
+    logger.info(f"BOT_ID инициализирован: {BOT_ID}")
+
     # Запускаем фоновую задачу для очистки моментов
     from config import load_settings
 
@@ -6009,7 +6013,7 @@ async def handle_prev_event(callback: types.CallbackQuery):
 try:
     from group_chat_handlers import register_group_handlers
 
-    register_group_handlers(dp)
+    register_group_handlers(dp, BOT_ID)
     logger.info("✅ Обработчики групповых чатов успешно интегрированы")
 except Exception as e:
     logger.error(f"❌ Ошибка интеграции групповых чатов: {e}")

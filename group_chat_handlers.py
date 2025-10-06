@@ -18,6 +18,9 @@ from utils.community_events_service import CommunityEventsService
 
 logger = logging.getLogger(__name__)
 
+# BOT_ID будет импортирован из основного модуля
+BOT_ID = None
+
 
 class GroupCreate(StatesGroup):
     """FSM состояния для создания событий в групповых чатах"""
@@ -45,7 +48,8 @@ async def group_title_step(message: types.Message, state: FSMContext):
     """Обработка названия события в групповом чате"""
     logger.info(
         f"🔥 group_title_step: получено название '{message.text}' "
-        f"от пользователя {message.from_user.id} в чате {message.chat.id}"
+        f"от пользователя {message.from_user.id} в чате {message.chat.id} "
+        f"thread_id={message.message_thread_id}"
     )
 
     if not message.text:
@@ -57,7 +61,9 @@ async def group_title_step(message: types.Message, state: FSMContext):
         return
 
     title = message.text.strip()
-    await state.update_data(title=title, group_id=message.chat.id, creator_id=message.from_user.id)
+    await state.update_data(
+        title=title, group_id=message.chat.id, thread_id=message.message_thread_id, creator_id=message.from_user.id
+    )
     await state.set_state(GroupCreate.waiting_for_date)
 
     await message.answer(
@@ -214,25 +220,58 @@ async def group_finish(message: types.Message, state: FSMContext):
     await state.clear()
 
 
-def register_group_handlers(dp):
+def register_group_handlers(dp, bot_id: int):
     """
     Регистрация обработчиков для групповых чатов
     ВНИМАНИЕ: Эта функция должна вызываться только для групповых чатов!
     """
-    logger.info("🔥 Регистрация обработчиков для групповых чатов")
+    global BOT_ID
+    BOT_ID = bot_id
+
+    logger.info(f"🔥 Регистрация обработчиков для групповых чатов, BOT_ID={BOT_ID}")
 
     # Команда /create только для групп
     dp.message.register(group_create_start, Command("create"), F.chat.type.in_({"group", "supergroup"}))
 
-    # FSM обработчики только для групп
-    dp.message.register(group_title_step, GroupCreate.waiting_for_title, F.chat.type.in_({"group", "supergroup"}))
+    # FSM обработчики только для групп с фильтром на ответы боту
+    dp.message.register(
+        group_title_step,
+        GroupCreate.waiting_for_title,
+        F.chat.type.in_({"group", "supergroup"}),
+        F.reply_to_message,
+        F.reply_to_message.from_user.id == BOT_ID,
+    )
 
-    dp.message.register(group_datetime_step, GroupCreate.waiting_for_datetime, F.chat.type.in_({"group", "supergroup"}))
+    dp.message.register(
+        group_datetime_step,
+        GroupCreate.waiting_for_datetime,
+        F.chat.type.in_({"group", "supergroup"}),
+        F.reply_to_message,
+        F.reply_to_message.from_user.id == BOT_ID,
+    )
 
-    dp.message.register(group_city_step, GroupCreate.waiting_for_city, F.chat.type.in_({"group", "supergroup"}))
+    dp.message.register(
+        group_city_step,
+        GroupCreate.waiting_for_city,
+        F.chat.type.in_({"group", "supergroup"}),
+        F.reply_to_message,
+        F.reply_to_message.from_user.id == BOT_ID,
+    )
 
-    dp.message.register(group_location_step, GroupCreate.waiting_for_location, F.chat.type.in_({"group", "supergroup"}))
+    dp.message.register(
+        group_location_step,
+        GroupCreate.waiting_for_location,
+        F.chat.type.in_({"group", "supergroup"}),
+        F.reply_to_message,
+        F.reply_to_message.from_user.id == BOT_ID,
+    )
 
-    dp.message.register(group_finish, GroupCreate.waiting_for_description, F.chat.type.in_({"group", "supergroup"}))
+    dp.message.register(
+        group_finish,
+        GroupCreate.waiting_for_description,
+        F.chat.type.in_({"group", "supergroup"}),
+        F.reply_to_message,
+        F.reply_to_message.from_user.id == BOT_ID,
+    )
 
     logger.info("✅ Обработчики для групповых чатов зарегистрированы")
