@@ -4338,14 +4338,14 @@ async def main():
     try:
         commands = [
             types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
-            types.BotCommand(command="help", description="❓ Показать справку"),
+            types.BotCommand(command="help", description="💬 Написать отзыв Разработчику"),
             types.BotCommand(command="nearby", description="📍 Найти события рядом"),
             types.BotCommand(command="create", description="➕ Создать событие"),
         ]
 
         commands.extend(
             [
-                types.BotCommand(command="myevents", description="📋 Мои события"),
+                types.BotCommand(command="myevents", description="🏆 Мои квесты"),
                 types.BotCommand(command="share", description="🔗 Поделиться ботом"),
                 types.BotCommand(command="admin_event", description="🔍 Диагностика события (админ)"),
                 types.BotCommand(command="diag_last", description="📊 Диагностика последнего запроса"),
