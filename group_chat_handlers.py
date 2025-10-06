@@ -48,6 +48,11 @@ async def group_title_step(message: types.Message, state: FSMContext):
     """Обработка названия события в групповом чате"""
     logger.info(f"🔥 group_title_step: ОБРАБОТЧИК ВЫЗВАН! chat={message.chat.id} user={message.from_user.id}")
 
+    # Проверяем, что это ответ на сообщение бота
+    if not message.reply_to_message or message.reply_to_message.from_user.id != BOT_ID:
+        logger.info("🔥 group_title_step: не ответ на сообщение бота, игнорируем")
+        return
+
     data = await state.get_data()
     logger.info(f"🔥 group_title_step: данные FSM: {data}")
 
@@ -74,7 +79,7 @@ async def group_title_step(message: types.Message, state: FSMContext):
 
     title = message.text.strip()
     await state.update_data(title=title)
-    await state.set_state(GroupCreate.waiting_for_date)
+    await state.set_state(GroupCreate.waiting_for_datetime)
 
     # Следующий шаг с новым prompt_msg_id
     from aiogram import Bot
@@ -92,6 +97,11 @@ async def group_title_step(message: types.Message, state: FSMContext):
 
 async def group_datetime_step(message: types.Message, state: FSMContext):
     """Обработка даты и времени события в групповом чате"""
+    # Проверяем, что это ответ на сообщение бота
+    if not message.reply_to_message or message.reply_to_message.from_user.id != BOT_ID:
+        logger.info("🔥 group_datetime_step: не ответ на сообщение бота, игнорируем")
+        return
+
     data = await state.get_data()
 
     # Страховка: проверяем "жёсткую привязку"
@@ -149,6 +159,11 @@ async def group_datetime_step(message: types.Message, state: FSMContext):
 
 async def group_city_step(message: types.Message, state: FSMContext):
     """Обработка города события в групповом чате"""
+    # Проверяем, что это ответ на сообщение бота
+    if not message.reply_to_message or message.reply_to_message.from_user.id != BOT_ID:
+        logger.info("🔥 group_city_step: не ответ на сообщение бота, игнорируем")
+        return
+
     data = await state.get_data()
 
     # Страховка: проверяем "жёсткую привязку"
@@ -192,6 +207,11 @@ async def group_city_step(message: types.Message, state: FSMContext):
 
 async def group_location_step(message: types.Message, state: FSMContext):
     """Обработка локации события в групповом чате"""
+    # Проверяем, что это ответ на сообщение бота
+    if not message.reply_to_message or message.reply_to_message.from_user.id != BOT_ID:
+        logger.info("🔥 group_location_step: не ответ на сообщение бота, игнорируем")
+        return
+
     data = await state.get_data()
 
     # Страховка: проверяем "жёсткую привязку"
@@ -236,6 +256,11 @@ async def group_location_step(message: types.Message, state: FSMContext):
 
 async def group_finish(message: types.Message, state: FSMContext):
     """Завершение создания события в групповом чате"""
+    # Проверяем, что это ответ на сообщение бота
+    if not message.reply_to_message or message.reply_to_message.from_user.id != BOT_ID:
+        logger.info("🔥 group_finish: не ответ на сообщение бота, игнорируем")
+        return
+
     data = await state.get_data()
 
     # Страховка: проверяем "жёсткую привязку"
@@ -272,10 +297,11 @@ async def group_finish(message: types.Message, state: FSMContext):
 
         service = CommunityEventsService()
         event_id = service.create_community_event(
-            group_id=data["group_id"],
-            creator_id=data["creator_id"],
+            chat_id=data["group_id"],
+            organizer_id=data["initiator_id"],
+            organizer_username=message.from_user.username,
             title=data["title"],
-            date=parsed_datetime,
+            starts_at=parsed_datetime,
             description=description,
             city=data["city"],
             location_name=data["location"],
@@ -305,7 +331,7 @@ async def group_finish(message: types.Message, state: FSMContext):
     await state.clear()
 
 
-async def debug_all_group_messages(message: types.Message):
+async def debug_all_group_messages(message: types.Message, state: FSMContext):
     """Временный обработчик для отладки всех сообщений в группах"""
     reply_to_id = message.reply_to_message.message_id if message.reply_to_message else None
     reply_to_user_id = (
@@ -314,10 +340,18 @@ async def debug_all_group_messages(message: types.Message):
         else None
     )
 
-    logger.info(
-        f"[DEBUG] Групповое сообщение: chat={message.chat.id} user={message.from_user.id} "
-        f"text={message.text!r} reply_to={reply_to_id} reply_to_user={reply_to_user_id}"
-    )
+    current_state = await state.get_state()
+    if current_state:
+        logger.warning(
+            f"[DEBUG] ВНЕШАГОВОЕ сообщение при state={current_state}: "
+            f"chat={message.chat.id} user={message.from_user.id} "
+            f"text={message.text!r} reply_to={reply_to_id} reply_to_user={reply_to_user_id}"
+        )
+    else:
+        logger.info(
+            f"[DEBUG] Групповое сообщение: chat={message.chat.id} user={message.from_user.id} "
+            f"text={message.text!r} reply_to={reply_to_id} reply_to_user={reply_to_user_id}"
+        )
 
 
 def register_group_handlers(dp, bot_id: int):
