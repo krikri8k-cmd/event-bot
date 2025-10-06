@@ -2016,6 +2016,7 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
             description=data["description"],
             city=data["city"],
             location_name=data.get("location_name", "Место по ссылке"),
+            location_url=data.get("location_url"),
         )
 
         logger.info(f"✅ Событие сообщества создано с ID: {event_id}")
@@ -5104,6 +5105,7 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
             description=data["description"],
             city=data["city"],
             location_name=data.get("location_name", "Место по ссылке"),
+            location_url=data.get("location_url"),
         )
 
         logger.info(f"✅ Событие сообщества создано с ID: {event_id}")

@@ -29,6 +29,7 @@ class CommunityEventsService:
         description: str,
         city: str,
         location_name: str = None,
+        location_url: str = None,
     ) -> int:
         """
         Создание события в сообществе
@@ -52,10 +53,11 @@ class CommunityEventsService:
         with self.engine.connect() as conn:
             query = text("""
                 INSERT INTO events_community
-                (chat_id, organizer_id, organizer_username, title, starts_at, description, city, location_name, status)
+                (chat_id, organizer_id, organizer_username, title, starts_at,
+                 description, city, location_name, location_url, status)
                 VALUES
                 (:chat_id, :organizer_id, :organizer_username, :title, :starts_at,
-                 :description, :city, :location_name, 'open')
+                 :description, :city, :location_name, :location_url, 'open')
                 RETURNING id
             """)
 
@@ -70,6 +72,7 @@ class CommunityEventsService:
                     "description": description,
                     "city": city,
                     "location_name": location_name,
+                    "location_url": location_url,
                 },
             )
 
@@ -96,7 +99,7 @@ class CommunityEventsService:
                 # Показываем все события
                 query = text("""
                     SELECT id, organizer_id, organizer_username, title, starts_at,
-                           description, city, location_name, created_at
+                           description, city, location_name, location_url, created_at
                     FROM events_community
                     WHERE chat_id = :chat_id AND status = 'open'
                     ORDER BY starts_at ASC
@@ -106,7 +109,7 @@ class CommunityEventsService:
                 # Показываем только будущие события
                 query = text("""
                     SELECT id, organizer_id, organizer_username, title, starts_at,
-                           description, city, location_name, created_at
+                           description, city, location_name, location_url, created_at
                     FROM events_community
                     WHERE chat_id = :chat_id AND status = 'open' AND starts_at > NOW()
                     ORDER BY starts_at ASC
@@ -127,7 +130,8 @@ class CommunityEventsService:
                         "description": row[5],
                         "city": row[6],
                         "location_name": row[7],
-                        "created_at": row[8],
+                        "location_url": row[8],
+                        "created_at": row[9],
                     }
                 )
 
