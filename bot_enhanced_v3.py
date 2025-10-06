@@ -4735,44 +4735,6 @@ async def process_community_city_group(message: types.Message, state: FSMContext
     logger.info(f"🔥 process_community_city_group: получили город '{city}' от пользователя {message.from_user.id}")
 
     await state.update_data(city=city)
-    await state.set_state(CommunityEventCreation.waiting_for_location_name)
-
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
-    )
-
-    await message.answer(
-        f"**Город сохранен:** {city} ✅\n\n📍 **Введите название места** (например: Кафе 'Уют'):",
-        parse_mode="Markdown",
-        reply_markup=keyboard,
-    )
-
-
-@dp.message(CommunityEventCreation.waiting_for_location_name, F.chat.type.in_({"group", "supergroup"}))
-async def process_community_location_name_group(message: types.Message, state: FSMContext):
-    """Обработка названия места события в групповых чатах"""
-    logger.info(
-        f"🔥 process_community_location_name_group: получено сообщение от пользователя {message.from_user.id} в чате {message.chat.id}, текст: '{message.text}'"
-    )
-
-    # Проверяем, что сообщение содержит текст
-    if not message.text:
-        await message.answer(
-            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n"
-            "📍 **Введите название места** (например: Кафе 'Уют'):",
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
-            ),
-        )
-        return
-
-    location_name = message.text.strip()
-    logger.info(
-        f"🔥 process_community_location_name_group: получили место '{location_name}' от пользователя {message.from_user.id}"
-    )
-
-    await state.update_data(location_name=location_name)
     await state.set_state(CommunityEventCreation.waiting_for_location_url)
 
     keyboard = InlineKeyboardMarkup(
@@ -4780,7 +4742,7 @@ async def process_community_location_name_group(message: types.Message, state: F
     )
 
     await message.answer(
-        f"**Место сохранено:** {location_name} ✅\n\n🔗 **Введите ссылку на место** (Google Maps или адрес):",
+        f"**Город сохранен:** {city} ✅\n\n🔗 **Введите ссылку на место** (Google Maps или адрес):",
         parse_mode="Markdown",
         reply_markup=keyboard,
     )
@@ -5019,40 +4981,6 @@ async def process_community_city(message: types.Message, state: FSMContext):
     logger.info(f"process_community_city: получили город '{city}' от пользователя {message.from_user.id}")
 
     await state.update_data(city=city)
-    await state.set_state(CommunityEventCreation.waiting_for_location_name)
-
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
-    )
-
-    await message.edit_text(
-        f"**Город сохранен:** {city} ✅\n\n📍 **Введите название места** (например: Кафе 'Уют'):",
-        parse_mode="Markdown",
-        reply_markup=keyboard,
-    )
-
-
-@dp.message(CommunityEventCreation.waiting_for_location_name)
-async def process_community_location_name(message: types.Message, state: FSMContext):
-    """Шаг 5: Обработка названия места события сообщества"""
-    # Проверяем, что сообщение содержит текст
-    if not message.text:
-        await message.edit_text(
-            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n"
-            "📍 **Введите название места** (например: Кафе 'Уют'):",
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
-            ),
-        )
-        return
-
-    location_name = message.text.strip()
-    logger.info(
-        f"process_community_location_name: получили место '{location_name}' от пользователя {message.from_user.id}"
-    )
-
-    await state.update_data(location_name=location_name)
     await state.set_state(CommunityEventCreation.waiting_for_location_url)
 
     keyboard = InlineKeyboardMarkup(
@@ -5060,7 +4988,7 @@ async def process_community_location_name(message: types.Message, state: FSMCont
     )
 
     await message.edit_text(
-        f"**Место сохранено:** {location_name} ✅\n\n🔗 **Введите ссылку на место** (Google Maps или адрес):",
+        f"**Город сохранен:** {city} ✅\n\n🔗 **Введите ссылку на место** (Google Maps или адрес):",
         parse_mode="Markdown",
         reply_markup=keyboard,
     )
