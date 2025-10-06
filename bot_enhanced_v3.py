@@ -1234,7 +1234,6 @@ class CommunityEventCreation(StatesGroup):
     waiting_for_date = State()
     waiting_for_time = State()
     waiting_for_city = State()  # Город события
-    waiting_for_location_name = State()  # Название места
     waiting_for_location_url = State()  # Ссылка на место
     waiting_for_description = State()
     confirmation = State()
@@ -1717,37 +1716,10 @@ async def process_community_city_pm(message: types.Message, state: FSMContext):
     logger.info(f"🔥 process_community_city_pm: получили город '{city}' от пользователя {message.from_user.id}")
 
     await state.update_data(city=city)
-    await state.set_state(CommunityEventCreation.waiting_for_location_name)
-
-    await message.answer(
-        f"**Город сохранен:** {city} ✅\n\n📍 **Введите название места** (например: Кафе 'Уют'):", parse_mode="Markdown"
-    )
-
-
-@dp.message(CommunityEventCreation.waiting_for_location_name, F.chat.type == "private")
-async def process_community_location_name_pm(message: types.Message, state: FSMContext):
-    """Обработка названия места события в ЛС для группы"""
-    logger.info(
-        f"🔥 process_community_location_name_pm: получено сообщение от пользователя {message.from_user.id}, текст: '{message.text}'"
-    )
-
-    if not message.text:
-        await message.answer(
-            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n📍 **Введите название места** (например: Кафе 'Уют'):",
-            parse_mode="Markdown",
-        )
-        return
-
-    location_name = message.text.strip()
-    logger.info(
-        f"🔥 process_community_location_name_pm: получили место '{location_name}' от пользователя {message.from_user.id}"
-    )
-
-    await state.update_data(location_name=location_name)
     await state.set_state(CommunityEventCreation.waiting_for_location_url)
 
     await message.answer(
-        f"**Место сохранено:** {location_name} ✅\n\n🔗 **Введите ссылку на место** (Google Maps или адрес):",
+        f"**Город сохранен:** {city} ✅\n\n🔗 **Введите ссылку на место** (Google Maps или адрес):",
         parse_mode="Markdown",
     )
 
@@ -1769,11 +1741,27 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
     location_url = message.text.strip()
     logger.info(f"🔥 process_community_location_url_pm: получили ссылку от пользователя {message.from_user.id}")
 
-    await state.update_data(location_url=location_url)
+    # Автоматически определяем название места по ссылке
+    location_name = "Место по ссылке"  # Базовое название
+    try:
+        # Пытаемся извлечь название из Google Maps ссылки
+        if "maps.google.com" in location_url or "goo.gl" in location_url:
+            # Для Google Maps ссылок можно попробовать извлечь название
+            # Пока используем базовое название, но можно расширить логику
+            location_name = "Место на карте"
+        elif "yandex.ru/maps" in location_url:
+            location_name = "Место на Яндекс.Картах"
+        else:
+            location_name = "Место по ссылке"
+    except Exception as e:
+        logger.warning(f"Не удалось определить название места: {e}")
+        location_name = "Место по ссылке"
+
+    await state.update_data(location_url=location_url, location_name=location_name)
     await state.set_state(CommunityEventCreation.waiting_for_description)
 
     await message.answer(
-        "**Ссылка сохранена** ✅\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
+        f"**Ссылка сохранена** ✅\n📍 **Место:** {location_name}\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
         parse_mode="Markdown",
     )
 
@@ -2021,15 +2009,13 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
 
         # Создаем событие в сообществе
         event_id = community_service.create_community_event(
-            chat_id=data["group_id"],
-            organizer_id=callback.from_user.id,
-            organizer_username=callback.from_user.username,
+            group_id=data["group_id"],
+            creator_id=callback.from_user.id,
             title=data["title"],
+            date=starts_at,
             description=data["description"],
-            starts_at=starts_at,
             city=data["city"],
-            location_name=data["location_name"],
-            location_url=data["location_url"],
+            location_name=data.get("location_name", "Место по ссылке"),
         )
 
         logger.info(f"✅ Событие сообщества создано с ID: {event_id}")
@@ -5183,15 +5169,13 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
 
         # Создаем событие в сообществе
         event_id = community_service.create_community_event(
-            chat_id=data["chat_id"],
-            organizer_id=callback.from_user.id,
-            organizer_username=callback.from_user.username,
+            group_id=data["chat_id"],
+            creator_id=callback.from_user.id,
             title=data["title"],
+            date=starts_at,
             description=data["description"],
-            starts_at=starts_at,
             city=data["city"],
-            location_name=data["location_name"],
-            location_url=data["location_url"],
+            location_name=data.get("location_name", "Место по ссылке"),
         )
 
         logger.info(f"✅ Событие сообщества создано с ID: {event_id}")
