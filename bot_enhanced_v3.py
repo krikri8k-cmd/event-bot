@@ -1787,16 +1787,19 @@ async def process_community_description_pm(message: types.Message, state: FSMCon
     data = await state.get_data()
     await state.set_state(CommunityEventCreation.confirmation)
 
+    # Логируем данные для отладки
+    logger.info(f"🔥 process_community_description_pm: данные FSM: {data}")
+
     # Показываем итог перед подтверждением
     await message.answer(
         f"📌 **Проверьте данные события:**\n\n"
-        f"**Название:** {data['title']}\n"
-        f"**Дата:** {data['date']}\n"
-        f"**Время:** {data['time']}\n"
-        f"**Город:** {data['city']}\n"
-        f"**Место:** {data['location_name']}\n"
-        f"**Ссылка:** {data['location_url']}\n"
-        f"**Описание:** {data['description']}\n\n"
+        f"**Название:** {data.get('title', 'НЕ УКАЗАНО')}\n"
+        f"**Дата:** {data.get('date', 'НЕ УКАЗАНО')}\n"
+        f"**Время:** {data.get('time', 'НЕ УКАЗАНО')}\n"
+        f"**Город:** {data.get('city', 'НЕ УКАЗАНО')}\n"
+        f"**Место:** {data.get('location_name', 'НЕ УКАЗАНО')}\n"
+        f"**Ссылка:** {data.get('location_url', 'НЕ УКАЗАНО')}\n"
+        f"**Описание:** {data.get('description', 'НЕ УКАЗАНО')}\n\n"
         f"Если всё верно, нажмите ✅ Сохранить. Если нужно изменить — нажмите ❌ Отмена.",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(
