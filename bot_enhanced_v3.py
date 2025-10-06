@@ -4336,29 +4336,25 @@ async def main():
 
     # Устанавливаем команды бота для удобства пользователей
     try:
+        # Сначала полностью очищаем ВСЕ команды
+        await bot.delete_my_commands()
+
+        # Ждем немного, чтобы Telegram обработал удаление
+        import asyncio
+
+        await asyncio.sleep(1)
+
+        # Устанавливаем только нужные команды
         commands = [
             types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
             types.BotCommand(command="help", description="💬 Написать отзыв Разработчику"),
             types.BotCommand(command="nearby", description="📍 Найти события рядом"),
             types.BotCommand(command="create", description="➕ Создать событие"),
+            types.BotCommand(command="myevents", description="🏆 Мои квесты"),
+            types.BotCommand(command="share", description="🔗 Поделиться ботом"),
         ]
 
-        commands.extend(
-            [
-                types.BotCommand(command="myevents", description="🏆 Мои квесты"),
-                types.BotCommand(command="share", description="🔗 Поделиться ботом"),
-                types.BotCommand(command="admin_event", description="🔍 Диагностика события (админ)"),
-                types.BotCommand(command="diag_last", description="📊 Диагностика последнего запроса"),
-                types.BotCommand(command="diag_search", description="🔍 Диагностика поиска событий"),
-                types.BotCommand(command="diag_webhook", description="🔗 Диагностика webhook"),
-            ]
-        )
-
-        # Устанавливаем команды бота (принудительно обновляем)
-        await bot.set_my_commands(commands)
-
-        # Принудительно очищаем старые команды и устанавливаем новые
-        await bot.delete_my_commands()
+        # Устанавливаем только основные команды (без админских)
         await bot.set_my_commands(commands)
 
         # Устанавливаем кнопку меню
