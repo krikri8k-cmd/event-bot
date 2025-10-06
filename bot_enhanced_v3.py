@@ -4354,7 +4354,11 @@ async def main():
             ]
         )
 
-        # Устанавливаем команды бота
+        # Устанавливаем команды бота (принудительно обновляем)
+        await bot.set_my_commands(commands)
+
+        # Принудительно очищаем старые команды и устанавливаем новые
+        await bot.delete_my_commands()
         await bot.set_my_commands(commands)
 
         # Устанавливаем кнопку меню
