@@ -19,6 +19,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (
+    ForceReply,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     KeyboardButton,
@@ -1586,14 +1587,17 @@ async def handle_group_create_event(callback: types.CallbackQuery, state: FSMCon
         f"🔥 handle_group_create_event: пользователь {callback.from_user.id} нажал кнопку создания события в чате {callback.message.chat.id}"
     )
 
-    # Сохраняем данные в state для группового чата
-    await state.update_data(chat_id=callback.message.chat.id, step="title")
-    logger.info("🔥 handle_group_create_event: данные сохранены в state")
+    # Импортируем GroupCreate FSM
+    from group_chat_handlers import GroupCreate
+
+    # Устанавливаем FSM состояние
+    await state.set_state(GroupCreate.waiting_for_title)
+    logger.info("🔥 handle_group_create_event: FSM состояние установлено в waiting_for_title")
 
     text = (
         "➕ **Создание события в чате**\n\n"
         "Создаём новое событие для участников этого чата! 📝\n\n"
-        "✍ **Введите название мероприятия** (например: Встреча в кафе):"
+        "✍️ **Введите название мероприятия:**"
     )
 
     keyboard = InlineKeyboardMarkup(
@@ -1602,6 +1606,11 @@ async def handle_group_create_event(callback: types.CallbackQuery, state: FSMCon
 
     await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
     await callback.answer()
+
+    # Отправляем сообщение с ForceReply для следующего шага
+    await callback.message.answer(
+        "✍️ **Введите название мероприятия:**", parse_mode="Markdown", reply_markup=ForceReply(selective=True)
+    )
 
 
 @dp.callback_query(F.data == "group_chat_events")
