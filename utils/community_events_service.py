@@ -49,6 +49,10 @@ class CommunityEventsService:
         Returns:
             ID созданного события
         """
+        print(
+            f"🔥 CommunityEventsService.create_community_event: "
+            f"создаем событие в чате {chat_id}, организатор {organizer_id}"
+        )
         with self.engine.connect() as conn:
             query = text("""
                 INSERT INTO events_community

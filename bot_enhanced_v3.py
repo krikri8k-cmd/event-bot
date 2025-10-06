@@ -1582,7 +1582,11 @@ async def cmd_start(message: types.Message):
 @dp.callback_query(F.data == "group_create_event")
 async def handle_group_create_event(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик кнопки 'Создать событие в чате' в групповых чатах"""
+    logger.info(
+        f"🔥 handle_group_create_event: пользователь {callback.from_user.id} нажал кнопку создания события в чате {callback.message.chat.id}"
+    )
     await state.set_state(CommunityEventCreation.waiting_for_title)
+    logger.info("🔥 handle_group_create_event: состояние изменено на CommunityEventCreation.waiting_for_title")
 
     text = (
         "➕ **Создание события в чате**\n\n"
@@ -3988,6 +3992,10 @@ async def process_description(message: types.Message, state: FSMContext):
 @dp.message(CommunityEventCreation.waiting_for_title)
 async def process_community_title(message: types.Message, state: FSMContext):
     """Шаг 1: Обработка названия события сообщества"""
+    logger.info(
+        f"🔥 process_community_title: получено сообщение от пользователя {message.from_user.id} в чате {message.chat.id}, текст: '{message.text}'"
+    )
+
     # Проверяем, что сообщение содержит текст
     if not message.text:
         await message.answer(
@@ -4255,8 +4263,12 @@ async def process_community_description(message: types.Message, state: FSMContex
 @dp.callback_query(F.data == "community_event_confirm")
 async def confirm_community_event(callback: types.CallbackQuery, state: FSMContext):
     """Подтверждение создания события сообщества"""
+    logger.info(
+        f"🔥 confirm_community_event: пользователь {callback.from_user.id} подтверждает создание события в чате {callback.message.chat.id}"
+    )
     try:
         data = await state.get_data()
+        logger.info(f"🔥 confirm_community_event: данные события: {data}")
 
         # Парсим дату и время
         from datetime import datetime
