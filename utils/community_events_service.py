@@ -22,75 +22,67 @@ class CommunityEventsService:
 
     def create_community_event(
         self,
-        chat_id: int,
-        organizer_id: int,
-        organizer_username: str,
+        group_id: int,
+        creator_id: int,
         title: str,
+        date: datetime,
         description: str,
-        starts_at: datetime,
         city: str,
         location_name: str = None,
-        location_url: str = None,
     ) -> int:
         """
         Создание события в сообществе
 
         Args:
-            chat_id: ID группового чата
-            organizer_id: ID создателя события
-            organizer_username: Username создателя
+            group_id: ID группового чата
+            creator_id: ID создателя события
             title: Название события
+            date: Дата и время события
             description: Описание события
-            starts_at: Время начала события
             city: Город события
             location_name: Название места
-            location_url: Ссылка на место
 
         Returns:
             ID созданного события
         """
         print(
             f"🔥 CommunityEventsService.create_community_event: "
-            f"создаем событие в чате {chat_id}, организатор {organizer_id}"
+            f"создаем событие в группе {group_id}, создатель {creator_id}"
         )
         with self.engine.connect() as conn:
             query = text("""
                 INSERT INTO events_community
-                (chat_id, organizer_id, organizer_username, title, description,
-                 starts_at, city, location_name, location_url, status)
+                (group_id, creator_id, title, date, description, city, location_name)
                 VALUES
-                (:chat_id, :organizer_id, :organizer_username, :title, :description,
-                 :starts_at, :city, :location_name, :location_url, 'open')
+                (:group_id, :creator_id, :title, :date, :description, :city, :location_name)
                 RETURNING id
             """)
 
             result = conn.execute(
                 query,
                 {
-                    "chat_id": chat_id,
-                    "organizer_id": organizer_id,
-                    "organizer_username": organizer_username,
+                    "group_id": group_id,
+                    "creator_id": creator_id,
                     "title": title,
+                    "date": date,
                     "description": description,
-                    "starts_at": starts_at,
                     "city": city,
                     "location_name": location_name,
-                    "location_url": location_url,
                 },
             )
 
             event_id = result.fetchone()[0]
             conn.commit()
 
-            print(f"✅ Создано событие сообщества ID {event_id}: '{title}' в чате {chat_id}")
+            print(f"✅ Создано событие сообщества ID {event_id}: '{title}' в группе {group_id}")
             return event_id
 
-    def get_community_events(self, chat_id: int, limit: int = 20, include_past: bool = False) -> list[dict]:
+    def get_community_events(self, group_id: int, limit: int = 20, include_past: bool = False) -> list[dict]:
         """
         Получение событий сообщества
 
         Args:
-            chat_id: ID группового чата
+            group_id: ID группового чата
             limit: Максимальное количество событий
             include_past: Включать ли прошедшие события
 
@@ -101,77 +93,69 @@ class CommunityEventsService:
             if include_past:
                 # Показываем все события
                 query = text("""
-                    SELECT id, organizer_id, organizer_username, title, description,
-                           starts_at, city, location_name, location_url, status,
-                           created_at
+                    SELECT id, creator_id, title, date, description, city, location_name, created_at
                     FROM events_community
-                    WHERE chat_id = :chat_id AND status = 'open'
-                    ORDER BY starts_at ASC
+                    WHERE group_id = :group_id
+                    ORDER BY date ASC
                     LIMIT :limit
                 """)
             else:
                 # Показываем только будущие события
                 query = text("""
-                    SELECT id, organizer_id, organizer_username, title, description,
-                           starts_at, city, location_name, location_url, status,
-                           created_at
+                    SELECT id, creator_id, title, date, description, city, location_name, created_at
                     FROM events_community
-                    WHERE chat_id = :chat_id AND status = 'open' AND starts_at > NOW()
-                    ORDER BY starts_at ASC
+                    WHERE group_id = :group_id AND date > NOW()
+                    ORDER BY date ASC
                     LIMIT :limit
                 """)
 
-            result = conn.execute(query, {"chat_id": chat_id, "limit": limit})
+            result = conn.execute(query, {"group_id": group_id, "limit": limit})
 
             events = []
             for row in result:
                 events.append(
                     {
                         "id": row[0],
-                        "organizer_id": row[1],
-                        "organizer_username": row[2],
-                        "title": row[3],
+                        "creator_id": row[1],
+                        "title": row[2],
+                        "date": row[3],
                         "description": row[4],
-                        "starts_at": row[5],
-                        "city": row[6],
-                        "location_name": row[7],
-                        "location_url": row[8],
-                        "status": row[9],
-                        "created_at": row[10],
+                        "city": row[5],
+                        "location_name": row[6],
+                        "created_at": row[7],
                     }
                 )
 
             return events
 
-    def close_community_event(self, event_id: int, chat_id: int) -> bool:
+    def delete_community_event(self, event_id: int, group_id: int) -> bool:
         """
-        Закрытие события сообщества
+        Удаление события сообщества
 
         Args:
             event_id: ID события
-            chat_id: ID чата (для проверки принадлежности)
+            group_id: ID группы (для проверки принадлежности)
 
         Returns:
-            True если событие успешно закрыто
+            True если событие успешно удалено
         """
         with self.engine.connect() as conn:
             query = text("""
-                UPDATE events_community
-                SET status = 'closed', updated_at = NOW()
-                WHERE id = :event_id AND chat_id = :chat_id AND status = 'open'
+                DELETE FROM events_community
+                WHERE id = :event_id AND group_id = :group_id
             """)
 
-            result = conn.execute(query, {"event_id": event_id, "chat_id": chat_id})
+            result = conn.execute(query, {"event_id": event_id, "group_id": group_id})
             conn.commit()
 
             return result.rowcount > 0
 
-    def cleanup_expired_events(self, days_old: int = 7) -> int:
+    def cleanup_expired_events(self, days_old: int = 1) -> int:
         """
-        Очистка старых событий сообществ
+        Очистка старых событий сообществ (удаление на следующий день)
 
         Args:
-            days_old: Количество дней, после которых события считаются старыми
+            days_old: Количество дней, после которых события считаются старыми (по умолчанию 1)
 
         Returns:
             Количество удаленных событий
@@ -179,7 +163,7 @@ class CommunityEventsService:
         with self.engine.connect() as conn:
             query = text("""
                 DELETE FROM events_community
-                WHERE starts_at < NOW() - INTERVAL ':days_old days'
+                WHERE date < NOW() - INTERVAL ':days_old days'
             """)
 
             result = conn.execute(query, {"days_old": days_old})
@@ -191,12 +175,12 @@ class CommunityEventsService:
 
             return deleted_count
 
-    def get_community_stats(self, chat_id: int) -> dict:
+    def get_community_stats(self, group_id: int) -> dict:
         """
         Получение статистики по событиям сообщества
 
         Args:
-            chat_id: ID группового чата
+            group_id: ID группового чата
 
         Returns:
             Словарь со статистикой
@@ -205,30 +189,30 @@ class CommunityEventsService:
             # Общее количество событий
             total_query = text("""
                 SELECT COUNT(*) FROM events_community
-                WHERE chat_id = :chat_id
+                WHERE group_id = :group_id
             """)
-            total_result = conn.execute(total_query, {"chat_id": chat_id})
+            total_result = conn.execute(total_query, {"group_id": group_id})
             total_events = total_result.fetchone()[0]
 
-            # Активные события
-            active_query = text("""
+            # Будущие события
+            future_query = text("""
                 SELECT COUNT(*) FROM events_community
-                WHERE chat_id = :chat_id AND status = 'open' AND starts_at > NOW()
+                WHERE group_id = :group_id AND date > NOW()
             """)
-            active_result = conn.execute(active_query, {"chat_id": chat_id})
-            active_events = active_result.fetchone()[0]
+            future_result = conn.execute(future_query, {"group_id": group_id})
+            future_events = future_result.fetchone()[0]
 
             # События сегодня
             today_query = text("""
                 SELECT COUNT(*) FROM events_community
-                WHERE chat_id = :chat_id AND status = 'open'
-                AND DATE(starts_at) = CURRENT_DATE
+                WHERE group_id = :group_id
+                AND DATE(date) = CURRENT_DATE
             """)
-            today_result = conn.execute(today_query, {"chat_id": chat_id})
+            today_result = conn.execute(today_query, {"group_id": group_id})
             today_events = today_result.fetchone()[0]
 
             return {
                 "total_events": total_events,
-                "active_events": active_events,
+                "future_events": future_events,
                 "today_events": today_events,
             }

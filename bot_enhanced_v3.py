@@ -5995,5 +5995,17 @@ async def handle_prev_event(callback: types.CallbackQuery):
         await callback.answer()
 
 
+# ИНТЕГРАЦИЯ ГРУППОВЫХ ЧАТОВ (ИЗОЛИРОВАННО)
+# ВНИМАНИЕ: Эта интеграция полностью изолирована от основного функционала
+try:
+    from group_chat_handlers import register_group_handlers
+
+    register_group_handlers(dp)
+    logger.info("✅ Обработчики групповых чатов успешно интегрированы")
+except Exception as e:
+    logger.error(f"❌ Ошибка интеграции групповых чатов: {e}")
+    # Не прерываем работу основного бота при ошибке
+
+
 if __name__ == "__main__":
     asyncio.run(main())
