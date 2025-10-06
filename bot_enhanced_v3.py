@@ -4364,10 +4364,19 @@ async def main():
         # Устанавливаем публичные команды для всех
         await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault())
 
-        # Устанавливаем админские команды только для админа
-        admin_user_id = int(os.getenv("ADMIN_USER_ID", "123456789"))
-        if admin_user_id != 123456789:  # Если админ ID настроен
-            await bot.set_my_commands(admin_commands, scope=BotCommandScopeChat(chat_id=admin_user_id))
+        # Устанавливаем админские команды для всех админов
+        admin_ids_str = os.getenv("ADMIN_IDS", "")
+        if admin_ids_str:
+            admin_ids = [int(id.strip()) for id in admin_ids_str.split(",") if id.strip()]
+            for admin_id in admin_ids:
+                await bot.set_my_commands(admin_commands, scope=BotCommandScopeChat(chat_id=admin_id))
+                logger.info(f"Админские команды установлены для админа {admin_id}")
+        else:
+            # Fallback на старый способ
+            admin_user_id = int(os.getenv("ADMIN_USER_ID", "123456789"))
+            if admin_user_id != 123456789:
+                await bot.set_my_commands(admin_commands, scope=BotCommandScopeChat(chat_id=admin_user_id))
+                logger.info(f"Админские команды установлены для админа {admin_user_id}")
 
         # Устанавливаем кнопку меню
         await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
