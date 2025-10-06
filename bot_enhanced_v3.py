@@ -5760,10 +5760,15 @@ async def main():
             types.BotCommand(command="diag_webhook", description="🔗 Диагностика webhook"),
         ]
 
-        # Устанавливаем публичные команды для ВСЕХ типов чатов
+        # Команды для групповых чатов - только базовые
+        group_commands = [
+            types.BotCommand(command="start", description="🚀 Запустить бота"),
+        ]
+
+        # Устанавливаем команды для разных типов чатов
         await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault())
         await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats())
-        await bot.set_my_commands(public_commands, scope=BotCommandScopeAllGroupChats())
+        await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats())
 
         # Устанавливаем админские команды для всех админов
         admin_ids_str = os.getenv("ADMIN_IDS", "")
