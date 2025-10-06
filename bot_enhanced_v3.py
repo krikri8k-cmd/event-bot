@@ -4344,18 +4344,30 @@ async def main():
 
         await asyncio.sleep(1)
 
-        # Устанавливаем только нужные команды
-        commands = [
+        from aiogram.types import BotCommandScopeChat, BotCommandScopeDefault
+
+        # Публичные команды - только самое необходимое (без дублирования кнопок)
+        public_commands = [
             types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
             types.BotCommand(command="help", description="💬 Написать отзыв Разработчику"),
-            types.BotCommand(command="nearby", description="📍 Найти события рядом"),
-            types.BotCommand(command="create", description="➕ Создать событие"),
-            types.BotCommand(command="myevents", description="🏆 Мои квесты"),
             types.BotCommand(command="share", description="🔗 Поделиться ботом"),
         ]
 
-        # Устанавливаем только основные команды (без админских)
-        await bot.set_my_commands(commands)
+        # Админские команды - только для админа
+        admin_commands = [
+            types.BotCommand(command="admin_event", description="🔍 Диагностика события (админ)"),
+            types.BotCommand(command="diag_last", description="📊 Диагностика последнего запроса"),
+            types.BotCommand(command="diag_search", description="🔍 Диагностика поиска событий"),
+            types.BotCommand(command="diag_webhook", description="🔗 Диагностика webhook"),
+        ]
+
+        # Устанавливаем публичные команды для всех
+        await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault())
+
+        # Устанавливаем админские команды только для админа
+        admin_user_id = int(os.getenv("ADMIN_USER_ID", "123456789"))
+        if admin_user_id != 123456789:  # Если админ ID настроен
+            await bot.set_my_commands(admin_commands, scope=BotCommandScopeChat(chat_id=admin_user_id))
 
         # Устанавливаем кнопку меню
         await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
