@@ -4336,13 +4336,18 @@ async def main():
 
     # Устанавливаем команды бота для удобства пользователей
     try:
-        # Сначала полностью очищаем ВСЕ команды
-        await bot.delete_my_commands()
+        # АГРЕССИВНАЯ очистка всех команд для всех scope
+        from aiogram.types import BotCommandScopeAllGroupChats, BotCommandScopeAllPrivateChats, BotCommandScopeDefault
 
-        # Ждем немного, чтобы Telegram обработал удаление
+        # Очищаем команды для всех типов чатов
+        await bot.delete_my_commands(scope=BotCommandScopeDefault())
+        await bot.delete_my_commands(scope=BotCommandScopeAllPrivateChats())
+        await bot.delete_my_commands(scope=BotCommandScopeAllGroupChats())
+
+        # Ждем дольше, чтобы Telegram точно обработал удаление
         import asyncio
 
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
 
         from aiogram.types import BotCommandScopeChat, BotCommandScopeDefault
 
@@ -4361,8 +4366,10 @@ async def main():
             types.BotCommand(command="diag_webhook", description="🔗 Диагностика webhook"),
         ]
 
-        # Устанавливаем публичные команды для всех
+        # Устанавливаем публичные команды для ВСЕХ типов чатов
         await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault())
+        await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats())
+        await bot.set_my_commands(public_commands, scope=BotCommandScopeAllGroupChats())
 
         # Устанавливаем админские команды для всех админов
         admin_ids_str = os.getenv("ADMIN_IDS", "")
