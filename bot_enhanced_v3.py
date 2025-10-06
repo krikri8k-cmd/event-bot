@@ -1529,7 +1529,7 @@ async def cmd_radius_settings(message: types.Message):
 
 @dp.message(Command("start"))
 @dp.message(F.text == "🚀 Старт")
-async def cmd_start(message: types.Message, command: CommandObject = None):
+async def cmd_start(message: types.Message, state: FSMContext, command: CommandObject = None):
     """Обработчик команды /start"""
     user_id = message.from_user.id
     chat_type = message.chat.type
@@ -1545,7 +1545,7 @@ async def cmd_start(message: types.Message, command: CommandObject = None):
 
     # Если это переход из группы, запускаем FSM для создания группового события
     if group_id and chat_type == "private":
-        await start_group_event_creation(message, group_id)
+        await start_group_event_creation(message, group_id, state)
         return
 
     # Сохраняем пользователя в БД
@@ -1603,15 +1603,11 @@ async def cmd_start(message: types.Message, command: CommandObject = None):
         await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
 
 
-async def start_group_event_creation(message: types.Message, group_id: int):
+async def start_group_event_creation(message: types.Message, group_id: int, state: FSMContext):
     """Запуск создания события для группы в ЛС"""
     logger.info(f"🔥 start_group_event_creation: запуск FSM для группы {group_id}, пользователь {message.from_user.id}")
 
     # Запускаем FSM для создания группового события
-    from aiogram.fsm.context import FSMContext
-
-    state = FSMContext(storage=storage, key=f"user:{message.from_user.id}:{message.chat.id}")
-
     await state.set_state(CommunityEventCreation.waiting_for_title)
     await state.update_data(group_id=group_id, creator_id=message.from_user.id, scope="group")
 
