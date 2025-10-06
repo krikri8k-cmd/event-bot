@@ -1614,7 +1614,7 @@ async def handle_group_chat_events(callback: types.CallbackQuery):
 
     community_service = CommunityEventsService()
 
-    events = community_service.get_community_events(chat_id=chat_id, limit=10, include_past=False)
+    events = community_service.get_community_events(group_id=chat_id, limit=10, include_past=False)
 
     if not events:
         text = (
