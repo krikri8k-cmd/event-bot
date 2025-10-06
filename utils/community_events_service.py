@@ -52,19 +52,20 @@ class CommunityEventsService:
         with self.engine.connect() as conn:
             query = text("""
                 INSERT INTO events_community
-                (group_id, creator_id, title, date, description, city, location_name)
+                (chat_id, organizer_id, organizer_username, title, starts_at, description, city, location_name, status)
                 VALUES
-                (:group_id, :creator_id, :title, :date, :description, :city, :location_name)
+                (:chat_id, :organizer_id, :organizer_username, :title, :starts_at, :description, :city, :location_name, 'open')
                 RETURNING id
             """)
 
             result = conn.execute(
                 query,
                 {
-                    "group_id": group_id,
-                    "creator_id": creator_id,
+                    "chat_id": group_id,
+                    "organizer_id": creator_id,
+                    "organizer_username": "user",  # Временно
                     "title": title,
-                    "date": date,
+                    "starts_at": date,
                     "description": description,
                     "city": city,
                     "location_name": location_name,
@@ -93,36 +94,37 @@ class CommunityEventsService:
             if include_past:
                 # Показываем все события
                 query = text("""
-                    SELECT id, creator_id, title, date, description, city, location_name, created_at
+                    SELECT id, organizer_id, organizer_username, title, starts_at, description, city, location_name, created_at
                     FROM events_community
-                    WHERE group_id = :group_id
-                    ORDER BY date ASC
+                    WHERE chat_id = :chat_id AND status = 'open'
+                    ORDER BY starts_at ASC
                     LIMIT :limit
                 """)
             else:
                 # Показываем только будущие события
                 query = text("""
-                    SELECT id, creator_id, title, date, description, city, location_name, created_at
+                    SELECT id, organizer_id, organizer_username, title, starts_at, description, city, location_name, created_at
                     FROM events_community
-                    WHERE group_id = :group_id AND date > NOW()
-                    ORDER BY date ASC
+                    WHERE chat_id = :chat_id AND status = 'open' AND starts_at > NOW()
+                    ORDER BY starts_at ASC
                     LIMIT :limit
                 """)
 
-            result = conn.execute(query, {"group_id": group_id, "limit": limit})
+            result = conn.execute(query, {"chat_id": group_id, "limit": limit})
 
             events = []
             for row in result:
                 events.append(
                     {
                         "id": row[0],
-                        "creator_id": row[1],
-                        "title": row[2],
-                        "date": row[3],
-                        "description": row[4],
-                        "city": row[5],
-                        "location_name": row[6],
-                        "created_at": row[7],
+                        "organizer_id": row[1],
+                        "organizer_username": row[2],
+                        "title": row[3],
+                        "starts_at": row[4],
+                        "description": row[5],
+                        "city": row[6],
+                        "location_name": row[7],
+                        "created_at": row[8],
                     }
                 )
 
@@ -142,10 +144,10 @@ class CommunityEventsService:
         with self.engine.connect() as conn:
             query = text("""
                 DELETE FROM events_community
-                WHERE id = :event_id AND group_id = :group_id
+                WHERE id = :event_id AND chat_id = :chat_id
             """)
 
-            result = conn.execute(query, {"event_id": event_id, "group_id": group_id})
+            result = conn.execute(query, {"event_id": event_id, "chat_id": group_id})
             conn.commit()
 
             return result.rowcount > 0
@@ -163,7 +165,7 @@ class CommunityEventsService:
         with self.engine.connect() as conn:
             query = text("""
                 DELETE FROM events_community
-                WHERE date < NOW() - INTERVAL ':days_old days'
+                WHERE starts_at < NOW() - INTERVAL ':days_old days'
             """)
 
             result = conn.execute(query, {"days_old": days_old})
@@ -189,26 +191,26 @@ class CommunityEventsService:
             # Общее количество событий
             total_query = text("""
                 SELECT COUNT(*) FROM events_community
-                WHERE group_id = :group_id
+                WHERE chat_id = :chat_id
             """)
-            total_result = conn.execute(total_query, {"group_id": group_id})
+            total_result = conn.execute(total_query, {"chat_id": group_id})
             total_events = total_result.fetchone()[0]
 
             # Будущие события
             future_query = text("""
                 SELECT COUNT(*) FROM events_community
-                WHERE group_id = :group_id AND date > NOW()
+                WHERE chat_id = :chat_id AND starts_at > NOW()
             """)
-            future_result = conn.execute(future_query, {"group_id": group_id})
+            future_result = conn.execute(future_query, {"chat_id": group_id})
             future_events = future_result.fetchone()[0]
 
             # События сегодня
             today_query = text("""
                 SELECT COUNT(*) FROM events_community
-                WHERE group_id = :group_id
-                AND DATE(date) = CURRENT_DATE
+                WHERE chat_id = :chat_id
+                AND DATE(starts_at) = CURRENT_DATE
             """)
-            today_result = conn.execute(today_query, {"group_id": group_id})
+            today_result = conn.execute(today_query, {"chat_id": group_id})
             today_events = today_result.fetchone()[0]
 
             return {
