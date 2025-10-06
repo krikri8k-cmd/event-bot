@@ -51,21 +51,40 @@ async def group_title_step(message: types.Message, state: FSMContext):
     """Обработка названия события в групповом чате"""
     logger.info(f"🔥 group_title_step: ОБРАБОТЧИК ВЫЗВАН! chat={message.chat.id} user={message.from_user.id}")
 
-    # Проверяем, что это ответ на сообщение бота
-    if not message.reply_to_message or message.reply_to_message.from_user.id != BOT_ID:
-        logger.info("🔥 group_title_step: не ответ на сообщение бота, игнорируем")
+    # Детальная диагностика входящего сообщения
+    reply_to_id = message.reply_to_message.message_id if message.reply_to_message else None
+    reply_to_user_id = (
+        message.reply_to_message.from_user.id
+        if message.reply_to_message and message.reply_to_message.from_user
+        else None
+    )
+    logger.info(f"🔥 group_title_step: reply_to_id={reply_to_id}, reply_to_user_id={reply_to_user_id}, BOT_ID={BOT_ID}")
+
+    # Жёсткие проверки как в рекомендации
+    if message.reply_to_message is None:
+        logger.info("🔥 group_title_step: НЕТ reply_to_message, игнорируем")
+        return
+    if message.reply_to_message.from_user.id != BOT_ID:
+        logger.info(
+            f"🔥 group_title_step: reply_to НЕ от бота (user_id={message.reply_to_message.from_user.id}), игнорируем"
+        )
         return
 
     data = await state.get_data()
     logger.info(f"🔥 group_title_step: данные FSM: {data}")
 
+    # Жёсткая проверка prompt_msg_id как в рекомендации
+    if message.reply_to_message.message_id != data.get("prompt_msg_id"):
+        logger.info(
+            f"🔥 group_title_step: reply_to НЕ на наш prompt "
+            f"(получили={message.reply_to_message.message_id}, ожидали={data.get('prompt_msg_id')}), игнорируем"
+        )
+        return
+
     # Страховка: проверяем "жёсткую привязку"
     if message.from_user.id != data.get("initiator_id"):
         logger.info(f"🔥 group_title_step: игнорируем ответ от другого пользователя {message.from_user.id}")
         return  # игнорим чужие ответы
-    if message.reply_to_message.message_id != data.get("prompt_msg_id"):
-        logger.info(f"🔥 group_title_step: игнорируем ответ не на наш вопрос {message.reply_to_message.message_id}")
-        return  # игнорим ответы не на наш вопрос
 
     logger.info(
         f"[FSM] chat={message.chat.id} user={message.from_user.id} "
@@ -375,6 +394,24 @@ async def debug_all_group_messages(message: types.Message, state: FSMContext):
         )
 
 
+async def debug_final_trap(message: types.Message, state: FSMContext):
+    """Финальная ловушка для диагностики - перехватывает ВСЕ сообщения в группах"""
+    current_state = await state.get_state()
+    reply_to_id = message.reply_to_message.message_id if message.reply_to_message else None
+    reply_to_user_id = (
+        message.reply_to_message.from_user.id
+        if message.reply_to_message and message.reply_to_message.from_user
+        else None
+    )
+
+    logger.warning(
+        f"[FINAL_TRAP] ВСЕ сообщения в группах: state={current_state} "
+        f"chat={message.chat.id} user={message.from_user.id} "
+        f"text={message.text!r} reply_to={reply_to_id} reply_to_user={reply_to_user_id} "
+        f"BOT_ID={BOT_ID}"
+    )
+
+
 def register_group_handlers(dp, bot_id: int):
     """
     Регистрация обработчиков для групповых чатов
@@ -431,5 +468,8 @@ def register_group_handlers(dp, bot_id: int):
 
     # ВРЕМЕННО: обработчик для отладки всех сообщений в группах (регистрируется последним)
     dp.message.register(debug_all_group_messages, F.chat.type.in_({"group", "supergroup"}))
+
+    # ФИНАЛЬНАЯ ЛОВУШКА: перехватывает ВСЕ сообщения в группах для диагностики
+    dp.message.register(debug_final_trap, F.chat.type.in_({"group", "supergroup"}))
 
     logger.info("✅ Обработчики для групповых чатов зарегистрированы")
