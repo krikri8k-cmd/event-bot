@@ -1608,7 +1608,7 @@ async def handle_group_create_event(callback: types.CallbackQuery, state: FSMCon
     await callback.answer()
 
     # Отправляем сообщение с ForceReply для следующего шага
-    await callback.message.answer(
+    await callback.message.reply(
         "✍️ **Введите название мероприятия:**", parse_mode="Markdown", reply_markup=ForceReply(selective=True)
     )
 
