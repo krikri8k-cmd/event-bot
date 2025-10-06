@@ -1601,12 +1601,24 @@ async def handle_group_create_event(callback: types.CallbackQuery, state: FSMCon
     logger.info(f"🔥 handle_group_create_event: FSM состояние установлено в waiting_for_title, thread_id={thread_id}")
 
     # Отправляем сообщение с ForceReply для следующего шага
-    await bot.send_message(
+    prompt = await bot.send_message(
         chat_id=callback.message.chat.id,
         text="✍️ **Введите название мероприятия:**",
         parse_mode="Markdown",
         reply_markup=ForceReply(selective=True),
         message_thread_id=thread_id,
+    )
+
+    # Сохраняем контекст для "жёсткой привязки"
+    await state.update_data(
+        initiator_id=callback.from_user.id,
+        prompt_msg_id=prompt.message_id,
+        group_id=callback.message.chat.id,
+        thread_id=thread_id,
+    )
+
+    logger.info(
+        f"🔥 handle_group_create_event: set wait_for_title, thread_id={thread_id}, prompt_msg_id={prompt.message_id}"
     )
 
     await callback.answer()

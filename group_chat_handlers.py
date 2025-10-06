@@ -46,10 +46,19 @@ async def group_create_start(message: types.Message, state: FSMContext):
 
 async def group_title_step(message: types.Message, state: FSMContext):
     """Обработка названия события в групповом чате"""
+    data = await state.get_data()
+
+    # Страховка: проверяем "жёсткую привязку"
+    if message.from_user.id != data.get("initiator_id"):
+        logger.info(f"🔥 group_title_step: игнорируем ответ от другого пользователя {message.from_user.id}")
+        return  # игнорим чужие ответы
+    if message.reply_to_message.message_id != data.get("prompt_msg_id"):
+        logger.info(f"🔥 group_title_step: игнорируем ответ не на наш вопрос {message.reply_to_message.message_id}")
+        return  # игнорим ответы не на наш вопрос
+
     logger.info(
-        f"🔥 group_title_step: получено название '{message.text}' "
-        f"от пользователя {message.from_user.id} в чате {message.chat.id} "
-        f"thread_id={message.message_thread_id}"
+        f"[FSM] chat={message.chat.id} user={message.from_user.id} "
+        f"reply_to={message.reply_to_message.message_id} state=title text={message.text!r}"
     )
 
     if not message.text:
@@ -61,23 +70,38 @@ async def group_title_step(message: types.Message, state: FSMContext):
         return
 
     title = message.text.strip()
-    await state.update_data(
-        title=title, group_id=message.chat.id, thread_id=message.message_thread_id, creator_id=message.from_user.id
-    )
+    await state.update_data(title=title)
     await state.set_state(GroupCreate.waiting_for_date)
 
-    await message.answer(
-        f"**Название сохранено:** *{title}* ✅\n\n" "📅 **Укажите дату** (например: 10.10.2025 18:00):",
+    # Следующий шаг с новым prompt_msg_id
+    from aiogram import Bot
+
+    bot = Bot.get_current()
+    prompt = await bot.send_message(
+        chat_id=data["group_id"],
+        text=f"**Название сохранено:** *{title}* ✅\n\n" "📅 **Укажите дату** (например: 10.10.2025 18:00):",
         parse_mode="Markdown",
         reply_markup=ForceReply(selective=True),
+        message_thread_id=data.get("thread_id"),
     )
+    await state.update_data(prompt_msg_id=prompt.message_id)
 
 
 async def group_datetime_step(message: types.Message, state: FSMContext):
     """Обработка даты и времени события в групповом чате"""
+    data = await state.get_data()
+
+    # Страховка: проверяем "жёсткую привязку"
+    if message.from_user.id != data.get("initiator_id"):
+        logger.info(f"🔥 group_datetime_step: игнорируем ответ от другого пользователя {message.from_user.id}")
+        return
+    if message.reply_to_message.message_id != data.get("prompt_msg_id"):
+        logger.info(f"🔥 group_datetime_step: игнорируем ответ не на наш вопрос {message.reply_to_message.message_id}")
+        return
+
     logger.info(
-        f"🔥 group_datetime_step: получена дата '{message.text}' "
-        f"от пользователя {message.from_user.id} в чате {message.chat.id}"
+        f"[FSM] chat={message.chat.id} user={message.from_user.id} "
+        f"reply_to={message.reply_to_message.message_id} state=datetime text={message.text!r}"
     )
 
     if not message.text:
@@ -106,18 +130,35 @@ async def group_datetime_step(message: types.Message, state: FSMContext):
     await state.update_data(datetime=datetime_text)
     await state.set_state(GroupCreate.waiting_for_city)
 
-    await message.answer(
-        f"**Дата и время сохранены:** {datetime_text} ✅\n\n" "🏙️ **Введите город** (например: Москва):",
+    # Следующий шаг с новым prompt_msg_id
+    from aiogram import Bot
+
+    bot = Bot.get_current()
+    prompt = await bot.send_message(
+        chat_id=data["group_id"],
+        text=f"**Дата и время сохранены:** {datetime_text} ✅\n\n" "🏙️ **Введите город** (например: Москва):",
         parse_mode="Markdown",
         reply_markup=ForceReply(selective=True),
+        message_thread_id=data.get("thread_id"),
     )
+    await state.update_data(prompt_msg_id=prompt.message_id)
 
 
 async def group_city_step(message: types.Message, state: FSMContext):
     """Обработка города события в групповом чате"""
+    data = await state.get_data()
+
+    # Страховка: проверяем "жёсткую привязку"
+    if message.from_user.id != data.get("initiator_id"):
+        logger.info(f"🔥 group_city_step: игнорируем ответ от другого пользователя {message.from_user.id}")
+        return
+    if message.reply_to_message.message_id != data.get("prompt_msg_id"):
+        logger.info(f"🔥 group_city_step: игнорируем ответ не на наш вопрос {message.reply_to_message.message_id}")
+        return
+
     logger.info(
-        f"🔥 group_city_step: получен город '{message.text}' "
-        f"от пользователя {message.from_user.id} в чате {message.chat.id}"
+        f"[FSM] chat={message.chat.id} user={message.from_user.id} "
+        f"reply_to={message.reply_to_message.message_id} state=city text={message.text!r}"
     )
 
     if not message.text:
@@ -132,18 +173,35 @@ async def group_city_step(message: types.Message, state: FSMContext):
     await state.update_data(city=city)
     await state.set_state(GroupCreate.waiting_for_location)
 
-    await message.answer(
-        f"**Город сохранен:** {city} ✅\n\n" "📍 **Отправьте ссылку на место** (Google Maps или адрес):",
+    # Следующий шаг с новым prompt_msg_id
+    from aiogram import Bot
+
+    bot = Bot.get_current()
+    prompt = await bot.send_message(
+        chat_id=data["group_id"],
+        text=f"**Город сохранен:** {city} ✅\n\n" "📍 **Отправьте ссылку на место** (Google Maps или адрес):",
         parse_mode="Markdown",
         reply_markup=ForceReply(selective=True),
+        message_thread_id=data.get("thread_id"),
     )
+    await state.update_data(prompt_msg_id=prompt.message_id)
 
 
 async def group_location_step(message: types.Message, state: FSMContext):
     """Обработка локации события в групповом чате"""
+    data = await state.get_data()
+
+    # Страховка: проверяем "жёсткую привязку"
+    if message.from_user.id != data.get("initiator_id"):
+        logger.info(f"🔥 group_location_step: игнорируем ответ от другого пользователя {message.from_user.id}")
+        return
+    if message.reply_to_message.message_id != data.get("prompt_msg_id"):
+        logger.info(f"🔥 group_location_step: игнорируем ответ не на наш вопрос {message.reply_to_message.message_id}")
+        return
+
     logger.info(
-        f"🔥 group_location_step: получена локация '{message.text}' "
-        f"от пользователя {message.from_user.id} в чате {message.chat.id}"
+        f"[FSM] chat={message.chat.id} user={message.from_user.id} "
+        f"reply_to={message.reply_to_message.message_id} state=location text={message.text!r}"
     )
 
     if not message.text:
@@ -159,16 +217,36 @@ async def group_location_step(message: types.Message, state: FSMContext):
     await state.update_data(location=location)
     await state.set_state(GroupCreate.waiting_for_description)
 
-    await message.answer(
-        f"**Локация сохранена:** {location} ✅\n\n" "📝 **Введите описание события:**",
+    # Следующий шаг с новым prompt_msg_id
+    from aiogram import Bot
+
+    bot = Bot.get_current()
+    prompt = await bot.send_message(
+        chat_id=data["group_id"],
+        text=f"**Локация сохранена:** {location} ✅\n\n" "📝 **Введите описание события:**",
         parse_mode="Markdown",
         reply_markup=ForceReply(selective=True),
+        message_thread_id=data.get("thread_id"),
     )
+    await state.update_data(prompt_msg_id=prompt.message_id)
 
 
 async def group_finish(message: types.Message, state: FSMContext):
     """Завершение создания события в групповом чате"""
-    logger.info(f"🔥 group_finish: получено описание от пользователя {message.from_user.id} в чате {message.chat.id}")
+    data = await state.get_data()
+
+    # Страховка: проверяем "жёсткую привязку"
+    if message.from_user.id != data.get("initiator_id"):
+        logger.info(f"🔥 group_finish: игнорируем ответ от другого пользователя {message.from_user.id}")
+        return
+    if message.reply_to_message.message_id != data.get("prompt_msg_id"):
+        logger.info(f"🔥 group_finish: игнорируем ответ не на наш вопрос {message.reply_to_message.message_id}")
+        return
+
+    logger.info(
+        f"[FSM] chat={message.chat.id} user={message.from_user.id} "
+        f"reply_to={message.reply_to_message.message_id} state=description text={message.text!r}"
+    )
 
     if not message.text:
         await message.answer(
@@ -200,6 +278,10 @@ async def group_finish(message: types.Message, state: FSMContext):
             location_name=data["location"],
         )
 
+        # Логирование для диагностики
+        logger.info(
+            f"[DB] insert group_event: group_id={data['group_id']} title={data['title']!r} date={data['datetime']!r}"
+        )
         logger.info(f"🔥 group_finish: событие {event_id} создано успешно")
 
         await message.answer(
