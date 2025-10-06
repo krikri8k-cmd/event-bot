@@ -1637,7 +1637,7 @@ async def handle_group_chat_events(callback: types.CallbackQuery):
             text += f"   👤 Создал: @{event['organizer_username'] or 'Неизвестно'}\n\n"
 
     keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="group_back_to_start")]]
+        inline_keyboard=[[InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_start")]]
     )
 
     await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
@@ -1665,7 +1665,7 @@ async def handle_group_full_bot(callback: types.CallbackQuery):
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="🚀 Перейти к боту", url=f"https://t.me/{bot_info.username}")],
-            [InlineKeyboardButton(text="🔙 Назад", callback_data="group_back_to_start")],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_start")],
         ]
     )
 
@@ -1714,7 +1714,7 @@ async def handle_group_help(callback: types.CallbackQuery):
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="💬 Написать @Fincontro", url="https://t.me/Fincontro")],
-            [InlineKeyboardButton(text="🔙 Назад", callback_data="group_back_to_start")],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_start")],
         ]
     )
 
@@ -2829,10 +2829,10 @@ async def show_task_detail(message, tasks: list, task_index: int, user_id: int):
     nav_buttons = []
     if len(tasks) > 1:
         if task_index > 0:
-            nav_buttons.append(InlineKeyboardButton(text="🔙", callback_data=f"task_nav:{task_index-1}"))
+            nav_buttons.append(InlineKeyboardButton(text="◀️", callback_data=f"task_nav:{task_index-1}"))
         nav_buttons.append(InlineKeyboardButton(text=f"{task_index + 1}/{len(tasks)}", callback_data="noop"))
         if task_index < len(tasks) - 1:
-            nav_buttons.append(InlineKeyboardButton(text="➡️", callback_data=f"task_nav:{task_index+1}"))
+            nav_buttons.append(InlineKeyboardButton(text="▶️", callback_data=f"task_nav:{task_index+1}"))
 
     if nav_buttons:
         keyboard.append(nav_buttons)
@@ -2991,7 +2991,7 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
     # Добавляем кнопки управления
     keyboard.append(
         [
-            InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_tasks"),
+            InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_tasks"),
             InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
         ]
     )
@@ -3044,7 +3044,7 @@ async def handle_task_detail(callback: types.CallbackQuery, state: FSMContext):
         keyboard.extend(
             [
                 [InlineKeyboardButton(text="✅ Принять задание", callback_data=f"task_accept:{task_id}")],
-                [InlineKeyboardButton(text="🔙 Назад", callback_data=f"task_category:{task.category}")],
+                [InlineKeyboardButton(text="◀️ Назад", callback_data=f"task_category:{task.category}")],
             ]
         )
 
@@ -3106,7 +3106,7 @@ async def handle_task_custom_location(callback: types.CallbackQuery, state: FSMC
             [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="location_link")],
             [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="location_map")],
             [InlineKeyboardButton(text="📍 Ввести координаты", callback_data="location_coords")],
-            [InlineKeyboardButton(text="🔙 Назад", callback_data=f"task_detail:{task_id}")],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data=f"task_detail:{task_id}")],
         ]
     )
 
@@ -3182,7 +3182,7 @@ async def handle_show_bot_commands(callback: types.CallbackQuery):
     # Создаем клавиатуру с кнопкой возврата
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🔙 Назад к заданиям", callback_data="back_to_tasks")],
+            [InlineKeyboardButton(text="◀️ Назад к заданиям", callback_data="back_to_tasks")],
             [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
         ]
     )
@@ -3265,7 +3265,7 @@ async def handle_task_manage(callback: types.CallbackQuery):
     keyboard = [
         [InlineKeyboardButton(text="✅ Выполнено", callback_data=f"task_complete:{user_task_id}")],
         [InlineKeyboardButton(text="❌ Отменить", callback_data=f"task_cancel:{user_task_id}")],
-        [InlineKeyboardButton(text="🔙 Назад", callback_data="my_tasks")],
+        [InlineKeyboardButton(text="◀️ Назад", callback_data="my_tasks")],
     ]
 
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -4821,7 +4821,7 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
             f"Событие добавлено в список событий этого чата!",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="group_back_to_start")]]
+                inline_keyboard=[[InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_start")]]
             ),
         )
         await callback.answer()
@@ -4832,7 +4832,7 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
             "❌ **Ошибка при создании события!**\n\n" "Попробуйте создать событие заново.",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="group_back_to_start")]]
+                inline_keyboard=[[InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_start")]]
             ),
         )
         await callback.answer()
@@ -5014,8 +5014,8 @@ async def handle_manage_events(callback: types.CallbackQuery):
     if len(active_events) > 1:
         keyboard.inline_keyboard.append(
             [
-                InlineKeyboardButton(text="🔙 Предыдущее", callback_data="prev_event_0"),
-                InlineKeyboardButton(text="➡️ Следующее", callback_data="next_event_1"),
+                InlineKeyboardButton(text="◀️ Предыдущее", callback_data="prev_event_0"),
+                InlineKeyboardButton(text="▶️ Следующее", callback_data="next_event_1"),
             ]
         )
 
@@ -5294,7 +5294,7 @@ async def handle_create_event(callback: types.CallbackQuery):
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[
                     [InlineKeyboardButton(text="➕ Создать событие", callback_data="start_create")],
-                    [InlineKeyboardButton(text="🔙 Назад к поиску", callback_data="back_to_search")],
+                    [InlineKeyboardButton(text="◀️ Назад к поиску", callback_data="back_to_search")],
                 ]
             ),
         )
@@ -5314,7 +5314,7 @@ async def handle_start_create(callback: types.CallbackQuery):
             "➕ <b>Создание события</b>\n\nИспользуйте команду /create для создания нового события.",
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_search")]]
+                inline_keyboard=[[InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_search")]]
             ),
         )
         await callback.answer("Используйте команду /create")
@@ -5954,7 +5954,7 @@ async def handle_next_event(callback: types.CallbackQuery):
         )
 
         # Добавляем кнопку "Предыдущее событие"
-        keyboard.inline_keyboard.append([InlineKeyboardButton(text="🔙 Предыдущее", callback_data="prev_event_0")])
+        keyboard.inline_keyboard.append([InlineKeyboardButton(text="◀️ Предыдущее", callback_data="prev_event_0")])
 
         await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
         await callback.answer()
@@ -5989,7 +5989,7 @@ async def handle_prev_event(callback: types.CallbackQuery):
 
         # Добавляем кнопку "Следующее событие" если есть еще события
         if len(events) > 1:
-            keyboard.inline_keyboard.append([InlineKeyboardButton(text="➡️ Следующее", callback_data="next_event_1")])
+            keyboard.inline_keyboard.append([InlineKeyboardButton(text="▶️ Следующее", callback_data="next_event_1")])
 
         await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
         await callback.answer()
