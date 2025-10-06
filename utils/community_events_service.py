@@ -54,7 +54,8 @@ class CommunityEventsService:
                 INSERT INTO events_community
                 (chat_id, organizer_id, organizer_username, title, starts_at, description, city, location_name, status)
                 VALUES
-                (:chat_id, :organizer_id, :organizer_username, :title, :starts_at, :description, :city, :location_name, 'open')
+                (:chat_id, :organizer_id, :organizer_username, :title, :starts_at,
+                 :description, :city, :location_name, 'open')
                 RETURNING id
             """)
 
@@ -94,7 +95,8 @@ class CommunityEventsService:
             if include_past:
                 # Показываем все события
                 query = text("""
-                    SELECT id, organizer_id, organizer_username, title, starts_at, description, city, location_name, created_at
+                    SELECT id, organizer_id, organizer_username, title, starts_at,
+                           description, city, location_name, created_at
                     FROM events_community
                     WHERE chat_id = :chat_id AND status = 'open'
                     ORDER BY starts_at ASC
@@ -103,7 +105,8 @@ class CommunityEventsService:
             else:
                 # Показываем только будущие события
                 query = text("""
-                    SELECT id, organizer_id, organizer_username, title, starts_at, description, city, location_name, created_at
+                    SELECT id, organizer_id, organizer_username, title, starts_at,
+                           description, city, location_name, created_at
                     FROM events_community
                     WHERE chat_id = :chat_id AND status = 'open' AND starts_at > NOW()
                     ORDER BY starts_at ASC
