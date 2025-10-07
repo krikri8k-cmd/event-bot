@@ -2429,6 +2429,7 @@ async def on_location(message: types.Message, state: FSMContext):
             # Используем новую упрощенную архитектуру
             from database import get_engine
             from utils.simple_timezone import get_city_from_coordinates
+            from utils.user_participation_service import UserParticipationService
 
             engine = get_engine()
             events_service = UnifiedEventsService(engine)
@@ -5213,7 +5214,6 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
 
             engine = get_engine()
             events_service = UnifiedEventsService(engine)
-            participation_service = UserParticipationService(engine)
 
             # Определяем город по координатам
             city = get_city_from_coordinates(lat, lng) if lat and lng else "bali"
@@ -5454,6 +5454,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             # Используем упрощенную архитектуру для поиска событий
             from database import get_engine
             from utils.simple_timezone import get_city_from_coordinates
+            from utils.user_participation_service import UserParticipationService
 
             engine = get_engine()
             events_service = UnifiedEventsService(engine)
