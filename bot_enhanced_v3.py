@@ -28,7 +28,7 @@ from aiogram.types import (
 )
 
 from config import load_settings
-from database import Event, User, create_all, get_engine, get_session, init_engine
+from database import Event, User, create_all, get_session, init_engine
 from rockets_service import award_rockets_for_activity
 from simple_status_manager import (
     auto_close_events,
