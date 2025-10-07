@@ -616,6 +616,14 @@ async def send_compact_events_list_prepared(
         prepared_events, message.from_user.id, participation_service, page=page + 1, page_size=5
     )
 
+    # Отладочная информация
+    logger.info(
+        f"🔘 PARTICIPATION DEBUG: events={len(prepared_events)}, buttons={len(participation_keyboard.inline_keyboard) if participation_keyboard.inline_keyboard else 0}"
+    )
+    if participation_keyboard.inline_keyboard:
+        for i, row in enumerate(participation_keyboard.inline_keyboard):
+            logger.info(f"🔘 Button row {i+1}: {[btn.text for btn in row]}")
+
     text = header_html + "\n\n" + events_text
 
     # Вычисляем total_pages для fallback
@@ -1091,6 +1099,8 @@ def render_events_with_participation(
     if not events:
         return "📅 События не найдены", InlineKeyboardMarkup(inline_keyboard=[])
 
+    logger.info(f"🔘 RENDER_DEBUG: processing {len(events)} events for user {user_id}")
+
     total_pages = max(1, ceil(len(events) / page_size))
     page = max(1, min(page, total_pages))
     start = (page - 1) * page_size
@@ -1141,9 +1151,14 @@ def render_events_with_participation(
                 event_id, user_id, participation_service, include_maps=False
             )
 
+            logger.info(
+                f"🔘 BUTTON_DEBUG: event_id={event_id}, buttons={len(participation_buttons.inline_keyboard) if participation_buttons.inline_keyboard else 0}"
+            )
+
             # Добавляем кнопки из клавиатуры участия
             for button_row in participation_buttons.inline_keyboard:
                 keyboard_buttons.append(button_row)
+                logger.info(f"🔘 Added buttons for event {event_id}: {[btn.text for btn in button_row]}")
 
     # Добавляем кнопки пагинации
     if total_pages > 1:
