@@ -4490,9 +4490,11 @@ async def process_location_link(message: types.Message, state: FSMContext):
     # Если не координаты, пытаемся парсить как Google Maps ссылку
     from utils.geo_utils import parse_google_maps_link
 
-    location_data = parse_google_maps_link(link)
+    location_data = await parse_google_maps_link(link)
+    logger.info(f"🔍 parse_google_maps_link результат: {location_data}")
 
     if not location_data:
+        logger.warning(f"❌ Не удалось распознать ссылку: {link}")
         await message.answer(
             "❌ Не удалось распознать ссылку Google Maps.\n\n"
             "Попробуйте:\n"
@@ -4511,6 +4513,7 @@ async def process_location_link(message: types.Message, state: FSMContext):
 
         # Используем название места или ссылку для геокодирования
         address = location_data.get("name") or location_data.get("raw_link", "")
+        logger.info(f"🌍 Пытаемся геокодировать адрес: {address}")
 
         if address:
             coords = await geocode_address(address)
@@ -4518,6 +4521,7 @@ async def process_location_link(message: types.Message, state: FSMContext):
                 lat, lng = coords
                 logger.info(f"✅ Получили координаты через геокодирование: {lat}, {lng}")
             else:
+                logger.warning(f"❌ Не удалось геокодировать адрес: {address}")
                 await message.answer(
                     "❌ Не удалось определить координаты места.\n\n"
                     "Попробуйте:\n"
@@ -4525,6 +4529,15 @@ async def process_location_link(message: types.Message, state: FSMContext):
                     "• Или выбрать другое место"
                 )
                 return
+        else:
+            logger.warning("❌ Нет адреса для геокодирования")
+            await message.answer(
+                "❌ Не удалось определить координаты места.\n\n"
+                "Попробуйте:\n"
+                "• Ввести координаты в формате: широта,долгота\n"
+                "• Или выбрать другое место"
+            )
+            return
 
     # Сохраняем данные локации
     await state.update_data(

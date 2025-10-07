@@ -226,7 +226,7 @@ def validate_coordinates(lat: float, lon: float) -> bool:
     return -90 <= lat <= 90 and -180 <= lon <= 180
 
 
-def parse_google_maps_link(link: str) -> dict | None:
+async def parse_google_maps_link(link: str) -> dict | None:
     """
     Парсит Google Maps ссылку и извлекает координаты и название места.
 
@@ -250,9 +250,14 @@ def parse_google_maps_link(link: str) -> dict | None:
         # Сначала проверяем, не короткая ли это ссылка
         if "goo.gl/maps" in link or "maps.app.goo.gl" in link:
             # Для коротких ссылок пытаемся получить полную ссылку
-            expanded_link = expand_short_url(link)
+            expanded_link = await expand_short_url(link)
             if expanded_link:
+                print(f"🔗 Расширили короткую ссылку: {link} -> {expanded_link}")
                 link = expanded_link
+            else:
+                print(f"⚠️ Не удалось расширить короткую ссылку: {link}")
+                # Для коротких ссылок без координат возвращаем ссылку для геокодирования
+                return {"lat": None, "lng": None, "name": None, "raw_link": link}
 
         # Паттерн 1: @lat,lng,zoom (самый частый)
         pattern1 = r"@(-?\d+\.?\d*),(-?\d+\.?\d*),\d+"
@@ -318,14 +323,14 @@ def parse_google_maps_link(link: str) -> dict | None:
         return None
 
 
-def expand_short_url(short_url: str) -> str | None:
+async def expand_short_url(short_url: str) -> str | None:
     """Расширяет короткую ссылку Google Maps до полной."""
     try:
         import httpx
 
         # Делаем HEAD запрос, чтобы получить редирект
-        with httpx.Client(follow_redirects=False, timeout=10) as client:
-            response = client.head(short_url)
+        async with httpx.AsyncClient(follow_redirects=False, timeout=10) as client:
+            response = await client.head(short_url)
 
             # Проверяем, есть ли Location заголовок
             if response.status_code in [301, 302, 303, 307, 308]:
