@@ -5492,10 +5492,16 @@ async def handle_loading_button(callback: types.CallbackQuery):
 async def handle_create_event(callback: types.CallbackQuery):
     """Обработчик кнопки создания события"""
     try:
-        # Отправляем сообщение с инструкциями по созданию события
-        await callback.message.edit_text(
+        # Закрываем предыдущее сообщение и отправляем главное меню
+        try:
+            await callback.message.delete()
+        except Exception:
+            pass
+
+        # Отправляем сообщение с инструкциями и главным меню
+        await callback.message.answer(
             "➕ <b>Создание события</b>\n\n"
-            "Чтобы создать событие, используйте команду /create или нажмите кнопку '➕ Создать' в главном меню.\n\n"
+            "Чтобы создать событие, нажмите кнопку <b>'➕ Создать'</b> в главном меню ниже.\n\n"
             "Вы сможете указать:\n"
             "• Название события\n"
             "• Описание\n"
@@ -5503,12 +5509,7 @@ async def handle_create_event(callback: types.CallbackQuery):
             "• Место проведения\n"
             "• Ссылку на событие",
             parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text="➕ Создать событие", callback_data="start_create")],
-                    [InlineKeyboardButton(text="◀️ Назад к поиску", callback_data="back_to_search")],
-                ]
-            ),
+            reply_markup=main_menu_kb(),
         )
         await callback.answer()
 
