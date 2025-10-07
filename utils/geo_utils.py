@@ -39,9 +39,17 @@ async def geocode_address(address: str, region_bias: str = "bali") -> tuple[floa
         r.raise_for_status()
         data = r.json()
 
+        print(
+            f"🌍 Google Geocoding API ответ: status={data.get('status')}, results_count={len(data.get('results', []))}"
+        )
+
         if data.get("status") == "OK" and data.get("results"):
             loc = data["results"][0]["geometry"]["location"]
-            return float(loc["lat"]), float(loc["lng"])
+            lat, lng = float(loc["lat"]), float(loc["lng"])
+            print(f"✅ Геокодирование успешно: {lat}, {lng}")
+            return lat, lng
+        else:
+            print(f"❌ Геокодирование не удалось: {data.get('status')}, {data.get('error_message', '')}")
 
     return None
 
@@ -304,7 +312,19 @@ async def parse_google_maps_link(link: str) -> dict | None:
 
             return {"lat": lat, "lng": lng, "name": name, "raw_link": link}
 
-        # Паттерн 5: ссылка на конкретное место (без координат в URL)
+        # Паттерн 5: 3d=lat&4d=lng (новый формат Google Maps)
+        pattern5 = r"3d=(-?\d+\.?\d*).*?4d=(-?\d+\.?\d*)"
+        match5 = re.search(pattern5, link)
+        if match5:
+            lat = float(match5.group(1))
+            lng = float(match5.group(2))
+            print(f"🎯 Найдены координаты в формате 3d/4d: {lat}, {lng}")
+
+            name = extract_place_name_from_url(link)
+
+            return {"lat": lat, "lng": lng, "name": name, "raw_link": link}
+
+        # Паттерн 6: ссылка на конкретное место (без координат в URL)
         if "/place/" in link:
             name = extract_place_name_from_url(link)
             if name:
@@ -312,7 +332,7 @@ async def parse_google_maps_link(link: str) -> dict | None:
                 # Координаты можно будет получить позже через геокодирование
                 return {"lat": None, "lng": None, "name": name, "raw_link": link}
 
-        # Паттерн 6: короткие ссылки без координат - пытаемся извлечь название
+        # Паттерн 7: короткие ссылки без координат - пытаемся извлечь название
         if "goo.gl/maps" in link or "maps.app.goo.gl" in link:
             # Для коротких ссылок без координат возвращаем ссылку для геокодирования
             return {"lat": None, "lng": None, "name": None, "raw_link": link}
@@ -367,13 +387,15 @@ def geocode_place_name(place_name: str) -> dict | None:
 def extract_place_name_from_url(url: str) -> str | None:
     """Извлекает название места из Google Maps URL."""
     try:
+        import urllib.parse
+
         # Паттерн для /place/name/
         place_pattern = r"/place/([^/@]+)"
         match = re.search(place_pattern, url)
         if match:
             name = match.group(1)
             # Декодируем URL-кодированные символы
-            name = name.replace("%20", " ").replace("+", " ")
+            name = urllib.parse.unquote(name)
             return name
 
         return None
