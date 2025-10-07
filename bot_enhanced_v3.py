@@ -2655,7 +2655,7 @@ async def on_create(message: types.Message, state: FSMContext):
     await state.set_state(EventCreation.waiting_for_title)
     await message.answer(
         "Создаём новое событие! 📝\n\n✍ Введите название мероприятия (например: Прогулка):",
-        reply_markup=types.ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="❌ Отмена")]], resize_keyboard=True),
+        reply_markup=main_menu_kb(),
     )
 
 
