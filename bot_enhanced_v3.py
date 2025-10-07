@@ -1049,10 +1049,6 @@ def render_page(events: list[dict], page: int, page_size: int = 5) -> tuple[str,
     return "\n".join(parts).strip(), total_pages
 
 
-
-
-
-
 def kb_pager(page: int, total: int, current_radius: int = None) -> InlineKeyboardMarkup:
     """Создает клавиатуру пагинации с кнопками расширения радиуса"""
     from config import load_settings
@@ -6125,14 +6121,6 @@ try:
 except Exception as e:
     logger.error(f"❌ Ошибка интеграции групповых чатов: {e}")
     # Не прерываем работу основного бота при ошибке
-
-
-
-
-
-
-
-
 
 
 if __name__ == "__main__":
