@@ -3404,6 +3404,152 @@ async def handle_noop(callback: types.CallbackQuery):
     await callback.answer()
 
 
+@dp.callback_query(F.data.startswith("rx:"))
+async def handle_expand_radius(callback: types.CallbackQuery):
+    """Обработчик расширения радиуса поиска"""
+    new_radius = int(callback.data.split(":")[1])
+    user_id = callback.from_user.id
+    chat_id = callback.message.chat.id
+
+    logger.info(f"🔍 handle_expand_radius: пользователь {user_id} расширяет радиус до {new_radius} км")
+
+    # Получаем сохраненное состояние
+    state_data = user_state.get(chat_id)
+    if not state_data:
+        await callback.answer("❌ Данные поиска устарели. Отправьте геолокацию заново.")
+        return
+
+    lat = state_data.get("lat")
+    lng = state_data.get("lng")
+    region = state_data.get("region", "bali")
+
+    if not lat or not lng:
+        await callback.answer("❌ Геолокация не найдена. Отправьте геолокацию заново.")
+        return
+
+    # Показываем сообщение загрузки
+    await callback.message.edit_text("🔍 Ищу события в расширенном радиусе...")
+
+    # Выполняем поиск с новым радиусом
+    from database import get_engine
+
+    engine = get_engine()
+    events_service = UnifiedEventsService(engine)
+
+    events = events_service.search_events_today(
+        city=region, user_lat=lat, user_lng=lng, radius_km=new_radius, message_id=f"{callback.message.message_id}"
+    )
+
+    # Конвертируем в старый формат для совместимости
+    formatted_events = []
+    for event in events:
+        formatted_event = {
+            "title": event["title"],
+            "description": event["description"],
+            "time_local": event["starts_at"].strftime("%Y-%m-%d %H:%M") if event["starts_at"] else None,
+            "starts_at": event["starts_at"],
+            "city": event.get("city", "bali"),
+            "location_name": event["location_name"],
+            "location_url": event["location_url"],
+            "lat": event["lat"],
+            "lng": event["lng"],
+            "source": event.get("source", ""),
+            "source_type": event.get("source_type", ""),
+            "url": event.get("event_url", ""),
+            "community_name": "",
+            "community_link": "",
+            "organizer_id": event.get("organizer_id"),
+            "organizer_username": event.get("organizer_username"),
+        }
+        formatted_events.append(formatted_event)
+
+    events = formatted_events
+
+    # Сортируем события по времени
+    events = sort_events_by_time(events)
+
+    # Фильтруем и подготавливаем события
+    prepared, diag = prepare_events_for_feed(events, user_point=(lat, lng), radius_km=int(new_radius), with_diag=True)
+
+    # Если не найдено событий
+    if not prepared:
+        # Создаем кнопки расширения радиуса
+        keyboard_buttons = []
+        current_radius = new_radius
+
+        # Находим следующие доступные радиусы из RADIUS_OPTIONS
+        for radius_option in RADIUS_OPTIONS:
+            if radius_option > current_radius:
+                # Не показываем кнопку "расширить до 5 км" - это минимальный радиус
+                if radius_option == 5:
+                    continue
+                keyboard_buttons.append(
+                    [
+                        InlineKeyboardButton(
+                            text=f"🔍 Расширить поиск до {radius_option} км",
+                            callback_data=f"rx:{radius_option}",
+                        )
+                    ]
+                )
+
+        # Добавляем кнопку создания события
+        keyboard_buttons.append(
+            [
+                InlineKeyboardButton(
+                    text="➕ Создать событие",
+                    callback_data="create_event",
+                )
+            ]
+        )
+
+        inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+
+        await callback.message.edit_text(
+            f"📅 В радиусе {current_radius} км событий на сегодня не найдено.\n\n"
+            f"💡 Попробуй расширить поиск до {next(iter([r for r in RADIUS_OPTIONS if r > current_radius and r != 5]), '20')} км\n"
+            f"➕ Или создай своё событие и собери свою компанию!",
+            reply_markup=inline_kb,
+        )
+
+        await callback.answer()
+        return
+
+    # Если найдены события, отправляем их
+    # Группируем и считаем
+    groups = group_by_type(prepared)
+    counts = make_counts(groups)
+
+    # Обновляем состояние
+    user_state[chat_id] = {
+        "prepared": prepared,
+        "counts": counts,
+        "lat": lat,
+        "lng": lng,
+        "radius": new_radius,
+        "page": 1,
+        "diag": {"kept": len(prepared), "dropped": 0, "reasons_top3": []},
+        "region": region,
+    }
+
+    # Рендерим страницу
+    header_html = render_header(counts, radius_km=new_radius)
+    events_text, total_pages = render_page(prepared, 1, page_size=5)
+
+    text = header_html + "\n\n" + events_text
+
+    # Создаем клавиатуру с кнопками пагинации и расширения радиуса
+    keyboard = kb_pager(1, total_pages, new_radius)
+
+    await callback.message.edit_text(
+        text,
+        reply_markup=keyboard,
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+    )
+
+    await callback.answer(f"✅ Радиус расширен до {new_radius} км")
+
+
 @dp.callback_query(F.data.startswith("task_complete:"))
 async def handle_task_complete(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик завершения задания"""
@@ -5340,176 +5486,6 @@ async def handle_pagination(callback: types.CallbackQuery):
 async def handle_loading_button(callback: types.CallbackQuery):
     """Обработчик кнопки загрузки - просто отвечаем, что работаем"""
     await callback.answer("🔍 Ищем события...", show_alert=False)
-
-
-@dp.callback_query(F.data.startswith("rx:"))
-async def handle_expand_radius(callback: types.CallbackQuery):
-    """Обработчик расширения радиуса поиска"""
-
-    try:
-        # Извлекаем новый радиус из callback_data: rx:radius
-        new_radius = int(callback.data.split(":")[1])
-
-        # Получаем сохраненное состояние
-        state = user_state.get(callback.message.chat.id)
-        logger.info(f"🔍 Проверяем состояние для пользователя {callback.message.chat.id}: {state is not None}")
-        if not state:
-            logger.warning(f"Состояние не найдено для пользователя {callback.message.chat.id}")
-            logger.info(f"Доступные состояния: {list(user_state.keys())}")
-            await callback.answer("Состояние не найдено. Отправьте новую геолокацию.")
-            return
-
-        lat = state.get("lat")
-        lng = state.get("lng")
-
-        if not lat or not lng:
-            logger.warning(f"Координаты не найдены в состоянии для пользователя {callback.message.chat.id}")
-            await callback.answer("Координаты не найдены. Отправьте новую геолокацию.")
-            return
-
-        # Логируем параметры расширенного поиска
-        logger.info(f"🔎 Расширенный поиск: координаты=({lat}, {lng}) радиус={new_radius}км источник=пользователь")
-        logger.info(
-            f"🔍 Расширяем поиск до {new_radius} км от ({lat}, {lng}) для пользователя {callback.message.chat.id}"
-        )
-
-        # Показываем индикатор загрузки
-        loading_message = await callback.message.answer(
-            "🔍 Ищу...",
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text="🔍", callback_data="loading")]]
-            ),
-        )
-
-        # Ищем события с расширенным радиусом используя упрощенную архитектуру
-        try:
-            # Используем упрощенную архитектуру для поиска событий
-            from database import get_engine
-            from utils.simple_timezone import get_city_from_coordinates
-
-            engine = get_engine()
-            events_service = UnifiedEventsService(engine)
-
-            # Определяем город по координатам
-            city = get_city_from_coordinates(lat, lng)
-            logger.info(f"🔍 Ищем события в городе {city} с радиусом {new_radius} км")
-
-            # Ищем события через упрощенный сервис
-            events = events_service.search_events_today(city=city, user_lat=lat, user_lng=lng, radius_km=new_radius)
-
-            # Конвертируем в старый формат для совместимости
-            converted_events = []
-            for event in events:
-                converted_event = {
-                    "title": event.get("title", ""),
-                    "description": event.get("description", ""),
-                    "start_time": event.get("starts_at"),
-                    "starts_at": event.get("starts_at"),  # Добавляем поле starts_at!
-                    "city": event.get("city", "bali"),  # Добавляем город!
-                    "venue_name": event.get("location_name", ""),
-                    "address": event.get("location_url", ""),
-                    "lat": event.get("lat"),
-                    "lng": event.get("lng"),
-                    "source_url": event.get("event_url", ""),
-                    "type": "source" if event.get("source_type") == "parser" else "user",
-                    "source": event.get("source_type", "user_created"),
-                    # Добавляем поля автора для пользовательских событий
-                    "organizer_id": event.get("organizer_id"),
-                    "organizer_username": event.get("organizer_username"),
-                }
-                # Логируем конвертацию для пользовательских событий
-                if event.get("source") == "user":
-                    logger.info(
-                        f"🔍 CONVERT USER EVENT (radius): title='{event.get('title')}', "
-                        f"organizer_id={event.get('organizer_id')} -> {converted_event.get('organizer_id')}, "
-                        f"organizer_username='{event.get('organizer_username')}' -> '{converted_event.get('organizer_username')}'"
-                    )
-                converted_events.append(converted_event)
-
-            events = converted_events
-            events = sort_events_by_time(events)
-
-        except Exception as e:
-            logger.error(f"❌ Ошибка при расширенном поиске: {e}")
-            events = []
-            await callback.answer("Ошибка при поиске событий")
-            return
-
-        if not events:
-            # Удаляем сообщение загрузки если события не найдены
-            try:
-                await loading_message.delete()
-            except Exception:
-                pass
-            await callback.answer("События не найдены даже в расширенном радиусе")
-            return
-
-        # Фильтруем и обогащаем события
-        prepared, diag = prepare_events_for_feed(events, user_point=(lat, lng), radius_km=new_radius, with_diag=True)
-        logger.info(f"prepared: kept={diag['kept']} dropped={diag['dropped']} reasons_top3={diag['reasons_top3']}")
-        logger.info(
-            f"kept_by_type: ai_parsed={diag['kept_by_type'].get('ai_parsed', 0)} user={diag['kept_by_type'].get('user', 0)} source={diag['kept_by_type'].get('source', 0)}"
-        )
-
-        for event in prepared:
-            enrich_venue_name(event)
-
-        # Группируем и считаем
-        groups = group_by_type(prepared)
-        counts = make_counts(groups)
-
-        # Обновляем состояние
-        user_state[callback.message.chat.id] = {
-            "prepared": prepared,
-            "counts": counts,
-            "lat": lat,
-            "lng": lng,
-            "radius": new_radius,
-            "page": 1,
-            "diag": diag,
-            "region": city,  # Сохраняем город
-        }
-
-        # Удаляем сообщение загрузки
-        try:
-            await loading_message.delete()
-        except Exception:
-            pass  # Игнорируем ошибки удаления
-
-        # Рендерим первую страницу
-        header_html = render_header(counts, radius_km=new_radius)
-        page_html, total_pages = render_page(prepared, page=1, page_size=5)
-
-        # Создаем клавиатуру пагинации
-        combined_keyboard = kb_pager(1, total_pages, new_radius)
-
-        # Обновляем сообщение с защитой от ошибок
-        try:
-            await callback.message.edit_text(
-                header_html + "\n\n" + page_html,
-                parse_mode="HTML",
-                disable_web_page_preview=True,
-                reply_markup=combined_keyboard,
-            )
-        except TelegramBadRequest:
-            # Если не удалось отредактировать (сообщение устарело/удалено), отправляем новое
-            await callback.message.answer(
-                header_html + "\n\n" + page_html,
-                parse_mode="HTML",
-                disable_web_page_preview=True,
-                reply_markup=combined_keyboard,
-            )
-
-        await callback.answer(f"Радиус расширен до {new_radius} км")
-
-        # Клавиатура главного меню уже есть у пользователя
-
-    except (ValueError, IndexError) as e:
-        logger.error(f"❌ Ошибка обработки расширения радиуса: {e}")
-        await callback.answer("Ошибка обработки запроса")
-    except Exception as e:
-        logger.error(f"❌ Неожиданная ошибка в расширении радиуса: {e}")
-        await callback.answer("Произошла ошибка")
 
 
 @dp.callback_query(F.data == "create_event")
