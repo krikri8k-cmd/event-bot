@@ -1487,7 +1487,7 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
 
     keyboard.extend(
         [
-            [KeyboardButton(text="📋 Мои события"), KeyboardButton(text="🔗 Поделиться")],
+            [KeyboardButton(text="🔗 Поделиться"), KeyboardButton(text="📋 Мои события")],
             [KeyboardButton(text="🔧 Настройки радиуса"), KeyboardButton(text="💬 Написать отзыв Разработчику")],
             [KeyboardButton(text="🚀 Старт")],
         ]
