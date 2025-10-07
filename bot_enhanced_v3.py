@@ -2675,13 +2675,13 @@ async def on_my_events(message: types.Message):
                 title = event.get("title", "Без названия")
                 starts_at = event.get("starts_at")
                 location = event.get("location_name", "Место уточняется")
-                
+
                 # Форматируем время
                 if starts_at:
                     time_str = starts_at.strftime("%d.%m.%Y %H:%M")
                 else:
                     time_str = "Время уточняется"
-                
+
                 text_parts.append(f"{i}) **{title}**\n🕐 {time_str}\n📍 {location}")
 
             if len(active_events) > 3:
