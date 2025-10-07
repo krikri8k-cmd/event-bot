@@ -28,7 +28,7 @@ from aiogram.types import (
 )
 
 from config import load_settings
-from database import Event, User, create_all, get_session, init_engine
+from database import Event, User, create_all, get_engine, get_session, init_engine
 from rockets_service import award_rockets_for_activity
 from simple_status_manager import (
     auto_close_events,
@@ -45,8 +45,10 @@ from tasks_service import (
     get_user_active_tasks,
 )
 from utils.geo_utils import haversine_km
+from utils.participation_buttons import create_participation_buttons
 from utils.static_map import build_static_map_url, fetch_static_map
 from utils.unified_events_service import UnifiedEventsService
+from utils.user_participation_service import UserParticipationService
 
 
 def get_user_display_name(user: types.User) -> str:
@@ -602,13 +604,30 @@ async def send_compact_events_list_prepared(
         "region": region,
     }
 
-    # Рендерим страницу
-    header_html = render_header(counts, radius_km=int(radius))
-    page_html, total_pages = render_page(prepared_events, page=page + 1, page_size=5)
-    text = header_html + "\n\n" + page_html
+    # Создаем сервис участия
+    engine = get_engine()
+    participation_service = UserParticipationService(engine)
 
-    # Создаем клавиатуру пагинации с кнопками расширения радиуса
-    inline_kb = kb_pager(page + 1, total_pages, int(radius)) if total_pages > 1 else None
+    # Рендерим страницу с кнопками участия
+    header_html = render_header(counts, radius_km=int(radius))
+
+    # Используем новую функцию для отображения событий с кнопками участия
+    events_text, participation_keyboard = render_events_with_participation(
+        prepared_events, message.from_user.id, participation_service, page=page + 1, page_size=5
+    )
+
+    text = header_html + "\n\n" + events_text
+
+    # Вычисляем total_pages для fallback
+    total_pages = max(1, ceil(len(prepared_events) / 5))
+
+    # Создаем клавиатуру с кнопками участия и пагинацией
+    if participation_keyboard.inline_keyboard:
+        # Добавляем кнопки расширения радиуса к существующим кнопкам
+        inline_kb = participation_keyboard
+    else:
+        # Создаем клавиатуру пагинации с кнопками расширения радиуса
+        inline_kb = kb_pager(page + 1, total_pages, int(radius)) if total_pages > 1 else None
 
     try:
         # Отправляем компактный список событий в HTML формате
@@ -1041,6 +1060,98 @@ def render_page(events: list[dict], page: int, page_size: int = 5) -> tuple[str,
             parts.append(f"{idx}) {title}")
 
     return "\n".join(parts).strip(), total_pages
+
+
+def render_events_with_participation(
+    events: list[dict], user_id: int, participation_service: UserParticipationService, page: int = 1, page_size: int = 5
+) -> tuple[str, InlineKeyboardMarkup]:
+    """
+    Рендерит события с кнопками участия
+
+    Args:
+        events: Список событий
+        user_id: ID пользователя
+        participation_service: Сервис участия
+        page: Номер страницы
+        page_size: Размер страницы
+
+    Returns:
+        tuple: (текст сообщения, клавиатура)
+    """
+    if not events:
+        return "📅 События не найдены", InlineKeyboardMarkup(inline_keyboard=[])
+
+    total_pages = max(1, ceil(len(events) / page_size))
+    page = max(1, min(page, total_pages))
+    start = (page - 1) * page_size
+    end = start + page_size
+    page_events = events[start:end]
+
+    text_parts = []
+
+    for idx, event in enumerate(page_events, start + 1):
+        event_id = event.get("id")
+        title = event.get("title", "Без названия")
+        starts_at = event.get("starts_at")
+        location = event.get("location_name", "Место уточняется")
+        distance = event.get("distance_km")
+
+        # Форматируем время
+        if starts_at:
+            time_str = starts_at.strftime("%H:%M")
+        else:
+            time_str = "Время уточняется"
+
+        # Получаем статус участия
+        participation_status = participation_service.get_user_participation_status(user_id, event_id)
+
+        # Добавляем индикатор участия
+        status_emoji = ""
+        if participation_status == "going":
+            status_emoji = "✅ "
+        elif participation_status == "maybe":
+            status_emoji = "🤔 "
+
+        # Формируем текст события
+        event_text = f"{status_emoji}{idx}) **{title}** – {time_str}"
+        if distance:
+            event_text += f" ({distance:.1f} км)"
+        event_text += f"\n📍 {location}"
+
+        text_parts.append(event_text)
+
+    text = "\n\n".join(text_parts)
+
+    # Создаем кнопки для каждого события
+    keyboard_buttons = []
+
+    for event in page_events:
+        event_id = event.get("id")
+        if event_id:
+            # Создаем кнопки участия для каждого события
+            participation_buttons = create_participation_buttons(
+                event_id, user_id, participation_service, include_maps=False
+            )
+
+            # Добавляем кнопки из клавиатуры участия
+            for button_row in participation_buttons.inline_keyboard:
+                keyboard_buttons.append(button_row)
+
+    # Добавляем кнопки пагинации
+    if total_pages > 1:
+        nav_buttons = []
+        if page > 1:
+            nav_buttons.append(InlineKeyboardButton(text="◀️ Назад", callback_data=f"pg:{page-1}"))
+        if page < total_pages:
+            nav_buttons.append(InlineKeyboardButton(text="Вперед ▶️", callback_data=f"pg:{page+1}"))
+
+        if nav_buttons:
+            keyboard_buttons.append(nav_buttons)
+
+        # Добавляем информацию о странице
+        keyboard_buttons.append([InlineKeyboardButton(text=f"Стр. {page}/{total_pages}", callback_data="pg:noop")])
+
+    return text, InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
 
 def kb_pager(page: int, total: int, current_radius: int = None) -> InlineKeyboardMarkup:
@@ -2253,6 +2364,7 @@ async def on_location(message: types.Message, state: FSMContext):
 
             engine = get_engine()
             events_service = UnifiedEventsService(engine)
+            UserParticipationService(engine)
 
             # Определяем город по координатам
             city = get_city_from_coordinates(lat, lng)
@@ -2654,52 +2766,92 @@ async def on_my_events(message: types.Message):
     events = get_user_events(user_id)
     logger.info(f"🔍 on_my_events: найдено {len(events) if events else 0} событий для пользователя {user_id}")
 
-    if not events:
-        await message.answer(
-            "У вас пока нет созданных событий. Создайте первое через '➕ Создать'!",
-            reply_markup=main_menu_kb(),
-        )
-        return
+    # Создаем сервис участия
+    engine = get_engine()
+    participation_service = UserParticipationService(engine)
 
-    # Отправляем все активные события пользователя
+    # Получаем события с участием
+    going_events = participation_service.get_user_participations(user_id, "going")
+    maybe_events = participation_service.get_user_participations(user_id, "maybe")
+
+    # Формируем текст сообщения
+    text_parts = ["📋 **Мои события:**\n"]
+
+    # Созданные события
     if events:
-        # Фильтруем только активные события (открытые)
         active_events = [e for e in events if e.get("status") == "open"]
-        logger.info(f"🔍 on_my_events: активных событий: {len(active_events)} из {len(events)}")
+        if active_events:
+            text_parts.append("📝 **Созданные мной:**")
+            for i, event in enumerate(active_events[:3], 1):
+                title = event.get("title", "Без названия")
+                date = event.get("date", "Дата не указана")
+                time = event.get("time", "Время не указано")
+                text_parts.append(f"{i}) **{title}** – {date} в {time}")
 
-        if not active_events:
-            await message.answer(
-                "У вас нет активных событий.\n\n" "📋 Закрытые события можно посмотреть через команду /myevents",
-                reply_markup=main_menu_kb(),
-            )
-            return
+            if len(active_events) > 3:
+                text_parts.append(f"... и еще {len(active_events) - 3} событий")
 
-        # Формируем текст со всеми активными событиями
-        text_parts = ["📋 Ваши активные события:\n"]
+    # События, куда иду
+    if going_events:
+        text_parts.append(f"\n✅ **Куда иду ({len(going_events)}):**")
+        for i, event in enumerate(going_events[:3], 1):
+            title = event.get("title", "Без названия")
+            starts_at = event.get("starts_at")
+            if starts_at:
+                time_str = starts_at.strftime("%H:%M")
+            else:
+                time_str = "Время уточняется"
+            text_parts.append(f"{i}) **{title}** – {time_str}")
 
-        for i, event in enumerate(active_events[:5], 1):  # Показываем максимум 5
-            event_text = format_event_for_display(event)
-            text_parts.append(f"{i}) {event_text}")
+        if len(going_events) > 3:
+            text_parts.append(f"... и еще {len(going_events) - 3} событий")
 
-        if len(active_events) > 5:
-            text_parts.append(f"\n... и еще {len(active_events) - 5} событий")
+    # События, которые интересны
+    if maybe_events:
+        text_parts.append(f"\n🤔 **Интересные ({len(maybe_events)}):**")
+        for i, event in enumerate(maybe_events[:3], 1):
+            title = event.get("title", "Без названия")
+            starts_at = event.get("starts_at")
+            if starts_at:
+                time_str = starts_at.strftime("%H:%M")
+            else:
+                time_str = "Время уточняется"
+            text_parts.append(f"{i}) **{title}** – {time_str}")
 
-        text = "\n\n".join(text_parts)
-        logger.info(f"🔍 on_my_events: сформированный текст для {len(active_events)} событий")
+        if len(maybe_events) > 3:
+            text_parts.append(f"... и еще {len(maybe_events) - 3} событий")
 
-        # Простая клавиатура без сложной логики
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text="🔧 Управление событиями", callback_data="manage_events")]]
-        )
+    # Если нет событий вообще
+    if not events and not going_events and not maybe_events:
+        text_parts = [
+            "📋 **Мои события:**\n",
+            "У вас пока нет событий.\n\n",
+            "💡 **Что можно сделать:**\n",
+            "• Создать событие через '➕ Создать'\n",
+            "• Найти интересные события через '📍 Что рядом'",
+        ]
 
-        try:
-            await message.answer(text, reply_markup=keyboard)
-            logger.info("✅ on_my_events: сообщение отправлено успешно")
-        except Exception as e:
-            logger.error(f"❌ on_my_events: ошибка отправки сообщения: {e}")
-            # Fallback - отправляем простой список
-            simple_text = f"📋 Ваши события: {len(active_events)} активных"
-            await message.answer(simple_text, reply_markup=main_menu_kb())
+    text = "\n".join(text_parts)
+
+    # Создаем клавиатуру
+    keyboard_buttons = []
+
+    if events:
+        keyboard_buttons.append([InlineKeyboardButton(text="🔧 Управление событиями", callback_data="manage_events")])
+
+    if going_events or maybe_events:
+        keyboard_buttons.append([InlineKeyboardButton(text="📋 Все мои участия", callback_data="view_participations")])
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons) if keyboard_buttons else main_menu_kb()
+
+    try:
+        await message.answer(text, reply_markup=keyboard, parse_mode="Markdown")
+        logger.info("✅ on_my_events: сообщение отправлено успешно")
+    except Exception as e:
+        logger.error(f"❌ on_my_events: ошибка отправки сообщения: {e}")
+        # Fallback - отправляем простой список
+        simple_text = f"📋 Ваши события: созданных {len(events) if events else 0}, иду {len(going_events)}, интересных {len(maybe_events)}"
+        await message.answer(simple_text, reply_markup=main_menu_kb())
 
 
 @dp.message(Command("share"))
@@ -4996,6 +5148,7 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
 
             engine = get_engine()
             events_service = UnifiedEventsService(engine)
+            UserParticipationService(engine)
 
             # Определяем город по координатам
             city = get_city_from_coordinates(lat, lng) if lat and lng else "bali"
@@ -5226,6 +5379,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
 
             engine = get_engine()
             events_service = UnifiedEventsService(engine)
+            UserParticipationService(engine)
 
             # Определяем город по координатам
             city = get_city_from_coordinates(lat, lng)
@@ -6085,6 +6239,171 @@ try:
 except Exception as e:
     logger.error(f"❌ Ошибка интеграции групповых чатов: {e}")
     # Не прерываем работу основного бота при ошибке
+
+
+# ===== ОБРАБОТЧИКИ УЧАСТИЯ В СОБЫТИЯХ =====
+
+
+@dp.callback_query(F.data.startswith("part_going:"))
+async def handle_participation_going(callback: types.CallbackQuery):
+    """Обработчик кнопки 'Пойду'"""
+    try:
+        event_id = int(callback.data.split(":")[1])
+        user_id = callback.from_user.id
+
+        engine = get_engine()
+        participation_service = UserParticipationService(engine)
+
+        success = participation_service.add_participation(user_id, event_id, "going")
+
+        if success:
+            await callback.answer("✅ Отлично! Вы идете на событие")
+        else:
+            await callback.answer("❌ Ошибка при сохранении")
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка обработки участия 'going': {e}")
+        await callback.answer("Произошла ошибка")
+
+
+@dp.callback_query(F.data.startswith("part_maybe:"))
+async def handle_participation_maybe(callback: types.CallbackQuery):
+    """Обработчик кнопки 'Возможно'"""
+    try:
+        event_id = int(callback.data.split(":")[1])
+        user_id = callback.from_user.id
+
+        engine = get_engine()
+        participation_service = UserParticipationService(engine)
+
+        success = participation_service.add_participation(user_id, event_id, "maybe")
+
+        if success:
+            await callback.answer("🤔 Понятно, возможно придете")
+        else:
+            await callback.answer("❌ Ошибка при сохранении")
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка обработки участия 'maybe': {e}")
+        await callback.answer("Произошла ошибка")
+
+
+@dp.callback_query(F.data.startswith("part_remove:"))
+async def handle_participation_remove(callback: types.CallbackQuery):
+    """Обработчик кнопки 'Убрать'"""
+    try:
+        event_id = int(callback.data.split(":")[1])
+        user_id = callback.from_user.id
+
+        engine = get_engine()
+        participation_service = UserParticipationService(engine)
+
+        success = participation_service.remove_participation(user_id, event_id)
+
+        if success:
+            await callback.answer("❌ Убрано из ваших событий")
+        else:
+            await callback.answer("❌ Ошибка при удалении")
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка удаления участия: {e}")
+        await callback.answer("Произошла ошибка")
+
+
+@dp.callback_query(F.data == "view_participations")
+async def handle_view_participations(callback: types.CallbackQuery):
+    """Обработчик кнопки 'Все мои участия'"""
+    try:
+        user_id = callback.from_user.id
+
+        engine = get_engine()
+        participation_service = UserParticipationService(engine)
+
+        # Получаем все участия
+        all_participations = participation_service.get_user_participations(user_id)
+
+        if not all_participations:
+            await callback.answer("У вас пока нет событий с участием")
+            return
+
+        # Разделяем по типам
+        going_events = [p for p in all_participations if p.get("participation_type") == "going"]
+        maybe_events = [p for p in all_participations if p.get("participation_type") == "maybe"]
+
+        text_parts = ["📋 **Все мои участия:**\n"]
+
+        if going_events:
+            text_parts.append(f"✅ **Куда иду ({len(going_events)}):**")
+            for i, event in enumerate(going_events, 1):
+                title = event.get("title", "Без названия")
+                starts_at = event.get("starts_at")
+                if starts_at:
+                    time_str = starts_at.strftime("%H:%M")
+                else:
+                    time_str = "Время уточняется"
+                location = event.get("location_name", "Место уточняется")
+                text_parts.append(f"{i}) **{title}** – {time_str}\n📍 {location}")
+            text_parts.append("")
+
+        if maybe_events:
+            text_parts.append(f"🤔 **Интересные ({len(maybe_events)}):**")
+            for i, event in enumerate(maybe_events, 1):
+                title = event.get("title", "Без названия")
+                starts_at = event.get("starts_at")
+                if starts_at:
+                    time_str = starts_at.strftime("%H:%M")
+                else:
+                    time_str = "Время уточняется"
+                location = event.get("location_name", "Место уточняется")
+                text_parts.append(f"{i}) **{title}** – {time_str}\n📍 {location}")
+
+        text = "\n".join(text_parts)
+
+        # Создаем кнопки для каждого события
+        keyboard_buttons = []
+
+        for event in all_participations:
+            event_id = event.get("event_id")
+            if event_id:
+                participation_buttons = create_participation_buttons(
+                    event_id, user_id, participation_service, include_maps=False
+                )
+                for button_row in participation_buttons.inline_keyboard:
+                    keyboard_buttons.append(button_row)
+
+        # Добавляем кнопку возврата
+        keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад к событиям", callback_data="back_to_my_events")])
+
+        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+
+        await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
+        await callback.answer()
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка просмотра участий: {e}")
+        await callback.answer("Произошла ошибка")
+
+
+@dp.callback_query(F.data == "back_to_my_events")
+async def handle_back_to_my_events(callback: types.CallbackQuery):
+    """Обработчик возврата к моим событиям"""
+    try:
+        # Имитируем нажатие на кнопку "Мои события"
+        fake_message = types.Message(
+            message_id=callback.message.message_id,
+            from_user=callback.from_user,
+            chat=callback.message.chat,
+            date=callback.message.date,
+            text="📋 Мои события",
+        )
+
+        # Вызываем обработчик моих событий
+        await on_my_events(fake_message)
+        await callback.answer()
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка возврата к событиям: {e}")
+        await callback.answer("Произошла ошибка")
 
 
 if __name__ == "__main__":
