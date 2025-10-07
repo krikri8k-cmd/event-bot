@@ -188,6 +188,9 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
     # Сначала истекаем старые 48-часовые задания
     expire_old_48h_tasks(user_id)
 
+    # Помечаем все просроченные задания как истекшие
+    mark_tasks_as_expired()
+
     with get_session() as session:
         # Получаем пользователя для определения часового пояса
         user = session.get(User, user_id)
