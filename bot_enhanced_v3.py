@@ -2673,12 +2673,13 @@ async def on_my_events(message: types.Message):
             text_parts.append("📝 **Созданные мной:**")
             for i, event in enumerate(active_events[:3], 1):
                 title = event.get("title", "Без названия")
-                starts_at = event.get("starts_at")
+                event.get("starts_at")
                 location = event.get("location_name", "Место уточняется")
 
-                # Форматируем время
-                if starts_at:
-                    time_str = starts_at.strftime("%d.%m.%Y %H:%M")
+                # Форматируем время создания события
+                created_at = event.get("created_at_utc")
+                if created_at:
+                    time_str = created_at.strftime("%d.%m.%Y %H:%M")
                 else:
                     time_str = "Время уточняется"
 
@@ -2692,9 +2693,9 @@ async def on_my_events(message: types.Message):
         text_parts.append(f"\n➕ **Добавленные ({len(all_participations)}):**")
         for i, event in enumerate(all_participations[:3], 1):
             title = event.get("title", "Без названия")
-            starts_at = event.get("starts_at")
-            if starts_at:
-                time_str = starts_at.strftime("%H:%M")
+            created_at = event.get("created_at_utc")
+            if created_at:
+                time_str = created_at.strftime("%H:%M")
             else:
                 time_str = "Время уточняется"
             text_parts.append(f"{i}) **{title}** – {time_str}")
