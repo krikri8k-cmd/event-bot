@@ -179,12 +179,13 @@ class SimpleEventsService:
             Количество удаленных событий
         """
         with self.engine.connect() as conn:
-            # Очищаем парсерные события
+            # Очищаем парсерные события из объединенной таблицы events
             parser_deleted = conn.execute(
                 text("""
-                DELETE FROM events_parser
+                DELETE FROM events
                 WHERE city = :city
                 AND starts_at < NOW() - INTERVAL '1 day'
+                AND source IS NOT NULL
             """),
                 {"city": city},
             ).rowcount
@@ -234,13 +235,14 @@ class SimpleEventsService:
                 {"city": city, "start_utc": start_utc, "end_utc": end_utc},
             ).fetchone()
 
-            # По источникам
+            # По источникам (из объединенной таблицы events)
             parser_result = conn.execute(
                 text("""
-                SELECT COUNT(*) FROM events_parser
+                SELECT COUNT(*) FROM events
                 WHERE city = :city
                 AND starts_at >= :start_utc
                 AND starts_at < :end_utc
+                AND source IS NOT NULL
             """),
                 {"city": city, "start_utc": start_utc, "end_utc": end_utc},
             ).fetchone()

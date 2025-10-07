@@ -291,16 +291,18 @@ class EventsService:
                 logger.error("Отсутствует обязательное поле 'source' для парсера")
                 return False
 
-            # Подготавливаем данные для upsert в events_parser
+            # Подготавливаем данные для upsert в events (объединенная таблица)
             upsert_sql = """
-                INSERT INTO events_parser (
+                INSERT INTO events (
                     source, external_id, title, starts_at, ends_at,
                     url, location_name, location_url, lat, lng, country, city,
-                    community_name, community_link, created_at_utc, updated_at_utc
+                    community_name, community_link, created_at_utc, updated_at_utc,
+                    is_generated_by_ai, status, current_participants
                 ) VALUES (
                     :source, :external_id, :title, :starts_at, :ends_at,
                     :url, :location_name, :location_url, :lat, :lng, :country, :city,
-                    :community_name, :community_link, NOW(), NOW()
+                    :community_name, :community_link, NOW(), NOW(),
+                    false, 'open', 0
                 )
                 ON CONFLICT (source, external_id)
                 DO UPDATE SET

@@ -40,11 +40,12 @@ def cleanup_old_events(engine, region: str = "bali") -> int:
             {"cutoff_utc": cutoff_utc},
         ).rowcount
 
-        # Удаляем старые парсерные события (оставляем только свежие)
+        # Удаляем старые парсерные события из объединенной таблицы events
         parser_deleted = conn.execute(
             text("""
-            DELETE FROM events_parser
+            DELETE FROM events
             WHERE starts_at < :cutoff_utc
+            AND source IS NOT NULL
         """),
             {"cutoff_utc": cutoff_utc},
         ).rowcount
@@ -97,11 +98,12 @@ def get_active_events_count(engine, region: str = "bali") -> dict:
             {"start_utc": start_utc, "end_utc": end_utc},
         ).fetchone()[0]
 
-        # Парсерные события
+        # Парсерные события (из объединенной таблицы events)
         parser_count = conn.execute(
             text("""
-            SELECT COUNT(*) FROM events_parser
+            SELECT COUNT(*) FROM events
             WHERE starts_at BETWEEN :start_utc AND :end_utc
+            AND source IS NOT NULL
         """),
             {"start_utc": start_utc, "end_utc": end_utc},
         ).fetchone()[0]
