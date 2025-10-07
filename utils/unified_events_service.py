@@ -46,7 +46,8 @@ class UnifiedEventsService:
                     SELECT source, id, title, description, starts_at,
                            city, lat, lng, location_name, location_url, url as event_url,
                            organizer_id, organizer_username, max_participants,
-                           current_participants, status, created_at_utc
+                           current_participants, status, created_at_utc,
+                           country, venue_name, address, geo_hash, starts_at_normalized
                     FROM events
                     WHERE city = :city
                     AND starts_at >= :start_utc
@@ -79,7 +80,8 @@ class UnifiedEventsService:
                     SELECT source, id, title, description, starts_at,
                            city, lat, lng, location_name, location_url, url as event_url,
                            organizer_id, organizer_username, max_participants,
-                           current_participants, status, created_at_utc
+                           current_participants, status, created_at_utc,
+                           country, venue_name, address, geo_hash, starts_at_normalized
                     FROM events
                     WHERE city = :city
                     AND starts_at >= :start_utc
@@ -310,14 +312,13 @@ class UnifiedEventsService:
         url: str = None,
     ) -> int:
         """
-        Сохранение парсерного события (сначала в events_parser, потом синхронизация)
+        Сохранение парсерного события в единую таблицу events
         """
         with self.engine.begin() as conn:
-            # 1. Сохраняем в events_parser
-            # Проверяем дубликаты
+            # Проверяем дубликаты в единой таблице events
             existing = conn.execute(
                 text("""
-                SELECT id FROM events_parser
+                SELECT id FROM events
                 WHERE source = :source AND external_id = :external_id
             """),
                 {"source": source, "external_id": external_id},
@@ -327,10 +328,10 @@ class UnifiedEventsService:
             is_ai = source == "ai"
 
             if existing:
-                # Обновляем существующее событие в events_parser
+                # Обновляем существующее событие в events
                 conn.execute(
                     text("""
-                    UPDATE events_parser
+                    UPDATE events
                     SET title = :title, description = :description, starts_at = :starts_at,
                         city = :city, lat = :lat, lng = :lng, location_name = :location_name,
                         location_url = :location_url, url = :url, country = :country,
@@ -356,15 +357,15 @@ class UnifiedEventsService:
                 event_id = existing[0]
                 print(f"🔄 Обновлено парсерное событие ID {event_id}: '{title}'")
             else:
-                # Создаем новое событие в events_parser
+                # Создаем новое событие в events
                 result = conn.execute(
                     text("""
-                    INSERT INTO events_parser
+                    INSERT INTO events
                     (source, external_id, title, description, starts_at, city, lat, lng,
-                     location_name, location_url, url, country)
+                     location_name, location_url, url, country, is_generated_by_ai, status, current_participants)
                     VALUES
                     (:source, :external_id, :title, :description, :starts_at, :city, :lat, :lng,
-                     :location_name, :location_url, :url, :country)
+                     :location_name, :location_url, :url, :country, :is_ai, 'open', 0)
                     ON CONFLICT (source, external_id) DO UPDATE SET
                         title = EXCLUDED.title,
                         description = EXCLUDED.description,
@@ -391,52 +392,17 @@ class UnifiedEventsService:
                         "location_url": location_url,
                         "url": url,
                         "country": country,
+                        "is_ai": is_ai,
                     },
                 )
 
                 event_id = result.fetchone()[0]
                 print(f"✅ Создано парсерное событие ID {event_id}: '{title}'")
 
-        # 2. Синхронизируем в events в отдельной транзакции
-        try:
-            with self.engine.begin() as sync_conn:
-                sync_query = text("""
-                    INSERT INTO events (
-                        source, external_id, title, description, starts_at, ends_at,
-                        url, location_name, location_url, lat, lng, country, city,
-                        created_at_utc, updated_at_utc, is_generated_by_ai
-                    )
-                    SELECT
-                        source, external_id, title, description, starts_at, NULL as ends_at,
-                        url, location_name, location_url, lat, lng, country, city,
-                        NOW(), NOW(), :is_ai
-                    FROM events_parser
-                    WHERE source = :source AND external_id = :external_id
-                    ON CONFLICT (source, external_id) DO UPDATE SET
-                        title = EXCLUDED.title,
-                        description = EXCLUDED.description,
-                        starts_at = EXCLUDED.starts_at,
-                        ends_at = EXCLUDED.ends_at,
-                        url = EXCLUDED.url,
-                        location_name = EXCLUDED.location_name,
-                        location_url = EXCLUDED.location_url,
-                        lat = EXCLUDED.lat,
-                        lng = EXCLUDED.lng,
-                        country = EXCLUDED.country,
-                        city = EXCLUDED.city,
-                        updated_at_utc = NOW()
-                """)
-
-                sync_conn.execute(sync_query, {"source": source, "external_id": external_id, "is_ai": is_ai})
-
-        except Exception as e:
-            # Игнорируем ошибки дублирования - событие уже есть в основной таблице
-            print(f"⚠️ Событие уже синхронизировано: {e}")
-
         return event_id
 
     def cleanup_old_events(self, city: str) -> int:
-        """Очистка старых событий из всех таблиц"""
+        """Очистка старых событий из единой таблицы events"""
         with self.engine.begin() as conn:
             # Очищаем из основной таблицы events
             events_deleted = conn.execute(
@@ -448,30 +414,6 @@ class UnifiedEventsService:
                 {"city": city},
             ).rowcount
 
-            # Очищаем из events_parser
-            parser_deleted = conn.execute(
-                text("""
-                DELETE FROM events_parser
-                WHERE city = :city
-                AND starts_at < NOW() - INTERVAL '1 day'
-            """),
-                {"city": city},
-            ).rowcount
+            print(f"🧹 Очистка {city}: удалено {events_deleted} событий из единой таблицы events")
 
-            # Очищаем из events_user
-            user_deleted = conn.execute(
-                text("""
-                DELETE FROM events_user
-                WHERE city = :city
-                AND starts_at < NOW() - INTERVAL '1 day'
-            """),
-                {"city": city},
-            ).rowcount
-
-            total_deleted = events_deleted + parser_deleted + user_deleted
-            print(
-                f"🧹 Очистка {city}: удалено {total_deleted} событий "
-                f"(events: {events_deleted}, parser: {parser_deleted}, user: {user_deleted})"
-            )
-
-            return total_deleted
+            return events_deleted
