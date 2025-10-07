@@ -2471,7 +2471,8 @@ async def on_location(message: types.Message, state: FSMContext):
 
                 await message.answer(
                     f"📅 В радиусе {current_radius} км событий на сегодня не найдено.\n\n"
-                    f"💡 Попробуй расширить поиск до {next(iter([r for r in RADIUS_OPTIONS if r > current_radius and r != 5]), '20')} км или создай своё событие!",
+                    f"💡 Попробуй расширить поиск до {next(iter([r for r in RADIUS_OPTIONS if r > current_radius and r != 5]), '20')} км\n"
+                    f"➕ Или создай своё событие и собери свою компанию!",
                     reply_markup=inline_kb,
                 )
 
