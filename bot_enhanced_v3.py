@@ -2402,7 +2402,6 @@ async def on_location(message: types.Message, state: FSMContext):
 
             engine = get_engine()
             events_service = UnifiedEventsService(engine)
-            UserParticipationService(engine)
 
             # Определяем город по координатам
             city = get_city_from_coordinates(lat, lng)
@@ -5408,7 +5407,6 @@ async def handle_expand_radius(callback: types.CallbackQuery):
 
             engine = get_engine()
             events_service = UnifiedEventsService(engine)
-            UserParticipationService(engine)
 
             # Определяем город по координатам
             city = get_city_from_coordinates(lat, lng)
