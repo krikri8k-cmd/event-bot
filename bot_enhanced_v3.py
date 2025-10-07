@@ -3429,7 +3429,7 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
     if not available_tasks:
         await callback.message.edit_text(
             f"🎯 **{category_name}**\n\n"
-            "✅ Все задания этой категории уже взяты!\n\n"
+            "✅ Все задания этой категории уже взяты, завтра будут новые!\n\n"
             "📋 Перейдите в 'Мои квесты' чтобы посмотреть ваши активные задания.",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(
