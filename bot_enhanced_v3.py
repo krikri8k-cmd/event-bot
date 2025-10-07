@@ -616,15 +616,29 @@ async def send_compact_events_list_prepared(
         prepared_events, message.from_user.id, participation_service, page=page + 1, page_size=5
     )
 
+    logger.info(
+        f"🔘 Кнопки участия: {len(participation_keyboard.inline_keyboard) if participation_keyboard.inline_keyboard else 0} рядов"
+    )
+
     text = header_html + "\n\n" + events_text
 
     # Вычисляем total_pages для fallback
     total_pages = max(1, ceil(len(prepared_events) / 5))
 
     # Создаем клавиатуру с кнопками участия и пагинацией
+    inline_kb = None
+
     if participation_keyboard.inline_keyboard:
-        # Добавляем кнопки расширения радиуса к существующим кнопкам
-        inline_kb = participation_keyboard
+        # Объединяем кнопки участия с кнопками пагинации
+        keyboard_buttons = participation_keyboard.inline_keyboard.copy()
+
+        # Добавляем кнопки пагинации, если нужно
+        if total_pages > 1:
+            pager_kb = kb_pager(page + 1, total_pages, int(radius))
+            if pager_kb and pager_kb.inline_keyboard:
+                keyboard_buttons.extend(pager_kb.inline_keyboard)
+
+        inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     else:
         # Создаем клавиатуру пагинации с кнопками расширения радиуса
         inline_kb = kb_pager(page + 1, total_pages, int(radius)) if total_pages > 1 else None
@@ -1136,6 +1150,7 @@ def render_events_with_participation(
             # Добавляем кнопки из клавиатуры участия
             for button_row in participation_buttons.inline_keyboard:
                 keyboard_buttons.append(button_row)
+                logger.info(f"🔘 Добавлены кнопки для события {event_id}: {[btn.text for btn in button_row]}")
 
     # Добавляем кнопки пагинации
     if total_pages > 1:
