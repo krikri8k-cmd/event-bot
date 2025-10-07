@@ -311,11 +311,20 @@ def get_expired_tasks() -> list[UserTask]:
         Список просроченных заданий
     """
     with get_session() as session:
-        expired_tasks = (
-            session.query(UserTask)
-            .filter(and_(UserTask.status == "active", UserTask.expires_at < datetime.now(UTC)))
-            .all()
-        )
+        now = datetime.now(UTC)
+        active_tasks = session.query(UserTask).filter(UserTask.status == "active").all()
+
+        expired_tasks = []
+        for task in active_tasks:
+            # Если нет timezone, считаем что это UTC
+            expires_at = task.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=UTC)
+            else:
+                expires_at = expires_at.astimezone(UTC)
+
+            if now > expires_at:
+                expired_tasks.append(task)
 
         return expired_tasks
 
