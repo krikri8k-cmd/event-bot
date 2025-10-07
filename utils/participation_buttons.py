@@ -15,7 +15,7 @@ def create_participation_buttons(
     maps_url: str = None,
 ) -> InlineKeyboardMarkup:
     """
-    Создает кнопки для участия в событии
+    Создает простую кнопку для добавления события в "Мои события"
 
     Args:
         event_id: ID события
@@ -33,29 +33,15 @@ def create_participation_buttons(
     # Создаем кнопки участия
     participation_buttons = []
 
-    if current_status == "going":
-        # Пользователь уже идет - показываем кнопки изменения статуса и удаления
+    if current_status:
+        # Пользователь уже добавил событие - показываем кнопку удаления
         participation_buttons.append(
-            [
-                InlineKeyboardButton(text="🤔 Возможно", callback_data=f"part_maybe:{event_id}"),
-                InlineKeyboardButton(text="❌ Убрать", callback_data=f"part_remove:{event_id}"),
-            ]
-        )
-    elif current_status == "maybe":
-        # Пользователь возможно идет - показываем кнопки подтверждения и удаления
-        participation_buttons.append(
-            [
-                InlineKeyboardButton(text="✅ Пойду", callback_data=f"part_going:{event_id}"),
-                InlineKeyboardButton(text="❌ Убрать", callback_data=f"part_remove:{event_id}"),
-            ]
+            [InlineKeyboardButton(text="❌ Убрать из моих событий", callback_data=f"part_remove:{event_id}")]
         )
     else:
-        # Пользователь не участвует - показываем кнопки добавления
+        # Пользователь не добавил событие - показываем кнопку добавления
         participation_buttons.append(
-            [
-                InlineKeyboardButton(text="✅ Пойду", callback_data=f"part_going:{event_id}"),
-                InlineKeyboardButton(text="🤔 Возможно", callback_data=f"part_maybe:{event_id}"),
-            ]
+            [InlineKeyboardButton(text="➕ Добавить в мои события", callback_data=f"part_add:{event_id}")]
         )
 
     # Добавляем кнопку карты если нужно

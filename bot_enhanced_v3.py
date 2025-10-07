@@ -616,15 +616,6 @@ async def send_compact_events_list_prepared(
         prepared_events, message.from_user.id, participation_service, page=page + 1, page_size=5
     )
 
-    logger.info(
-        f"🔘 Кнопки участия: {len(participation_keyboard.inline_keyboard) if participation_keyboard.inline_keyboard else 0} рядов"
-    )
-    if participation_keyboard.inline_keyboard:
-        for i, row in enumerate(participation_keyboard.inline_keyboard):
-            logger.info(f"🔘 Ряд {i+1}: {[btn.text for btn in row]}")
-    else:
-        logger.info("🔘 Кнопки участия пустые!")
-
     text = header_html + "\n\n" + events_text
 
     # Вычисляем total_pages для fallback
@@ -1097,10 +1088,7 @@ def render_events_with_participation(
     Returns:
         tuple: (текст сообщения, клавиатура)
     """
-    logger.info(f"🔘 render_events_with_participation вызвана: {len(events)} событий, user_id={user_id}, page={page}")
-
     if not events:
-        logger.info("🔘 Нет событий, возвращаем пустую клавиатуру")
         return "📅 События не найдены", InlineKeyboardMarkup(inline_keyboard=[])
 
     total_pages = max(1, ceil(len(events) / page_size))
@@ -1129,10 +1117,8 @@ def render_events_with_participation(
 
         # Добавляем индикатор участия
         status_emoji = ""
-        if participation_status == "going":
-            status_emoji = "✅ "
-        elif participation_status == "maybe":
-            status_emoji = "🤔 "
+        if participation_status:
+            status_emoji = "➕ "
 
         # Формируем текст события
         event_text = f"{status_emoji}{idx}) **{title}** – {time_str}"
@@ -1158,7 +1144,6 @@ def render_events_with_participation(
             # Добавляем кнопки из клавиатуры участия
             for button_row in participation_buttons.inline_keyboard:
                 keyboard_buttons.append(button_row)
-                logger.info(f"🔘 Добавлены кнопки для события {event_id}: {[btn.text for btn in button_row]}")
 
     # Добавляем кнопки пагинации
     if total_pages > 1:
@@ -2793,9 +2778,8 @@ async def on_my_events(message: types.Message):
     engine = get_engine()
     participation_service = UserParticipationService(engine)
 
-    # Получаем события с участием
-    going_events = participation_service.get_user_participations(user_id, "going")
-    maybe_events = participation_service.get_user_participations(user_id, "maybe")
+    # Получаем события с участием (все добавленные события)
+    all_participations = participation_service.get_user_participations(user_id)
 
     # Формируем текст сообщения
     text_parts = ["📋 **Мои события:**\n"]
@@ -2814,10 +2798,10 @@ async def on_my_events(message: types.Message):
             if len(active_events) > 3:
                 text_parts.append(f"... и еще {len(active_events) - 3} событий")
 
-    # События, куда иду
-    if going_events:
-        text_parts.append(f"\n✅ **Куда иду ({len(going_events)}):**")
-        for i, event in enumerate(going_events[:3], 1):
+    # Добавленные события
+    if all_participations:
+        text_parts.append(f"\n➕ **Добавленные ({len(all_participations)}):**")
+        for i, event in enumerate(all_participations[:3], 1):
             title = event.get("title", "Без названия")
             starts_at = event.get("starts_at")
             if starts_at:
@@ -2826,26 +2810,11 @@ async def on_my_events(message: types.Message):
                 time_str = "Время уточняется"
             text_parts.append(f"{i}) **{title}** – {time_str}")
 
-        if len(going_events) > 3:
-            text_parts.append(f"... и еще {len(going_events) - 3} событий")
-
-    # События, которые интересны
-    if maybe_events:
-        text_parts.append(f"\n🤔 **Интересные ({len(maybe_events)}):**")
-        for i, event in enumerate(maybe_events[:3], 1):
-            title = event.get("title", "Без названия")
-            starts_at = event.get("starts_at")
-            if starts_at:
-                time_str = starts_at.strftime("%H:%M")
-            else:
-                time_str = "Время уточняется"
-            text_parts.append(f"{i}) **{title}** – {time_str}")
-
-        if len(maybe_events) > 3:
-            text_parts.append(f"... и еще {len(maybe_events) - 3} событий")
+        if len(all_participations) > 3:
+            text_parts.append(f"... и еще {len(all_participations) - 3} событий")
 
     # Если нет событий вообще
-    if not events and not going_events and not maybe_events:
+    if not events and not all_participations:
         text_parts = [
             "📋 **Мои события:**\n",
             "У вас пока нет событий.\n\n",
@@ -2862,8 +2831,10 @@ async def on_my_events(message: types.Message):
     if events:
         keyboard_buttons.append([InlineKeyboardButton(text="🔧 Управление событиями", callback_data="manage_events")])
 
-    if going_events or maybe_events:
-        keyboard_buttons.append([InlineKeyboardButton(text="📋 Все мои участия", callback_data="view_participations")])
+    if all_participations:
+        keyboard_buttons.append(
+            [InlineKeyboardButton(text="📋 Все добавленные события", callback_data="view_participations")]
+        )
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons) if keyboard_buttons else main_menu_kb()
 
@@ -2873,7 +2844,9 @@ async def on_my_events(message: types.Message):
     except Exception as e:
         logger.error(f"❌ on_my_events: ошибка отправки сообщения: {e}")
         # Fallback - отправляем простой список
-        simple_text = f"📋 Ваши события: созданных {len(events) if events else 0}, иду {len(going_events)}, интересных {len(maybe_events)}"
+        simple_text = (
+            f"📋 Ваши события: созданных {len(events) if events else 0}, добавленных {len(all_participations)}"
+        )
         await message.answer(simple_text, reply_markup=main_menu_kb())
 
 
@@ -6267,9 +6240,9 @@ except Exception as e:
 # ===== ОБРАБОТЧИКИ УЧАСТИЯ В СОБЫТИЯХ =====
 
 
-@dp.callback_query(F.data.startswith("part_going:"))
-async def handle_participation_going(callback: types.CallbackQuery):
-    """Обработчик кнопки 'Пойду'"""
+@dp.callback_query(F.data.startswith("part_add:"))
+async def handle_participation_add(callback: types.CallbackQuery):
+    """Обработчик кнопки 'Добавить в мои события'"""
     try:
         event_id = int(callback.data.split(":")[1])
         user_id = callback.from_user.id
@@ -6280,40 +6253,18 @@ async def handle_participation_going(callback: types.CallbackQuery):
         success = participation_service.add_participation(user_id, event_id, "going")
 
         if success:
-            await callback.answer("✅ Отлично! Вы идете на событие")
+            await callback.answer("✅ Событие добавлено в мои события")
         else:
             await callback.answer("❌ Ошибка при сохранении")
 
     except Exception as e:
-        logger.error(f"❌ Ошибка обработки участия 'going': {e}")
-        await callback.answer("Произошла ошибка")
-
-
-@dp.callback_query(F.data.startswith("part_maybe:"))
-async def handle_participation_maybe(callback: types.CallbackQuery):
-    """Обработчик кнопки 'Возможно'"""
-    try:
-        event_id = int(callback.data.split(":")[1])
-        user_id = callback.from_user.id
-
-        engine = get_engine()
-        participation_service = UserParticipationService(engine)
-
-        success = participation_service.add_participation(user_id, event_id, "maybe")
-
-        if success:
-            await callback.answer("🤔 Понятно, возможно придете")
-        else:
-            await callback.answer("❌ Ошибка при сохранении")
-
-    except Exception as e:
-        logger.error(f"❌ Ошибка обработки участия 'maybe': {e}")
+        logger.error(f"❌ Ошибка добавления события: {e}")
         await callback.answer("Произошла ошибка")
 
 
 @dp.callback_query(F.data.startswith("part_remove:"))
 async def handle_participation_remove(callback: types.CallbackQuery):
-    """Обработчик кнопки 'Убрать'"""
+    """Обработчик кнопки 'Убрать из моих событий'"""
     try:
         event_id = int(callback.data.split(":")[1])
         user_id = callback.from_user.id
@@ -6324,7 +6275,7 @@ async def handle_participation_remove(callback: types.CallbackQuery):
         success = participation_service.remove_participation(user_id, event_id)
 
         if success:
-            await callback.answer("❌ Убрано из ваших событий")
+            await callback.answer("❌ Убрано из моих событий")
         else:
             await callback.answer("❌ Ошибка при удалении")
 
@@ -6349,36 +6300,17 @@ async def handle_view_participations(callback: types.CallbackQuery):
             await callback.answer("У вас пока нет событий с участием")
             return
 
-        # Разделяем по типам
-        going_events = [p for p in all_participations if p.get("participation_type") == "going"]
-        maybe_events = [p for p in all_participations if p.get("participation_type") == "maybe"]
+        text_parts = ["📋 **Все добавленные события:**\n"]
 
-        text_parts = ["📋 **Все мои участия:**\n"]
-
-        if going_events:
-            text_parts.append(f"✅ **Куда иду ({len(going_events)}):**")
-            for i, event in enumerate(going_events, 1):
-                title = event.get("title", "Без названия")
-                starts_at = event.get("starts_at")
-                if starts_at:
-                    time_str = starts_at.strftime("%H:%M")
-                else:
-                    time_str = "Время уточняется"
-                location = event.get("location_name", "Место уточняется")
-                text_parts.append(f"{i}) **{title}** – {time_str}\n📍 {location}")
-            text_parts.append("")
-
-        if maybe_events:
-            text_parts.append(f"🤔 **Интересные ({len(maybe_events)}):**")
-            for i, event in enumerate(maybe_events, 1):
-                title = event.get("title", "Без названия")
-                starts_at = event.get("starts_at")
-                if starts_at:
-                    time_str = starts_at.strftime("%H:%M")
-                else:
-                    time_str = "Время уточняется"
-                location = event.get("location_name", "Место уточняется")
-                text_parts.append(f"{i}) **{title}** – {time_str}\n📍 {location}")
+        for i, event in enumerate(all_participations, 1):
+            title = event.get("title", "Без названия")
+            starts_at = event.get("starts_at")
+            if starts_at:
+                time_str = starts_at.strftime("%H:%M")
+            else:
+                time_str = "Время уточняется"
+            location = event.get("location_name", "Место уточняется")
+            text_parts.append(f"{i}) **{title}** – {time_str}\n📍 {location}")
 
         text = "\n".join(text_parts)
 
