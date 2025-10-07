@@ -1261,6 +1261,7 @@ class EventEditing(StatesGroup):
     waiting_for_title = State()
     waiting_for_date = State()
     waiting_for_time = State()
+    waiting_for_location_type = State()  # Новое состояние для выбора типа локации
     waiting_for_location = State()
     waiting_for_description = State()
 
@@ -1324,6 +1325,15 @@ def update_event_field(event_id: int, field: str, value: str, user_id: int) -> b
             elif field == "description":
                 event.description = value
                 logging.info(f"Обновлено описание события {event_id}: '{value}'")
+            elif field == "location_url":
+                event.location_url = value
+                logging.info(f"Обновлен URL локации события {event_id}: '{value}'")
+            elif field == "lat":
+                event.lat = float(value)
+                logging.info(f"Обновлена широта события {event_id}: {value}")
+            elif field == "lng":
+                event.lng = float(value)
+                logging.info(f"Обновлена долгота события {event_id}: {value}")
             else:
                 logging.error(f"Неизвестное поле для обновления: {field}")
                 return False
@@ -5938,9 +5948,64 @@ async def handle_edit_time_choice(callback: types.CallbackQuery, state: FSMConte
 
 @dp.callback_query(F.data.startswith("edit_location_"))
 async def handle_edit_location_choice(callback: types.CallbackQuery, state: FSMContext):
-    """Выбор редактирования локации"""
+    """Выбор редактирования локации - показываем меню выбора типа"""
+    event_id = int(callback.data.split("_")[-1])
+
+    # Сохраняем ID события в состоянии
+    await state.update_data(event_id=event_id)
+    await state.set_state(EventEditing.waiting_for_location_type)
+
+    # Создаем клавиатуру для выбора типа локации (как при создании)
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="edit_location_link")],
+            [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="edit_location_map")],
+            [InlineKeyboardButton(text="📍 Ввести координаты", callback_data="edit_location_coords")],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data=f"edit_event_{event_id}")],
+        ]
+    )
+
+    await callback.message.answer(
+        "📍 **Выберите способ указания локации:**\n\n"
+        "🔗 **Готовая ссылка** - вставьте ссылку из Google Maps\n"
+        "🌍 **Поиск на карте** - откроется Google Maps для поиска\n"
+        "📍 **Координаты** - введите широту и долготу",
+        parse_mode="Markdown",
+        reply_markup=keyboard,
+    )
+    await callback.answer()
+
+
+# Обработчики для редактирования локации
+@dp.callback_query(F.data == "edit_location_link")
+async def handle_edit_location_link_choice(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор ввода готовой ссылки для редактирования"""
     await state.set_state(EventEditing.waiting_for_location)
-    await callback.message.answer("📍 Введите новое место проведения:")
+    await callback.message.answer("🔗 Вставьте сюда ссылку из Google Maps:")
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "edit_location_map")
+async def handle_edit_location_map_choice(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор поиска на карте для редактирования"""
+    # Создаем кнопку для открытия Google Maps
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text="🌍 Открыть Google Maps", url="https://www.google.com/maps")]]
+    )
+
+    await state.set_state(EventEditing.waiting_for_location)
+    await callback.message.answer("🌍 Открой карту, найди место и вставь ссылку сюда 👇", reply_markup=keyboard)
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "edit_location_coords")
+async def handle_edit_location_coords_choice(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор ввода координат для редактирования"""
+    await state.set_state(EventEditing.waiting_for_location)
+    await callback.message.answer(
+        "📍 Введите координаты в формате: **широта, долгота**\n\n" "Например: 55.7558, 37.6176\n" "Или: -8.67, 115.21",
+        parse_mode="Markdown",
+    )
     await callback.answer()
 
 
@@ -6063,21 +6128,85 @@ async def handle_time_input(message: types.Message, state: FSMContext):
 
 @dp.message(EventEditing.waiting_for_location)
 async def handle_location_input(message: types.Message, state: FSMContext):
-    """Обработка ввода новой локации"""
+    """Обработка ввода новой локации (ссылка, координаты или текст)"""
     data = await state.get_data()
     event_id = data.get("event_id")
 
-    if event_id and message.text:
-        success = update_event_field(event_id, "location_name", message.text.strip(), message.from_user.id)
+    if not event_id or not message.text:
+        await message.answer("❌ Введите корректную локацию")
+        return
+
+    location_input = message.text.strip()
+    logger.info(f"handle_location_input: редактирование локации для события {event_id}, ввод: {location_input}")
+
+    # Проверяем, является ли это Google Maps ссылкой
+    if any(domain in location_input.lower() for domain in ["maps.google.com", "goo.gl/maps", "maps.app.goo.gl"]):
+        # Парсим ссылку Google Maps
+        from utils.geo_utils import parse_google_maps_link
+
+        location_data = parse_google_maps_link(location_input)
+
+        if location_data:
+            # Обновляем событие с данными из ссылки
+            success = update_event_field(
+                event_id, "location_name", location_data.get("name", "Место на карте"), message.from_user.id
+            )
+            if success:
+                # Обновляем URL и координаты
+                update_event_field(event_id, "location_url", location_input, message.from_user.id)
+                if location_data.get("lat") and location_data.get("lng"):
+                    update_event_field(event_id, "lat", location_data.get("lat"), message.from_user.id)
+                    update_event_field(event_id, "lng", location_data.get("lng"), message.from_user.id)
+
+                await message.answer(
+                    f"✅ Локация обновлена: *{location_data.get('name', 'Место на карте')}*", parse_mode="Markdown"
+                )
+            else:
+                await message.answer("❌ Ошибка при обновлении локации")
+        else:
+            await message.answer(
+                "❌ Не удалось распознать ссылку Google Maps.\n\n"
+                "Попробуйте:\n"
+                "• Скопировать ссылку из приложения Google Maps\n"
+                "• Или ввести координаты в формате: широта, долгота"
+            )
+
+    # Проверяем, являются ли это координаты (широта, долгота)
+    elif "," in location_input and len(location_input.split(",")) == 2:
+        try:
+            lat_str, lng_str = location_input.split(",")
+            lat = float(lat_str.strip())
+            lng = float(lng_str.strip())
+
+            # Проверяем валидность координат
+            if -90 <= lat <= 90 and -180 <= lng <= 180:
+                # Обновляем событие с координатами
+                success = update_event_field(event_id, "location_name", "Место по координатам", message.from_user.id)
+                if success:
+                    update_event_field(event_id, "lat", lat, message.from_user.id)
+                    update_event_field(event_id, "lng", lng, message.from_user.id)
+                    update_event_field(event_id, "location_url", location_input, message.from_user.id)
+
+                    await message.answer(f"✅ Локация обновлена: *{lat:.6f}, {lng:.6f}*", parse_mode="Markdown")
+                else:
+                    await message.answer("❌ Ошибка при обновлении локации")
+            else:
+                await message.answer("❌ Координаты вне допустимого диапазона")
+        except ValueError:
+            await message.answer("❌ Неверный формат координат. Используйте: широта, долгота")
+
+    else:
+        # Обычный текст - обновляем только название
+        success = update_event_field(event_id, "location_name", location_input, message.from_user.id)
         if success:
-            await message.answer("✅ Локация обновлена!")
-            keyboard = edit_event_keyboard(event_id)
-            await message.answer("Выберите, что еще хотите изменить:", reply_markup=keyboard)
-            await state.set_state(EventEditing.choosing_field)
+            await message.answer(f"✅ Локация обновлена: *{location_input}*", parse_mode="Markdown")
         else:
             await message.answer("❌ Ошибка при обновлении локации")
-    else:
-        await message.answer("❌ Введите корректную локацию")
+
+    # Возвращаемся к меню редактирования
+    keyboard = edit_event_keyboard(event_id)
+    await message.answer("Выберите, что еще хотите изменить:", reply_markup=keyboard)
+    await state.set_state(EventEditing.choosing_field)
 
 
 @dp.message(EventEditing.waiting_for_description)
