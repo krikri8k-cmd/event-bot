@@ -3399,6 +3399,7 @@ async def handle_task_cancel(callback: types.CallbackQuery):
 async def handle_task_category_selection(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик выбора категории задания"""
     category = callback.data.split(":")[1]
+    user_id = callback.from_user.id
 
     # Получаем 3 задания на сегодня для выбранной категории
     tasks = get_daily_tasks(category)
@@ -3408,10 +3409,39 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
         await callback.answer()
         return
 
-    # Создаем клавиатуру с заданиями
+    # Получаем активные задания пользователя для фильтрации
+    active_tasks = get_user_active_tasks(user_id)
+    active_task_ids = {active_task["task_id"] for active_task in active_tasks}
+
+    # Фильтруем уже взятые задания
+    available_tasks = [task for task in tasks if task.id not in active_task_ids]
+
+    # Создаем клавиатуру с доступными заданиями
     keyboard = []
-    for task in tasks:
+    for task in available_tasks:
         keyboard.append([InlineKeyboardButton(text=f"📋 {task.title}", callback_data=f"task_detail:{task.id}")])
+
+    # Определяем названия категорий
+    category_names = {"body": "💪 Тело", "spirit": "🧘 Дух"}
+    category_name = category_names.get(category, category)
+
+    # Если все задания взяты, показываем сообщение
+    if not available_tasks:
+        await callback.message.edit_text(
+            f"🎯 **{category_name}**\n\n"
+            "✅ Все задания этой категории уже взяты!\n\n"
+            "📋 Перейдите в 'Мои квесты' чтобы посмотреть ваши активные задания.",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="📋 Мои квесты", callback_data="my_tasks")],
+                    [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_tasks")],
+                    [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+                ]
+            ),
+        )
+        await callback.answer()
+        return
 
     # Добавляем кнопки управления
     keyboard.append(
@@ -3422,9 +3452,6 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
     )
 
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-    category_names = {"body": "💪 Тело", "spirit": "🧘 Дух"}
-    category_name = category_names.get(category, category)
 
     await callback.message.edit_text(
         f"🎯 **{category_name}**\n\n" "Выберите задание для получения подробной информации:",
@@ -3439,6 +3466,7 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
 async def handle_task_detail(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик просмотра деталей задания"""
     task_id = int(callback.data.split(":")[1])
+    user_id = callback.from_user.id
 
     with get_session() as session:
         from database import Task
@@ -3449,6 +3477,10 @@ async def handle_task_detail(callback: types.CallbackQuery, state: FSMContext):
             await callback.message.edit_text("❌ Задание не найдено.")
             await callback.answer()
             return
+
+        # Проверяем, есть ли у пользователя уже это задание
+        active_tasks = get_user_active_tasks(user_id)
+        user_has_task = any(active_task["task_id"] == task_id for active_task in active_tasks)
 
         # Формируем сообщение с деталями задания
         message = f"📋 **{task.title}**\n\n"
@@ -3461,17 +3493,26 @@ async def handle_task_detail(callback: types.CallbackQuery, state: FSMContext):
         # Создаем клавиатуру
         keyboard = []
 
-        if task.location_url:
+        if task.location_url and not user_has_task:
             keyboard.append(
                 [InlineKeyboardButton(text="📍 Вставить свою локацию", callback_data=f"task_custom_location:{task_id}")]
             )
 
-        keyboard.extend(
-            [
-                [InlineKeyboardButton(text="✅ Принять задание", callback_data=f"task_accept:{task_id}")],
-                [InlineKeyboardButton(text="◀️ Назад", callback_data=f"task_category:{task.category}")],
-            ]
-        )
+        # Показываем разные кнопки в зависимости от статуса задания
+        if user_has_task:
+            keyboard.extend(
+                [
+                    [InlineKeyboardButton(text="✅ Задание взято", callback_data=f"task_already_taken:{task_id}")],
+                    [InlineKeyboardButton(text="◀️ Назад", callback_data=f"task_category:{task.category}")],
+                ]
+            )
+        else:
+            keyboard.extend(
+                [
+                    [InlineKeyboardButton(text="✅ Принять задание", callback_data=f"task_accept:{task_id}")],
+                    [InlineKeyboardButton(text="◀️ Назад", callback_data=f"task_category:{task.category}")],
+                ]
+            )
 
         reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
@@ -3479,6 +3520,24 @@ async def handle_task_detail(callback: types.CallbackQuery, state: FSMContext):
             message, parse_mode="Markdown", reply_markup=reply_markup, disable_web_page_preview=True
         )
         await callback.answer()
+
+
+@dp.callback_query(F.data.startswith("task_already_taken:"))
+async def handle_task_already_taken(callback: types.CallbackQuery):
+    """Обработчик кнопки 'Задание взято'"""
+    await callback.message.edit_text(
+        "✅ **Задание уже взято!**\n\n"
+        "Вы уже выполняете это задание.\n\n"
+        "📋 Перейдите в 'Мои квесты' чтобы посмотреть детали и управлять заданием.",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="📋 Мои квесты", callback_data="my_tasks")],
+                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+            ]
+        ),
+    )
+    await callback.answer()
 
 
 @dp.callback_query(F.data.startswith("task_accept:"))
