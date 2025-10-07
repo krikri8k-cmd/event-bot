@@ -563,21 +563,13 @@ async def send_compact_events_list_prepared(
     user_lng: float,
     page: int = 0,
     user_radius: float = None,
-    participation_service=None,
 ):
     """
     Отправляет компактный список уже подготовленных событий с пагинацией в HTML формате
     """
     from config import load_settings
-    from database import get_engine
-    from utils.user_participation_service import UserParticipationService
 
     settings = load_settings()
-
-    # Создаем participation_service если не передан
-    if participation_service is None:
-        engine = get_engine()
-        participation_service = UserParticipationService(engine)
 
     # Используем радиус пользователя или дефолтный
     radius = get_user_radius(message.from_user.id, settings.default_radius_km)
@@ -612,17 +604,9 @@ async def send_compact_events_list_prepared(
         "region": region,
     }
 
-    # Создаем сервис участия
-    engine = get_engine()
-    participation_service = UserParticipationService(engine)
-
-    # Рендерим страницу с кнопками участия
+    # Рендерим страницу
     header_html = render_header(counts, radius_km=int(radius))
-
-    # Используем новую функцию для отображения событий с кнопками участия
-    events_text, participation_keyboard = render_events_with_participation(
-        prepared_events, message.from_user.id, participation_service, page=page + 1, page_size=5
-    )
+    events_text, total_pages = render_page(prepared_events, page + 1, page_size=5)
 
     # Отладочная информация
 
@@ -631,32 +615,17 @@ async def send_compact_events_list_prepared(
     # Вычисляем total_pages для fallback
     total_pages = max(1, ceil(len(prepared_events) / 5))
 
-    # Создаем клавиатуру с кнопками участия и пагинацией
-    inline_kb = None
-
-    if participation_keyboard.inline_keyboard:
-        # Объединяем кнопки участия с кнопками пагинации
-        keyboard_buttons = participation_keyboard.inline_keyboard.copy()
-
-        # Добавляем кнопки пагинации, если нужно
-        if total_pages > 1:
-            pager_kb = kb_pager(page + 1, total_pages, int(radius))
-            if pager_kb and pager_kb.inline_keyboard:
-                keyboard_buttons.extend(pager_kb.inline_keyboard)
-
-        inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-    else:
-        # Создаем клавиатуру пагинации с кнопками расширения радиуса
-        inline_kb = kb_pager(page + 1, total_pages, int(radius)) if total_pages > 1 else None
+    # Создаем клавиатуру с кнопками пагинации и расширения радиуса
+    keyboard = kb_pager(page + 1, total_pages, int(radius))
 
     try:
         # Отправляем компактный список событий в HTML формате
-        await message.answer(text, reply_markup=inline_kb, parse_mode="HTML", disable_web_page_preview=True)
+        await message.answer(text, reply_markup=keyboard, parse_mode="HTML", disable_web_page_preview=True)
         logger.info(f"✅ Страница {page + 1} событий отправлена (HTML)")
     except Exception as e:
         logger.error(f"❌ Ошибка отправки страницы {page + 1}: {e}")
         # Fallback - отправляем без форматирования
-        await message.answer(f"📋 События (страница {page + 1} из {total_pages}):\n\n{text}", reply_markup=inline_kb)
+        await message.answer(f"📋 События (страница {page + 1} из {total_pages}):\n\n{text}", reply_markup=keyboard)
 
 
 async def send_compact_events_list(
@@ -2433,7 +2402,7 @@ async def on_location(message: types.Message, state: FSMContext):
 
             engine = get_engine()
             events_service = UnifiedEventsService(engine)
-            participation_service = UserParticipationService(engine)
+            UserParticipationService(engine)
 
             # Определяем город по координатам
             city = get_city_from_coordinates(lat, lng)
@@ -2748,16 +2717,7 @@ async def on_location(message: types.Message, state: FSMContext):
 
             # ВСЕГДА отправляем компактный список событий, независимо от проблем с картой
             try:
-                # Создаем participation_service для кнопок участия
-                from database import get_engine
-                from utils.user_participation_service import UserParticipationService
-
-                engine = get_engine()
-                participation_service = UserParticipationService(engine)
-
-                await send_compact_events_list_prepared(
-                    message, prepared, lat, lng, page=0, user_radius=radius, participation_service=participation_service
-                )
+                await send_compact_events_list_prepared(message, prepared, lat, lng, page=0, user_radius=radius)
                 logger.info("✅ Компактный список событий отправлен")
                 # Отправляем главное меню после списка событий
                 await send_spinning_menu(message)
@@ -5356,21 +5316,11 @@ async def handle_pagination(callback: types.CallbackQuery):
         counts = state["counts"]
         current_radius = state.get("radius", 5)
 
-        # Рендерим страницу с кнопками участия
-        from database import get_engine
-        from utils.user_participation_service import UserParticipationService
+        # Рендерим страницу
+        page_html, total_pages = render_page(prepared, page, page_size=5)
 
-        engine = get_engine()
-        participation_service = UserParticipationService(engine)
-
-        page_html, participation_keyboard = render_events_with_participation(
-            prepared, callback.from_user.id, participation_service, page=page, page_size=5
-        )
-
-        # Комбинируем кнопки участия с пагинацией
-        combined_keyboard = combine_participation_and_pagination_keyboards(
-            participation_keyboard, page, len(prepared), current_radius
-        )
+        # Создаем клавиатуру пагинации
+        combined_keyboard = kb_pager(page, total_pages, current_radius)
 
         # Обновляем сообщение с защитой от ошибок
         try:
@@ -5458,7 +5408,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
 
             engine = get_engine()
             events_service = UnifiedEventsService(engine)
-            participation_service = UserParticipationService(engine)
+            UserParticipationService(engine)
 
             # Определяем город по координатам
             city = get_city_from_coordinates(lat, lng)
@@ -5546,21 +5496,12 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         except Exception:
             pass  # Игнорируем ошибки удаления
 
-        # Рендерим первую страницу с кнопками участия
-        from utils.user_participation_service import UserParticipationService
-
-        participation_service = UserParticipationService(engine)
-
+        # Рендерим первую страницу
         header_html = render_header(counts, radius_km=new_radius)
-        page_html, participation_keyboard = render_events_with_participation(
-            prepared, callback.from_user.id, participation_service, page=1, page_size=5
-        )
+        page_html, total_pages = render_page(prepared, page=1, page_size=5)
 
-        # Комбинируем кнопки участия с пагинацией
-        max(1, ceil(len(prepared) / 5))
-        combined_keyboard = combine_participation_and_pagination_keyboards(
-            participation_keyboard, 1, len(prepared), new_radius
-        )
+        # Создаем клавиатуру пагинации
+        combined_keyboard = kb_pager(1, total_pages, new_radius)
 
         # Обновляем сообщение с защитой от ошибок
         try:
