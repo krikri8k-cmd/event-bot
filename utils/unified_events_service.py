@@ -236,25 +236,35 @@ class UnifiedEventsService:
         organizer_username: str = None,
     ) -> int:
         """
-        Создание пользовательского события (сначала в events_user, потом синхронизация)
+        Создание пользовательского события в единую таблицу events
         """
         with self.engine.begin() as conn:
-            # 1. Создаем в events_user
+            # Создаем событие напрямую в events
             user_event_query = text("""
-                INSERT INTO events_user
-                (organizer_id, organizer_username, title, description, starts_at, city, lat, lng,
-                 location_name, location_url, max_participants, country, chat_id)
-                VALUES
-                (:organizer_id, :organizer_username, :title, :description, :starts_at, :city, :lat, :lng,
-                 :location_name, :location_url, :max_participants, :country, :chat_id)
+                INSERT INTO events (
+                    source, external_id, title, description, starts_at, ends_at,
+                    url, location_name, location_url, lat, lng, country, city,
+                    organizer_id, organizer_username, max_participants, current_participants,
+                    participants_ids, status, created_at_utc, updated_at_utc, is_generated_by_ai, chat_id
+                )
+                VALUES (
+                    'user', :external_id, :title, :description, :starts_at, NULL,
+                    NULL, :location_name, :location_url, :lat, :lng, :country, :city,
+                    :organizer_id, :organizer_username, :max_participants, 0,
+                    NULL, 'open', NOW(), NOW(), false, :chat_id
+                )
                 RETURNING id
             """)
 
             country = "ID" if city == "bali" else "RU"
 
+            # Генерируем уникальный external_id для пользовательского события
+            external_id = f"user_{organizer_id}_{int(starts_at_utc.timestamp())}"
+
             user_result = conn.execute(
                 user_event_query,
                 {
+                    "external_id": external_id,
                     "organizer_id": organizer_id,
                     "organizer_username": organizer_username,
                     "title": title,
@@ -272,27 +282,6 @@ class UnifiedEventsService:
             )
 
             user_event_id = user_result.fetchone()[0]
-
-            # 2. Синхронизируем в events
-            sync_query = text("""
-                INSERT INTO events (
-                    source, external_id, title, description, starts_at, ends_at,
-                    url, location_name, location_url, lat, lng, country, city,
-                    organizer_id, organizer_username, max_participants, current_participants,
-                    participants_ids, status, created_at_utc, updated_at_utc, is_generated_by_ai, chat_id
-                )
-                SELECT
-                    'user' as source,
-                    id::text as external_id,
-                    title, description, starts_at, NULL as ends_at,
-                    NULL as url, location_name, location_url, lat, lng, country, city,
-                    organizer_id, organizer_username, max_participants, 0 as current_participants,
-                    NULL as participants_ids, 'open' as status, NOW(), NOW(), false as is_generated_by_ai, chat_id
-                FROM events_user
-                WHERE id = :user_event_id
-            """)
-
-            conn.execute(sync_query, {"user_event_id": user_event_id})
 
             print(f"✅ Создано пользовательское событие ID {user_event_id}: '{title}'")
             return user_event_id
