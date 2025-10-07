@@ -2676,14 +2676,14 @@ async def on_my_events(message: types.Message):
                 event.get("starts_at")
                 location = event.get("location_name", "Место уточняется")
 
-                # Форматируем время создания события в местном времени
-                created_at = event.get("created_at_utc")
-                if created_at:
+                # Форматируем время проведения события (которое указал пользователь)
+                starts_at = event.get("starts_at")
+                if starts_at:
                     # Конвертируем UTC в местное время Бали
                     import pytz
 
                     tz_bali = pytz.timezone("Asia/Makassar")  # UTC+8
-                    local_time = created_at.astimezone(tz_bali)
+                    local_time = starts_at.astimezone(tz_bali)
                     time_str = local_time.strftime("%d.%m.%Y %H:%M")
                 else:
                     time_str = "Время уточняется"
@@ -2698,13 +2698,13 @@ async def on_my_events(message: types.Message):
         text_parts.append(f"\n➕ **Добавленные ({len(all_participations)}):**")
         for i, event in enumerate(all_participations[:3], 1):
             title = event.get("title", "Без названия")
-            created_at = event.get("created_at_utc")
-            if created_at:
+            starts_at = event.get("starts_at")
+            if starts_at:
                 # Конвертируем UTC в местное время Бали
                 import pytz
 
                 tz_bali = pytz.timezone("Asia/Makassar")  # UTC+8
-                local_time = created_at.astimezone(tz_bali)
+                local_time = starts_at.astimezone(tz_bali)
                 time_str = local_time.strftime("%H:%M")
             else:
                 time_str = "Время уточняется"
