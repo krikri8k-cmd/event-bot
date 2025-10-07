@@ -619,6 +619,11 @@ async def send_compact_events_list_prepared(
     logger.info(
         f"🔘 Кнопки участия: {len(participation_keyboard.inline_keyboard) if participation_keyboard.inline_keyboard else 0} рядов"
     )
+    if participation_keyboard.inline_keyboard:
+        for i, row in enumerate(participation_keyboard.inline_keyboard):
+            logger.info(f"🔘 Ряд {i+1}: {[btn.text for btn in row]}")
+    else:
+        logger.info("🔘 Кнопки участия пустые!")
 
     text = header_html + "\n\n" + events_text
 
@@ -1092,7 +1097,10 @@ def render_events_with_participation(
     Returns:
         tuple: (текст сообщения, клавиатура)
     """
+    logger.info(f"🔘 render_events_with_participation вызвана: {len(events)} событий, user_id={user_id}, page={page}")
+
     if not events:
+        logger.info("🔘 Нет событий, возвращаем пустую клавиатуру")
         return "📅 События не найдены", InlineKeyboardMarkup(inline_keyboard=[])
 
     total_pages = max(1, ceil(len(events) / page_size))
