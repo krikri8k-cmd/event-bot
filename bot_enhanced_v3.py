@@ -2714,7 +2714,7 @@ async def on_my_events(message: types.Message):
                 else:
                     time_str = "Время уточняется"
 
-                text_parts.append(f"{i}) **{title}**\n🕐 {time_str}\n📍 {location}")
+                text_parts.append(f"{i}) **{title}**\n🕐 {time_str}\n📍 {location}\n")
 
             if len(active_events) > 3:
                 text_parts.append(f"... и еще {len(active_events) - 3} событий")
