@@ -3162,6 +3162,16 @@ async def on_my_tasks(message: types.Message):
     """Обработчик кнопки 'Мои квесты'"""
     user_id = message.from_user.id
 
+    # Очищаем просроченные задания перед показом
+    from tasks_service import mark_tasks_as_expired
+
+    try:
+        expired_count = mark_tasks_as_expired()
+        if expired_count > 0:
+            logger.info(f"Пользователь {user_id}: помечено как истекшие {expired_count} заданий")
+    except Exception as e:
+        logger.error(f"Ошибка очистки просроченных заданий для пользователя {user_id}: {e}")
+
     # Получаем активные задания пользователя
     active_tasks = get_user_active_tasks(user_id)
 
@@ -5596,8 +5606,19 @@ async def main():
 
     # Запускаем фоновую задачу для очистки моментов
     from config import load_settings
+    from tasks_service import mark_tasks_as_expired
 
     load_settings()
+
+    # Очищаем просроченные задания при старте
+    try:
+        expired_count = mark_tasks_as_expired()
+        if expired_count > 0:
+            logger.info(f"При старте помечено как истекшие: {expired_count} заданий")
+        else:
+            logger.info("При старте просроченных заданий не найдено")
+    except Exception as e:
+        logger.error(f"Ошибка очистки просроченных заданий при старте: {e}")
 
     # Читаем переменные окружения
     RUN_MODE = os.getenv("BOT_RUN_MODE", "webhook")

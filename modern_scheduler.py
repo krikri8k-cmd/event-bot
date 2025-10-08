@@ -285,6 +285,22 @@ class ModernEventScheduler:
         duration = time.time() - start_time
         logger.info(f"✅ === ЦИКЛ ЗАВЕРШЕН ЗА {duration:.1f}с ===")
 
+    def cleanup_expired_tasks(self):
+        """Очистка просроченных заданий"""
+        try:
+            from tasks_service import mark_tasks_as_expired
+
+            logger.info("🧹 Запуск очистки просроченных заданий...")
+            expired_count = mark_tasks_as_expired()
+
+            if expired_count > 0:
+                logger.info(f"✅ Помечено как истекшие: {expired_count} заданий")
+            else:
+                logger.info("ℹ️ Просроченных заданий не найдено")
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка очистки просроченных заданий: {e}")
+
     def start(self):
         """Запуск планировщика"""
         if self.scheduler and self.scheduler.running:
@@ -303,11 +319,17 @@ class ModernEventScheduler:
             self.cleanup_old_events, "interval", hours=6, id="cleanup-cycle", max_instances=1, coalesce=True
         )
 
+        # Очистка просроченных заданий каждые 2 часа
+        self.scheduler.add_job(
+            self.cleanup_expired_tasks, "interval", hours=2, id="tasks-cleanup", max_instances=1, coalesce=True
+        )
+
         self.scheduler.start()
         logger.info("🚀 Современный планировщик запущен!")
         logger.info("   📅 Полный цикл: каждые 12 часов (2 раза в день)")
         logger.info("   🌴 BaliForum (Бали) + 🎭 KudaGo (Москва, СПб)")
-        logger.info("   🧹 Очистка: каждые 6 часов")
+        logger.info("   🧹 Очистка событий: каждые 6 часов")
+        logger.info("   ⏰ Очистка заданий: каждые 2 часа")
 
         # Запускаем первый цикл сразу
         self.run_full_ingest()
