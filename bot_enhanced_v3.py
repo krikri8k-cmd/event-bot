@@ -3177,9 +3177,15 @@ async def on_my_tasks(message: types.Message):
     active_tasks = get_user_active_tasks(user_id)
 
     if not active_tasks:
+        # Получаем баланс ракет пользователя
+        from rockets_service import get_user_rockets
+
+        rocket_balance = get_user_rockets(user_id)
+
         await message.answer(
             "🏆 **Мои квесты**\n\n"
             "У вас пока нет активных заданий.\n\n"
+            f"**Баланс {rocket_balance} 🚀**\n\n"
             "🎯 Нажмите 'Квесты на районе' чтобы получить новые задания!",
             parse_mode="Markdown",
         )
@@ -3332,9 +3338,15 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
     active_tasks = get_user_active_tasks(user_id)
 
     if not active_tasks:
+        # Получаем баланс ракет пользователя
+        from rockets_service import get_user_rockets
+
+        rocket_balance = get_user_rockets(user_id)
+
         await callback.message.edit_text(
             "🏆 **Мои квесты**\n\n"
             "У вас пока нет активных заданий.\n\n"
+            f"**Баланс {rocket_balance} 🚀**\n\n"
             "🎯 Нажмите 'Квесты на районе' чтобы получить новые задания!",
             parse_mode="Markdown",
         )
