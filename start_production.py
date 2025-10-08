@@ -45,8 +45,12 @@ def start_bot():
         logger.info("🤖 Запуск Telegram бота...")
 
         # Импортируем и запускаем бота
+        logger.info("🔥 Импортируем bot_enhanced_v3.main...")
         from bot_enhanced_v3 import main as bot_main
 
+        logger.info("✅ bot_enhanced_v3.main импортирован успешно")
+
+        logger.info("🔥 Запускаем bot_main()...")
         asyncio.run(bot_main())
 
     except Exception as e:
