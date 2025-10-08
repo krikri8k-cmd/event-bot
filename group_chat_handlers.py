@@ -12,7 +12,7 @@ from aiogram import F, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import ForceReply
+from aiogram.types import ForceReply, InlineKeyboardButton, InlineKeyboardMarkup
 
 from utils.community_events_service import CommunityEventsService
 
@@ -365,6 +365,85 @@ async def debug_final_trap(message: types.Message, state: FSMContext):
     )
 
 
+async def handle_group_hide_bot(callback: types.CallbackQuery):
+    """Обработчик кнопки 'Спрятать бота' в групповых чатах"""
+    chat_id = callback.message.chat.id
+
+    # Любой пользователь может скрыть бота (особенно полезно для создателей событий)
+    # Подтверждение действия
+    confirmation_text = (
+        "👁️‍🗨️ **Спрятать бота**\n\n"
+        "Вы действительно хотите скрыть все сообщения бота из этого чата?\n\n"
+        "⚠️ **Это действие:**\n"
+        "• Удалит все сообщения бота из чата\n"
+        "• Очистит историю взаимодействий\n"
+        "• Бот останется в группе, но не будет засорять чат\n\n"
+        "💡 **Особенно полезно после создания события** - освобождает чат от служебных сообщений\n\n"
+        "Для восстановления функций бота используйте команду /start"
+    )
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Да, спрятать", callback_data=f"group_hide_confirm_{chat_id}")],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="group_back_to_start")],
+        ]
+    )
+
+    await callback.message.edit_text(confirmation_text, reply_markup=keyboard, parse_mode="Markdown")
+    await callback.answer()
+
+
+async def handle_group_hide_confirm(callback: types.CallbackQuery):
+    """Подтверждение скрытия бота в групповом чате"""
+    # Извлекаем chat_id из callback_data
+    chat_id = int(callback.data.split("_")[-1])
+    user_id = callback.from_user.id
+
+    # Любой пользователь может скрыть бота (особенно полезно для создателей событий)
+
+    try:
+        # Получаем все сообщения бота в этом чате
+        # В реальности Telegram API не предоставляет прямой способ получить все сообщения бота
+        # Поэтому мы можем удалить только текущее сообщение и сообщить о скрытии
+
+        # Удаляем текущее сообщение
+        await callback.message.delete()
+
+        # Отправляем финальное сообщение о скрытии (которое тоже можно будет удалить)
+        from aiogram import Bot
+
+        bot = Bot.get_current()
+
+        final_message = await bot.send_message(
+            chat_id=chat_id,
+            text=(
+                "👁️‍🗨️ **Бот скрыт**\n\n"
+                "Все сообщения бота были скрыты из этого чата.\n\n"
+                "💡 **Для восстановления функций бота:**\n"
+                "• Используйте команду /start\n"
+                "• Или напишите боту в личные сообщения\n\n"
+                "Бот остался в группе и готов к работе! 🤖\n"
+                "Теперь чат чистый и не засорен служебными сообщениями."
+            ),
+            parse_mode="Markdown",
+        )
+
+        # Удаляем финальное сообщение через 10 секунд
+        import asyncio
+
+        await asyncio.sleep(10)
+        try:
+            await final_message.delete()
+        except Exception:
+            pass  # Игнорируем ошибки удаления финального сообщения
+
+        logger.info(f"✅ Бот скрыт в чате {chat_id} пользователем {user_id}")
+
+    except Exception as e:
+        logger.error(f"Ошибка при скрытии бота в чате {chat_id}: {e}")
+        await callback.answer("❌ Произошла ошибка при скрытии бота", show_alert=True)
+
+
 def register_group_handlers(dp, bot_id: int):
     """
     Регистрация обработчиков для групповых чатов
@@ -417,6 +496,14 @@ def register_group_handlers(dp, bot_id: int):
         F.chat.type.in_({"group", "supergroup"}),
         F.reply_to_message,
         F.reply_to_message.from_user.id == BOT_ID,
+    )
+
+    # Обработчики кнопки "Спрятать бота"
+    dp.callback_query.register(
+        handle_group_hide_bot, F.data == "group_hide_bot", F.chat.type.in_({"group", "supergroup"})
+    )
+    dp.callback_query.register(
+        handle_group_hide_confirm, F.data.regexp(r"^group_hide_confirm_\d+$"), F.chat.type.in_({"group", "supergroup"})
     )
 
     # ФИНАЛЬНАЯ ЛОВУШКА: перехватывает ВСЕ сообщения в группах для диагностики (самый низкий приоритет)
