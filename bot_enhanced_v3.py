@@ -2684,8 +2684,13 @@ async def on_my_events(message: types.Message):
     # Получаем события с участием (все добавленные события)
     all_participations = []
 
+    # Получаем баланс ракет пользователя
+    from rockets_service import get_user_rockets
+
+    rocket_balance = get_user_rockets(user_id)
+
     # Формируем текст сообщения
-    text_parts = ["📋 **Мои события:**\n"]
+    text_parts = ["📋 **Мои события:**\n", f"**Баланс {rocket_balance} 🚀**\n"]
 
     # Созданные события
     if events:
