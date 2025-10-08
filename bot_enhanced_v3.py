@@ -5945,7 +5945,7 @@ async def handle_edit_time_choice(callback: types.CallbackQuery, state: FSMConte
     await callback.answer()
 
 
-@dp.callback_query(F.data.startswith("edit_location_"))
+@dp.callback_query(F.data.regexp(r"^edit_location_\d+$"))
 async def handle_edit_location_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор редактирования локации - показываем меню выбора типа"""
     event_id = int(callback.data.split("_")[-1])
@@ -5957,9 +5957,9 @@ async def handle_edit_location_choice(callback: types.CallbackQuery, state: FSMC
     # Создаем клавиатуру для выбора типа локации (как при создании)
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="edit_location_link")],
-            [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="edit_location_map")],
-            [InlineKeyboardButton(text="📍 Ввести координаты", callback_data="edit_location_coords")],
+            [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data=f"edit_location_link_{event_id}")],
+            [InlineKeyboardButton(text="🌍 Найти на карте", callback_data=f"edit_location_map_{event_id}")],
+            [InlineKeyboardButton(text="📍 Ввести координаты", callback_data=f"edit_location_coords_{event_id}")],
             [InlineKeyboardButton(text="◀️ Назад", callback_data=f"edit_event_{event_id}")],
         ]
     )
@@ -5976,17 +5976,22 @@ async def handle_edit_location_choice(callback: types.CallbackQuery, state: FSMC
 
 
 # Обработчики для редактирования локации
-@dp.callback_query(F.data == "edit_location_link")
+@dp.callback_query(F.data.regexp(r"^edit_location_link_\d+$"))
 async def handle_edit_location_link_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор ввода готовой ссылки для редактирования"""
+    event_id = int(callback.data.split("_")[-1])
+    await state.update_data(event_id=event_id)
     await state.set_state(EventEditing.waiting_for_location)
     await callback.message.answer("🔗 Вставьте сюда ссылку из Google Maps:")
     await callback.answer()
 
 
-@dp.callback_query(F.data == "edit_location_map")
+@dp.callback_query(F.data.regexp(r"^edit_location_map_\d+$"))
 async def handle_edit_location_map_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор поиска на карте для редактирования"""
+    event_id = int(callback.data.split("_")[-1])
+    await state.update_data(event_id=event_id)
+
     # Создаем кнопку для открытия Google Maps
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text="🌍 Открыть Google Maps", url="https://www.google.com/maps")]]
@@ -5997,9 +6002,12 @@ async def handle_edit_location_map_choice(callback: types.CallbackQuery, state: 
     await callback.answer()
 
 
-@dp.callback_query(F.data == "edit_location_coords")
+@dp.callback_query(F.data.regexp(r"^edit_location_coords_\d+$"))
 async def handle_edit_location_coords_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор ввода координат для редактирования"""
+    event_id = int(callback.data.split("_")[-1])
+    await state.update_data(event_id=event_id)
+
     await state.set_state(EventEditing.waiting_for_location)
     await callback.message.answer(
         "📍 Введите координаты в формате: **широта, долгота**\n\n" "Например: 55.7558, 37.6176\n" "Или: -8.67, 115.21",
