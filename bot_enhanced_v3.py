@@ -4136,7 +4136,7 @@ async def handle_location_type_text(message: types.Message, state: FSMContext):
         # Парсим ссылку
         from utils.geo_utils import parse_google_maps_link
 
-        location_data = parse_google_maps_link(text)
+        location_data = await parse_google_maps_link(text)
 
         if location_data:
             # Сохраняем данные локации
@@ -4350,7 +4350,7 @@ async def process_task_custom_location(message: types.Message, state: FSMContext
         # Парсим ссылку
         from utils.geo_utils import parse_google_maps_link
 
-        result = parse_google_maps_link(link)
+        result = await parse_google_maps_link(link)
 
         if result.get("lat") and result.get("lng"):
             lat, lng = result["lat"], result["lng"]
@@ -6151,7 +6151,7 @@ async def handle_location_input(message: types.Message, state: FSMContext):
         # Парсим ссылку Google Maps
         from utils.geo_utils import parse_google_maps_link
 
-        location_data = parse_google_maps_link(location_input)
+        location_data = await parse_google_maps_link(location_input)
 
         if location_data:
             # Обновляем событие с данными из ссылки
