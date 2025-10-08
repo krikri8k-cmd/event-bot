@@ -5648,6 +5648,8 @@ async def on_radius_change(cb: types.CallbackQuery) -> None:
 
 async def main():
     """Главная функция"""
+    print("🔥 MAIN FUNCTION STARTED!")
+    logger.info("🔥 MAIN FUNCTION STARTED!")
     logger.info("Запуск улучшенного EventBot (aiogram 3.x)...")
 
     # Инициализируем BOT_ID для корректной фильтрации в групповых чатах
