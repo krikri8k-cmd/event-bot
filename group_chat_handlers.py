@@ -371,6 +371,8 @@ async def handle_group_hide_bot(callback: types.CallbackQuery):
     user_id = callback.from_user.id
 
     logger.info(f"🔥 handle_group_hide_bot: ВЫЗВАН! chat_id={chat_id}, user_id={user_id}")
+    logger.info(f"🔥 handle_group_hide_bot: callback.data={callback.data}")
+    logger.info(f"🔥 handle_group_hide_bot: chat.type={callback.message.chat.type}")
 
     # Любой пользователь может скрыть бота (особенно полезно для создателей событий)
     # Подтверждение действия
