@@ -5655,6 +5655,17 @@ async def main():
     BOT_ID = (await bot.me()).id
     logger.info(f"BOT_ID инициализирован: {BOT_ID}")
 
+    # ИНТЕГРАЦИЯ ГРУППОВЫХ ЧАТОВ (ИЗОЛИРОВАННО)
+    # ВНИМАНИЕ: Эта интеграция полностью изолирована от основного функционала
+    try:
+        from group_chat_handlers import register_group_handlers
+
+        register_group_handlers(dp, BOT_ID)
+        logger.info("✅ Обработчики групповых чатов успешно интегрированы")
+    except Exception as e:
+        logger.error(f"❌ Ошибка интеграции групповых чатов: {e}")
+        # Не прерываем работу основного бота при ошибке
+
     # Запускаем фоновую задачу для очистки моментов
     from config import load_settings
     from tasks_service import mark_tasks_as_expired
@@ -6395,18 +6406,6 @@ async def handle_prev_event(callback: types.CallbackQuery):
 
         await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
         await callback.answer()
-
-
-# ИНТЕГРАЦИЯ ГРУППОВЫХ ЧАТОВ (ИЗОЛИРОВАННО)
-# ВНИМАНИЕ: Эта интеграция полностью изолирована от основного функционала
-try:
-    from group_chat_handlers import register_group_handlers
-
-    register_group_handlers(dp, BOT_ID)
-    logger.info("✅ Обработчики групповых чатов успешно интегрированы")
-except Exception as e:
-    logger.error(f"❌ Ошибка интеграции групповых чатов: {e}")
-    # Не прерываем работу основного бота при ошибке
 
 
 if __name__ == "__main__":
