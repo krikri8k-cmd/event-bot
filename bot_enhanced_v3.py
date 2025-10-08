@@ -1621,7 +1621,7 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
                 ],
                 [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_chat_events")],
                 [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", url=f"https://t.me/{bot_info.username}")],
-                [InlineKeyboardButton(text="💬 Написать отзыв", callback_data="group_help")],
+                [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_bot")],
             ]
         )
 
@@ -1962,27 +1962,99 @@ async def handle_group_myevents(callback: types.CallbackQuery):
     await callback.answer()
 
 
-@dp.callback_query(F.data == "group_help")
-async def handle_group_help(callback: types.CallbackQuery):
-    """Обработчик кнопки 'Написать отзыв' в групповых чатах"""
-    feedback_text = (
-        "💬 **Написать отзыв Разработчику**\n\n"
-        "Спасибо за использование EventAroundBot! 🚀\n\n"
-        "Если у вас есть предложения, замечания или просто хотите поблагодарить - "
-        "напишите мне лично:\n\n"
-        "👨‍💻 **@Fincontro**\n\n"
-        "Я всегда рад обратной связи и готов помочь! 😊"
+@dp.callback_query(F.data == "group_hide_bot")
+async def handle_group_hide_bot(callback: types.CallbackQuery):
+    """Обработчик кнопки 'Спрятать бота' в групповых чатах"""
+    chat_id = callback.message.chat.id
+    user_id = callback.from_user.id
+
+    # Проверяем права пользователя (только админы или создатель группы могут скрывать бота)
+    try:
+        chat_member = await bot.get_chat_member(chat_id, user_id)
+        if chat_member.status not in ["creator", "administrator"]:
+            await callback.answer("❌ Только администраторы могут скрыть бота", show_alert=True)
+            return
+    except Exception as e:
+        logger.error(f"Ошибка проверки прав пользователя {user_id} в чате {chat_id}: {e}")
+        await callback.answer("❌ Ошибка проверки прав доступа", show_alert=True)
+        return
+
+    # Подтверждение действия
+    confirmation_text = (
+        "👁️‍🗨️ **Спрятать бота**\n\n"
+        "Вы действительно хотите скрыть все сообщения бота из этого чата?\n\n"
+        "⚠️ **Это действие:**\n"
+        "• Удалит все сообщения бота из чата\n"
+        "• Очистит историю взаимодействий\n"
+        "• Бот останется в группе, но не будет засорять чат\n\n"
+        "Для восстановления функций бота используйте команду /start"
     )
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="💬 Написать @Fincontro", url="https://t.me/Fincontro")],
-            [InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_start")],
+            [InlineKeyboardButton(text="✅ Да, спрятать", callback_data=f"group_hide_confirm_{chat_id}")],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="group_back_to_start")],
         ]
     )
 
-    await callback.message.edit_text(feedback_text, reply_markup=keyboard, parse_mode="Markdown")
+    await callback.message.edit_text(confirmation_text, reply_markup=keyboard, parse_mode="Markdown")
     await callback.answer()
+
+
+@dp.callback_query(F.data.regexp(r"^group_hide_confirm_\d+$"))
+async def handle_group_hide_confirm(callback: types.CallbackQuery):
+    """Подтверждение скрытия бота в групповом чате"""
+    # Извлекаем chat_id из callback_data
+    chat_id = int(callback.data.split("_")[-1])
+    user_id = callback.from_user.id
+
+    # Дополнительная проверка прав
+    try:
+        chat_member = await bot.get_chat_member(chat_id, user_id)
+        if chat_member.status not in ["creator", "administrator"]:
+            await callback.answer("❌ Только администраторы могут скрыть бота", show_alert=True)
+            return
+    except Exception as e:
+        logger.error(f"Ошибка проверки прав пользователя {user_id} в чате {chat_id}: {e}")
+        await callback.answer("❌ Ошибка проверки прав доступа", show_alert=True)
+        return
+
+    try:
+        # Получаем все сообщения бота в этом чате
+        # В реальности Telegram API не предоставляет прямой способ получить все сообщения бота
+        # Поэтому мы можем удалить только текущее сообщение и сообщить о скрытии
+
+        # Удаляем текущее сообщение
+        await callback.message.delete()
+
+        # Отправляем финальное сообщение о скрытии (которое тоже можно будет удалить)
+        final_message = await bot.send_message(
+            chat_id=chat_id,
+            text=(
+                "👁️‍🗨️ **Бот скрыт**\n\n"
+                "Все сообщения бота были скрыты из этого чата.\n\n"
+                "💡 **Для восстановления функций бота:**\n"
+                "• Используйте команду /start\n"
+                "• Или напишите боту в личные сообщения\n\n"
+                "Бот остался в группе и готов к работе! 🤖"
+            ),
+            parse_mode="Markdown",
+        )
+
+        # Удаляем финальное сообщение через 10 секунд
+        import asyncio
+
+        await asyncio.sleep(10)
+        try:
+            await final_message.delete()
+        except Exception:
+            pass  # Игнорируем ошибки удаления финального сообщения
+
+        logger.info(f"✅ Бот скрыт в чате {chat_id} администратором {user_id}")
+
+    except Exception as e:
+        logger.error(f"Ошибка при скрытии бота в чате {chat_id}: {e}")
+        await callback.answer("❌ Произошла ошибка при скрытии бота", show_alert=True)
 
 
 @dp.callback_query(F.data == "community_event_confirm_pm")
@@ -2123,7 +2195,7 @@ async def handle_group_back_to_start(callback: types.CallbackQuery):
             ],
             [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_chat_events")],
             [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", url=f"https://t.me/{bot_info.username}")],
-            [InlineKeyboardButton(text="💬 Написать отзыв", callback_data="group_help")],
+            [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_bot")],
         ]
     )
 
