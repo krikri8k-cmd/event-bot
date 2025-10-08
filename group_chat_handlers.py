@@ -459,15 +459,7 @@ def register_group_handlers(dp, bot_id: int):
 
     logger.info(f"🔥 Регистрация обработчиков для групповых чатов, BOT_ID={BOT_ID}")
 
-    # Обработчики кнопки "Спрятать бота" - регистрируем ПЕРВЫМИ для приоритета
-    logger.info("🔥 Регистрируем обработчики group_hide_bot")
-    dp.callback_query.register(
-        handle_group_hide_bot, F.data == "group_hide_bot", F.chat.type.in_({"group", "supergroup"})
-    )
-    dp.callback_query.register(
-        handle_group_hide_confirm, F.data.regexp(r"^group_hide_confirm_\d+$"), F.chat.type.in_({"group", "supergroup"})
-    )
-    logger.info("✅ Обработчики group_hide_bot зарегистрированы")
+    # Обработчики кнопки "Спрятать бота" - обрабатываются в основном файле bot_enhanced_v3.py
 
     # Команда /create только для групп
     dp.message.register(group_create_start, Command("create"), F.chat.type.in_({"group", "supergroup"}))

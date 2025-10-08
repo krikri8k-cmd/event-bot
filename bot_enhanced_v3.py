@@ -1962,7 +1962,7 @@ async def handle_group_myevents(callback: types.CallbackQuery):
     await callback.answer()
 
 
-# @dp.callback_query(F.data == "group_hide_bot")  # Обрабатывается в group_chat_handlers.py
+@dp.callback_query(F.data == "group_hide_bot")
 async def handle_group_hide_bot(callback: types.CallbackQuery):
     """Обработчик кнопки 'Спрятать бота' в групповых чатах"""
     chat_id = callback.message.chat.id
@@ -1991,7 +1991,7 @@ async def handle_group_hide_bot(callback: types.CallbackQuery):
     await callback.answer()
 
 
-# @dp.callback_query(F.data.regexp(r"^group_hide_confirm_\d+$"))  # Обрабатывается в group_chat_handlers.py
+@dp.callback_query(F.data.regexp(r"^group_hide_confirm_\d+$"))
 async def handle_group_hide_confirm(callback: types.CallbackQuery):
     """Подтверждение скрытия бота в групповом чате"""
     # Извлекаем chat_id из callback_data
