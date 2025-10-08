@@ -368,6 +368,9 @@ async def debug_final_trap(message: types.Message, state: FSMContext):
 async def handle_group_hide_bot(callback: types.CallbackQuery):
     """Обработчик кнопки 'Спрятать бота' в групповых чатах"""
     chat_id = callback.message.chat.id
+    user_id = callback.from_user.id
+
+    logger.info(f"🔥 handle_group_hide_bot: ВЫЗВАН! chat_id={chat_id}, user_id={user_id}")
 
     # Любой пользователь может скрыть бота (особенно полезно для создателей событий)
     # Подтверждение действия
@@ -454,6 +457,16 @@ def register_group_handlers(dp, bot_id: int):
 
     logger.info(f"🔥 Регистрация обработчиков для групповых чатов, BOT_ID={BOT_ID}")
 
+    # Обработчики кнопки "Спрятать бота" - регистрируем ПЕРВЫМИ для приоритета
+    logger.info("🔥 Регистрируем обработчики group_hide_bot")
+    dp.callback_query.register(
+        handle_group_hide_bot, F.data == "group_hide_bot", F.chat.type.in_({"group", "supergroup"})
+    )
+    dp.callback_query.register(
+        handle_group_hide_confirm, F.data.regexp(r"^group_hide_confirm_\d+$"), F.chat.type.in_({"group", "supergroup"})
+    )
+    logger.info("✅ Обработчики group_hide_bot зарегистрированы")
+
     # Команда /create только для групп
     dp.message.register(group_create_start, Command("create"), F.chat.type.in_({"group", "supergroup"}))
 
@@ -496,14 +509,6 @@ def register_group_handlers(dp, bot_id: int):
         F.chat.type.in_({"group", "supergroup"}),
         F.reply_to_message,
         F.reply_to_message.from_user.id == BOT_ID,
-    )
-
-    # Обработчики кнопки "Спрятать бота"
-    dp.callback_query.register(
-        handle_group_hide_bot, F.data == "group_hide_bot", F.chat.type.in_({"group", "supergroup"})
-    )
-    dp.callback_query.register(
-        handle_group_hide_confirm, F.data.regexp(r"^group_hide_confirm_\d+$"), F.chat.type.in_({"group", "supergroup"})
     )
 
     # ФИНАЛЬНАЯ ЛОВУШКА: перехватывает ВСЕ сообщения в группах для диагностики (самый низкий приоритет)
