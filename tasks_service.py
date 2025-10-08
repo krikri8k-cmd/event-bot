@@ -195,6 +195,18 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
 
         result = []
         for user_task, task in user_tasks:
+            # Дополнительная проверка на просроченность (на всякий случай)
+            expires_at_check = user_task.expires_at
+            if expires_at_check.tzinfo is None:
+                expires_at_check = expires_at_check.replace(tzinfo=UTC)
+            else:
+                expires_at_check = expires_at_check.astimezone(UTC)
+
+            # Если задание просрочено, пропускаем его
+            if datetime.now(UTC) > expires_at_check:
+                logger.info(f"Пропускаем просроченное задание {user_task.id} для пользователя {user_id}")
+                continue
+
             # Конвертируем время в местный часовой пояс
             accepted_at = user_task.accepted_at
             expires_at = user_task.expires_at
@@ -338,15 +350,26 @@ def mark_tasks_as_expired() -> int:
     """
     try:
         with get_session() as session:
-            expired_tasks = get_expired_tasks()
+            now = datetime.now(UTC)
+            active_tasks = session.query(UserTask).filter(UserTask.status == "active").all()
 
-            for task in expired_tasks:
-                task.status = "expired"
+            expired_count = 0
+            for task in active_tasks:
+                # Если нет timezone, считаем что это UTC
+                expires_at = task.expires_at
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=UTC)
+                else:
+                    expires_at = expires_at.astimezone(UTC)
+
+                if now > expires_at:
+                    task.status = "expired"
+                    expired_count += 1
 
             session.commit()
 
-            logger.info(f"Помечено как истекшие: {len(expired_tasks)} заданий")
-            return len(expired_tasks)
+            logger.info(f"Помечено как истекшие: {expired_count} заданий")
+            return expired_count
 
     except Exception as e:
         logger.error(f"Ошибка пометки заданий как истекших: {e}")
