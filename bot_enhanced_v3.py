@@ -3191,7 +3191,7 @@ async def on_my_tasks(message: types.Message):
     message_text = "📋 **Ваши активные задания:**\n\n"
     message_text += "Прохождение + 3 🚀\n"
     message_text += "⏰ Для мотивации даем 24 часа\n\n"
-    message_text += f"**Баланс: {rocket_balance} 🚀**\n\n"
+    message_text += f"**Баланс {rocket_balance} 🚀**\n\n"
 
     for i, task in enumerate(active_tasks, 1):
         # Вычисляем оставшееся время
@@ -3346,7 +3346,7 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
     message_text = "📋 **Ваши активные задания:**\n\n"
     message_text += "Прохождение + 3 🚀\n"
     message_text += "⏰ Для мотивации даем 24 часа\n\n"
-    message_text += f"**Баланс: {rocket_balance} 🚀**\n\n"
+    message_text += f"**Баланс {rocket_balance} 🚀**\n\n"
 
     for i, task in enumerate(active_tasks, 1):
         # Вычисляем оставшееся время
