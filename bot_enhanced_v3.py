@@ -1620,7 +1620,7 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
                     )
                 ],
                 [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_chat_events")],
-                [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", callback_data="group_full_bot")],
+                [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", url=f"https://t.me/{bot_info.username}")],
                 [InlineKeyboardButton(text="💬 Написать отзыв", callback_data="group_help")],
             ]
         )
@@ -1936,35 +1936,6 @@ async def handle_group_chat_events(callback: types.CallbackQuery):
     await callback.answer()
 
 
-@dp.callback_query(F.data == "group_full_bot")
-async def handle_group_full_bot(callback: types.CallbackQuery):
-    """Обработчик кнопки 'Полный бот' в групповых чатах"""
-    bot_info = await bot.get_me()
-
-    text = (
-        "🚀 **Переход к полному боту**\n\n"
-        "Для полноценной работы с поиском событий по геолокации, "
-        "создания квестов и всех функций перейдите в личный чат с ботом:\n\n"
-        f"👤 **Личный чат:** @{bot_info.username}\n\n"
-        "💡 **В личном чате доступно:**\n"
-        "• Поиск событий по геолокации\n"
-        "• Система квестов на районе\n"
-        "• Создание событий с координатами\n"
-        "• Настройки радиуса поиска\n"
-        "• И многое другое!"
-    )
-
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="🚀 Перейти к боту", url=f"https://t.me/{bot_info.username}")],
-            [InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_start")],
-        ]
-    )
-
-    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
-    await callback.answer()
-
-
 @dp.callback_query(F.data == "group_myevents")
 async def handle_group_myevents(callback: types.CallbackQuery):
     """Обработчик кнопки 'Мои события' в групповых чатах"""
@@ -2151,7 +2122,7 @@ async def handle_group_back_to_start(callback: types.CallbackQuery):
                 )
             ],
             [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_chat_events")],
-            [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", callback_data="group_full_bot")],
+            [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", url=f"https://t.me/{bot_info.username}")],
             [InlineKeyboardButton(text="💬 Написать отзыв", callback_data="group_help")],
         ]
     )
