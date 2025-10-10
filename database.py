@@ -270,6 +270,12 @@ def get_session():
     return Session()
 
 
+async def get_async_session():
+    """Асинхронная версия сессии для совместимости с async функциями"""
+    assert Session is not None
+    return Session()
+
+
 def _csv_to_set(csv_value: str | None) -> set[int]:
     if not csv_value:
         return set()

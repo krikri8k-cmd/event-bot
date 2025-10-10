@@ -17,7 +17,7 @@ from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
-from database import CommunityEvent, get_session
+from database import CommunityEvent, get_async_session
 from utils.messaging_utils import delete_all_tracked, ensure_panel, is_chat_admin
 
 logger = logging.getLogger(__name__)
@@ -81,10 +81,11 @@ async def group_start(message: Message, bot: Bot):
     logger.info(f"🔥 group_start: команда /start в группе {chat_id} от пользователя {message.from_user.id}")
 
     try:
-        with get_session() as session:
-            logger.info(f"🔥 group_start: вызываем ensure_panel для чата {chat_id}")
-            panel_id = await ensure_panel(bot, session, chat_id=chat_id, text=PANEL_TEXT, kb=group_kb(chat_id))
-            logger.info(f"🔥 group_start: ensure_panel вернул message_id={panel_id}")
+        session = await get_async_session()
+        logger.info(f"🔥 group_start: вызываем ensure_panel для чата {chat_id}")
+        panel_id = await ensure_panel(bot, session, chat_id=chat_id, text=PANEL_TEXT, kb=group_kb(chat_id))
+        logger.info(f"🔥 group_start: ensure_panel вернул message_id={panel_id}")
+        session.close()
     except Exception as e:
         logger.error(f"❌ group_start: ошибка при создании панели: {e}")
         # Fallback - отправляем обычное сообщение
@@ -99,7 +100,8 @@ async def group_list_events(callback: CallbackQuery, bot: Bot):
 
     await callback.answer()  # Тост, не спамим
 
-    with get_session() as session:
+    session = await get_async_session()
+    try:
         # Получаем будущие события этого чата
         events = (
             session.query(CommunityEvent)
@@ -151,6 +153,8 @@ async def group_list_events(callback: CallbackQuery, bot: Bot):
             await callback.message.edit_text(text, reply_markup=back_kb, parse_mode="Markdown")
         except Exception as e:
             logger.error(f"❌ Ошибка редактирования сообщения: {e}")
+    finally:
+        session.close()
 
 
 @group_router.callback_query(F.data == "group_back_to_panel")
@@ -208,10 +212,11 @@ async def group_hide_confirm(callback: CallbackQuery, bot: Bot):
         # Fallback - отправляем новое сообщение через send_tracked
         from utils.messaging_utils import send_tracked
 
-        with get_session() as session:
-            await send_tracked(
-                bot, session, chat_id=chat_id, text=confirmation_text, reply_markup=keyboard, tag="service"
-            )
+        session = await get_async_session()
+    try:
+        await send_tracked(bot, session, chat_id=chat_id, text=confirmation_text, reply_markup=keyboard, tag="service")
+    finally:
+        session.close()
 
 
 @group_router.callback_query(F.data.startswith("group_hide_execute_"))
@@ -252,8 +257,11 @@ async def group_hide_execute(callback: CallbackQuery, bot: Bot):
         logger.error(f"❌ Ошибка проверки прав бота: {e}")
 
     # Используем асинхронную версию delete_all_tracked
-    with get_session() as session:
+    session = await get_async_session()
+    try:
         deleted = await delete_all_tracked(bot, session, chat_id=chat_id)
+    finally:
+        session.close()
 
     # Короткое уведомление (не трекаем, чтобы не гоняться за ним)
     note = await bot.send_message(
@@ -293,7 +301,8 @@ async def group_delete_event(callback: CallbackQuery, bot: Bot):
 
     logger.info(f"🔥 group_delete_event: админ {user_id} удаляет событие {event_id} в чате {chat_id}")
 
-    with get_session() as session:
+    session = await get_async_session()
+    try:
         # Проверяем, что событие принадлежит этому чату
         event = (
             session.query(CommunityEvent)
@@ -308,6 +317,8 @@ async def group_delete_event(callback: CallbackQuery, bot: Bot):
         # Удаляем событие
         session.delete(event)
         session.commit()
+    finally:
+        session.close()
 
     await callback.answer("✅ Событие удалено!", show_alert=False)
 
