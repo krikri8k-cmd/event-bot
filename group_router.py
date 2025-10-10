@@ -161,14 +161,44 @@ async def group_back_to_panel(callback: CallbackQuery, bot: Bot):
 
 
 @group_router.callback_query(F.data == "group_hide_confirm")
-async def group_hide_bot(callback: CallbackQuery, bot: Bot):
-    """Удаление всех сообщений бота из чата"""
+async def group_hide_confirm(callback: CallbackQuery, bot: Bot):
+    """Показ диалога подтверждения скрытия бота"""
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id
-    logger.info(f"🔥 group_hide_bot: удаление сообщений бота в чате {chat_id} пользователем {user_id}")
+    logger.info(f"🔥 group_hide_confirm: пользователь {user_id} запросил подтверждение скрытия бота в чате {chat_id}")
+
+    confirmation_text = (
+        "👁️‍🗨️ **Спрятать бота**\n\n"
+        "Вы действительно хотите скрыть все сообщения бота из этого чата?\n\n"
+        "⚠️ **Это действие:**\n"
+        "• Удалит все сообщения бота из чата\n"
+        "• Очистит историю взаимодействий\n"
+        "• Бот останется в группе, но не будет засорять чат\n\n"
+        "💡 **Особенно полезно после создания события** - освобождает чат от служебных сообщений\n\n"
+        "Для восстановления функций бота используйте команду /start"
+    )
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Да, спрятать", callback_data=f"group_hide_execute_{chat_id}")],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="group_back_to_panel")],
+        ]
+    )
+
+    await callback.message.edit_text(confirmation_text, reply_markup=keyboard, parse_mode="Markdown")
+    await callback.answer()
+
+
+@group_router.callback_query(F.data.startswith("group_hide_execute_"))
+async def group_hide_execute(callback: CallbackQuery, bot: Bot):
+    """Выполнение скрытия бота"""
+    chat_id = int(callback.data.split("_")[-1])
+    user_id = callback.from_user.id
+    logger.info(f"🔥 group_hide_execute: пользователь {user_id} подтвердил скрытие бота в чате {chat_id}")
 
     await callback.answer("Скрываем сервисные сообщения бота…", show_alert=False)
 
+    # Используем асинхронную версию delete_all_tracked
     with get_session() as session:
         deleted = await delete_all_tracked(bot, session, chat_id=chat_id)
 
@@ -182,9 +212,9 @@ async def group_hide_bot(callback: CallbackQuery, bot: Bot):
         parse_mode="Markdown",
     )
 
-    # Автоудаление через 10 секунд
+    # Автоудаление через 8 секунд
     try:
-        await asyncio.sleep(10)
+        await asyncio.sleep(8)
         await bot.delete_message(chat_id, note.message_id)
     except Exception as e:
         logger.warning(f"⚠️ Не удалось удалить уведомление: {e}")
