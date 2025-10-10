@@ -1246,25 +1246,8 @@ if async_session_maker is not None:
     dp.callback_query.middleware(DbSessionMiddleware(async_session_maker))
     logging.info("✅ Async session middleware подключен")
 else:
-    logging.warning("⚠️ Async session middleware недоступен (SQLite или нет asyncpg)")
-    # Для тестов и SQLite создаем заглушку
-    from database import get_session  # noqa: E402
-
-    class SyncSessionMiddleware(BaseMiddleware):
-        async def __call__(
-            self, handler: Callable[[Any, dict[str, Any]], Awaitable[Any]], event: Any, data: dict[str, Any]
-        ) -> Any:
-            # Используем синхронную сессию как заглушку
-            data["session"] = get_session()
-            try:
-                return await handler(event, data)
-            finally:
-                data["session"].close()
-
-    dp.update.middleware(SyncSessionMiddleware())
-    dp.message.middleware(SyncSessionMiddleware())
-    dp.callback_query.middleware(SyncSessionMiddleware())
-    logging.info("✅ Sync session middleware подключен (для тестов/SQLite)")
+    logging.error("❌ Async session middleware недоступен - требуется PostgreSQL и asyncpg")
+    raise RuntimeError("PostgreSQL и asyncpg обязательны для работы бота")
 
 # BOT_ID для корректной фильтрации в групповых чатах
 BOT_ID: int = None

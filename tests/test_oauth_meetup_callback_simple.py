@@ -37,7 +37,7 @@ def test_meetup_callback_missing_code():
 
 
 # Простой тест без skip_light для проверки
-@patch.dict("os.environ", {"DATABASE_URL": "sqlite:///:memory:", "MEETUP_MOCK": "1"})
+@patch.dict("os.environ", {"DATABASE_URL": "postgresql://test:test@localhost:5432/test", "MEETUP_MOCK": "1"})
 def test_meetup_callback_simple():
     """Простой тест без зависимости от FULL_TESTS"""
     from api.app import app

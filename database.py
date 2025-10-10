@@ -243,13 +243,8 @@ def make_engine(database_url: str) -> Engine:
 
 
 def make_async_engine(database_url: str):
-    """Создает async engine для PostgreSQL (не для SQLite)"""
+    """Создает async engine для PostgreSQL"""
     try:
-        # SQLite не поддерживает async, пропускаем
-        if "sqlite" in database_url.lower():
-            logging.info("SQLite не поддерживает async, пропускаем создание async engine")
-            return None
-
         # Преобразуем URL для asyncpg
         if database_url.startswith("postgresql://"):
             async_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
