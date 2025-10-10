@@ -239,11 +239,20 @@ async def delete_all_tracked(bot: Bot, session: Session, *, chat_id: int) -> int
     Returns:
         Количество удаленных сообщений
     """
+    logger.info(f"🔥 delete_all_tracked: начинаем удаление для чата {chat_id}")
+
     # Получаем все неудаленные сообщения
     messages = session.query(BotMessage).filter(BotMessage.chat_id == chat_id, BotMessage.deleted is False).all()
 
+    logger.info(f"🔥 Найдено {len(messages)} сообщений для удаления в чате {chat_id}")
+
+    if not messages:
+        logger.warning(f"⚠️ В bot_messages нет записей для чата {chat_id}")
+        return 0
+
     deleted = 0
     for bot_msg in messages:
+        logger.info(f"🔥 Пытаемся удалить сообщение {bot_msg.message_id} (tag: {bot_msg.tag})")
         try:
             await bot.delete_message(chat_id, bot_msg.message_id)
             bot_msg.deleted = True
@@ -265,10 +274,12 @@ async def delete_all_tracked(bot: Bot, session: Session, *, chat_id: int) -> int
     settings = session.query(ChatSettings).filter(ChatSettings.chat_id == chat_id).first()
     if settings:
         settings.last_panel_message_id = None
+        logger.info(f"🔥 Обнулена ссылка на панель для чата {chat_id}")
 
     session.commit()
+    logger.info(f"🔥 commit выполнен для чата {chat_id}")
 
-    logger.info(f"✅ Удалено {deleted} сообщений бота в чате {chat_id}")
+    logger.info(f"✅ Удалено {deleted} из {len(messages)} сообщений бота в чате {chat_id}")
     return deleted
 
 

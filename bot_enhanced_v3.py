@@ -1222,9 +1222,11 @@ BOT_ID: int = None
 
 # === ПОДКЛЮЧЕНИЕ ИЗОЛИРОВАННОГО ГРУППОВОГО РОУТЕРА ===
 # Импортируем роутер для групп (полностью изолирован от основного бота)
+from debug_test_router import diag_router  # noqa: E402
 from group_router import group_router  # noqa: E402
 
 dp.include_router(group_router)
+dp.include_router(diag_router)  # Временный роутер для диагностики
 
 
 # Состояния для FSM
