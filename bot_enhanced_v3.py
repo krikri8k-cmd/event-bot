@@ -1233,9 +1233,9 @@ main_router.callback_query.filter(F.message.chat.type == "private")
 from debug_test_router import diag_router  # noqa: E402
 from group_router import group_router  # noqa: E402
 
-dp.include_router(main_router)  # Основной роутер (только приватные чаты)
-dp.include_router(group_router)  # Групповой роутер (только группы)
+dp.include_router(group_router)  # Групповой роутер (только группы) - ПЕРВЫМ!
 dp.include_router(diag_router)  # Временный роутер для диагностики
+dp.include_router(main_router)  # Основной роутер (только приватные чаты) - ПОСЛЕДНИМ!
 
 
 # Состояния для FSM
