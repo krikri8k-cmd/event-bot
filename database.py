@@ -17,6 +17,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.engine import Engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, sessionmaker
 
 convention = {
@@ -224,6 +225,8 @@ class ChatSettings(Base):
 
 engine: Engine | None = None
 Session: sessionmaker | None = None
+async_engine = None
+async_session_maker = None
 
 
 def make_engine(database_url: str) -> Engine:
@@ -239,8 +242,25 @@ def make_engine(database_url: str) -> Engine:
     return create_engine(database_url, future=True, pool_pre_ping=True)
 
 
+def make_async_engine(database_url: str):
+    """Создает async engine для PostgreSQL"""
+    try:
+        # Преобразуем URL для asyncpg
+        if database_url.startswith("postgresql://"):
+            async_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        elif database_url.startswith("postgresql+psycopg2://"):
+            async_url = database_url.replace("postgresql+psycopg2://", "postgresql+asyncpg://", 1)
+        else:
+            async_url = database_url
+
+        return create_async_engine(async_url, future=True, pool_pre_ping=True)
+    except ImportError:
+        logging.warning("asyncpg не установлен, async engine недоступен")
+        return None
+
+
 def init_engine(database_url: str) -> None:
-    global engine, Session
+    global engine, Session, async_engine, async_session_maker
     if engine is None:
         try:
             engine = make_engine(database_url)
@@ -248,6 +268,14 @@ def init_engine(database_url: str) -> None:
             with engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
             Session = sessionmaker(bind=engine, expire_on_commit=False)
+
+            # Инициализируем async engine (опционально)
+            async_engine = make_async_engine(database_url)
+            if async_engine is not None:
+                async_session_maker = async_sessionmaker(async_engine, expire_on_commit=False)
+            else:
+                async_session_maker = None
+
         except Exception:
             logging.exception("Не удалось подключиться к базе данных по URL: %s", database_url)
             raise RuntimeError("Не удалось подключиться к базе данных.")

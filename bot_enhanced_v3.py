@@ -1217,6 +1217,37 @@ bot = Bot(token=settings.telegram_token)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
+# === MIDDLEWARE ДЛЯ СЕССИЙ ===
+from collections.abc import Awaitable, Callable  # noqa: E402
+from typing import Any  # noqa: E402
+
+from aiogram import BaseMiddleware  # noqa: E402
+from sqlalchemy.ext.asyncio import async_sessionmaker  # noqa: E402
+
+
+class DbSessionMiddleware(BaseMiddleware):
+    def __init__(self, session_maker: async_sessionmaker):
+        self.session_maker = session_maker
+
+    async def __call__(
+        self, handler: Callable[[Any, dict[str, Any]], Awaitable[Any]], event: Any, data: dict[str, Any]
+    ) -> Any:
+        async with self.session_maker() as session:
+            data["session"] = session
+            return await handler(event, data)
+
+
+# Подключаем middleware для всех типов событий (если доступен async_session_maker)
+from database import async_session_maker  # noqa: E402
+
+if async_session_maker is not None:
+    dp.update.middleware(DbSessionMiddleware(async_session_maker))
+    dp.message.middleware(DbSessionMiddleware(async_session_maker))
+    dp.callback_query.middleware(DbSessionMiddleware(async_session_maker))
+    logging.info("✅ Async session middleware подключен")
+else:
+    logging.warning("⚠️ Async session middleware недоступен (нет asyncpg)")
+
 # BOT_ID для корректной фильтрации в групповых чатах
 BOT_ID: int = None
 
