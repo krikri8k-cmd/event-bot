@@ -2246,8 +2246,8 @@ async def handle_group_back_to_start(callback: types.CallbackQuery):
     await callback.answer()
 
 
-@dp.message(Command("nearby"))
-@dp.message(F.text == "📍 Что рядом")
+@main_router.message(Command("nearby"))
+@main_router.message(F.text == "📍 Что рядом")
 async def on_what_nearby(message: types.Message, state: FSMContext):
     """Обработчик кнопки 'Что рядом'"""
     # Устанавливаем состояние для поиска событий
@@ -2269,7 +2269,7 @@ async def on_what_nearby(message: types.Message, state: FSMContext):
     )
 
 
-@dp.message(F.location, TaskFlow.waiting_for_location)
+@main_router.message(F.location, TaskFlow.waiting_for_location)
 async def on_location_for_tasks(message: types.Message, state: FSMContext):
     """Обработчик геолокации для заданий"""
     user_id = message.from_user.id
@@ -2313,7 +2313,7 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
     logger.info(f"📍 [ЗАДАНИЯ] Показаны категории для пользователя {user_id}")
 
 
-@dp.message(F.location)
+@main_router.message(F.location)
 async def on_location(message: types.Message, state: FSMContext):
     """Обработчик получения геолокации"""
     # Проверяем состояние - если это для заданий, не обрабатываем здесь
@@ -2733,8 +2733,8 @@ async def on_location(message: types.Message, state: FSMContext):
         await message.answer("Произошла ошибка при поиске событий. Попробуйте позже.", reply_markup=main_menu_kb())
 
 
-@dp.message(Command("create"))
-@dp.message(F.text == "➕ Создать")
+@main_router.message(Command("create"))
+@main_router.message(F.text == "➕ Создать")
 async def on_create(message: types.Message, state: FSMContext):
     """Обработчик кнопки 'Создать'"""
     await state.set_state(EventCreation.waiting_for_title)
@@ -2744,15 +2744,15 @@ async def on_create(message: types.Message, state: FSMContext):
     )
 
 
-@dp.message(F.text == "❌ Отмена")
+@main_router.message(F.text == "❌ Отмена")
 async def cancel_creation(message: types.Message, state: FSMContext):
     """Отмена создания события"""
     await state.clear()
     await message.answer("Создание отменено.", reply_markup=main_menu_kb())
 
 
-@dp.message(Command("myevents"))
-@dp.message(F.text == "📋 Мои события")
+@main_router.message(Command("myevents"))
+@main_router.message(F.text == "📋 Мои события")
 async def on_my_events(message: types.Message):
     """Обработчик кнопки 'Мои события' с управлением статусами"""
     user_id = message.from_user.id
@@ -2865,8 +2865,8 @@ async def on_my_events(message: types.Message):
         await message.answer(simple_text, reply_markup=main_menu_kb())
 
 
-@dp.message(Command("share"))
-@dp.message(F.text == "🔗 Поделиться")
+@main_router.message(Command("share"))
+@main_router.message(F.text == "🔗 Поделиться")
 async def on_share(message: types.Message):
     """Обработчик кнопки 'Поделиться'"""
     bot_info = await bot.get_me()
@@ -2879,7 +2879,7 @@ async def on_share(message: types.Message):
     await message.answer(text, reply_markup=main_menu_kb())
 
 
-@dp.message(Command("admin_event"))
+@main_router.message(Command("admin_event"))
 async def on_admin_event(message: types.Message):
     """Обработчик команды /admin_event для диагностики событий"""
     # Проверяем, что это админ (можно добавить проверку по user_id)
@@ -2946,7 +2946,7 @@ async def on_admin_event(message: types.Message):
         await message.answer("Произошла ошибка при получении информации о событии")
 
 
-@dp.message(Command("diag_webhook"))
+@main_router.message(Command("diag_webhook"))
 async def on_diag_webhook(message: types.Message):
     """Диагностика webhook"""
     try:
@@ -2975,7 +2975,7 @@ async def on_diag_webhook(message: types.Message):
         await message.answer(f"❌ Ошибка диагностики: {e}")
 
 
-@dp.message(Command("diag_last"))
+@main_router.message(Command("diag_last"))
 async def on_diag_last(message: types.Message):
     """Обработчик команды /diag_last для диагностики последнего запроса"""
     try:
@@ -3068,7 +3068,7 @@ async def on_diag_last(message: types.Message):
         await message.answer("Произошла ошибка при получении диагностики")
 
 
-@dp.message(Command("diag_all"))
+@main_router.message(Command("diag_all"))
 async def on_diag_all(message: types.Message):
     """Обработчик команды /diag_all для полной диагностики системы"""
     try:
@@ -3153,7 +3153,7 @@ async def on_diag_all(message: types.Message):
         await message.answer("Произошла ошибка при получении диагностики")
 
 
-@dp.message(Command("diag_search"))
+@main_router.message(Command("diag_search"))
 async def on_diag_search(message: types.Message):
     """Обработчик команды /diag_search для диагностики поиска"""
     try:
@@ -3226,7 +3226,7 @@ async def on_diag_search(message: types.Message):
         await message.answer("Произошла ошибка при получении диагностики поиска")
 
 
-@dp.message(F.text == "🎯 Квесты на районе")
+@main_router.message(F.text == "🎯 Квесты на районе")
 async def on_tasks_goal(message: types.Message, state: FSMContext):
     """Обработчик кнопки 'Квесты на районе' - объяснение и запрос геолокации"""
     # Устанавливаем состояние для заданий
@@ -3249,7 +3249,7 @@ async def on_tasks_goal(message: types.Message, state: FSMContext):
     )
 
 
-@dp.message(F.text == "🏆 Мои квесты")
+@main_router.message(F.text == "🏆 Мои квесты")
 async def on_my_tasks(message: types.Message):
     """Обработчик кнопки 'Мои квесты'"""
     user_id = message.from_user.id
@@ -4048,7 +4048,7 @@ async def handle_task_manage(callback: types.CallbackQuery):
     await callback.answer()
 
 
-@dp.message(EventCreation.waiting_for_feedback)
+@main_router.message(EventCreation.waiting_for_feedback)
 async def process_feedback(message: types.Message, state: FSMContext):
     """Обработка фидбека для завершения задания"""
     feedback = message.text.strip()
@@ -4089,8 +4089,8 @@ async def process_feedback(message: types.Message, state: FSMContext):
     await state.clear()
 
 
-@dp.message(Command("help"))
-@dp.message(F.text == "💬 Написать отзыв Разработчику")
+@main_router.message(Command("help"))
+@main_router.message(F.text == "💬 Написать отзыв Разработчику")
 async def on_help(message: types.Message):
     """Обработчик кнопки 'Написать отзыв Разработчику'"""
     feedback_text = (
@@ -4114,7 +4114,7 @@ async def on_help(message: types.Message):
 
 
 # FSM обработчики для создания событий (должны быть ПЕРЕД общим обработчиком)
-@dp.message(EventCreation.waiting_for_title)
+@main_router.message(EventCreation.waiting_for_title)
 async def process_title(message: types.Message, state: FSMContext):
     """Шаг 1: Обработка названия события"""
     title = message.text.strip()
@@ -4148,7 +4148,7 @@ async def process_title(message: types.Message, state: FSMContext):
         )
 
 
-@dp.message(EventCreation.waiting_for_date)
+@main_router.message(EventCreation.waiting_for_date)
 async def process_date(message: types.Message, state: FSMContext):
     """Шаг 2: Обработка даты события"""
     date = message.text.strip()
@@ -4192,7 +4192,7 @@ async def process_date(message: types.Message, state: FSMContext):
     )
 
 
-@dp.message(EventCreation.waiting_for_time)
+@main_router.message(EventCreation.waiting_for_time)
 async def process_time(message: types.Message, state: FSMContext):
     """Шаг 3: Обработка времени события"""
     time = message.text.strip()
@@ -4244,7 +4244,7 @@ async def process_time(message: types.Message, state: FSMContext):
     )
 
 
-@dp.message(EventCreation.waiting_for_location_type)
+@main_router.message(EventCreation.waiting_for_location_type)
 async def handle_location_type_text(message: types.Message, state: FSMContext):
     """Обработка текстовых сообщений в состоянии выбора типа локации"""
     text = message.text.strip()
@@ -4402,7 +4402,7 @@ async def handle_location_coords_choice(callback: types.CallbackQuery, state: FS
     await callback.answer()
 
 
-@dp.message(TaskFlow.waiting_for_custom_location)
+@main_router.message(TaskFlow.waiting_for_custom_location)
 async def process_task_custom_location(message: types.Message, state: FSMContext):
     """Обработка ввода своей локации для задания"""
     link = message.text.strip()
@@ -4525,7 +4525,7 @@ async def process_task_custom_location(message: types.Message, state: FSMContext
     )
 
 
-@dp.message(EventCreation.waiting_for_location_link)
+@main_router.message(EventCreation.waiting_for_location_link)
 async def process_location_link(message: types.Message, state: FSMContext):
     """Обработка ссылки Google Maps или координат"""
     # Проверяем состояние - если это для заданий, не обрабатываем здесь
@@ -4693,7 +4693,7 @@ async def handle_location_change(callback: types.CallbackQuery, state: FSMContex
     await callback.answer()
 
 
-@dp.message(EventCreation.waiting_for_location)
+@main_router.message(EventCreation.waiting_for_location)
 async def process_location(message: types.Message, state: FSMContext):
     """Шаг 4: Обработка места события"""
     location = message.text.strip()
@@ -4707,7 +4707,7 @@ async def process_location(message: types.Message, state: FSMContext):
     )
 
 
-@dp.message(EventCreation.waiting_for_description)
+@main_router.message(EventCreation.waiting_for_description)
 async def process_description(message: types.Message, state: FSMContext):
     """Шаг 5: Обработка описания события"""
     description = message.text.strip()
@@ -4990,7 +4990,7 @@ async def handle_community_description_step(message: types.Message, state: FSMCo
 
 
 # Обработчики для групповых чатов с правильными фильтрами
-@dp.message(CommunityEventCreation.waiting_for_title, F.chat.type.in_({"group", "supergroup"}))
+@main_router.message(CommunityEventCreation.waiting_for_title, F.chat.type.in_({"group", "supergroup"}))
 async def process_community_title_group(message: types.Message, state: FSMContext):
     """Обработка названия события в групповых чатах"""
     logger.info(
@@ -5031,7 +5031,7 @@ async def process_community_title_group(message: types.Message, state: FSMContex
     )
 
 
-@dp.message(CommunityEventCreation.waiting_for_date, F.chat.type.in_({"group", "supergroup"}))
+@main_router.message(CommunityEventCreation.waiting_for_date, F.chat.type.in_({"group", "supergroup"}))
 async def process_community_date_group(message: types.Message, state: FSMContext):
     """Обработка даты события в групповых чатах"""
     logger.info(
@@ -5079,7 +5079,7 @@ async def process_community_date_group(message: types.Message, state: FSMContext
     )
 
 
-@dp.message(CommunityEventCreation.waiting_for_time, F.chat.type.in_({"group", "supergroup"}))
+@main_router.message(CommunityEventCreation.waiting_for_time, F.chat.type.in_({"group", "supergroup"}))
 async def process_community_time_group(message: types.Message, state: FSMContext):
     """Обработка времени события в групповых чатах"""
     logger.info(
@@ -5127,7 +5127,7 @@ async def process_community_time_group(message: types.Message, state: FSMContext
     )
 
 
-@dp.message(CommunityEventCreation.waiting_for_city, F.chat.type.in_({"group", "supergroup"}))
+@main_router.message(CommunityEventCreation.waiting_for_city, F.chat.type.in_({"group", "supergroup"}))
 async def process_community_city_group(message: types.Message, state: FSMContext):
     """Обработка города события в групповых чатах"""
     logger.info(
@@ -5162,7 +5162,7 @@ async def process_community_city_group(message: types.Message, state: FSMContext
     )
 
 
-@dp.message(CommunityEventCreation.waiting_for_location_url, F.chat.type.in_({"group", "supergroup"}))
+@main_router.message(CommunityEventCreation.waiting_for_location_url, F.chat.type.in_({"group", "supergroup"}))
 async def process_community_location_url_group(message: types.Message, state: FSMContext):
     """Обработка ссылки на место события в групповых чатах"""
     logger.info(
@@ -5198,7 +5198,7 @@ async def process_community_location_url_group(message: types.Message, state: FS
     )
 
 
-@dp.message(CommunityEventCreation.waiting_for_description, F.chat.type.in_({"group", "supergroup"}))
+@main_router.message(CommunityEventCreation.waiting_for_description, F.chat.type.in_({"group", "supergroup"}))
 async def process_community_description_group(message: types.Message, state: FSMContext):
     """Обработка описания события в групповых чатах"""
     logger.info(
@@ -5501,7 +5501,7 @@ async def handle_manage_events(callback: types.CallbackQuery):
     await callback.answer()
 
 
-@dp.message(F.text == "🏠 Главное меню")
+@main_router.message(F.text == "🏠 Главное меню")
 async def on_main_menu_button(message: types.Message, state: FSMContext):
     """Обработчик кнопки 'Главное меню' - очищает состояние и показывает анимацию ракеты"""
     # Очищаем состояние FSM
@@ -5511,7 +5511,7 @@ async def on_main_menu_button(message: types.Message, state: FSMContext):
     await send_spinning_menu(message)
 
 
-@dp.message(~StateFilter(EventCreation, EventEditing, TaskFlow))
+@main_router.message(~StateFilter(EventCreation, EventEditing, TaskFlow))
 async def echo_message(message: types.Message, state: FSMContext):
     """Обработчик всех остальных сообщений (кроме FSM состояний)"""
     current_state = await state.get_state()
@@ -6199,7 +6199,7 @@ async def handle_edit_finish(callback: types.CallbackQuery, state: FSMContext):
 
 
 # Обработчики ввода данных для редактирования
-@dp.message(EventEditing.waiting_for_title)
+@main_router.message(EventEditing.waiting_for_title)
 async def handle_title_input(message: types.Message, state: FSMContext):
     """Обработка ввода нового названия"""
     data = await state.get_data()
@@ -6225,7 +6225,7 @@ async def handle_title_input(message: types.Message, state: FSMContext):
         await message.answer("❌ Введите корректное название")
 
 
-@dp.message(EventEditing.waiting_for_date)
+@main_router.message(EventEditing.waiting_for_date)
 async def handle_date_input(message: types.Message, state: FSMContext):
     """Обработка ввода новой даты"""
     data = await state.get_data()
@@ -6244,7 +6244,7 @@ async def handle_date_input(message: types.Message, state: FSMContext):
         await message.answer("❌ Введите корректную дату")
 
 
-@dp.message(EventEditing.waiting_for_time)
+@main_router.message(EventEditing.waiting_for_time)
 async def handle_time_input(message: types.Message, state: FSMContext):
     """Обработка ввода нового времени"""
     data = await state.get_data()
@@ -6282,7 +6282,7 @@ async def handle_time_input(message: types.Message, state: FSMContext):
         await message.answer("❌ Введите корректное время")
 
 
-@dp.message(EventEditing.waiting_for_location)
+@main_router.message(EventEditing.waiting_for_location)
 async def handle_location_input(message: types.Message, state: FSMContext):
     """Обработка ввода новой локации (ссылка, координаты или текст)"""
     data = await state.get_data()
@@ -6365,7 +6365,7 @@ async def handle_location_input(message: types.Message, state: FSMContext):
     await state.set_state(EventEditing.choosing_field)
 
 
-@dp.message(EventEditing.waiting_for_description)
+@main_router.message(EventEditing.waiting_for_description)
 async def handle_description_input(message: types.Message, state: FSMContext):
     """Обработка ввода нового описания"""
     description = message.text.strip()
