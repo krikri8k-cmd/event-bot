@@ -168,7 +168,58 @@ class DailyView(Base):
     view_type: Mapped[str] = mapped_column(String(20), nullable=False)  # 'template', 'place'
     view_key: Mapped[str] = mapped_column(String(100), nullable=False)  # template_id или place_id
     view_date: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# === МОДЕЛИ ДЛЯ ГРУППОВЫХ ЧАТОВ (ИЗОЛИРОВАННЫЙ МОДУЛЬ) ===
+
+
+class CommunityEvent(Base):
+    """События в групповых чатах (изолированно от основного бота)"""
+
+    __tablename__ = "events_community"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    organizer_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    organizer_username: Mapped[str | None] = mapped_column(String(255))
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    starts_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    city: Mapped[str | None] = mapped_column(String(64))
+    location_name: Mapped[str | None] = mapped_column(String(255))
+    location_url: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(16), default="open", index=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class BotMessage(Base):
+    """Трекинг всех сообщений бота в групповых чатах для функции 'Спрятать бота'"""
+
+    __tablename__ = "bot_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    message_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    tag: Mapped[str] = mapped_column(String(50), default="service", index=True)  # panel, service, notification
+    deleted: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ChatSettings(Base):
+    """Настройки групповых чатов"""
+
+    __tablename__ = "chat_settings"
+
+    chat_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    last_panel_message_id: Mapped[int | None] = mapped_column(BigInteger)
+    muted: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 engine: Engine | None = None
