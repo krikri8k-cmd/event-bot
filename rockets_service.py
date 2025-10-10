@@ -10,15 +10,28 @@ from dotenv import load_dotenv
 
 from database import User, get_session, init_engine
 
-# Инициализируем базу данных
-load_dotenv("app.local.env")
-init_engine(os.getenv("DATABASE_URL"))
+
+# Инициализируем базу данных только если нужно
+def _ensure_db_init():
+    """Ленивая инициализация БД"""
+    try:
+        from database import engine
+
+        if engine is None:
+            load_dotenv("app.local.env")
+            init_engine(os.getenv("DATABASE_URL"))
+    except Exception as e:
+        logger.warning(f"Не удалось инициализировать БД: {e}")
+
+
+# Не инициализируем БД при импорте - только при первом использовании
 
 logger = logging.getLogger(__name__)
 
 
 def get_user_rockets(user_id: int) -> int:
     """Получает количество ракет пользователя"""
+    _ensure_db_init()
     try:
         with get_session() as session:
             user = session.get(User, user_id)
@@ -31,6 +44,7 @@ def get_user_rockets(user_id: int) -> int:
 
 def add_rockets(user_id: int, amount: int, reason: str = "") -> bool:
     """Добавляет ракеты пользователю"""
+    _ensure_db_init()
     try:
         with get_session() as session:
             user = session.get(User, user_id)
@@ -49,6 +63,7 @@ def add_rockets(user_id: int, amount: int, reason: str = "") -> bool:
 
 def spend_rockets(user_id: int, amount: int, reason: str = "") -> bool:
     """Тратит ракеты пользователя"""
+    _ensure_db_init()
     try:
         with get_session() as session:
             user = session.get(User, user_id)
