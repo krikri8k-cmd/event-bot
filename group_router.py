@@ -85,7 +85,6 @@ async def group_start(message: Message, bot: Bot):
         logger.info(f"🔥 group_start: вызываем ensure_panel для чата {chat_id}")
         panel_id = await ensure_panel(bot, session, chat_id=chat_id, text=PANEL_TEXT, kb=group_kb(chat_id))
         logger.info(f"🔥 group_start: ensure_panel вернул message_id={panel_id}")
-        session.close()
     except Exception as e:
         logger.error(f"❌ group_start: ошибка при создании панели: {e}")
         # Fallback - отправляем обычное сообщение
@@ -153,8 +152,8 @@ async def group_list_events(callback: CallbackQuery, bot: Bot):
             await callback.message.edit_text(text, reply_markup=back_kb, parse_mode="Markdown")
         except Exception as e:
             logger.error(f"❌ Ошибка редактирования сообщения: {e}")
-    finally:
-        session.close()
+    except Exception as e:
+        logger.error(f"❌ Ошибка получения событий: {e}")
 
 
 @group_router.callback_query(F.data == "group_back_to_panel")
@@ -213,10 +212,17 @@ async def group_hide_confirm(callback: CallbackQuery, bot: Bot):
         from utils.messaging_utils import send_tracked
 
         session = await get_async_session()
-    try:
-        await send_tracked(bot, session, chat_id=chat_id, text=confirmation_text, reply_markup=keyboard, tag="service")
-    finally:
-        session.close()
+        try:
+            await send_tracked(
+                bot,
+                session,
+                chat_id=chat_id,
+                text=confirmation_text,
+                reply_markup=keyboard,
+                tag="service",
+            )
+        except Exception as e:
+            logger.error(f"❌ Ошибка отправки подтверждения: {e}")
 
 
 @group_router.callback_query(F.data.startswith("group_hide_execute_"))
@@ -260,8 +266,9 @@ async def group_hide_execute(callback: CallbackQuery, bot: Bot):
     session = await get_async_session()
     try:
         deleted = await delete_all_tracked(bot, session, chat_id=chat_id)
-    finally:
-        session.close()
+    except Exception as e:
+        logger.error(f"❌ Ошибка удаления сообщений: {e}")
+        deleted = 0
 
     # Короткое уведомление о результате (не трекаем, чтобы не гоняться за ним)
     note = await bot.send_message(
@@ -316,9 +323,11 @@ async def group_delete_event(callback: CallbackQuery, bot: Bot):
 
         # Удаляем событие
         session.delete(event)
-        session.commit()
-    finally:
-        session.close()
+        await session.commit()
+    except Exception as e:
+        logger.error(f"❌ Ошибка удаления события: {e}")
+        await callback.answer("❌ Ошибка удаления события", show_alert=True)
+        return
 
     await callback.answer("✅ Событие удалено!", show_alert=False)
 

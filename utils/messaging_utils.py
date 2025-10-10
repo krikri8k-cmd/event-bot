@@ -166,14 +166,17 @@ async def ensure_panel(bot: Bot, session: Session, *, chat_id: int, text: str, k
     logger.info(f"🔥 ensure_panel: начинаем для чата {chat_id}")
 
     # Получаем настройки чата
-    settings = session.query(ChatSettings).filter(ChatSettings.chat_id == chat_id).first()
+    from sqlalchemy import select
+
+    result = await session.execute(select(ChatSettings).where(ChatSettings.chat_id == chat_id))
+    settings = result.scalar_one_or_none()
     logger.info(f"🔥 ensure_panel: настройки чата {chat_id} = {settings}")
 
     if not settings:
         logger.info(f"🔥 ensure_panel: создаем новые настройки для чата {chat_id}")
         settings = ChatSettings(chat_id=chat_id)
         session.add(settings)
-        session.commit()
+        await session.commit()
 
     # Пытаемся отредактировать существующее сообщение
     if settings.last_panel_message_id:
@@ -206,7 +209,7 @@ async def ensure_panel(bot: Bot, session: Session, *, chat_id: int, text: str, k
     session.add(bot_msg)
 
     logger.info("🔥 ensure_panel: перед commit - bot_msg добавлен в сессию")
-    session.commit()
+    await session.commit()
     logger.info("🔥 ensure_panel: после commit - данные сохранены в БД")
 
     logger.info(f"✅ Создан новый панель-пост в чате {chat_id}, message_id={msg.message_id}")
@@ -233,7 +236,7 @@ async def send_tracked(bot: Bot, session: Session, *, chat_id: int, text: str, t
     # Трекаем сообщение
     bot_msg = BotMessage(chat_id=chat_id, message_id=msg.message_id, tag=tag)
     session.add(bot_msg)
-    session.commit()
+    await session.commit()
 
     logger.info(f"✅ Отправлено tracked сообщение в чат {chat_id}, message_id={msg.message_id}, tag={tag}")
     return msg
@@ -254,7 +257,12 @@ async def delete_all_tracked(bot: Bot, session: Session, *, chat_id: int) -> int
     logger.info(f"🔥 delete_all_tracked: начинаем удаление для чата {chat_id}")
 
     # Получаем все неудаленные сообщения
-    messages = session.query(BotMessage).filter(BotMessage.chat_id == chat_id, BotMessage.deleted is False).all()
+    from sqlalchemy import select
+
+    result = await session.execute(
+        select(BotMessage).where(BotMessage.chat_id == chat_id, BotMessage.deleted.is_(False))
+    )
+    messages = result.scalars().all()
 
     logger.info(f"🔥 Найдено {len(messages)} сообщений для удаления в чате {chat_id}")
 
@@ -283,12 +291,13 @@ async def delete_all_tracked(bot: Bot, session: Session, *, chat_id: int) -> int
             # НЕ помечаем как удаленное при неожиданных ошибках!
 
     # Обнуляем ссылку на панель
-    settings = session.query(ChatSettings).filter(ChatSettings.chat_id == chat_id).first()
+    result = await session.execute(select(ChatSettings).where(ChatSettings.chat_id == chat_id))
+    settings = result.scalar_one_or_none()
     if settings:
         settings.last_panel_message_id = None
         logger.info(f"🔥 Обнулена ссылка на панель для чата {chat_id}")
 
-    session.commit()
+    await session.commit()
     logger.info(f"🔥 commit выполнен для чата {chat_id}")
 
     logger.info(f"✅ Удалено {deleted} из {len(messages)} сообщений бота в чате {chat_id}")

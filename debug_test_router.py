@@ -61,31 +61,28 @@ async def __checkdb(m: Message):
         from database import BotMessage, get_async_session
 
         session = await get_async_session()
-        try:
-            messages = (
-                session.query(BotMessage)
-                .filter(BotMessage.chat_id == chat_id)
-                .order_by(BotMessage.created_at.desc())
-                .limit(10)
-                .all()
-            )
+        messages = (
+            session.query(BotMessage)
+            .filter(BotMessage.chat_id == chat_id)
+            .order_by(BotMessage.created_at.desc())
+            .limit(10)
+            .all()
+        )
 
-            if not messages:
-                await m.reply("❌ В bot_messages нет записей для этого чата!\nЭто означает что сообщения не трекаются.")
-                return
+        if not messages:
+            await m.reply("❌ В bot_messages нет записей для этого чата!\nЭто означает что сообщения не трекаются.")
+            return
 
-            result = f"📊 Найдено {len(messages)} записей в bot_messages:\n\n"
+        result = f"📊 Найдено {len(messages)} записей в bot_messages:\n\n"
 
-            for msg in messages:
-                status = "🗑️ удалено" if msg.deleted else "✅ активно"
-                result += f"ID: {msg.message_id}, Tag: {msg.tag}, Status: {status}\n"
+        for msg in messages:
+            status = "🗑️ удалено" if msg.deleted else "✅ активно"
+            result += f"ID: {msg.message_id}, Tag: {msg.tag}, Status: {status}\n"
 
-            active_count = len([m for m in messages if not m.deleted])
-            result += f"\nАктивных: {active_count}, Удаленных: {len(messages) - active_count}"
+        active_count = len([m for m in messages if not m.deleted])
+        result += f"\nАктивных: {active_count}, Удаленных: {len(messages) - active_count}"
 
-            await m.reply(result)
-        finally:
-            session.close()
+        await m.reply(result)
 
     except Exception as e:
         await m.reply(f"❌ Ошибка проверки БД: {e}")
@@ -101,34 +98,31 @@ async def __tracktest(m: Message, bot: Bot):
         from utils.messaging_utils import send_tracked
 
         session = await get_async_session()
-        try:
-            # Отправляем сообщение через send_tracked
-            tracked_msg = await send_tracked(
-                bot,
-                session,
-                chat_id=chat_id,
-                text="🧪 ТЕСТ ТРЕКИНГА - это сообщение должно быть записано в БД",
-                tag="test",
+        # Отправляем сообщение через send_tracked
+        tracked_msg = await send_tracked(
+            bot,
+            session,
+            chat_id=chat_id,
+            text="🧪 ТЕСТ ТРЕКИНГА - это сообщение должно быть записано в БД",
+            tag="test",
+        )
+
+        await m.reply(f"✅ Сообщение отправлено через send_tracked, ID: {tracked_msg.message_id}")
+
+        # Проверяем что записалось в БД
+        from database import BotMessage
+
+        db_msg = session.query(BotMessage).filter(BotMessage.message_id == tracked_msg.message_id).first()
+
+        if db_msg:
+            await m.reply(
+                f"✅ Сообщение записалось в БД:\n"
+                f"chat_id: {db_msg.chat_id}\n"
+                f"tag: {db_msg.tag}\n"
+                f"deleted: {db_msg.deleted}"
             )
-
-            await m.reply(f"✅ Сообщение отправлено через send_tracked, ID: {tracked_msg.message_id}")
-
-            # Проверяем что записалось в БД
-            from database import BotMessage
-
-            db_msg = session.query(BotMessage).filter(BotMessage.message_id == tracked_msg.message_id).first()
-
-            if db_msg:
-                await m.reply(
-                    f"✅ Сообщение записалось в БД:\n"
-                    f"chat_id: {db_msg.chat_id}\n"
-                    f"tag: {db_msg.tag}\n"
-                    f"deleted: {db_msg.deleted}"
-                )
-            else:
-                await m.reply("❌ Сообщение НЕ записалось в БД!")
-        finally:
-            session.close()
+        else:
+            await m.reply("❌ Сообщение НЕ записалось в БД!")
 
     except Exception as e:
         await m.reply(f"❌ Ошибка тестирования трекинга: {e}")
