@@ -1634,6 +1634,13 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
         await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
 
 
+def get_community_cancel_kb() -> InlineKeyboardMarkup:
+    """Возвращает клавиатуру с кнопкой отмены для группового события"""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text="❌ Отменить создание", callback_data="community_cancel")]]
+    )
+
+
 async def start_group_event_creation(message: types.Message, group_id: int, state: FSMContext):
     """Запуск создания события для группы в ЛС"""
     logger.info(f"🔥 start_group_event_creation: запуск FSM для группы {group_id}, пользователь {message.from_user.id}")
@@ -1646,10 +1653,12 @@ async def start_group_event_creation(message: types.Message, group_id: int, stat
         "🎉 **Создание события для группы**\n\n"
         "Вы перешли из группы для создания события. "
         "Давайте создадим интересное мероприятие!\n\n"
+        "📝 **Это событие будет добавлено в группу**, из которой вы перешли.\n"
+        "В любой момент можете отменить создание.\n\n"
         "✍️ **Введите название события:**"
     )
 
-    await message.answer(welcome_text, parse_mode="Markdown")
+    await message.answer(welcome_text, parse_mode="Markdown", reply_markup=get_community_cancel_kb())
 
 
 # Обработчики FSM для создания событий в ЛС (для групп)
@@ -1664,6 +1673,7 @@ async def process_community_title_pm(message: types.Message, state: FSMContext):
         await message.answer(
             "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n✍️ **Введите название события:**",
             parse_mode="Markdown",
+            reply_markup=get_community_cancel_kb(),
         )
         return
 
@@ -1677,6 +1687,7 @@ async def process_community_title_pm(message: types.Message, state: FSMContext):
     await message.answer(
         f"**Название сохранено:** *{title}* ✅\n\n📅 **Введите дату** (например: {example_date}):",
         parse_mode="Markdown",
+        reply_markup=get_community_cancel_kb(),
     )
 
 
@@ -1691,6 +1702,7 @@ async def process_community_date_pm(message: types.Message, state: FSMContext):
         await message.answer(
             "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n📅 **Введите дату** (например: 15.12.2024):",
             parse_mode="Markdown",
+            reply_markup=get_community_cancel_kb(),
         )
         return
 
@@ -1701,7 +1713,9 @@ async def process_community_date_pm(message: types.Message, state: FSMContext):
     await state.set_state(CommunityEventCreation.waiting_for_time)
 
     await message.answer(
-        f"**Дата сохранена:** {date} ✅\n\n⏰ **Введите время** (например: 19:00):", parse_mode="Markdown"
+        f"**Дата сохранена:** {date} ✅\n\n⏰ **Введите время** (например: 19:00):",
+        parse_mode="Markdown",
+        reply_markup=get_community_cancel_kb(),
     )
 
 
@@ -1716,6 +1730,7 @@ async def process_community_time_pm(message: types.Message, state: FSMContext):
         await message.answer(
             "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n⏰ **Введите время** (например: 19:00):",
             parse_mode="Markdown",
+            reply_markup=get_community_cancel_kb(),
         )
         return
 
@@ -1726,7 +1741,9 @@ async def process_community_time_pm(message: types.Message, state: FSMContext):
     await state.set_state(CommunityEventCreation.waiting_for_city)
 
     await message.answer(
-        f"**Время сохранено:** {time} ✅\n\n🏙️ **Введите город** (например: Москва):", parse_mode="Markdown"
+        f"**Время сохранено:** {time} ✅\n\n🏙️ **Введите город** (например: Москва):",
+        parse_mode="Markdown",
+        reply_markup=get_community_cancel_kb(),
     )
 
 
@@ -1741,6 +1758,7 @@ async def process_community_city_pm(message: types.Message, state: FSMContext):
         await message.answer(
             "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n🏙️ **Введите город** (например: Москва):",
             parse_mode="Markdown",
+            reply_markup=get_community_cancel_kb(),
         )
         return
 
@@ -1753,6 +1771,7 @@ async def process_community_city_pm(message: types.Message, state: FSMContext):
     await message.answer(
         f"**Город сохранен:** {city} ✅\n\n🔗 **Введите ссылку на место** (Google Maps или адрес):",
         parse_mode="Markdown",
+        reply_markup=get_community_cancel_kb(),
     )
 
 
@@ -1767,6 +1786,7 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
         await message.answer(
             "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n🔗 **Введите ссылку на место** (Google Maps или адрес):",
             parse_mode="Markdown",
+            reply_markup=get_community_cancel_kb(),
         )
         return
 
@@ -1795,6 +1815,7 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
     await message.answer(
         f"**Ссылка сохранена** ✅\n📍 **Место:** {location_name}\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
         parse_mode="Markdown",
+        reply_markup=get_community_cancel_kb(),
     )
 
 
@@ -1809,6 +1830,7 @@ async def process_community_description_pm(message: types.Message, state: FSMCon
         await message.answer(
             "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
             parse_mode="Markdown",
+            reply_markup=get_community_cancel_kb(),
         )
         return
 
@@ -1824,7 +1846,7 @@ async def process_community_description_pm(message: types.Message, state: FSMCon
 
     # Показываем итог перед подтверждением
     await message.answer(
-        f"📌 **Проверьте данные события:**\n\n"
+        f"📌 **Проверьте данные события для группы:**\n\n"
         f"**Название:** {data.get('title', 'НЕ УКАЗАНО')}\n"
         f"**Дата:** {data.get('date', 'НЕ УКАЗАНО')}\n"
         f"**Время:** {data.get('time', 'НЕ УКАЗАНО')}\n"
@@ -1832,13 +1854,14 @@ async def process_community_description_pm(message: types.Message, state: FSMCon
         f"**Место:** {data.get('location_name', 'НЕ УКАЗАНО')}\n"
         f"**Ссылка:** {data.get('location_url', 'НЕ УКАЗАНО')}\n"
         f"**Описание:** {data.get('description', 'НЕ УКАЗАНО')}\n\n"
-        f"Если всё верно, нажмите ✅ Сохранить. Если нужно изменить — нажмите ❌ Отмена.",
+        f"✅ **Все данные корректны?**\n"
+        f"Событие будет добавлено в группу, из которой вы перешли.",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton(text="✅ Сохранить", callback_data="community_event_confirm_pm"),
-                    InlineKeyboardButton(text="❌ Отмена", callback_data="community_event_cancel_pm"),
+                    InlineKeyboardButton(text="✅ Создать событие", callback_data="community_event_confirm_pm"),
+                    InlineKeyboardButton(text="❌ Отменить", callback_data="community_event_cancel_pm"),
                 ]
             ]
         ),
@@ -2146,6 +2169,27 @@ async def cancel_community_event_pm(callback: types.CallbackQuery, state: FSMCon
         "❌ **Создание события отменено.**\n\n" "Если хотите создать событие, нажмите /start", parse_mode="Markdown"
     )
     await callback.answer()
+
+
+@dp.callback_query(F.data == "community_cancel")
+async def cancel_community_event(callback: types.CallbackQuery, state: FSMContext):
+    """Отмена создания события сообщества (универсальная кнопка отмены)"""
+    logger.info(f"🔥 cancel_community_event: пользователь {callback.from_user.id} отменил создание группового события")
+
+    # Получаем данные для информативного сообщения
+    data = await state.get_data()
+    group_id = data.get("group_id")
+
+    await state.clear()
+
+    cancel_text = "❌ **Создание группового события отменено.**\n\n"
+    if group_id:
+        cancel_text += "Вы можете вернуться в группу или создать новое событие через /start"
+    else:
+        cancel_text += "Если хотите создать событие, нажмите /start"
+
+    await callback.message.edit_text(cancel_text, parse_mode="Markdown")
+    await callback.answer("Создание отменено", show_alert=False)
 
 
 @dp.callback_query(F.data == "group_cancel_create")
