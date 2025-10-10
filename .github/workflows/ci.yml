@@ -47,6 +47,22 @@ jobs:
   test:
     runs-on: ubuntu-latest
     needs: lint
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_USER: test
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -79,7 +95,7 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
           # Фейковые/безопасные значения только для CI:
           TELEGRAM_TOKEN: "1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi"
-          DATABASE_URL: "sqlite:///./test.db"
+          DATABASE_URL: "postgresql://test:test@localhost:5432/test"
           GOOGLE_MAPS_API_KEY: "test-key"
           OPENAI_API_KEY: "test-key"
           OPENAI_ORGANIZATION: "test-org"
