@@ -163,16 +163,21 @@ async def ensure_panel(bot: Bot, session: Session, *, chat_id: int, text: str, k
     Returns:
         message_id созданного/обновленного сообщения
     """
+    logger.info(f"🔥 ensure_panel: начинаем для чата {chat_id}")
+
     # Получаем настройки чата
     settings = session.query(ChatSettings).filter(ChatSettings.chat_id == chat_id).first()
+    logger.info(f"🔥 ensure_panel: настройки чата {chat_id} = {settings}")
 
     if not settings:
+        logger.info(f"🔥 ensure_panel: создаем новые настройки для чата {chat_id}")
         settings = ChatSettings(chat_id=chat_id)
         session.add(settings)
         session.commit()
 
     # Пытаемся отредактировать существующее сообщение
     if settings.last_panel_message_id:
+        logger.info(f"🔥 ensure_panel: пытаемся отредактировать message_id={settings.last_panel_message_id}")
         try:
             await bot.edit_message_text(
                 chat_id=chat_id,
@@ -189,9 +194,11 @@ async def ensure_panel(bot: Bot, session: Session, *, chat_id: int, text: str, k
             logger.error(f"❌ Ошибка редактирования панель-поста: {e}")
 
     # Создаем новое сообщение
+    logger.info(f"🔥 ensure_panel: создаем новое сообщение для чата {chat_id}")
     msg = await bot.send_message(chat_id, text, reply_markup=kb, parse_mode="Markdown")
 
     # Сохраняем ID панели и трекаем сообщение
+    logger.info(f"🔥 ensure_panel: сохраняем message_id={msg.message_id} в настройках и bot_messages")
     settings.last_panel_message_id = msg.message_id
     bot_msg = BotMessage(chat_id=chat_id, message_id=msg.message_id, tag="panel")
     session.add(bot_msg)

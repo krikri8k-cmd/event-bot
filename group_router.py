@@ -80,8 +80,15 @@ async def group_start(message: Message, bot: Bot):
     chat_id = message.chat.id
     logger.info(f"🔥 group_start: команда /start в группе {chat_id} от пользователя {message.from_user.id}")
 
-    with get_session() as session:
-        await ensure_panel(bot, session, chat_id=chat_id, text=PANEL_TEXT, kb=group_kb(chat_id))
+    try:
+        with get_session() as session:
+            logger.info(f"🔥 group_start: вызываем ensure_panel для чата {chat_id}")
+            panel_id = await ensure_panel(bot, session, chat_id=chat_id, text=PANEL_TEXT, kb=group_kb(chat_id))
+            logger.info(f"🔥 group_start: ensure_panel вернул message_id={panel_id}")
+    except Exception as e:
+        logger.error(f"❌ group_start: ошибка при создании панели: {e}")
+        # Fallback - отправляем обычное сообщение
+        await message.answer(PANEL_TEXT, reply_markup=group_kb(chat_id), parse_mode="Markdown")
 
 
 @group_router.callback_query(F.data == "group_list")
