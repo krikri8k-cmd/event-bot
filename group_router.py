@@ -162,10 +162,12 @@ async def group_back_to_panel(callback: CallbackQuery, bot: Bot):
 
 @group_router.callback_query(F.data == "group_hide_confirm")
 async def group_hide_confirm(callback: CallbackQuery, bot: Bot):
-    """Показ диалога подтверждения скрытия бота"""
+    """Показ диалога подтверждения скрытия бота - редактируем панель"""
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id
     logger.info(f"🔥 group_hide_confirm: пользователь {user_id} запросил подтверждение скрытия бота в чате {chat_id}")
+
+    await callback.answer("Показываем подтверждение...", show_alert=False)
 
     confirmation_text = (
         "👁️‍🗨️ **Спрятать бота**\n\n"
@@ -185,8 +187,24 @@ async def group_hide_confirm(callback: CallbackQuery, bot: Bot):
         ]
     )
 
-    await callback.message.edit_text(confirmation_text, reply_markup=keyboard, parse_mode="Markdown")
-    await callback.answer()
+    # Редактируем панель вместо создания нового сообщения
+    try:
+        await bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=callback.message.message_id,
+            text=confirmation_text,
+            reply_markup=keyboard,
+            parse_mode="Markdown",
+        )
+    except Exception as e:
+        logger.error(f"❌ Ошибка редактирования панели: {e}")
+        # Fallback - отправляем новое сообщение через send_tracked
+        from utils.messaging_utils import send_tracked
+
+        with get_session() as session:
+            await send_tracked(
+                bot, session, chat_id=chat_id, text=confirmation_text, reply_markup=keyboard, tag="service"
+            )
 
 
 @group_router.callback_query(F.data.startswith("group_hide_execute_"))
@@ -197,6 +215,34 @@ async def group_hide_execute(callback: CallbackQuery, bot: Bot):
     logger.info(f"🔥 group_hide_execute: пользователь {user_id} подтвердил скрытие бота в чате {chat_id}")
 
     await callback.answer("Скрываем сервисные сообщения бота…", show_alert=False)
+
+    # Проверяем права бота на удаление сообщений
+    try:
+        bot_member = await bot.get_chat_member(chat_id, bot.id)
+        logger.info(
+            f"🔥 Права бота в чате {chat_id}: status={bot_member.status}, "
+            f"can_delete_messages={getattr(bot_member, 'can_delete_messages', None)}"
+        )
+
+        if bot_member.status != "administrator" or not getattr(bot_member, "can_delete_messages", False):
+            logger.warning(f"🚫 У бота нет прав на удаление сообщений в чате {chat_id}")
+            await callback.message.edit_text(
+                "❌ **Ошибка: Нет прав на удаление**\n\n"
+                "Бот должен быть администратором с правом 'Удаление сообщений'.\n\n"
+                "Попросите администратора группы:\n"
+                "1. Сделать бота администратором\n"
+                "2. Включить право 'Удаление сообщений'\n\n"
+                "После этого попробуйте снова.",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [InlineKeyboardButton(text="◀️ Назад к панели", callback_data="group_back_to_panel")]
+                    ]
+                ),
+            )
+            return
+    except Exception as e:
+        logger.error(f"❌ Ошибка проверки прав бота: {e}")
 
     # Используем асинхронную версию delete_all_tracked
     with get_session() as session:
