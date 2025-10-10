@@ -1220,12 +1220,21 @@ dp = Dispatcher(storage=storage)
 # BOT_ID для корректной фильтрации в групповых чатах
 BOT_ID: int = None
 
+# === СОЗДАНИЕ ОСНОВНОГО РОУТЕРА С ФИЛЬТРОМ ===
+# Основной роутер работает ТОЛЬКО в приватных чатах
+from aiogram import Router  # noqa: E402
+
+main_router = Router()
+main_router.message.filter(F.chat.type == "private")
+main_router.callback_query.filter(F.message.chat.type == "private")
+
 # === ПОДКЛЮЧЕНИЕ ИЗОЛИРОВАННОГО ГРУППОВОГО РОУТЕРА ===
 # Импортируем роутер для групп (полностью изолирован от основного бота)
 from debug_test_router import diag_router  # noqa: E402
 from group_router import group_router  # noqa: E402
 
-dp.include_router(group_router)
+dp.include_router(main_router)  # Основной роутер (только приватные чаты)
+dp.include_router(group_router)  # Групповой роутер (только группы)
 dp.include_router(diag_router)  # Временный роутер для диагностики
 
 
@@ -1551,7 +1560,7 @@ def kb_radius(current: int | None = None) -> InlineKeyboardMarkup:
 # Удалена старая функция radius_selection_kb() - используем только kb_radius()
 
 
-@dp.message(F.text == "🔧 Настройки радиуса")
+@main_router.message(F.text == "🔧 Настройки радиуса")
 async def cmd_radius_settings(message: types.Message):
     """Обработчик настройки радиуса поиска"""
     user_id = message.from_user.id
@@ -1568,8 +1577,8 @@ async def cmd_radius_settings(message: types.Message):
     )
 
 
-@dp.message(Command("start"))
-@dp.message(F.text == "🚀 Старт")
+@main_router.message(Command("start"))
+@main_router.message(F.text == "🚀 Старт")
 async def cmd_start(message: types.Message, state: FSMContext, command: CommandObject = None):
     """Обработчик команды /start"""
     user_id = message.from_user.id
@@ -1664,7 +1673,7 @@ async def start_group_event_creation(message: types.Message, group_id: int, stat
 
 
 # Обработчики FSM для создания событий в ЛС (для групп)
-@dp.message(CommunityEventCreation.waiting_for_title, F.chat.type == "private")
+@main_router.message(CommunityEventCreation.waiting_for_title)
 async def process_community_title_pm(message: types.Message, state: FSMContext):
     """Обработка названия события в ЛС для группы"""
     logger.info(
@@ -1693,7 +1702,7 @@ async def process_community_title_pm(message: types.Message, state: FSMContext):
     )
 
 
-@dp.message(CommunityEventCreation.waiting_for_date, F.chat.type == "private")
+@main_router.message(CommunityEventCreation.waiting_for_date)
 async def process_community_date_pm(message: types.Message, state: FSMContext):
     """Обработка даты события в ЛС для группы"""
     logger.info(
@@ -1721,7 +1730,7 @@ async def process_community_date_pm(message: types.Message, state: FSMContext):
     )
 
 
-@dp.message(CommunityEventCreation.waiting_for_time, F.chat.type == "private")
+@main_router.message(CommunityEventCreation.waiting_for_time)
 async def process_community_time_pm(message: types.Message, state: FSMContext):
     """Обработка времени события в ЛС для группы"""
     logger.info(
@@ -1749,7 +1758,7 @@ async def process_community_time_pm(message: types.Message, state: FSMContext):
     )
 
 
-@dp.message(CommunityEventCreation.waiting_for_city, F.chat.type == "private")
+@main_router.message(CommunityEventCreation.waiting_for_city)
 async def process_community_city_pm(message: types.Message, state: FSMContext):
     """Обработка города события в ЛС для группы"""
     logger.info(
@@ -1777,7 +1786,7 @@ async def process_community_city_pm(message: types.Message, state: FSMContext):
     )
 
 
-@dp.message(CommunityEventCreation.waiting_for_location_url, F.chat.type == "private")
+@main_router.message(CommunityEventCreation.waiting_for_location_url)
 async def process_community_location_url_pm(message: types.Message, state: FSMContext):
     """Обработка ссылки на место события в ЛС для группы"""
     logger.info(
@@ -1821,7 +1830,7 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
     )
 
 
-@dp.message(CommunityEventCreation.waiting_for_description, F.chat.type == "private")
+@main_router.message(CommunityEventCreation.waiting_for_description)
 async def process_community_description_pm(message: types.Message, state: FSMContext):
     """Обработка описания события в ЛС для группы"""
     logger.info(
@@ -1871,7 +1880,7 @@ async def process_community_description_pm(message: types.Message, state: FSMCon
 
 
 # Обработчики для inline кнопок в групповых чатов
-@dp.callback_query(F.data == "group_create_event")
+@main_router.callback_query(F.data == "group_create_event")
 async def handle_group_create_event(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик кнопки 'Создать событие в чате' в групповых чатах"""
     logger.info(
@@ -1926,7 +1935,7 @@ async def handle_group_create_event(callback: types.CallbackQuery, state: FSMCon
     await callback.answer()
 
 
-@dp.callback_query(F.data == "group_chat_events")
+@main_router.callback_query(F.data == "group_chat_events")
 async def handle_group_chat_events(callback: types.CallbackQuery):
     """Обработчик кнопки 'События этого чата' в групповых чатах"""
     chat_id = callback.message.chat.id
@@ -1967,7 +1976,7 @@ async def handle_group_chat_events(callback: types.CallbackQuery):
     await callback.answer()
 
 
-@dp.callback_query(F.data == "group_myevents")
+@main_router.callback_query(F.data == "group_myevents")
 async def handle_group_myevents(callback: types.CallbackQuery):
     """Обработчик кнопки 'Мои события' в групповых чатах"""
     user_id = callback.from_user.id
@@ -1993,7 +2002,7 @@ async def handle_group_myevents(callback: types.CallbackQuery):
     await callback.answer()
 
 
-@dp.callback_query(F.data == "group_hide_bot")
+@main_router.callback_query(F.data == "group_hide_bot")
 async def handle_group_hide_bot(callback: types.CallbackQuery):
     """Обработчик кнопки 'Спрятать бота' в групповых чатах"""
     chat_id = callback.message.chat.id
@@ -2022,7 +2031,7 @@ async def handle_group_hide_bot(callback: types.CallbackQuery):
     await callback.answer()
 
 
-@dp.callback_query(F.data.regexp(r"^group_hide_confirm_\d+$"))
+@main_router.callback_query(F.data.regexp(r"^group_hide_confirm_\d+$"))
 async def handle_group_hide_confirm(callback: types.CallbackQuery):
     """Подтверждение скрытия бота в групповом чате"""
     # Извлекаем chat_id из callback_data
@@ -2070,7 +2079,7 @@ async def handle_group_hide_confirm(callback: types.CallbackQuery):
         await callback.answer("❌ Произошла ошибка при скрытии бота", show_alert=True)
 
 
-@dp.callback_query(F.data == "community_event_confirm_pm")
+@main_router.callback_query(F.data == "community_event_confirm_pm")
 async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMContext):
     """Подтверждение создания события сообщества в ЛС"""
     logger.info(
@@ -2161,7 +2170,7 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
     await callback.answer()
 
 
-@dp.callback_query(F.data == "community_event_cancel_pm")
+@main_router.callback_query(F.data == "community_event_cancel_pm")
 async def cancel_community_event_pm(callback: types.CallbackQuery, state: FSMContext):
     """Отмена создания события сообщества в ЛС"""
     logger.info(f"🔥 cancel_community_event_pm: пользователь {callback.from_user.id} отменил создание события в ЛС")
@@ -2173,7 +2182,7 @@ async def cancel_community_event_pm(callback: types.CallbackQuery, state: FSMCon
     await callback.answer()
 
 
-@dp.callback_query(F.data == "community_cancel")
+@main_router.callback_query(F.data == "community_cancel")
 async def cancel_community_event(callback: types.CallbackQuery, state: FSMContext):
     """Отмена создания события сообщества (универсальная кнопка отмены)"""
     logger.info(f"🔥 cancel_community_event: пользователь {callback.from_user.id} отменил создание группового события")
@@ -2194,7 +2203,7 @@ async def cancel_community_event(callback: types.CallbackQuery, state: FSMContex
     await callback.answer("Создание отменено", show_alert=False)
 
 
-@dp.callback_query(F.data == "group_cancel_create")
+@main_router.callback_query(F.data == "group_cancel_create")
 async def handle_group_cancel_create(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик отмены создания события в групповых чатах"""
     await state.clear()
@@ -2204,7 +2213,7 @@ async def handle_group_cancel_create(callback: types.CallbackQuery, state: FSMCo
     await callback.answer()
 
 
-@dp.callback_query(F.data == "group_back_to_start")
+@main_router.callback_query(F.data == "group_back_to_start")
 async def handle_group_back_to_start(callback: types.CallbackQuery):
     """Обработчик возврата в главное меню группового чата"""
     welcome_text = (
@@ -3316,7 +3325,7 @@ async def on_my_tasks(message: types.Message):
     )
 
 
-@dp.callback_query(F.data == "manage_tasks")
+@main_router.callback_query(F.data == "manage_tasks")
 async def handle_manage_tasks(callback: types.CallbackQuery):
     """Обработчик кнопки 'Управление заданиями'"""
     user_id = callback.from_user.id
@@ -3398,7 +3407,7 @@ async def show_task_detail(message, tasks: list, task_index: int, user_id: int):
     )
 
 
-@dp.callback_query(F.data.startswith("task_nav:"))
+@main_router.callback_query(F.data.startswith("task_nav:"))
 async def handle_task_navigation(callback: types.CallbackQuery):
     """Обработчик навигации по заданиям"""
     task_index = int(callback.data.split(":")[1])
@@ -3413,7 +3422,7 @@ async def handle_task_navigation(callback: types.CallbackQuery):
     await callback.answer()
 
 
-@dp.callback_query(F.data == "my_tasks_list")
+@main_router.callback_query(F.data == "my_tasks_list")
 async def handle_back_to_tasks_list(callback: types.CallbackQuery):
     """Возврат к списку заданий"""
     user_id = callback.from_user.id
@@ -3478,13 +3487,13 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
     await callback.answer()
 
 
-@dp.callback_query(F.data == "noop")
+@main_router.callback_query(F.data == "noop")
 async def handle_noop(callback: types.CallbackQuery):
     """Заглушка для кнопок без действия"""
     await callback.answer()
 
 
-@dp.callback_query(F.data.startswith("rx:"))
+@main_router.callback_query(F.data.startswith("rx:"))
 async def handle_expand_radius(callback: types.CallbackQuery):
     """Обработчик расширения радиуса поиска"""
     new_radius = int(callback.data.split(":")[1])
@@ -3630,7 +3639,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     await callback.answer(f"✅ Радиус расширен до {new_radius} км")
 
 
-@dp.callback_query(F.data.startswith("task_complete:"))
+@main_router.callback_query(F.data.startswith("task_complete:"))
 async def handle_task_complete(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик завершения задания"""
     user_task_id = int(callback.data.split(":")[1])
@@ -3652,7 +3661,7 @@ async def handle_task_complete(callback: types.CallbackQuery, state: FSMContext)
     await callback.answer()
 
 
-@dp.callback_query(F.data.startswith("task_cancel:"))
+@main_router.callback_query(F.data.startswith("task_cancel:"))
 async def handle_task_cancel(callback: types.CallbackQuery):
     """Обработчик отмены задания"""
     user_task_id = int(callback.data.split(":")[1])
@@ -3674,7 +3683,7 @@ async def handle_task_cancel(callback: types.CallbackQuery):
     await callback.answer()
 
 
-@dp.callback_query(F.data.startswith("task_category:"))
+@main_router.callback_query(F.data.startswith("task_category:"))
 async def handle_task_category_selection(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик выбора категории задания"""
     category = callback.data.split(":")[1]
@@ -3741,7 +3750,7 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
     await callback.answer()
 
 
-@dp.callback_query(F.data.startswith("task_detail:"))
+@main_router.callback_query(F.data.startswith("task_detail:"))
 async def handle_task_detail(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик просмотра деталей задания"""
     task_id = int(callback.data.split(":")[1])
@@ -3801,7 +3810,7 @@ async def handle_task_detail(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer()
 
 
-@dp.callback_query(F.data.startswith("task_already_taken:"))
+@main_router.callback_query(F.data.startswith("task_already_taken:"))
 async def handle_task_already_taken(callback: types.CallbackQuery):
     """Обработчик кнопки 'Задание взято'"""
     await callback.message.edit_text(
@@ -3819,7 +3828,7 @@ async def handle_task_already_taken(callback: types.CallbackQuery):
     await callback.answer()
 
 
-@dp.callback_query(F.data.startswith("task_accept:"))
+@main_router.callback_query(F.data.startswith("task_accept:"))
 async def handle_task_accept(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик принятия задания"""
     task_id = int(callback.data.split(":")[1])
@@ -3855,7 +3864,7 @@ async def handle_task_accept(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@dp.callback_query(F.data.startswith("task_custom_location:"))
+@main_router.callback_query(F.data.startswith("task_custom_location:"))
 async def handle_task_custom_location(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик ввода своей локации для задания"""
     task_id = int(callback.data.split(":")[1])
@@ -3887,7 +3896,7 @@ async def handle_task_custom_location(callback: types.CallbackQuery, state: FSMC
     await callback.answer()
 
 
-@dp.callback_query(F.data.startswith("start_task:"))
+@main_router.callback_query(F.data.startswith("start_task:"))
 async def handle_start_task(callback: types.CallbackQuery):
     """Обработчик начала выполнения задания"""
     try:
@@ -3917,7 +3926,7 @@ async def handle_start_task(callback: types.CallbackQuery):
         await callback.answer("❌ Ошибка при начале задания")
 
 
-@dp.callback_query(F.data == "back_to_main")
+@main_router.callback_query(F.data == "back_to_main")
 async def handle_back_to_main_tasks(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик возврата в главное меню из заданий"""
     # Очищаем состояние FSM
@@ -3928,7 +3937,7 @@ async def handle_back_to_main_tasks(callback: types.CallbackQuery, state: FSMCon
     await callback.answer()
 
 
-@dp.callback_query(F.data == "show_bot_commands")
+@main_router.callback_query(F.data == "show_bot_commands")
 async def handle_show_bot_commands(callback: types.CallbackQuery):
     """Обработчик показа команд бота"""
     commands_text = (
@@ -3954,7 +3963,7 @@ async def handle_show_bot_commands(callback: types.CallbackQuery):
     await callback.answer()
 
 
-@dp.callback_query(F.data == "back_to_tasks")
+@main_router.callback_query(F.data == "back_to_tasks")
 async def handle_back_to_tasks(callback: types.CallbackQuery):
     """Обработчик возврата к выбору категории заданий"""
     # Показываем выбор категории
@@ -3973,7 +3982,7 @@ async def handle_back_to_tasks(callback: types.CallbackQuery):
     await callback.answer()
 
 
-@dp.callback_query(F.data.startswith("task_manage:"))
+@main_router.callback_query(F.data.startswith("task_manage:"))
 async def handle_task_manage(callback: types.CallbackQuery):
     """Обработчик управления заданием"""
     user_task_id = int(callback.data.split(":")[1])
@@ -4330,7 +4339,7 @@ async def handle_location_type_text(message: types.Message, state: FSMContext):
 
 
 # Обработчики для выбора типа локации
-@dp.callback_query(F.data == "location_link")
+@main_router.callback_query(F.data == "location_link")
 async def handle_location_link_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор ввода готовой ссылки"""
     current_state = await state.get_state()
@@ -4346,7 +4355,7 @@ async def handle_location_link_choice(callback: types.CallbackQuery, state: FSMC
     await callback.answer()
 
 
-@dp.callback_query(F.data == "location_map")
+@main_router.callback_query(F.data == "location_map")
 async def handle_location_map_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор поиска на карте"""
     current_state = await state.get_state()
@@ -4367,7 +4376,7 @@ async def handle_location_map_choice(callback: types.CallbackQuery, state: FSMCo
     await callback.answer()
 
 
-@dp.callback_query(F.data == "location_coords")
+@main_router.callback_query(F.data == "location_coords")
 async def handle_location_coords_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор ввода координат"""
     current_state = await state.get_state()
@@ -4655,7 +4664,7 @@ async def process_location_link(message: types.Message, state: FSMContext):
 
 
 # Обработчики подтверждения локации
-@dp.callback_query(F.data == "location_confirm")
+@main_router.callback_query(F.data == "location_confirm")
 async def handle_location_confirm(callback: types.CallbackQuery, state: FSMContext):
     """Подтверждение локации"""
     await state.set_state(EventCreation.waiting_for_description)
@@ -4666,7 +4675,7 @@ async def handle_location_confirm(callback: types.CallbackQuery, state: FSMConte
     await callback.answer()
 
 
-@dp.callback_query(F.data == "location_change")
+@main_router.callback_query(F.data == "location_change")
 async def handle_location_change(callback: types.CallbackQuery, state: FSMContext):
     """Изменение локации"""
     await state.set_state(EventCreation.waiting_for_location_type)
@@ -5241,7 +5250,7 @@ async def process_community_description_group(message: types.Message, state: FSM
 # Старые обработчики для личных чатов (оставляем для совместимости)
 
 
-@dp.callback_query(F.data == "community_event_confirm")
+@main_router.callback_query(F.data == "community_event_confirm")
 async def confirm_community_event(callback: types.CallbackQuery, state: FSMContext):
     """Подтверждение создания события сообщества"""
     logger.info(
@@ -5307,7 +5316,7 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
         await callback.answer()
 
 
-@dp.callback_query(F.data == "event_confirm")
+@main_router.callback_query(F.data == "event_confirm")
 async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
     """Шаг 6: Подтверждение создания события"""
     data = await state.get_data()
@@ -5447,7 +5456,7 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
     await send_spinning_menu(callback.message)
 
 
-@dp.callback_query(F.data == "event_cancel")
+@main_router.callback_query(F.data == "event_cancel")
 async def cancel_event_creation(callback: types.CallbackQuery, state: FSMContext):
     """Отмена создания события"""
     await state.clear()
@@ -5455,7 +5464,7 @@ async def cancel_event_creation(callback: types.CallbackQuery, state: FSMContext
     await callback.answer("Создание отменено")
 
 
-@dp.callback_query(F.data == "manage_events")
+@main_router.callback_query(F.data == "manage_events")
 async def handle_manage_events(callback: types.CallbackQuery):
     """Обработчик кнопки Управление событиями"""
     user_id = callback.from_user.id
@@ -5513,7 +5522,7 @@ async def echo_message(message: types.Message, state: FSMContext):
     await message.answer("Используйте кнопки меню для навигации:", reply_markup=main_menu_kb())
 
 
-@dp.callback_query(F.data.startswith("pg:"))
+@main_router.callback_query(F.data.startswith("pg:"))
 async def handle_pagination(callback: types.CallbackQuery):
     """Обработчик пагинации событий"""
 
@@ -5575,13 +5584,13 @@ async def handle_pagination(callback: types.CallbackQuery):
         await callback.answer("Произошла ошибка")
 
 
-@dp.callback_query(F.data == "loading")
+@main_router.callback_query(F.data == "loading")
 async def handle_loading_button(callback: types.CallbackQuery):
     """Обработчик кнопки загрузки - просто отвечаем, что работаем"""
     await callback.answer("🔍 Ищем события...", show_alert=False)
 
 
-@dp.callback_query(F.data == "create_event")
+@main_router.callback_query(F.data == "create_event")
 async def handle_create_event(callback: types.CallbackQuery):
     """Обработчик кнопки создания события"""
     try:
@@ -5611,7 +5620,7 @@ async def handle_create_event(callback: types.CallbackQuery):
         await callback.answer("Произошла ошибка")
 
 
-@dp.callback_query(F.data == "start_create")
+@main_router.callback_query(F.data == "start_create")
 async def handle_start_create(callback: types.CallbackQuery):
     """Обработчик начала создания события"""
     try:
@@ -5630,7 +5639,7 @@ async def handle_start_create(callback: types.CallbackQuery):
         await callback.answer("Произошла ошибка")
 
 
-@dp.callback_query(F.data == "back_to_search")
+@main_router.callback_query(F.data == "back_to_search")
 async def handle_back_to_search(callback: types.CallbackQuery):
     """Обработчик возврата к поиску"""
     try:
@@ -5652,7 +5661,7 @@ async def handle_back_to_search(callback: types.CallbackQuery):
 
 
 # Обработчики для выбора радиуса
-@dp.callback_query(F.data.startswith(CB_RADIUS_PREFIX))
+@main_router.callback_query(F.data.startswith(CB_RADIUS_PREFIX))
 async def on_radius_change(cb: types.CallbackQuery) -> None:
     """Обработчик выбора радиуса через новые кнопки"""
     try:
@@ -5957,7 +5966,7 @@ async def main():
 
 
 # Обработчики для управления статусами событий
-@dp.callback_query(F.data.startswith("close_event_"))
+@main_router.callback_query(F.data.startswith("close_event_"))
 async def handle_close_event(callback: types.CallbackQuery):
     """Завершение мероприятия"""
     event_id = int(callback.data.split("_")[-1])
@@ -5990,7 +5999,7 @@ async def handle_close_event(callback: types.CallbackQuery):
         await callback.answer("❌ Ошибка при завершении мероприятия")
 
 
-@dp.callback_query(F.data.startswith("open_event_"))
+@main_router.callback_query(F.data.startswith("open_event_"))
 async def handle_open_event(callback: types.CallbackQuery):
     """Возобновление мероприятия"""
     event_id = int(callback.data.split("_")[-1])
@@ -6023,7 +6032,7 @@ async def handle_open_event(callback: types.CallbackQuery):
         await callback.answer("❌ Ошибка при возобновлении мероприятия")
 
 
-@dp.callback_query(F.data.startswith("edit_event_"))
+@main_router.callback_query(F.data.startswith("edit_event_"))
 async def handle_edit_event(callback: types.CallbackQuery, state: FSMContext):
     """Начало редактирования события"""
     event_id = int(callback.data.split("_")[-1])
@@ -6050,7 +6059,7 @@ async def handle_edit_event(callback: types.CallbackQuery, state: FSMContext):
 
 
 # Обработчики для выбора полей редактирования
-@dp.callback_query(F.data.startswith("edit_title_"))
+@main_router.callback_query(F.data.startswith("edit_title_"))
 async def handle_edit_title_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор редактирования названия"""
     event_id = int(callback.data.split("_")[-1])
@@ -6068,7 +6077,7 @@ async def handle_edit_title_choice(callback: types.CallbackQuery, state: FSMCont
     await callback.answer()
 
 
-@dp.callback_query(F.data.startswith("edit_date_"))
+@main_router.callback_query(F.data.startswith("edit_date_"))
 async def handle_edit_date_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор редактирования даты"""
     await state.set_state(EventEditing.waiting_for_date)
@@ -6077,7 +6086,7 @@ async def handle_edit_date_choice(callback: types.CallbackQuery, state: FSMConte
     await callback.answer()
 
 
-@dp.callback_query(F.data.startswith("edit_time_"))
+@main_router.callback_query(F.data.startswith("edit_time_"))
 async def handle_edit_time_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор редактирования времени"""
     await state.set_state(EventEditing.waiting_for_time)
@@ -6085,7 +6094,7 @@ async def handle_edit_time_choice(callback: types.CallbackQuery, state: FSMConte
     await callback.answer()
 
 
-@dp.callback_query(F.data.regexp(r"^edit_location_\d+$"))
+@main_router.callback_query(F.data.regexp(r"^edit_location_\d+$"))
 async def handle_edit_location_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор редактирования локации - показываем меню выбора типа"""
     event_id = int(callback.data.split("_")[-1])
@@ -6116,7 +6125,7 @@ async def handle_edit_location_choice(callback: types.CallbackQuery, state: FSMC
 
 
 # Обработчики для редактирования локации
-@dp.callback_query(F.data.regexp(r"^edit_location_link_\d+$"))
+@main_router.callback_query(F.data.regexp(r"^edit_location_link_\d+$"))
 async def handle_edit_location_link_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор ввода готовой ссылки для редактирования"""
     event_id = int(callback.data.split("_")[-1])
@@ -6126,7 +6135,7 @@ async def handle_edit_location_link_choice(callback: types.CallbackQuery, state:
     await callback.answer()
 
 
-@dp.callback_query(F.data.regexp(r"^edit_location_map_\d+$"))
+@main_router.callback_query(F.data.regexp(r"^edit_location_map_\d+$"))
 async def handle_edit_location_map_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор поиска на карте для редактирования"""
     event_id = int(callback.data.split("_")[-1])
@@ -6142,7 +6151,7 @@ async def handle_edit_location_map_choice(callback: types.CallbackQuery, state: 
     await callback.answer()
 
 
-@dp.callback_query(F.data.regexp(r"^edit_location_coords_\d+$"))
+@main_router.callback_query(F.data.regexp(r"^edit_location_coords_\d+$"))
 async def handle_edit_location_coords_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор ввода координат для редактирования"""
     event_id = int(callback.data.split("_")[-1])
@@ -6156,7 +6165,7 @@ async def handle_edit_location_coords_choice(callback: types.CallbackQuery, stat
     await callback.answer()
 
 
-@dp.callback_query(F.data.startswith("edit_description_"))
+@main_router.callback_query(F.data.startswith("edit_description_"))
 async def handle_edit_description_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор редактирования описания"""
     await state.set_state(EventEditing.waiting_for_description)
@@ -6164,7 +6173,7 @@ async def handle_edit_description_choice(callback: types.CallbackQuery, state: F
     await callback.answer()
 
 
-@dp.callback_query(F.data.startswith("edit_finish_"))
+@main_router.callback_query(F.data.startswith("edit_finish_"))
 async def handle_edit_finish(callback: types.CallbackQuery, state: FSMContext):
     """Завершение редактирования"""
     data = await state.get_data()
@@ -6406,7 +6415,7 @@ async def handle_description_input(message: types.Message, state: FSMContext):
         await message.answer("❌ Введите корректное описание")
 
 
-@dp.callback_query(F.data.startswith("next_event_"))
+@main_router.callback_query(F.data.startswith("next_event_"))
 async def handle_next_event(callback: types.CallbackQuery):
     """Переход к следующему событию"""
     user_id = callback.from_user.id
@@ -6432,7 +6441,7 @@ async def handle_next_event(callback: types.CallbackQuery):
         await callback.answer("Это единственное событие")
 
 
-@dp.callback_query(F.data.startswith("back_to_main_"))
+@main_router.callback_query(F.data.startswith("back_to_main_"))
 async def handle_back_to_main(callback: types.CallbackQuery):
     """Возврат в главное меню"""
     # Показываем анимацию ракеты с главным меню
@@ -6440,7 +6449,7 @@ async def handle_back_to_main(callback: types.CallbackQuery):
     await send_spinning_menu(callback.message)
 
 
-@dp.callback_query(F.data.startswith("prev_event_"))
+@main_router.callback_query(F.data.startswith("prev_event_"))
 async def handle_prev_event(callback: types.CallbackQuery):
     """Возврат к предыдущему событию"""
     user_id = callback.from_user.id
