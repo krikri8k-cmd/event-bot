@@ -1231,10 +1231,12 @@ main_router.callback_query.filter(F.message.chat.type == "private")
 # === ПОДКЛЮЧЕНИЕ ИЗОЛИРОВАННОГО ГРУППОВОГО РОУТЕРА ===
 # Импортируем роутер для групп (полностью изолирован от основного бота)
 from debug_test_router import diag_router  # noqa: E402
+from diagnostic_router import diag  # noqa: E402
 from group_router import group_router  # noqa: E402
 
 dp.include_router(group_router)  # Групповой роутер (только группы) - ПЕРВЫМ!
 dp.include_router(diag_router)  # Временный роутер для диагностики
+dp.include_router(diag)  # Диагностические команды для трекинга
 dp.include_router(main_router)  # Основной роутер (только приватные чаты) - ПОСЛЕДНИМ!
 
 
