@@ -58,9 +58,10 @@ async def __checkdb(m: Message):
     chat_id = m.chat.id
 
     try:
-        from database import BotMessage, get_session
+        from database import BotMessage, get_async_session
 
-        with get_session() as session:
+        session = await get_async_session()
+        try:
             messages = (
                 session.query(BotMessage)
                 .filter(BotMessage.chat_id == chat_id)
@@ -83,6 +84,8 @@ async def __checkdb(m: Message):
             result += f"\nАктивных: {active_count}, Удаленных: {len(messages) - active_count}"
 
             await m.reply(result)
+        finally:
+            session.close()
 
     except Exception as e:
         await m.reply(f"❌ Ошибка проверки БД: {e}")
@@ -94,10 +97,11 @@ async def __tracktest(m: Message, bot: Bot):
     chat_id = m.chat.id
 
     try:
-        from database import get_session
+        from database import get_async_session
         from utils.messaging_utils import send_tracked
 
-        with get_session() as session:
+        session = await get_async_session()
+        try:
             # Отправляем сообщение через send_tracked
             tracked_msg = await send_tracked(
                 bot,
@@ -123,6 +127,8 @@ async def __tracktest(m: Message, bot: Bot):
                 )
             else:
                 await m.reply("❌ Сообщение НЕ записалось в БД!")
+        finally:
+            session.close()
 
     except Exception as e:
         await m.reply(f"❌ Ошибка тестирования трекинга: {e}")

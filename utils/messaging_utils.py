@@ -199,10 +199,15 @@ async def ensure_panel(bot: Bot, session: Session, *, chat_id: int, text: str, k
 
     # Сохраняем ID панели и трекаем сообщение
     logger.info(f"🔥 ensure_panel: сохраняем message_id={msg.message_id} в настройках и bot_messages")
+    logger.info(f"🔥 ensure_panel: chat_id={chat_id}, message_id={msg.message_id}, tag=panel")
+
     settings.last_panel_message_id = msg.message_id
     bot_msg = BotMessage(chat_id=chat_id, message_id=msg.message_id, tag="panel")
     session.add(bot_msg)
+
+    logger.info("🔥 ensure_panel: перед commit - bot_msg добавлен в сессию")
     session.commit()
+    logger.info("🔥 ensure_panel: после commit - данные сохранены в БД")
 
     logger.info(f"✅ Создан новый панель-пост в чате {chat_id}, message_id={msg.message_id}")
     return msg.message_id
