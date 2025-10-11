@@ -931,8 +931,8 @@ def render_event_html(e: dict, idx: int) -> str:
             from urllib.parse import urlparse
 
             try:
-                domain = urlparse(src).netloc
-                src_part = f'🔗 <a href="{html.escape(src)}">Источник ({domain})</a>'
+                urlparse(src).netloc
+                src_part = f'🔗 <a href="{html.escape(src)}">Источник</a>'
             except Exception:
                 src_part = f'🔗 <a href="{html.escape(src)}">Источник</a>'
         else:

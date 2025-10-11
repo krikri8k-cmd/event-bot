@@ -44,13 +44,13 @@ class UnifiedEventsService:
                 # Поиск с координатами и радиусом
                 query = text("""
                     SELECT source, id, title, description, starts_at,
-                           city, lat, lng, location_name, location_url, url as event_url,
+                           location_name as city, lat, lng, location_name, location_url, url as event_url,
                            organizer_id, organizer_username, max_participants,
                            current_participants, status, created_at_utc,
-                           country, venue_name, address, geo_hash, starts_at_normalized
+                           community_name as country, community_name as venue_name, location_name as address,
+                           '' as geo_hash, starts_at as starts_at_normalized
                     FROM events
-                    WHERE city = :city
-                    AND starts_at >= :start_utc
+                    WHERE starts_at >= :start_utc
                     AND starts_at < :end_utc
                     AND lat IS NOT NULL AND lng IS NOT NULL
                     AND 6371 * acos(
@@ -66,7 +66,6 @@ class UnifiedEventsService:
                 result = conn.execute(
                     query,
                     {
-                        "city": city,
                         "start_utc": start_utc,
                         "end_utc": end_utc,
                         "user_lat": user_lat,
@@ -78,13 +77,13 @@ class UnifiedEventsService:
                 # Поиск без координат
                 query = text("""
                     SELECT source, id, title, description, starts_at,
-                           city, lat, lng, location_name, location_url, url as event_url,
+                           location_name as city, lat, lng, location_name, location_url, url as event_url,
                            organizer_id, organizer_username, max_participants,
                            current_participants, status, created_at_utc,
-                           country, venue_name, address, geo_hash, starts_at_normalized
+                           community_name as country, community_name as venue_name, location_name as address,
+                           '' as geo_hash, starts_at as starts_at_normalized
                     FROM events
-                    WHERE city = :city
-                    AND starts_at >= :start_utc
+                    WHERE starts_at >= :start_utc
                     AND starts_at < :end_utc
                     ORDER BY starts_at
                 """)
@@ -92,7 +91,6 @@ class UnifiedEventsService:
                 result = conn.execute(
                     query,
                     {
-                        "city": city,
                         "start_utc": start_utc,
                         "end_utc": end_utc,
                     },

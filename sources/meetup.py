@@ -40,8 +40,9 @@ async def fetch(lat: float, lng: float, radius_km: float = 5.0) -> list[RawEvent
     # Используем OAuth если доступен, иначе fallback на API key
     headers = {}
     oauth_mgr = MeetupOAuth()
-    if oauth_mgr.headers():
-        headers = oauth_mgr.headers()
+    oauth_headers = oauth_mgr.headers()
+    if oauth_headers:
+        headers = oauth_headers
         print("🔐 Используем OAuth авторизацию для Meetup")
     elif settings.meetup_api_key:
         params["key"] = settings.meetup_api_key

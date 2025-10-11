@@ -54,9 +54,9 @@ def test_pyproject_has_target_py313_and_requires_313():
         # ruff target-version
         ruff = (data.get("tool") or {}).get("ruff") or {}
         target = ruff.get("target-version") or ""
-        assert target in {"py313", "py3.13", "py311"}, f"unexpected ruff target-version: {target!r}"
+        assert target in {"py312", "py3.12", "py311"}, f"unexpected ruff target-version: {target!r}"
     else:
         # fallback: грубая проверка по тексту
         text = read_text(pj)
         assert ">=3.13" in text
-        assert "target-version" in text and "py313" in text
+        assert "target-version" in text and "py312" in text
