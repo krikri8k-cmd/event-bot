@@ -85,7 +85,7 @@ def group_kb(chat_id: int) -> InlineKeyboardMarkup:
     username = MAIN_BOT_USERNAME or "EventAroundBot"  # fallback
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="➕ Создать событие", url=f"https://t.me/{username}?start=chat_{chat_id}")],
+            [InlineKeyboardButton(text="➕ Создать событие", url=f"https://t.me/{username}?start=group_{chat_id}")],
             [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_list")],
             [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", url=f"https://t.me/{username}")],
             [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_confirm")],
