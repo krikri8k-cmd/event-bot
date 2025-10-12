@@ -116,11 +116,12 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
         if not events:
             text = (
                 "📋 **События этого чата**\n\n"
-                "Пока нет предстоящих событий.\n\n"
-                "Создайте первое событие, нажав кнопку **➕ Создать событие**!"
+                "📭 **0 событий**\n\n"
+                "В этом чате пока нет созданных событий.\n\n"
+                "💡 Создайте первое событие, нажав кнопку **➕ Создать событие**!"
             )
         else:
-            text = f"📋 **События этого чата** ({len(events)})\n\n"
+            text = f"📋 **События этого чата** ({len(events)} событий)\n\n"
 
             for i, event in enumerate(events, 1):
                 # Форматируем дату
@@ -130,9 +131,19 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
                 text += f"{i}. **{event.title}**\n"
                 text += f"   📅 {date_str}\n"
 
-                if event.location_name:
+                # Описание (если есть)
+                if event.description:
+                    desc = event.description[:80] + "..." if len(event.description) > 80 else event.description
+                    text += f"   📝 {desc}\n"
+
+                # Место (с ссылкой если есть URL)
+                if event.location_url:
+                    location_name = event.location_name or "Место"
+                    text += f"   📍 [{location_name}]({event.location_url})\n"
+                elif event.location_name:
                     text += f"   📍 {event.location_name}\n"
 
+                # Организатор
                 if event.organizer_username:
                     text += f"   👤 Организатор: @{event.organizer_username}\n"
 
