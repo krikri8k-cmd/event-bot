@@ -4799,6 +4799,19 @@ async def process_description(message: types.Message, state: FSMContext):
     data = await state.get_data()
     await state.set_state(EventCreation.confirmation)
 
+    # Проверяем, что все необходимые данные есть в FSM
+    required_fields = ["title", "date", "time", "description"]
+    missing_fields = [field for field in required_fields if field not in data]
+
+    if missing_fields:
+        logger.warning(f"process_description: отсутствуют поля в FSM данных: {missing_fields}")
+        await message.answer(
+            "❌ **Ошибка:** Не все данные события сохранены.\n\n"
+            "🔄 Начните создание события заново, нажав кнопку **➕ Создать**."
+        )
+        await state.clear()
+        return
+
     # Показываем итог перед подтверждением
     location_text = data.get("location", "Не указано")
     if "location_name" in data:

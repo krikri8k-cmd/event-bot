@@ -265,7 +265,7 @@ async def parse_google_maps_link(link: str) -> dict | None:
             else:
                 print(f"⚠️ Не удалось расширить короткую ссылку: {link}")
                 # Для коротких ссылок без координат возвращаем ссылку для геокодирования
-                return {"lat": None, "lng": None, "name": None, "raw_link": link}
+                return {"lat": None, "lng": None, "name": "Место на карте", "raw_link": link}
 
         # Паттерн 1: @lat,lng,zoom (самый частый)
         pattern1 = r"@(-?\d+\.?\d*),(-?\d+\.?\d*),\d+"
