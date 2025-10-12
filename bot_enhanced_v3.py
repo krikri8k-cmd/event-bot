@@ -24,6 +24,7 @@ from aiogram.types import (
     InlineKeyboardMarkup,
     KeyboardButton,
     MenuButtonCommands,
+    Message,
     ReplyKeyboardMarkup,
 )
 
@@ -6533,6 +6534,54 @@ async def handle_prev_event(callback: types.CallbackQuery):
 
         await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
         await callback.answer()
+
+
+# Обработчик добавления бота в группу
+@main_router.message(F.new_chat_members)
+async def handle_bot_added_to_group(message: Message, bot: Bot):
+    """Обработчик добавления бота в группу - просим админа настроить разрешения"""
+
+    # Проверяем, что бота добавили в группу
+    bot_info = await bot.me()
+    bot_was_added = any(member.id == bot_info.id for member in message.new_chat_members)
+
+    if not bot_was_added:
+        return
+
+    # Получаем список админов
+    try:
+        chat_member = await bot.get_chat_administrators(message.chat.id)
+        admin_ids = [admin.user.id for admin in chat_member if not admin.user.is_bot]
+    except Exception as e:
+        logger.warning(f"Не удалось получить список админов: {e}")
+        return
+
+    # Формируем сообщение для админов
+    admin_text = (
+        "🔧 **Настройка бота EventAroundBot**\n\n"
+        "Для корректной работы бота в группе необходимо предоставить следующие разрешения:\n\n"
+        "✅ **Закрепление сообщений**\n"
+        "✅ **Удаление сообщений**\n"
+        "✅ **Управление историями**\n\n"
+        "❌ **Отключите лишние разрешения:**\n"
+        "• Отправка медиа\n"
+        "• Добавление участников\n"
+        "• Изменение профиля группы\n"
+        "• Создание тем\n\n"
+        "📱 **Как настроить:**\n"
+        "1. Нажмите на название группы\n"
+        "2. Перейдите в «Администраторы»\n"
+        "3. Найдите EventAroundBot\n"
+        "4. Настройте разрешения согласно списку выше\n\n"
+        "⚠️ **Важно:** После добавления бота разрешения можно изменить только через удаление и повторное добавление!"
+    )
+
+    # Отправляем сообщение админам
+    for admin_id in admin_ids:
+        try:
+            await bot.send_message(chat_id=admin_id, text=admin_text, parse_mode="Markdown")
+        except Exception as e:
+            logger.warning(f"Не удалось отправить сообщение админу {admin_id}: {e}")
 
 
 if __name__ == "__main__":
