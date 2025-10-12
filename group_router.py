@@ -43,6 +43,27 @@ def set_bot_username(username: str):
     logger.info(f"✅ Установлен username бота для группового роутера: {username}")
 
 
+async def setup_group_menu_button(bot):
+    """Настройка Menu Button только для групповых чатов"""
+    try:
+        from aiogram.types import BotCommand, BotCommandScopeAllGroupChats, MenuButtonCommands
+
+        # Команды только для групп
+        group_commands = [
+            BotCommand(command="start", description="🚀 Запустить бота"),
+        ]
+
+        # Устанавливаем команды только для групп
+        await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats())
+
+        # Устанавливаем Menu Button
+        await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+
+        logger.info("✅ Menu Button настроен для групповых чатов")
+    except Exception as e:
+        logger.error(f"❌ Ошибка настройки Menu Button для групп: {e}")
+
+
 # Жёсткая изоляция: роутер работает ТОЛЬКО в группах
 group_router.message.filter(F.chat.type.in_({"group", "supergroup"}))
 group_router.callback_query.filter(F.message.chat.type.in_({"group", "supergroup"}))
@@ -67,7 +88,6 @@ def group_kb(chat_id: int) -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="➕ Создать событие", url=f"https://t.me/{username}?start=chat_{chat_id}")],
             [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_list")],
             [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", url=f"https://t.me/{username}")],
-            [InlineKeyboardButton(text="📱 Команды бота", callback_data="group_commands")],
             [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_confirm")],
         ]
     )
@@ -184,34 +204,6 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
             await callback.message.edit_text(error_text, reply_markup=back_kb, parse_mode="Markdown")
         except Exception as edit_error:
             logger.error(f"❌ Ошибка отправки сообщения об ошибке: {edit_error}")
-
-
-@group_router.callback_query(F.data == "group_commands")
-async def group_show_commands(callback: CallbackQuery, bot: Bot):
-    """Показать команды бота для групп"""
-    await callback.answer()
-
-    commands_text = (
-        "📱 **Доступные команды бота:**\n\n"
-        "🚀 `/start` - Запустить бота и показать меню\n\n"
-        "💡 **В группах доступны:**\n"
-        "• ➕ Создать событие\n"
-        "• 📋 События этого чата\n"
-        "• 🚀 Полный бот (с геолокацией)\n"
-        "• 👁️‍🗨️ Спрятать бота\n\n"
-        "🔗 **Для полного функционала** перейдите в личные сообщения с ботом!"
-    )
-
-    back_kb = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel")],
-        ]
-    )
-
-    try:
-        await callback.message.edit_text(commands_text, reply_markup=back_kb, parse_mode="Markdown")
-    except Exception as e:
-        logger.error(f"❌ Ошибка отображения команд: {e}")
 
 
 @group_router.callback_query(F.data == "group_back_to_panel")

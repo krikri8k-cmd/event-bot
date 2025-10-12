@@ -5773,9 +5773,13 @@ async def main():
     # === НОВАЯ ИНТЕГРАЦИЯ ГРУППОВЫХ ЧАТОВ (ИЗОЛИРОВАННЫЙ РОУТЕР) ===
     # Устанавливаем username бота для deep-links в group_router
     try:
-        from group_router import set_bot_username
+        from group_router import set_bot_username, setup_group_menu_button
 
         set_bot_username(bot_info.username)
+
+        # Настраиваем Menu Button только для групп
+        await setup_group_menu_button(bot)
+
         logger.info("✅ Групповой роутер успешно проинициализирован")
     except Exception as e:
         logger.error(f"❌ Ошибка инициализации группового роутера: {e}")
@@ -5834,9 +5838,6 @@ async def main():
 
         await asyncio.sleep(3)
 
-        # Дополнительная очистка глобальных команд (важно для мобильных устройств)
-        await bot.delete_my_commands(scope=BotCommandScopeDefault())
-
         from aiogram.types import BotCommandScopeChat, BotCommandScopeDefault
 
         # Публичные команды - только самое необходимое (без дублирования кнопок)
@@ -5860,7 +5861,7 @@ async def main():
         ]
 
         # Устанавливаем команды для разных типов чатов
-        # НЕ устанавливаем команды для BotCommandScopeDefault() - это глобальные команды для мобильных устройств
+        # НЕ устанавливаем команды для BotCommandScopeDefault() - основной бот работает как есть
         await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats())
         await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats())
 
