@@ -101,17 +101,21 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
 
     try:
         # Получаем будущие события этого чата
-        events = (
-            session.query(CommunityEvent)
-            .filter(
+        from sqlalchemy import select
+
+        stmt = (
+            select(CommunityEvent)
+            .where(
                 CommunityEvent.chat_id == chat_id,
                 CommunityEvent.status == "open",
                 CommunityEvent.starts_at > datetime.utcnow(),
             )
             .order_by(CommunityEvent.starts_at)
             .limit(10)
-            .all()
         )
+
+        result = await session.execute(stmt)
+        events = result.scalars().all()
 
         if not events:
             text = (
@@ -164,6 +168,21 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
             logger.error(f"❌ Ошибка редактирования сообщения: {e}")
     except Exception as e:
         logger.error(f"❌ Ошибка получения событий: {e}")
+        # Отправляем сообщение об ошибке пользователю
+        error_text = (
+            "📋 **События этого чата**\n\n"
+            "❌ Произошла ошибка при загрузке событий.\n\n"
+            "Попробуйте позже или обратитесь к администратору."
+        )
+        back_kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel")],
+            ]
+        )
+        try:
+            await callback.message.edit_text(error_text, reply_markup=back_kb, parse_mode="Markdown")
+        except Exception as edit_error:
+            logger.error(f"❌ Ошибка отправки сообщения об ошибке: {edit_error}")
 
 
 @group_router.callback_query(F.data == "group_back_to_panel")
@@ -318,11 +337,12 @@ async def group_delete_event(callback: CallbackQuery, bot: Bot, session: AsyncSe
 
     try:
         # Проверяем, что событие принадлежит этому чату
-        event = (
-            session.query(CommunityEvent)
-            .filter(CommunityEvent.id == event_id, CommunityEvent.chat_id == chat_id)
-            .first()
-        )
+        from sqlalchemy import select
+
+        stmt = select(CommunityEvent).where(CommunityEvent.id == event_id, CommunityEvent.chat_id == chat_id)
+
+        result = await session.execute(stmt)
+        event = result.scalar_one_or_none()
 
         if not event:
             await callback.answer("❌ Событие не найдено", show_alert=True)
