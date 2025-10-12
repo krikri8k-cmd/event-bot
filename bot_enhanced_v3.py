@@ -5834,6 +5834,9 @@ async def main():
 
         await asyncio.sleep(3)
 
+        # Дополнительная очистка глобальных команд (важно для мобильных устройств)
+        await bot.delete_my_commands(scope=BotCommandScopeDefault())
+
         from aiogram.types import BotCommandScopeChat, BotCommandScopeDefault
 
         # Публичные команды - только самое необходимое (без дублирования кнопок)
@@ -5857,7 +5860,7 @@ async def main():
         ]
 
         # Устанавливаем команды для разных типов чатов
-        await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault())
+        # НЕ устанавливаем команды для BotCommandScopeDefault() - это глобальные команды для мобильных устройств
         await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats())
         await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats())
 
