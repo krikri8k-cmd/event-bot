@@ -259,7 +259,13 @@ class UnifiedEventsService:
             country = "ID" if city == "bali" else "RU"
 
             # Генерируем уникальный external_id для пользовательского события
-            external_id = f"user_{organizer_id}_{int(starts_at_utc.timestamp())}"
+            import random
+            import time
+
+            # Используем микросекунды + случайное число для уникальности
+            timestamp_ms = int(time.time() * 1000000)  # микросекунды
+            random_suffix = random.randint(1000, 9999)  # случайное число
+            external_id = f"user_{organizer_id}_{timestamp_ms}_{random_suffix}"
 
             user_result = conn.execute(
                 user_event_query,
