@@ -9,8 +9,8 @@ services:
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql://event_bot:event_bot_password@postgres:5432/event_bot
     volumes:
-      - ./event_bot.db:/app/event_bot.db
       - ./logs:/app/logs
     depends_on:
       - postgres

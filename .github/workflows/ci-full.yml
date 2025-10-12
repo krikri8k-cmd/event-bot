@@ -32,7 +32,7 @@ jobs:
         env:
           # Фейковые/безопасные значения только для CI:
           TELEGRAM_TOKEN: "1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi"
-          DATABASE_URL: "sqlite:///./test.db"
+          DATABASE_URL: "postgresql+psycopg2://test:test@localhost:5432/test_db"
           GOOGLE_MAPS_API_KEY: "test-key"
           OPENAI_API_KEY: "test-key"
           OPENAI_ORGANIZATION: "test-org"
