@@ -19,6 +19,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (
+    ChatMemberUpdated,
     ForceReply,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -5889,6 +5890,11 @@ async def main():
         # Еще одна задержка для применения Menu Button
         await asyncio.sleep(1)
 
+        # Настраиваем Menu Button специально для групп
+        from group_router import setup_group_menu_button
+
+        await setup_group_menu_button(bot)
+
         logger.info("Команды бота и Menu Button установлены")
     except Exception as e:
         logger.warning(f"Не удалось установить команды бота: {e}")
@@ -6587,6 +6593,28 @@ async def handle_bot_added_to_group(message: Message, bot: Bot):
             await bot.send_message(chat_id=admin_id, text=admin_text, parse_mode="Markdown")
         except Exception as e:
             logger.warning(f"Не удалось отправить сообщение админу {admin_id}: {e}")
+
+
+# Обработчик изменения статуса бота в чате
+@main_router.my_chat_member()
+async def handle_bot_chat_member_update(chat_member_update: ChatMemberUpdated, bot: Bot):
+    """Обработчик изменения статуса бота в чате - настраиваем команды для групп"""
+
+    # Проверяем, что это добавление бота в группу
+    if chat_member_update.new_chat_member.status == "administrator" and chat_member_update.chat.type in [
+        "group",
+        "supergroup",
+    ]:
+        logger.info(f"Бот назначен админом в группе {chat_member_update.chat.id}")
+
+        # Настраиваем команды для этой группы
+        try:
+            from group_router import setup_group_menu_button
+
+            await setup_group_menu_button(bot)
+            logger.info(f"✅ Команды настроены для группы {chat_member_update.chat.id}")
+        except Exception as e:
+            logger.warning(f"Не удалось настроить команды для группы {chat_member_update.chat.id}: {e}")
 
 
 if __name__ == "__main__":
