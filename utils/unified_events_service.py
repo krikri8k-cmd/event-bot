@@ -53,7 +53,7 @@ class UnifiedEventsService:
                     WHERE starts_at >= :start_utc
                     AND starts_at < :end_utc
                     AND lat IS NOT NULL AND lng IS NOT NULL
-                    AND status NOT IN ('completed', 'cancelled')
+                    AND status NOT IN ('closed', 'canceled')
                     AND 6371 * acos(
                         GREATEST(-1, LEAST(1,
                             cos(radians(:user_lat)) * cos(radians(lat)) *
@@ -86,7 +86,7 @@ class UnifiedEventsService:
                     FROM events
                     WHERE starts_at >= :start_utc
                     AND starts_at < :end_utc
-                    AND status NOT IN ('completed', 'cancelled')
+                    AND status NOT IN ('closed', 'canceled')
                     ORDER BY starts_at
                 """)
 
