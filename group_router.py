@@ -67,6 +67,7 @@ def group_kb(chat_id: int) -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="➕ Создать событие", url=f"https://t.me/{username}?start=chat_{chat_id}")],
             [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_list")],
             [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", url=f"https://t.me/{username}")],
+            [InlineKeyboardButton(text="📱 Команды бота", callback_data="group_commands")],
             [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_confirm")],
         ]
     )
@@ -183,6 +184,34 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
             await callback.message.edit_text(error_text, reply_markup=back_kb, parse_mode="Markdown")
         except Exception as edit_error:
             logger.error(f"❌ Ошибка отправки сообщения об ошибке: {edit_error}")
+
+
+@group_router.callback_query(F.data == "group_commands")
+async def group_show_commands(callback: CallbackQuery, bot: Bot):
+    """Показать команды бота для групп"""
+    await callback.answer()
+
+    commands_text = (
+        "📱 **Доступные команды бота:**\n\n"
+        "🚀 `/start` - Запустить бота и показать меню\n\n"
+        "💡 **В группах доступны:**\n"
+        "• ➕ Создать событие\n"
+        "• 📋 События этого чата\n"
+        "• 🚀 Полный бот (с геолокацией)\n"
+        "• 👁️‍🗨️ Спрятать бота\n\n"
+        "🔗 **Для полного функционала** перейдите в личные сообщения с ботом!"
+    )
+
+    back_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel")],
+        ]
+    )
+
+    try:
+        await callback.message.edit_text(commands_text, reply_markup=back_kb, parse_mode="Markdown")
+    except Exception as e:
+        logger.error(f"❌ Ошибка отображения команд: {e}")
 
 
 @group_router.callback_query(F.data == "group_back_to_panel")
