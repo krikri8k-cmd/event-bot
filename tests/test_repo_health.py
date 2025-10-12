@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# tomllib есть в стандартной библиотеке Python 3.11+
+# tomllib есть в стандартной библиотеке Python 3.12+
 try:
     import tomllib  # type: ignore[attr-defined]
 except Exception:  # pragma: no cover
@@ -41,8 +41,8 @@ def test_no_psycopg_v3_dsn_in_repo():
     assert not bad_hits, f"Found psycopg v3 DSN usage in: {bad_hits}"
 
 
-def test_pyproject_has_target_py313_and_requires_313():
-    """Проверяем ruff target-version = py313 и requires-python >= 3.13."""
+def test_pyproject_has_target_py312_and_requires_312():
+    """Проверяем ruff target-version = py312 и requires-python >= 3.12."""
     pj = ROOT / "pyproject.toml"
     assert pj.exists(), "pyproject.toml is missing"
 
@@ -50,13 +50,13 @@ def test_pyproject_has_target_py313_and_requires_313():
         data = tomllib.loads(read_text(pj))
         # requires-python
         req = (data.get("project") or {}).get("requires-python") or ""
-        assert ">=3.13" in req, f"requires-python must be >=3.13, got: {req!r}"
+        assert ">=3.12" in req, f"requires-python must be >=3.12, got: {req!r}"
         # ruff target-version
         ruff = (data.get("tool") or {}).get("ruff") or {}
         target = ruff.get("target-version") or ""
-        assert target in {"py312", "py3.12", "py311"}, f"unexpected ruff target-version: {target!r}"
+        assert target in {"py312", "py3.12"}, f"unexpected ruff target-version: {target!r}"
     else:
         # fallback: грубая проверка по тексту
         text = read_text(pj)
-        assert ">=3.13" in text
+        assert ">=3.12" in text
         assert "target-version" in text and "py312" in text

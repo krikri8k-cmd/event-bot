@@ -136,7 +136,7 @@ event-bot/
 
 ## 🔧 Технологии
 
-- **Python 3.13+**
+- **Python 3.12+**
 - **aiogram 3.x** - Telegram Bot API
 - **SQLAlchemy** - ORM для базы данных
 - **OpenAI GPT** - AI генерация
