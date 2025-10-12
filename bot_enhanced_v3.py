@@ -5860,8 +5860,8 @@ async def main():
         ]
 
         # Устанавливаем команды для разных типов чатов
-        # Включаем команды для BotCommandScopeDefault() для Menu Button на мобильных
-        await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault())
+        # Для Menu Button на мобильных используем одинаковые команды для всех scope
+        await bot.set_my_commands(group_commands, scope=BotCommandScopeDefault())
         await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats())
         await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats())
 
@@ -5879,10 +5879,16 @@ async def main():
                 await bot.set_my_commands(admin_commands, scope=BotCommandScopeChat(chat_id=admin_user_id))
                 logger.info(f"Админские команды установлены для админа {admin_user_id}")
 
+        # Небольшая задержка для применения команд
+        await asyncio.sleep(2)
+
         # Устанавливаем кнопку меню
         await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
 
-        logger.info("Команды бота установлены")
+        # Еще одна задержка для применения Menu Button
+        await asyncio.sleep(1)
+
+        logger.info("Команды бота и Menu Button установлены")
     except Exception as e:
         logger.warning(f"Не удалось установить команды бота: {e}")
 
