@@ -5773,12 +5773,11 @@ async def main():
     # === НОВАЯ ИНТЕГРАЦИЯ ГРУППОВЫХ ЧАТОВ (ИЗОЛИРОВАННЫЙ РОУТЕР) ===
     # Устанавливаем username бота для deep-links в group_router
     try:
-        from group_router import set_bot_username, setup_group_menu_button
+        from group_router import set_bot_username
 
         set_bot_username(bot_info.username)
 
-        # Настраиваем Menu Button только для групп
-        await setup_group_menu_button(bot)
+        # Menu Button уже настроен в основном боте - не дублируем
 
         logger.info("✅ Групповой роутер успешно проинициализирован")
     except Exception as e:
@@ -5861,7 +5860,8 @@ async def main():
         ]
 
         # Устанавливаем команды для разных типов чатов
-        # НЕ устанавливаем команды для BotCommandScopeDefault() - основной бот работает как есть
+        # Включаем команды для BotCommandScopeDefault() для Menu Button на мобильных
+        await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault())
         await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats())
         await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats())
 
