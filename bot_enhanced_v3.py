@@ -2638,30 +2638,7 @@ async def on_location(message: types.Message, state: FSMContext):
             # УНИВЕРСАЛЬНЫЙ ФОЛБЭК: пробуем карту, если не получается - отправляем без неё
 
             # Создаем расширенную ссылку на Google Maps с информацией о событиях
-            maps_url = create_enhanced_google_maps_url(lat, lng, prepared[:12])
-
-            # Создаем кнопки для расширения радиуса
-            keyboard_buttons = [[InlineKeyboardButton(text="🗺️ Открыть в Google Maps с событиями", url=maps_url)]]
-
-            # Всегда добавляем кнопки расширения радиуса для лучшего UX, используя фиксированные RADIUS_OPTIONS
-            current_radius = int(settings.default_radius_km)
-
-            # Находим следующие доступные радиусы из RADIUS_OPTIONS
-            for radius_option in RADIUS_OPTIONS:
-                if radius_option > current_radius:
-                    # Не показываем кнопку "расширить до 5 км" - это минимальный радиус
-                    if radius_option == 5:
-                        continue
-                    keyboard_buttons.append(
-                        [
-                            InlineKeyboardButton(
-                                text=f"🔍 Расширить до {radius_option} км",
-                                callback_data=f"rx:{radius_option}",
-                            )
-                        ]
-                    )
-
-            inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+            # maps_url = create_enhanced_google_maps_url(lat, lng, prepared[:12])  # Не используется в объединенном сообщении
 
             # Пробуем получить изображение карты (с circuit breaker)
             map_bytes = None
@@ -2683,10 +2660,7 @@ async def on_location(message: types.Message, state: FSMContext):
                     else:
                         logger.warning("🇷🇺 Не удалось загрузить карту для пользователя в России - используем fallback")
 
-            # Короткая подпись для карты/сообщения - используем отфильтрованные события
-            caption = f"🗺️ **В радиусе {radius} км найдено: {len(prepared)}**\n"
-            caption += f"• 👥 От пользователей: {counts.get('user', 0)}\n"
-            caption += f"• 🌐 Из источников: {counts.get('sources', 0)}"
+            # Короткая подпись больше не нужна - используем полный текст с событиями
 
             # Удаляем сообщение загрузки
             try:
@@ -2694,75 +2668,72 @@ async def on_location(message: types.Message, state: FSMContext):
             except Exception:
                 pass
 
-            # Отправляем ответ (с картой или без)
+            # ИСПРАВЛЕНИЕ: Объединяем карту и список событий в ОДНО сообщение
             try:
+                # Создаем полный текст с событиями (как в send_compact_events_list_prepared)
+                # 1) Обогащаем события названиями мест и расстояниями
+                for event in prepared:
+                    enrich_venue_name(event)
+                    event["distance_km"] = round(haversine_km(lat, lng, event.get("lat"), event.get("lng")), 1)
+
+                # 2) Подсчитываем события по типам для сводки
+                groups = group_by_type(prepared)
+                counts = make_counts(groups)
+
+                # 3) Создаем заголовок с событиями
+                header_html = render_header(counts, radius_km=int(radius))
+
+                # 4) Рендерим события (первая страница)
+                page_html, _ = render_page(prepared, page=0, page_size=5)
+                events_text = header_html + "\n\n" + page_html
+
+                # 5) Добавляем навигацию если нужно
+                total_pages = max(1, ceil(len(prepared) / 5))
+                if total_pages > 1:
+                    events_text += f"\n\n📄 Страница 1 из {total_pages}"
+
+                # 6) Создаем клавиатуру с пагинацией И расширением радиуса
+                combined_keyboard = kb_pager(1, total_pages, int(radius))
+
+                # 7) Отправляем ОДНО сообщение с картой И событиями
                 if map_bytes:
-                    # Отправляем с изображением карты
+                    # Отправляем с изображением карты + события в caption
                     from aiogram.types import BufferedInputFile
 
                     map_file = BufferedInputFile(map_bytes, filename="map.png")
                     await message.answer_photo(
                         map_file,
-                        caption=caption,
-                        reply_markup=inline_kb,
+                        caption=events_text,
+                        reply_markup=combined_keyboard,
                         parse_mode="HTML",
                     )
-                    logger.info("✅ Карта отправлена успешно")
+                    logger.info("✅ Карта + события отправлены в одном сообщении")
                 else:
-                    # Отправляем без карты (graceful fallback)
+                    # Отправляем без карты, но с полным списком событий
                     await message.answer(
-                        caption,
-                        reply_markup=inline_kb,
+                        events_text,
+                        reply_markup=combined_keyboard,
                         parse_mode="HTML",
                     )
-                    logger.info("✅ События отправлены без карты (graceful fallback)")
+                    logger.info("✅ События отправлены в одном сообщении без карты")
 
-            except Exception as e:
-                logger.error(f"❌ Ошибка отправки карты/заголовка: {e}")
-                # Если не удалось отправить карту или заголовок, отправляем минимальное сообщение
-                try:
-                    await message.answer(
-                        f"📋 Найдено {len(prepared)} событий в радиусе {radius} км",
-                        reply_markup=inline_kb,
-                        parse_mode="HTML",
-                    )
-                    logger.info("✅ Отправлен минимальный заголовок после ошибки карты")
-                except Exception as e2:
-                    logger.error(f"❌ Критическая ошибка отправки заголовка: {e2}")
-
-            # ВСЕГДА отправляем компактный список событий, независимо от проблем с картой
-            try:
-                await send_compact_events_list_prepared(message, prepared, lat, lng, page=0, user_radius=radius)
-                logger.info("✅ Компактный список событий отправлен")
-                # Отправляем главное меню после списка событий
+                # Отправляем главное меню после объединенного сообщения
                 await send_spinning_menu(message)
                 # Очищаем состояние FSM после завершения поиска
                 await state.clear()
-            except Exception as e:
-                logger.error(f"❌ Ошибка отправки компактного списка: {e}")
-                # Fallback - отправляем простой список событий
-                try:
-                    event_titles = [f"• {event.get('title', 'Без названия')}" for event in prepared[:10]]
-                    events_text = "\n".join(event_titles)
-                    if len(prepared) > 10:
-                        events_text += f"\n... и ещё {len(prepared) - 10} событий"
 
+            except Exception as e:
+                logger.error(f"❌ Ошибка отправки объединенного сообщения: {e}")
+                # Fallback - отправляем простое сообщение как раньше
+                try:
                     await message.answer(
-                        f"📋 **Найдено {len(prepared)} событий:**\n\n{events_text}\n\n"
-                        f"💡 Используйте кнопки выше для просмотра на карте!",
-                        parse_mode="Markdown",
+                        f"📋 Найдено {len(prepared)} событий в радиусе {radius} км",
                         reply_markup=main_menu_kb(),
+                        parse_mode="HTML",
                     )
-                    logger.info("✅ Отправлен fallback список событий")
+                    logger.info("✅ Отправлен fallback после ошибки объединения")
                 except Exception as e2:
-                    logger.error(f"❌ Критическая ошибка fallback списка: {e2}")
-                    # Последний fallback - просто сообщение о количестве
-                    try:
-                        await message.answer(
-                            f"📋 Найдено {len(prepared)} событий в радиусе {radius} км", reply_markup=main_menu_kb()
-                        )
-                    except Exception as e3:
-                        logger.error(f"❌ Финальная критическая ошибка: {e3}")
+                    logger.error(f"❌ Критическая ошибка fallback: {e2}")
 
         except Exception:
             logger.exception(
