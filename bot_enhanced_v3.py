@@ -3559,6 +3559,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         return
 
     # Показываем сообщение загрузки
+    current_message = callback.message  # Сохраняем ссылку на текущее сообщение
     try:
         # Пытаемся отредактировать текст (для старых сообщений)
         await callback.message.edit_text("🔍 Ищу события в расширенном радиусе...")
@@ -3570,8 +3571,8 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             await callback.message.delete()
         except Exception:
             pass
-        # Обновляем ссылку на сообщение для дальнейшего редактирования
-        callback.message = loading_msg
+        # Используем новое сообщение для дальнейших операций
+        current_message = loading_msg
 
     # Выполняем поиск с новым радиусом
     from database import get_engine
@@ -3725,18 +3726,18 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             map_file = BufferedInputFile(map_bytes, filename="map.png")
 
             # Отправляем новое фото сообщение
-            await callback.message.delete()  # Удаляем сообщение загрузки
-            new_msg = await callback.message.answer_photo(
+            await current_message.delete()  # Удаляем сообщение загрузки
+            new_msg = await current_message.answer_photo(
                 map_file,
                 caption=text,
                 reply_markup=keyboard,
                 parse_mode="HTML",
             )
-            # Обновляем ссылку на сообщение для дальнейших операций
-            callback.message = new_msg
+            # Используем новое сообщение для дальнейших операций
+            current_message = new_msg
         else:
             # Отправляем без карты
-            await callback.message.edit_text(
+            await current_message.edit_text(
                 text,
                 reply_markup=keyboard,
                 parse_mode="HTML",
@@ -3746,7 +3747,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         logger.error(f"❌ Ошибка отправки результатов расширенного поиска: {e}")
         # Fallback - простое текстовое сообщение
         try:
-            await callback.message.edit_text(
+            await current_message.edit_text(
                 text,
                 reply_markup=keyboard,
                 parse_mode="HTML",
@@ -3755,7 +3756,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         except Exception as e2:
             logger.error(f"❌ Критическая ошибка fallback: {e2}")
             # Последний fallback - новое сообщение
-            await callback.message.answer(
+            await current_message.answer(
                 text,
                 reply_markup=keyboard,
                 parse_mode="HTML",
