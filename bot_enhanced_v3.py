@@ -2197,7 +2197,8 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
             f"📍 {data['location_name']}\n"
             f"🔗 {data['location_url']}\n\n"
             f"📝 {data['description']}\n\n"
-            f"*Создано пользователем @{callback.from_user.username or callback.from_user.first_name}*"
+            f"*Создано пользователем @{callback.from_user.username or callback.from_user.first_name}*\n\n"
+            f"💡 **Создавай через команду /start**"
         )
 
         try:
