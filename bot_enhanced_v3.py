@@ -5160,18 +5160,19 @@ async def process_community_title_group(message: types.Message, state: FSMContex
     await state.set_state(CommunityEventCreation.waiting_for_date)
     example_date = get_example_date()
 
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
-    )
-
     await message.answer(
         f"**Название сохранено:** *{title}* ✅\n\n📅 **Введите дату** (например: {example_date}):",
         parse_mode="Markdown",
-        reply_markup=keyboard,
+        reply_markup=ForceReply(selective=True),
     )
 
 
-@main_router.message(CommunityEventCreation.waiting_for_date, F.chat.type.in_({"group", "supergroup"}))
+@main_router.message(
+    CommunityEventCreation.waiting_for_date,
+    F.chat.type.in_({"group", "supergroup"}),
+    F.reply_to_message,
+    F.reply_to_message.from_user.id == BOT_ID,
+)
 async def process_community_date_group(message: types.Message, state: FSMContext):
     """Обработка даты события в групповых чатах"""
     logger.info(
@@ -5208,18 +5209,19 @@ async def process_community_date_group(message: types.Message, state: FSMContext
     await state.update_data(date=date)
     await state.set_state(CommunityEventCreation.waiting_for_time)
 
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
-    )
-
     await message.answer(
         f"**Дата сохранена:** {date} ✅\n\n⏰ **Введите время** (например: 19:00):",
         parse_mode="Markdown",
-        reply_markup=keyboard,
+        reply_markup=ForceReply(selective=True),
     )
 
 
-@main_router.message(CommunityEventCreation.waiting_for_time, F.chat.type.in_({"group", "supergroup"}))
+@main_router.message(
+    CommunityEventCreation.waiting_for_time,
+    F.chat.type.in_({"group", "supergroup"}),
+    F.reply_to_message,
+    F.reply_to_message.from_user.id == BOT_ID,
+)
 async def process_community_time_group(message: types.Message, state: FSMContext):
     """Обработка времени события в групповых чатах"""
     logger.info(
@@ -5256,18 +5258,19 @@ async def process_community_time_group(message: types.Message, state: FSMContext
     await state.update_data(time=time)
     await state.set_state(CommunityEventCreation.waiting_for_city)
 
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
-    )
-
     await message.answer(
         f"**Время сохранено:** {time} ✅\n\n🏙️ **Введите город** (например: Москва):",
         parse_mode="Markdown",
-        reply_markup=keyboard,
+        reply_markup=ForceReply(selective=True),
     )
 
 
-@main_router.message(CommunityEventCreation.waiting_for_city, F.chat.type.in_({"group", "supergroup"}))
+@main_router.message(
+    CommunityEventCreation.waiting_for_city,
+    F.chat.type.in_({"group", "supergroup"}),
+    F.reply_to_message,
+    F.reply_to_message.from_user.id == BOT_ID,
+)
 async def process_community_city_group(message: types.Message, state: FSMContext):
     """Обработка города события в групповых чатах"""
     logger.info(
@@ -5291,18 +5294,19 @@ async def process_community_city_group(message: types.Message, state: FSMContext
     await state.update_data(city=city)
     await state.set_state(CommunityEventCreation.waiting_for_location_url)
 
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
-    )
-
     await message.answer(
         f"**Город сохранен:** {city} ✅\n\n🔗 **Введите ссылку на место** (Google Maps или адрес):",
         parse_mode="Markdown",
-        reply_markup=keyboard,
+        reply_markup=ForceReply(selective=True),
     )
 
 
-@main_router.message(CommunityEventCreation.waiting_for_location_url, F.chat.type.in_({"group", "supergroup"}))
+@main_router.message(
+    CommunityEventCreation.waiting_for_location_url,
+    F.chat.type.in_({"group", "supergroup"}),
+    F.reply_to_message,
+    F.reply_to_message.from_user.id == BOT_ID,
+)
 async def process_community_location_url_group(message: types.Message, state: FSMContext):
     """Обработка ссылки на место события в групповых чатах"""
     logger.info(
@@ -5327,18 +5331,19 @@ async def process_community_location_url_group(message: types.Message, state: FS
     await state.update_data(location_url=location_url)
     await state.set_state(CommunityEventCreation.waiting_for_description)
 
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
-    )
-
     await message.answer(
         "**Ссылка сохранена** ✅\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
         parse_mode="Markdown",
-        reply_markup=keyboard,
+        reply_markup=ForceReply(selective=True),
     )
 
 
-@main_router.message(CommunityEventCreation.waiting_for_description, F.chat.type.in_({"group", "supergroup"}))
+@main_router.message(
+    CommunityEventCreation.waiting_for_description,
+    F.chat.type.in_({"group", "supergroup"}),
+    F.reply_to_message,
+    F.reply_to_message.from_user.id == BOT_ID,
+)
 async def process_community_description_group(message: types.Message, state: FSMContext):
     """Обработка описания события в групповых чатах"""
     logger.info(
