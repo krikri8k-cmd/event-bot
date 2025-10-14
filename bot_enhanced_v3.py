@@ -1790,6 +1790,17 @@ async def process_community_date_pm(message: types.Message, state: FSMContext):
     date = message.text.strip()
     logger.info(f"🔥 process_community_date_pm: получили дату '{date}' от пользователя {message.from_user.id}")
 
+    # Валидация формата даты DD.MM.YYYY
+    import re
+
+    if not re.match(r"^\d{1,2}\.\d{1,2}\.\d{4}$", date):
+        await message.answer(
+            "❌ **Неверный формат даты!**\n\n📅 Введите дату в формате **ДД.ММ.ГГГГ**\nНапример: 15.12.2024",
+            parse_mode="Markdown",
+            reply_markup=get_community_cancel_kb(),
+        )
+        return
+
     await state.update_data(date=date)
     await state.set_state(CommunityEventCreation.waiting_for_time)
 
@@ -1817,6 +1828,17 @@ async def process_community_time_pm(message: types.Message, state: FSMContext):
 
     time = message.text.strip()
     logger.info(f"🔥 process_community_time_pm: получили время '{time}' от пользователя {message.from_user.id}")
+
+    # Валидация формата времени HH:MM
+    import re
+
+    if not re.match(r"^\d{1,2}:\d{2}$", time):
+        await message.answer(
+            "❌ **Неверный формат времени!**\n\n⏰ Введите время в формате **ЧЧ:ММ**\nНапример: 19:00",
+            parse_mode="Markdown",
+            reply_markup=get_community_cancel_kb(),
+        )
+        return
 
     await state.update_data(time=time)
     await state.set_state(CommunityEventCreation.waiting_for_city)
