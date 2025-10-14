@@ -3541,7 +3541,19 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         return
 
     # Показываем сообщение загрузки
-    await callback.message.edit_text("🔍 Ищу события в расширенном радиусе...")
+    try:
+        # Пытаемся отредактировать текст (для старых сообщений)
+        await callback.message.edit_text("🔍 Ищу события в расширенном радиусе...")
+    except Exception:
+        # Если не получается (фото сообщение), отправляем новое
+        loading_msg = await callback.message.answer("🔍 Ищу события в расширенном радиусе...")
+        # Удаляем старое сообщение
+        try:
+            await callback.message.delete()
+        except Exception:
+            pass
+        # Обновляем ссылку на сообщение для дальнейшего редактирования
+        callback.message = loading_msg
 
     # Выполняем поиск с новым радиусом
     from database import get_engine
@@ -3653,12 +3665,83 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     # Создаем клавиатуру с кнопками пагинации и расширения радиуса
     keyboard = kb_pager(1, total_pages, new_radius)
 
-    await callback.message.edit_text(
-        text,
-        reply_markup=keyboard,
-        parse_mode="HTML",
-        disable_web_page_preview=True,
-    )
+    # Отправляем результаты с картой (как в основном поиске)
+    try:
+        # Сначала пытаемся создать карту (как в основном коде)
+        from config import load_settings
+        from utils.static_map import build_static_map_url, fetch_static_map
+
+        settings = load_settings()
+        map_bytes = None
+        try:
+            # Создаем точки событий для карты
+            points = []
+            for event in prepared[:12]:  # Максимум 12 событий на карте
+                if event.get("lat") and event.get("lng"):
+                    # Определяем тип события для иконки
+                    event_type = event.get("type", "source")
+                    if event_type == "user":
+                        icon = "👤"
+                    elif event_type in ["ai", "ai_parsed", "ai_generated"]:
+                        icon = "🤖"
+                    else:
+                        icon = "📌"
+
+                    points.append((icon, event["lat"], event["lng"], event.get("title", "")))
+
+            # Добавляем точку пользователя
+            points.append(("📍", lat, lng, "Вы здесь"))
+
+            # Создаем карту
+            event_points = [(p[1], p[2]) for p in points]  # (lat, lng)
+            map_bytes = await fetch_static_map(
+                build_static_map_url(lat, lng, event_points, settings.google_maps_api_key)
+            )
+        except Exception as map_error:
+            logger.warning(f"⚠️ Не удалось создать карту: {map_error}")
+
+        # Отправляем с картой если есть
+        if map_bytes:
+            from aiogram.types import BufferedInputFile
+
+            map_file = BufferedInputFile(map_bytes, filename="map.png")
+
+            # Отправляем новое фото сообщение
+            await callback.message.delete()  # Удаляем сообщение загрузки
+            new_msg = await callback.message.answer_photo(
+                map_file,
+                caption=text,
+                reply_markup=keyboard,
+                parse_mode="HTML",
+            )
+            # Обновляем ссылку на сообщение для дальнейших операций
+            callback.message = new_msg
+        else:
+            # Отправляем без карты
+            await callback.message.edit_text(
+                text,
+                reply_markup=keyboard,
+                parse_mode="HTML",
+                disable_web_page_preview=True,
+            )
+    except Exception as e:
+        logger.error(f"❌ Ошибка отправки результатов расширенного поиска: {e}")
+        # Fallback - простое текстовое сообщение
+        try:
+            await callback.message.edit_text(
+                text,
+                reply_markup=keyboard,
+                parse_mode="HTML",
+                disable_web_page_preview=True,
+            )
+        except Exception as e2:
+            logger.error(f"❌ Критическая ошибка fallback: {e2}")
+            # Последний fallback - новое сообщение
+            await callback.message.answer(
+                text,
+                reply_markup=keyboard,
+                parse_mode="HTML",
+            )
 
     await callback.answer(f"✅ Радиус расширен до {new_radius} км")
 
