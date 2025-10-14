@@ -203,14 +203,24 @@ def format_event_for_display(event):
     # Заголовок с эмодзи статуса
     lines.append(f"{event['status_emoji']} **{event['title']}**")
 
-    # Время (конвертируем в региональное)
+    # Время (конвертируем в часовой пояс пользователя)
     if event["starts_at"]:
         import pytz
 
-        # Определяем часовой пояс (по умолчанию Бали)
-        tz = pytz.timezone("Asia/Makassar")  # Бали UTC+8
+        from database import User, get_session
 
-        # Конвертируем UTC в локальное время
+        # Получаем часовой пояс пользователя из БД
+        user_tz = "Asia/Makassar"  # По умолчанию Бали
+        try:
+            with get_session() as session:
+                user = session.get(User, event.get("organizer_id"))
+                if user and user.user_tz:
+                    user_tz = user.user_tz
+        except Exception:
+            pass  # Используем значение по умолчанию
+
+        # Конвертируем UTC в часовой пояс пользователя
+        tz = pytz.timezone(user_tz)
         local_time = event["starts_at"].astimezone(tz)
         time_str = local_time.strftime("%d.%m.%Y | %H:%M")
         lines.append(f"📅 {time_str}")

@@ -852,7 +852,9 @@ def render_event_html(e: dict, idx: int) -> str:
     # Если when_str пустое, используем новую функцию human_when
     if not when:
         region = e.get("city", "bali")
-        when = human_when(e, region)
+        # Для пользовательских событий используем organizer_id как user_id
+        user_id = e.get("organizer_id") if e.get("type") == "user" else None
+        when = human_when(e, region, user_id)
         logger.info(f"🕐 render_event_html: использовали human_when, получили when='{when}'")
     dist = f"{e['distance_km']:.1f} км" if e.get("distance_km") is not None else ""
 
@@ -1440,17 +1442,13 @@ async def send_spinning_menu(message):
             pass
 
 
-def human_when(event: dict, region: str) -> str:
+def human_when(event: dict, region: str, user_id: int = None) -> str:
     """Возвращает '14:30' или пустую строку, если времени нет"""
     from datetime import datetime
 
     import pytz
 
-    REGION_TZ = {
-        "bali": "Asia/Makassar",
-        "moscow": "Europe/Moscow",
-        "spb": "Europe/Moscow",
-    }
+    from database import User, get_session
 
     dt_utc = event.get("starts_at") or event.get("start_time")  # подстраховка
     if not dt_utc:
@@ -1464,7 +1462,27 @@ def human_when(event: dict, region: str) -> str:
             return ""
 
     try:
-        tz = pytz.timezone(REGION_TZ.get(region, "UTC"))
+        # Получаем часовой пояс пользователя из БД
+        user_tz = None
+        if user_id:
+            try:
+                with get_session() as session:
+                    user = session.get(User, user_id)
+                    if user and user.user_tz:
+                        user_tz = user.user_tz
+            except Exception:
+                pass
+
+        # Если часовой пояс пользователя не найден, используем региональный
+        if not user_tz:
+            REGION_TZ = {
+                "bali": "Asia/Makassar",
+                "moscow": "Europe/Moscow",
+                "spb": "Europe/Moscow",
+            }
+            user_tz = REGION_TZ.get(region, "UTC")
+
+        tz = pytz.timezone(user_tz)
         local = dt_utc.astimezone(tz)
         # если у источника была только дата без времени → не печатаем 00:00
         if not (local.hour == 0 and local.minute == 0):
