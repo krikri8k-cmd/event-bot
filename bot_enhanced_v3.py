@@ -1225,7 +1225,7 @@ from collections.abc import Awaitable, Callable  # noqa: E402
 from typing import Any  # noqa: E402
 
 from aiogram import BaseMiddleware  # noqa: E402
-from sqlalchemy.ext.asyncio import async_sessionmaker  # noqa: E402
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker  # noqa: E402
 
 
 class DbSessionMiddleware(BaseMiddleware):
@@ -1879,7 +1879,7 @@ async def process_community_city_pm(message: types.Message, state: FSMContext):
 
 
 @main_router.message(CommunityEventCreation.waiting_for_location_url)
-async def process_community_location_url_pm(message: types.Message, state: FSMContext):
+async def process_community_location_url_pm(message: types.Message, state: FSMContext, bot: Bot, session: AsyncSession):
     """Обработка ссылки на место события в ЛС для группы"""
     logger.info(
         f"🔥 process_community_location_url_pm: получено сообщение от пользователя {message.from_user.id}, текст: '{message.text}'"
@@ -2212,7 +2212,12 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
         )
 
         try:
-            group_message = await bot.send_message(chat_id=group_id, text=event_text, parse_mode="Markdown")
+            # Отправляем через send_tracked с тегом "notification" (не удаляется автоматически)
+            from utils.messaging_utils import send_tracked
+
+            group_message = await send_tracked(
+                bot, session, chat_id=group_id, text=event_text, tag="notification", parse_mode="Markdown"
+            )
 
             # Показываем ссылку на опубликованное сообщение
             group_link = f"https://t.me/c/{str(group_id)[4:]}/{group_message.message_id}"
