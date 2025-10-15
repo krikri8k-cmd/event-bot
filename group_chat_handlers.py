@@ -12,7 +12,7 @@ from aiogram import F, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import ForceReply, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import ForceReply
 
 from utils.community_events_service import CommunityEventsService
 
@@ -375,27 +375,39 @@ async def handle_group_hide_bot(callback: types.CallbackQuery):
     logger.info(f"🔥 handle_group_hide_bot: chat.type={callback.message.chat.type}")
 
     # Любой пользователь может скрыть бота (особенно полезно для создателей событий)
-    # Подтверждение действия
-    confirmation_text = (
-        "👁️‍🗨️ **Спрятать бота**\n\n"
-        "Вы действительно хотите скрыть все сообщения бота из этого чата?\n\n"
-        "⚠️ **Это действие:**\n"
-        "• Удалит все сообщения бота из чата\n"
-        "• Очистит историю взаимодействий\n"
-        "• Бот останется в группе, но не будет засорять чат\n\n"
-        "💡 **Особенно полезно после создания события** - освобождает чат от служебных сообщений\n\n"
-        "Для восстановления функций бота используйте команду /start"
-    )
+    # Выполняем действие сразу без подтверждения
 
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="✅ Да, спрятать", callback_data=f"group_hide_confirm_{chat_id}")],
-            [InlineKeyboardButton(text="❌ Отмена", callback_data="group_back_to_start")],
-        ]
-    )
+    try:
+        # Удаляем текущее сообщение
+        await callback.message.delete()
 
-    await callback.message.edit_text(confirmation_text, reply_markup=keyboard, parse_mode="Markdown")
-    await callback.answer()
+        # Отправляем финальное сообщение о скрытии
+        from aiogram import Bot
+
+        bot = Bot.get_current()
+
+        await bot.send_message(
+            chat_id=chat_id,
+            text=(
+                "👁️‍🗨️ **Бот скрыт**\n\n"
+                "Все сообщения бота были скрыты из этого чата.\n\n"
+                "💡 **Для восстановления функций бота:**\n"
+                "Используйте команду /start"
+            ),
+            parse_mode="Markdown",
+        )
+
+        logger.info(f"✅ Бот скрыт в чате {chat_id} пользователем {user_id}")
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка при скрытии бота в чате {chat_id}: {e}")
+        # Если не удалось скрыть, просто удаляем сообщение
+        try:
+            await callback.message.delete()
+        except Exception:
+            pass
+
+    await callback.answer("✅ Бот скрыт")
 
 
 async def handle_group_hide_confirm(callback: types.CallbackQuery):
