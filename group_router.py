@@ -57,11 +57,21 @@ async def handle_start_command(message: Message):
                 ]
             )
 
-            # Отправляем панель
-            await message.answer(
+            # Отправляем панель с трекированием
+            panel_msg = await message.answer(
                 'Привет! Я @EventAroundBot - версия "Сообщества". Помогаю создавать и отслеживать события это чата.',
                 reply_markup=keyboard,
             )
+
+            # Трекируем панель для последующего удаления
+            try:
+                from utils.messaging_utils import track_message
+
+                await track_message(panel_msg, "panel", message.chat.id)
+                logger.info(f"✅ Панель трекируется для удаления в чате {message.chat.id}")
+            except Exception as e:
+                logger.error(f"❌ Ошибка трекирования панели: {e}")
+
             logger.info(f"✅ Показана панель команд бота в чате {message.chat.id}")
 
         except Exception as e:
@@ -348,14 +358,7 @@ async def group_hide_execute_direct(callback: CallbackQuery, bot: Bot, session: 
     except Exception as e:
         logger.error(f"❌ Ошибка проверки прав бота: {e}")
 
-    # Удаляем текущее сообщение (панель бота)
-    try:
-        await callback.message.delete()
-        logger.info(f"✅ Удалено текущее сообщение (панель) в чате {chat_id}")
-    except Exception as e:
-        logger.error(f"❌ Ошибка удаления текущего сообщения: {e}")
-
-    # Используем асинхронную версию delete_all_tracked
+    # Используем асинхронную версию delete_all_tracked (панель теперь трекируется)
     try:
         deleted = await delete_all_tracked(bot, session, chat_id=chat_id)
     except Exception as e:
