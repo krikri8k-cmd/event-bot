@@ -200,7 +200,7 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
             .where(
                 CommunityEvent.chat_id == chat_id,
                 CommunityEvent.status == "open",
-                CommunityEvent.starts_at > datetime.utcnow(),
+                CommunityEvent.starts_at >= datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0),
             )
             .order_by(CommunityEvent.starts_at)
             .limit(10)
