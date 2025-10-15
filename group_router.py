@@ -82,6 +82,21 @@ group_router = Router(name="group_router")
 start_command_messages = set()
 
 
+@group_router.message(Command("start"))
+async def handle_start_command(message: Message):
+    """Обработчик команды /start - только сохраняем message_id для удаления, НЕ отвечаем"""
+    chat_id = message.chat.id
+    user_id = message.from_user.id
+    message_id = message.message_id
+
+    logger.info(f"🔥 Команда /start от пользователя {user_id} в чате {chat_id}, message_id: {message_id}")
+
+    # Сохраняем message_id для последующего удаления при скрытии бота
+    start_command_messages.add(message_id)
+
+    # НЕ отправляем ответ - бот работает как раньше
+
+
 # === ИНИЦИАЛИЗАЦИЯ ===
 
 
