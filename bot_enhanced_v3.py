@@ -2160,7 +2160,7 @@ async def handle_delete_message(callback: types.CallbackQuery):
 
 
 @main_router.callback_query(F.data == "community_event_confirm_pm")
-async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMContext):
+async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMContext, bot: Bot, session: AsyncSession):
     """Подтверждение создания события сообщества в ЛС"""
     logger.info(
         f"🔥 confirm_community_event_pm: пользователь {callback.from_user.id} подтверждает создание события в ЛС"
