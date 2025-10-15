@@ -47,16 +47,19 @@ async def handle_start_command(message: Message):
 
         # Показываем панель команд бота в сообществе
         try:
-            from aiogram import Bot
-
-            Bot.get_current()
-
-            # Создаем панель с кнопками
-            keyboard = group_kb(message.chat.id)
+            # Создаем простую панель с кнопками
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="➕ Создать событие", url="https://t.me/EventAroundBot")],
+                    [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_list")],
+                    [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", url="https://t.me/EventAroundBot")],
+                    [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_execute")],
+                ]
+            )
 
             # Отправляем панель
             await message.answer(
-                "🤖 **EventAroundBot - Панель управления**\n\n" "Выберите действие:",
+                "🤖 **EventAroundBot - Панель управления**\n\nВыберите действие:",
                 reply_markup=keyboard,
                 parse_mode="Markdown",
             )
@@ -64,6 +67,8 @@ async def handle_start_command(message: Message):
 
         except Exception as e:
             logger.error(f"❌ Ошибка показа панели: {e}")
+            # Fallback - простое сообщение
+            await message.answer("🤖 EventAroundBot активирован в этом чате!")
 
 
 # === ИНИЦИАЛИЗАЦИЯ ===
