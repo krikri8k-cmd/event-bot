@@ -50,7 +50,11 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             # Создаем простую панель с кнопками
             keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[
-                    [InlineKeyboardButton(text="➕ Создать событие", url="https://t.me/EventAroundBot")],
+                    [
+                        InlineKeyboardButton(
+                            text="➕ Создать событие", url=f"https://t.me/EventAroundBot?start=group_{message.chat.id}"
+                        )
+                    ],
                     [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_list")],
                     [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", url="https://t.me/EventAroundBot")],
                     [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_execute")],
@@ -139,12 +143,12 @@ PANEL_TEXT = (
 
 def group_kb(chat_id: int) -> InlineKeyboardMarkup:
     """Клавиатура для панели группового чата"""
-    username = MAIN_BOT_USERNAME or "EventAroundBot"  # fallback
+    # Используем статический username для надежности
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="➕ Создать событие", url=f"https://t.me/{username}?start=group_{chat_id}")],
+            [InlineKeyboardButton(text="➕ Создать событие", url=f"https://t.me/EventAroundBot?start=group_{chat_id}")],
             [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_list")],
-            [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", url=f"https://t.me/{username}")],
+            [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", url="https://t.me/EventAroundBot")],
             [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_execute")],
         ]
     )
