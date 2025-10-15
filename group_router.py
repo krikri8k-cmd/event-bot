@@ -82,21 +82,6 @@ group_router = Router(name="group_router")
 start_command_messages = set()
 
 
-@group_router.message(Command("start"))
-async def handle_start_command(message: Message):
-    """Обработчик команды /start - только сохраняем message_id для удаления, НЕ отвечаем"""
-    chat_id = message.chat.id
-    user_id = message.from_user.id
-    message_id = message.message_id
-
-    logger.info(f"🔥 Команда /start от пользователя {user_id} в чате {chat_id}, message_id: {message_id}")
-
-    # Сохраняем message_id для последующего удаления при скрытии бота
-    start_command_messages.add(message_id)
-
-    # НЕ отправляем ответ - бот работает как раньше
-
-
 # === ИНИЦИАЛИЗАЦИЯ ===
 
 
@@ -382,20 +367,15 @@ async def group_hide_execute_direct(callback: CallbackQuery, bot: Bot, session: 
         logger.error(f"❌ Ошибка удаления сообщений: {e}")
         deleted = 0
 
-    # Удаляем команды /start@EventAroundBot от пользователей
-    deleted_start_commands = 0
-    try:
-        deleted_start_commands = await delete_start_commands(bot, chat_id)
-        logger.info(f"🔥 Удалено команд /start: {deleted_start_commands}")
-    except Exception as e:
-        logger.error(f"❌ Ошибка удаления команд /start: {e}")
+    # Примечание: Удаление команд /start@EventAroundBot от пользователей
+    # требует дополнительной логики для отслеживания message_id
+    # Пока что оставляем только удаление сообщений бота
 
     # Короткое уведомление о результате (не трекаем, чтобы не гоняться за ним)
     note = await bot.send_message(
         chat_id,
         f"👁️‍🗨️ **Бот скрыт**\n\n"
         f"✅ Удалено сообщений бота: {deleted}\n"
-        f"✅ Удалено команд /start: {deleted_start_commands}\n"
         f"✅ События в базе данных сохранены\n\n"
         f"💡 **Для восстановления функций бота:**\n"
         f"Используйте команду /start",
