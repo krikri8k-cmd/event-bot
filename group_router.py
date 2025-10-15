@@ -82,29 +82,6 @@ group_router = Router(name="group_router")
 start_command_messages = set()
 
 
-@group_router.message(Command("start"))
-async def handle_start_command(message: Message):
-    """Обработчик команды /start в групповых чатах - сохраняем message_id для последующего удаления"""
-    chat_id = message.chat.id
-    user_id = message.from_user.id
-    message_id = message.message_id
-
-    logger.info(f"🔥 Команда /start от пользователя {user_id} в чате {chat_id}, message_id: {message_id}")
-
-    # Сохраняем message_id для последующего удаления при скрытии бота
-    start_command_messages.add(message_id)
-
-    # Отправляем ответ (можно настроить по желанию)
-    await message.answer(
-        "🤖 Для создания событий используйте полный бот с геолокацией",
-        reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="🚀 Открыть полный бот", url=f"https://t.me/{MAIN_BOT_USERNAME}")]
-            ]
-        ),
-    )
-
-
 # === ИНИЦИАЛИЗАЦИЯ ===
 
 
