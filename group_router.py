@@ -24,51 +24,6 @@ from utils.messaging_utils import delete_all_tracked, ensure_panel, is_chat_admi
 logger = logging.getLogger(__name__)
 
 
-async def delete_start_commands(bot: Bot, chat_id: int) -> int:
-    """Удаляет команды /start@EventAroundBot от пользователей в чате"""
-    deleted_count = 0
-    try:
-        # Получаем информацию о боте
-        bot_info = await bot.get_me()
-        bot_username = bot_info.username
-
-        logger.info(f"🔥 Попытка удаления команд /start@{bot_username} в чате {chat_id}")
-
-        # Проверяем, что бот админ с правом удаления сообщений
-        try:
-            bot_member = await bot.get_chat_member(chat_id, bot.id)
-            if bot_member.status != "administrator" or not getattr(bot_member, "can_delete_messages", False):
-                logger.warning(f"🚫 У бота нет прав на удаление сообщений в чате {chat_id}")
-                return 0
-        except Exception as e:
-            logger.error(f"❌ Ошибка проверки прав бота: {e}")
-            return 0
-
-        # Удаляем сохраненные команды /start
-        logger.info("✅ У бота есть права на удаление сообщений")
-        logger.info(f"🔥 Найдено сохраненных команд /start: {len(start_command_messages)}")
-
-        for message_id in list(start_command_messages):
-            try:
-                await bot.delete_message(chat_id=chat_id, message_id=message_id)
-                deleted_count += 1
-                logger.info(f"✅ Удалена команда /start, message_id: {message_id}")
-            except Exception as e:
-                logger.warning(f"⚠️ Не удалось удалить сообщение {message_id}: {e}")
-                # Удаляем из множества, если сообщение уже не существует
-                start_command_messages.discard(message_id)
-
-        # Очищаем множество после удаления
-        start_command_messages.clear()
-
-        logger.info(f"🔥 Удалено команд /start: {deleted_count}")
-        return deleted_count
-
-    except Exception as e:
-        logger.error(f"❌ Ошибка в delete_start_commands: {e}")
-        return 0
-
-
 # === КОНФИГУРАЦИЯ ===
 
 # Username бота для deep-links (будет установлен при инициализации)
@@ -78,8 +33,30 @@ MAIN_BOT_USERNAME = None  # Будет установлен в set_bot_username(
 
 group_router = Router(name="group_router")
 
-# Хранилище для message_id команд /start (временное решение)
-start_command_messages = set()
+
+@group_router.message(Command("start"))
+async def handle_start_command(message: Message):
+    """Обработчик команды /start в группах - удаляем команду пользователя"""
+    if message.chat.type in ("group", "supergroup"):
+        try:
+            # Удаляем сообщение пользователя с /start
+            await message.delete()
+            logger.info(f"✅ Удалена команда /start от пользователя {message.from_user.id} в чате {message.chat.id}")
+        except Exception as e:
+            logger.error(f"❌ Не удалось удалить сообщение /start: {e}")
+
+        # Отправляем аккуратный ответ от бота
+        sent = await message.answer(
+            "👋 EventAroundBot активирован в этом чате!\n" "Теперь все события будут аккуратно структурированы 🚀"
+        )
+
+        # Удаляем ответ бота через 5 секунд для полной чистоты
+        await asyncio.sleep(5)
+        try:
+            await sent.delete()
+            logger.info(f"✅ Удален ответ бота на команду /start в чате {message.chat.id}")
+        except Exception as e:
+            logger.warning(f"⚠️ Не удалось удалить ответ бота: {e}")
 
 
 # === ИНИЦИАЛИЗАЦИЯ ===
@@ -367,15 +344,12 @@ async def group_hide_execute_direct(callback: CallbackQuery, bot: Bot, session: 
         logger.error(f"❌ Ошибка удаления сообщений: {e}")
         deleted = 0
 
-    # Примечание: Удаление команд /start@EventAroundBot от пользователей
-    # требует дополнительной логики для отслеживания message_id
-    # Пока что оставляем только удаление сообщений бота
-
     # Короткое уведомление о результате (не трекаем, чтобы не гоняться за ним)
     note = await bot.send_message(
         chat_id,
         f"👁️‍🗨️ **Бот скрыт**\n\n"
         f"✅ Удалено сообщений бота: {deleted}\n"
+        f"✅ Команды /start автоматически удаляются\n"
         f"✅ События в базе данных сохранены\n\n"
         f"💡 **Для восстановления функций бота:**\n"
         f"Используйте команду /start",
