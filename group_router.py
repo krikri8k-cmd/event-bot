@@ -88,7 +88,7 @@ def group_kb(chat_id: int) -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="➕ Создать событие", url=f"https://t.me/{username}?start=group_{chat_id}")],
             [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_list")],
             [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", url=f"https://t.me/{username}")],
-            [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_confirm")],
+            [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_execute")],
         ]
     )
 
@@ -272,6 +272,73 @@ async def group_hide_confirm(callback: CallbackQuery, bot: Bot, session: AsyncSe
             )
         except Exception as e:
             logger.error(f"❌ Ошибка отправки подтверждения: {e}")
+
+
+@group_router.callback_query(F.data == "group_hide_execute")
+async def group_hide_execute_direct(callback: CallbackQuery, bot: Bot, session: AsyncSession):
+    """Прямое выполнение скрытия бота без подтверждения"""
+    chat_id = callback.message.chat.id
+    user_id = callback.from_user.id
+    logger.info(f"🔥 group_hide_execute_direct: пользователь {user_id} скрывает бота в чате {chat_id}")
+
+    await callback.answer("Скрываем сервисные сообщения бота…", show_alert=False)
+
+    # Проверяем права бота на удаление сообщений
+    try:
+        bot_member = await bot.get_chat_member(chat_id, bot.id)
+        logger.info(
+            f"🔥 Права бота в чате {chat_id}: status={bot_member.status}, "
+            f"can_delete_messages={getattr(bot_member, 'can_delete_messages', None)}"
+        )
+
+        if bot_member.status != "administrator" or not getattr(bot_member, "can_delete_messages", False):
+            logger.warning(f"🚫 У бота нет прав на удаление сообщений в чате {chat_id}")
+            await callback.message.edit_text(
+                "❌ **Ошибка: Нет прав на удаление**\n\n"
+                "Бот должен быть администратором с правом 'Удаление сообщений'.\n\n"
+                "Попросите администратора группы:\n"
+                "1. Сделать бота администратором\n"
+                "2. Включить право 'Удаление сообщений'\n\n"
+                "После этого попробуйте снова.",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [InlineKeyboardButton(text="◀️ Назад к панели", callback_data="group_back_to_panel")]
+                    ]
+                ),
+            )
+            return
+    except Exception as e:
+        logger.error(f"❌ Ошибка проверки прав бота: {e}")
+
+    # Используем асинхронную версию delete_all_tracked
+    try:
+        deleted = await delete_all_tracked(bot, session, chat_id=chat_id)
+    except Exception as e:
+        logger.error(f"❌ Ошибка удаления сообщений: {e}")
+        deleted = 0
+
+    # Короткое уведомление о результате (не трекаем, чтобы не гоняться за ним)
+    note = await bot.send_message(
+        chat_id,
+        f"👁️‍🗨️ **Бот скрыт**\n\n"
+        f"Удалено сообщений: {deleted}\n"
+        f"События в базе данных сохранены.\n\n"
+        f"💡 **Для восстановления функций бота:**\n"
+        f"Используйте команду /start",
+        parse_mode="Markdown",
+    )
+
+    # Удаляем уведомление через 5 секунд
+    try:
+        import asyncio
+
+        await asyncio.sleep(5)
+        await note.delete()
+    except Exception:
+        pass  # Игнорируем ошибки удаления уведомления
+
+    logger.info(f"✅ Бот скрыт в чате {chat_id} пользователем {user_id}, удалено сообщений: {deleted}")
 
 
 @group_router.callback_query(F.data.startswith("group_hide_execute_"))
