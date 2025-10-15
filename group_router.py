@@ -35,7 +35,7 @@ group_router = Router(name="group_router")
 
 
 @group_router.message(Command("start"))
-async def handle_start_command(message: Message):
+async def handle_start_command(message: Message, bot: Bot, session: AsyncSession):
     """Обработчик команды /start в группах - удаляем команду и показываем панель"""
     if message.chat.type in ("group", "supergroup"):
         try:
@@ -57,22 +57,32 @@ async def handle_start_command(message: Message):
                 ]
             )
 
-            # Отправляем панель с трекированием
-            panel_msg = await message.answer(
-                'Привет! Я @EventAroundBot - версия "Сообщества". Помогаю создавать и отслеживать события это чата.',
-                reply_markup=keyboard,
-            )
-
-            # Трекируем панель для последующего удаления
+            # Отправляем панель с трекированием через send_tracked
             try:
-                from utils.messaging_utils import track_message
+                from utils.messaging_utils import send_tracked
 
-                await track_message(panel_msg, "panel", message.chat.id)
-                logger.info(f"✅ Панель трекируется для удаления в чате {message.chat.id}")
+                await send_tracked(
+                    bot,
+                    session,
+                    chat_id=message.chat.id,
+                    text=(
+                        'Привет! Я @EventAroundBot - версия "Сообщества". '
+                        "Помогаю создавать и отслеживать события это чата."
+                    ),
+                    tag="panel",
+                    reply_markup=keyboard,
+                )
+                logger.info(f"✅ Панель отправлена и трекируется в чате {message.chat.id}")
             except Exception as e:
-                logger.error(f"❌ Ошибка трекирования панели: {e}")
-
-            logger.info(f"✅ Показана панель команд бота в чате {message.chat.id}")
+                logger.error(f"❌ Ошибка отправки панели: {e}")
+                # Fallback - обычная отправка без трекирования
+                await message.answer(
+                    (
+                        'Привет! Я @EventAroundBot - версия "Сообщества". '
+                        "Помогаю создавать и отслеживать события это чата."
+                    ),
+                    reply_markup=keyboard,
+                )
 
         except Exception as e:
             logger.error(f"❌ Ошибка показа панели: {e}")
