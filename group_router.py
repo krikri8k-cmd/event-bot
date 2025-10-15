@@ -61,7 +61,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             try:
                 from utils.messaging_utils import send_tracked
 
-                panel_msg = await send_tracked(
+                await send_tracked(
                     bot,
                     session,
                     chat_id=message.chat.id,
@@ -73,20 +73,6 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                     reply_markup=keyboard,
                 )
                 logger.info(f"✅ Панель отправлена и трекируется в чате {message.chat.id}")
-
-                # Автоудаление панели через 5 минут
-                async def auto_delete_panel():
-                    try:
-                        await asyncio.sleep(300)  # 5 минут = 300 секунд
-                        await panel_msg.delete()
-                        logger.info(f"✅ Панель автоматически удалена через 5 минут в чате {message.chat.id}")
-                    except Exception as e:
-                        logger.warning(f"⚠️ Не удалось автоматически удалить панель: {e}")
-
-                # Запускаем автоудаление в фоне
-                import asyncio
-
-                asyncio.create_task(auto_delete_panel())
             except Exception as e:
                 logger.error(f"❌ Ошибка отправки панели: {e}")
                 # Fallback - обычная отправка без трекирования

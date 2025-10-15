@@ -16,6 +16,18 @@ from database import BotMessage, ChatSettings
 logger = logging.getLogger(__name__)
 
 
+async def auto_delete_message(bot: Bot, chat_id: int, message_id: int, delay_seconds: int):
+    """Автоудаление сообщения через указанное количество секунд (только для групповых чатов)"""
+    try:
+        import asyncio
+
+        await asyncio.sleep(delay_seconds)
+        await bot.delete_message(chat_id=chat_id, message_id=message_id)
+        logger.info(f"✅ Сообщение {message_id} автоматически удалено из чата {chat_id} через {delay_seconds}с")
+    except Exception as e:
+        logger.warning(f"⚠️ Не удалось автоматически удалить сообщение {message_id}: {e}")
+
+
 # === SYNC ВЕРСИИ (для синхронной SQLAlchemy session) ===
 
 
@@ -102,6 +114,11 @@ def send_tracked_sync(bot: Bot, session: Session, *, chat_id: int, text: str, ta
     session.commit()
 
     logger.info(f"✅ Отправлено tracked сообщение в чат {chat_id}, message_id={msg.message_id}, tag={tag}")
+
+    # Автоудаление через 5 минут для определенных тегов (кроме важных уведомлений)
+    if tag in ["service", "panel", "list"]:  # Не удаляем "notification" (новые события)
+        asyncio.create_task(auto_delete_message(bot, chat_id, msg.message_id, 300))  # 5 минут
+
     return msg
 
 
