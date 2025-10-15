@@ -36,7 +36,7 @@ group_router = Router(name="group_router")
 
 @group_router.message(Command("start"))
 async def handle_start_command(message: Message):
-    """Обработчик команды /start в группах - просто удаляем команду пользователя"""
+    """Обработчик команды /start в группах - удаляем команду и показываем панель"""
     if message.chat.type in ("group", "supergroup"):
         try:
             # Удаляем сообщение пользователя с /start
@@ -45,7 +45,25 @@ async def handle_start_command(message: Message):
         except Exception as e:
             logger.error(f"❌ Не удалось удалить сообщение /start: {e}")
 
-        # НЕ отправляем ответ - бот работает как раньше
+        # Показываем панель команд бота в сообществе
+        try:
+            from aiogram import Bot
+
+            Bot.get_current()
+
+            # Создаем панель с кнопками
+            keyboard = group_kb(message.chat.id)
+
+            # Отправляем панель
+            await message.answer(
+                "🤖 **EventAroundBot - Панель управления**\n\n" "Выберите действие:",
+                reply_markup=keyboard,
+                parse_mode="Markdown",
+            )
+            logger.info(f"✅ Показана панель команд бота в чате {message.chat.id}")
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка показа панели: {e}")
 
 
 # === ИНИЦИАЛИЗАЦИЯ ===
