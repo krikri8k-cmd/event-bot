@@ -348,11 +348,18 @@ async def group_hide_execute_direct(callback: CallbackQuery, bot: Bot, session: 
     except Exception as e:
         logger.error(f"❌ Ошибка проверки прав бота: {e}")
 
+    # Удаляем текущее сообщение (панель бота)
+    try:
+        await callback.message.delete()
+        logger.info(f"✅ Удалено текущее сообщение (панель) в чате {chat_id}")
+    except Exception as e:
+        logger.error(f"❌ Ошибка удаления текущего сообщения: {e}")
+
     # Используем асинхронную версию delete_all_tracked
     try:
         deleted = await delete_all_tracked(bot, session, chat_id=chat_id)
     except Exception as e:
-        logger.error(f"❌ Ошибка удаления сообщений: {e}")
+        logger.error(f"❌ Ошибка удаления трекированных сообщений: {e}")
         deleted = 0
 
     # Короткое уведомление о результате (не трекаем, чтобы не гоняться за ним)
