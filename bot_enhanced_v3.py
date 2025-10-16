@@ -1731,7 +1731,7 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
                     )
                 ],
                 [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_chat_events")],
-                [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", url=f"https://t.me/{bot_info.username}")],
+                [InlineKeyboardButton(text='🚀 Расширенная версия "World"', url=f"https://t.me/{bot_info.username}")],
                 [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_bot")],
             ]
         )
@@ -2347,7 +2347,7 @@ async def handle_group_back_to_start(callback: types.CallbackQuery):
                 )
             ],
             [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_chat_events")],
-            [InlineKeyboardButton(text="🚀 Полный бот (с геолокацией)", url=f"https://t.me/{bot_info.username}")],
+            [InlineKeyboardButton(text='🚀 Расширенная версия "World"', url=f"https://t.me/{bot_info.username}")],
             [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_bot")],
         ]
     )
