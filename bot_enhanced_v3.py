@@ -605,7 +605,7 @@ async def send_compact_events_list_prepared(
 
     # Рендерим страницу
     header_html = render_header(counts, radius_km=int(radius))
-    events_text, total_pages = render_page(prepared_events, page + 1, page_size=5)
+    events_text, total_pages = render_page(prepared_events, page + 1, page_size=5, user_id=message.from_user.id)
 
     # Отладочная информация
 
@@ -687,7 +687,7 @@ async def send_compact_events_list(
 
     # 5) Рендерим страницу
     header_html = render_header(counts, radius_km=int(radius))
-    page_html, total_pages = render_page(prepared, page=page + 1, page_size=5)
+    page_html, total_pages = render_page(prepared, page=page + 1, page_size=5, user_id=message.from_user.id)
     text = header_html + "\n\n" + page_html
 
     # 6) Создаем клавиатуру пагинации с кнопками расширения радиуса
@@ -749,7 +749,7 @@ async def edit_events_list_message(
     # Формируем HTML карточки событий
     event_lines = []
     for idx, event in enumerate(page_events, start=start_idx + 1):
-        event_html = render_event_html(event, idx)
+        event_html = render_event_html(event, idx, message.from_user.id)
         event_lines.append(event_html)
 
     text = header_html + "\n\n" + "\n".join(event_lines)
@@ -838,7 +838,7 @@ def get_source_url(e: dict) -> str | None:
     return None  # нет реального источника — лучше не показывать ссылку
 
 
-def render_event_html(e: dict, idx: int) -> str:
+def render_event_html(e: dict, idx: int, user_id: int = None) -> str:
     """Рендерит одну карточку события в HTML согласно ТЗ"""
     import logging
 
@@ -849,12 +849,9 @@ def render_event_html(e: dict, idx: int) -> str:
 
     logger.info(f"🕐 render_event_html: title={title}, when_str='{when}', starts_at={e.get('starts_at')}")
 
-    # Если when_str пустое, используем новую функцию human_when
+    # Если when_str пустое, используем функцию human_when с учетом часового пояса пользователя
     if not when:
-        region = e.get("city") or "bali"
-        # Для пользовательских событий используем organizer_id как user_id
-        user_id = e.get("organizer_id") if e.get("type") == "user" else None
-        when = human_when(e, region, user_id)
+        when = human_when(e, user_id=user_id)
     dist = f"{e['distance_km']:.1f} км" if e.get("distance_km") is not None else ""
 
     # Определяем тип события, если не установлен
@@ -1017,7 +1014,7 @@ def render_fallback(lat: float, lng: float) -> str:
     )
 
 
-def render_page(events: list[dict], page: int, page_size: int = 5) -> tuple[str, int]:
+def render_page(events: list[dict], page: int, page_size: int = 5, user_id: int = None) -> tuple[str, int]:
     """
     Рендерит страницу событий
     events — уже отфильтрованные prepared (publishable) и отсортированные по distance/time
@@ -1040,7 +1037,7 @@ def render_page(events: list[dict], page: int, page_size: int = 5) -> tuple[str,
     for idx, e in enumerate(events[start:end], start=start + 1):
         logger.info(f"🕐 render_page: событие {idx} - starts_at={e.get('starts_at')}, title={e.get('title')}")
         try:
-            html = render_event_html(e, idx)
+            html = render_event_html(e, idx, user_id)
             parts.append(html)
         except Exception as e_render:
             logger.error(f"❌ Ошибка рендеринга события {idx}: {e_render}")
@@ -1441,32 +1438,29 @@ async def send_spinning_menu(message):
             pass
 
 
-def human_when(event: dict, region: str, user_id: int = None) -> str:
-    """Возвращает '14:30' или пустую строку, если времени нет"""
-    import logging
-
-    logging.getLogger(__name__)
-
+def human_when(event: dict, region: str = None, user_id: int = None) -> str:
+    """Возвращает время в формате 'HH:MM' в локальном времени пользователя"""
     from datetime import datetime
-
-    import pytz
+    from zoneinfo import ZoneInfo
 
     from database import User, get_session
+    from utils.simple_timezone import get_city_from_coordinates
 
-    dt_utc = event.get("starts_at") or event.get("start_time")  # подстраховка
+    dt_utc = event.get("starts_at") or event.get("start_time")
     if not dt_utc:
         return ""
 
     if isinstance(dt_utc, str):
-        # на всякий случай – ISO в БД могут прийти строкой
         try:
             dt_utc = datetime.fromisoformat(dt_utc.replace("Z", "+00:00"))
         except Exception:
             return ""
 
     try:
-        # Получаем часовой пояс пользователя из БД
+        # Определяем часовой пояс пользователя
         user_tz = None
+
+        # 1. Пробуем получить из БД по user_id
         if user_id:
             try:
                 with get_session() as session:
@@ -1476,20 +1470,44 @@ def human_when(event: dict, region: str, user_id: int = None) -> str:
             except Exception:
                 pass
 
-        # Если часовой пояс пользователя не найден, используем региональный
-        if not user_tz:
-            REGION_TZ = {
-                "bali": "Asia/Makassar",
-                "moscow": "Europe/Moscow",
-                "spb": "Europe/Moscow",
-            }
-            user_tz = REGION_TZ.get(region, "UTC")
+        # 2. Если не найдено, определяем по геолокации пользователя
+        if not user_tz and user_id:
+            try:
+                with get_session() as session:
+                    user = session.get(User, user_id)
+                    if user and user.last_lat and user.last_lng:
+                        # Определяем город по координатам
+                        city = get_city_from_coordinates(user.last_lat, user.last_lng)
+                        city_tz_map = {
+                            "bali": "Asia/Makassar",
+                            "moscow": "Europe/Moscow",
+                            "spb": "Europe/Moscow",
+                            "jakarta": "Asia/Jakarta",
+                        }
+                        user_tz = city_tz_map.get(city, "UTC")
+            except Exception:
+                pass
 
-        tz = pytz.timezone(user_tz)
-        local = dt_utc.astimezone(tz)
-        # если у источника была только дата без времени → не печатаем 00:00
-        if not (local.hour == 0 and local.minute == 0):
-            return local.strftime("%H:%M")
+        # 3. Fallback на региональный часовой пояс
+        if not user_tz:
+            if region:
+                region_tz_map = {
+                    "bali": "Asia/Makassar",
+                    "moscow": "Europe/Moscow",
+                    "spb": "Europe/Moscow",
+                    "jakarta": "Asia/Jakarta",
+                }
+                user_tz = region_tz_map.get(region, "UTC")
+            else:
+                # По умолчанию используем UTC+3 (Москва) для большинства пользователей
+                user_tz = "Europe/Moscow"
+
+        # Конвертируем время в часовой пояс пользователя
+        user_timezone = ZoneInfo(user_tz)
+        local_time = dt_utc.astimezone(user_timezone)
+
+        if not (local_time.hour == 0 and local_time.minute == 0):
+            return local_time.strftime("%H:%M")
         return ""
     except Exception:
         return ""
@@ -2643,7 +2661,7 @@ async def on_location(message: types.Message, state: FSMContext):
             header_html = render_header(counts, radius_km=int(radius))
 
             # 5) Рендерим первые 3 события для карты
-            page_html, _ = render_page(prepared, page=1, page_size=3)
+            page_html, _ = render_page(prepared, page=1, page_size=3, user_id=message.from_user.id)
             short_caption = header_html + "\n\n" + page_html
 
             if len(prepared) > 3:
@@ -2721,7 +2739,7 @@ async def on_location(message: types.Message, state: FSMContext):
                 header_html = render_header(counts, radius_km=int(radius))
 
                 # 4) Рендерим события (первая страница)
-                page_html, _ = render_page(prepared, page=0, page_size=5)
+                page_html, _ = render_page(prepared, page=0, page_size=5, user_id=message.from_user.id)
                 events_text = header_html + "\n\n" + page_html
 
                 # 5) Добавляем навигацию если нужно
@@ -3696,7 +3714,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
 
     # Рендерим страницу
     header_html = render_header(counts, radius_km=new_radius)
-    events_text, total_pages = render_page(prepared, 1, page_size=5)
+    events_text, total_pages = render_page(prepared, 1, page_size=5, user_id=user_id)
 
     text = header_html + "\n\n" + events_text
 
@@ -5710,7 +5728,7 @@ async def handle_pagination(callback: types.CallbackQuery):
         current_radius = state.get("radius", 5)
 
         # Рендерим страницу
-        page_html, total_pages = render_page(prepared, page, page_size=5)
+        page_html, total_pages = render_page(prepared, page, page_size=5, user_id=callback.from_user.id)
 
         # Создаем клавиатуру пагинации
         combined_keyboard = kb_pager(page, total_pages, current_radius)
