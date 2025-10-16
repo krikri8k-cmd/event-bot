@@ -2953,13 +2953,13 @@ async def on_share(message: types.Message):
     bot_info = await bot.get_me()
     text = (
         '🤝Версия "Community"- наведет структуру и порядок событий в групповом чате:\n'
-        f"👉 t.me/{bot_info.username}?startgroup=true\n\n"
+        f"t.me/{bot_info.username}?startgroup=true\n\n"
         "Инструкция:\n"
         "Добавь в чат + дай права админа и удаления сообщений.\n"
         "Бот автоматически\n"
         "чистит свои сообщения в чате\n\n"
         "👫Приглашай друзей:\n"
-        f"👉 t.me/{bot_info.username}\n\n"
+        f"Копировать t.me/{bot_info.username}\n\n"
         "Вместе веселей!"
     )
     await message.answer(text, reply_markup=main_menu_kb())
