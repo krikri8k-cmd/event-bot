@@ -803,9 +803,12 @@ def build_maps_url(e: dict) -> str:
     lat = venue.get("lat") or e.get("lat")
     lng = venue.get("lon") or e.get("lng")
 
-    if name:
+    # Пропускаем generic названия мест
+    generic_venues = ["📍 Локация уточняется", "Место проведения", "Место не указано", "", "None"]
+
+    if name and name not in generic_venues:
         return f"https://www.google.com/maps/search/?api=1&query={quote_plus(name)}"
-    if addr:
+    if addr and addr not in generic_venues:
         return f"https://www.google.com/maps/search/?api=1&query={quote_plus(addr)}"
     if lat and lng:
         return f"https://www.google.com/maps/search/?api=1&query={lat},{lng}"
