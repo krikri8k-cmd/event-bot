@@ -851,11 +851,10 @@ def render_event_html(e: dict, idx: int) -> str:
 
     # Если when_str пустое, используем новую функцию human_when
     if not when:
-        region = e.get("city", "bali")
+        region = e.get("city") or "bali"
         # Для пользовательских событий используем organizer_id как user_id
         user_id = e.get("organizer_id") if e.get("type") == "user" else None
         when = human_when(e, region, user_id)
-        logger.info(f"🕐 render_event_html: использовали human_when, получили when='{when}'")
     dist = f"{e['distance_km']:.1f} км" if e.get("distance_km") is not None else ""
 
     # Определяем тип события, если не установлен
@@ -1444,6 +1443,10 @@ async def send_spinning_menu(message):
 
 def human_when(event: dict, region: str, user_id: int = None) -> str:
     """Возвращает '14:30' или пустую строку, если времени нет"""
+    import logging
+
+    logging.getLogger(__name__)
+
     from datetime import datetime
 
     import pytz
