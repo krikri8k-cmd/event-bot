@@ -3407,6 +3407,102 @@ async def on_my_tasks(message: types.Message):
     )
 
 
+@main_router.message(Command("tasks"))
+async def cmd_tasks(message: types.Message, state: FSMContext):
+    """Обработчик команды /tasks - Квесты на районе"""
+    # Устанавливаем состояние для заданий
+    await state.set_state(TaskFlow.waiting_for_location)
+
+    # Создаем клавиатуру с кнопкой геолокации
+    location_keyboard = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="📍 Отправить геолокацию")]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+    await message.answer(
+        "🎯 Квесты на районе\nНаграда 3 🚀\n\nСамое время развлечься и получить награды.\n\nНажмите кнопку **'📍 Отправить геолокацию'** чтобы начать!",
+        parse_mode="Markdown",
+        reply_markup=location_keyboard,
+    )
+
+
+@main_router.message(Command("mytasks"))
+async def cmd_mytasks(message: types.Message):
+    """Обработчик команды /mytasks - Мои квесты"""
+    user_id = message.from_user.id
+
+    # Автомодерация: помечаем истекшие задания
+    from tasks_service import mark_tasks_as_expired
+
+    try:
+        expired_count = mark_tasks_as_expired()
+        if expired_count > 0:
+            await message.answer(f"🤖 Автоматически истекло {expired_count} просроченных заданий")
+    except Exception as e:
+        logger.error(f"Ошибка автомодерации заданий для пользователя {user_id}: {e}")
+
+    # Получаем активные задания пользователя
+    active_tasks = get_user_active_tasks(user_id)
+
+    if not active_tasks:
+        # Получаем баланс ракет пользователя
+        from rockets_service import get_user_rockets
+
+        rocket_balance = get_user_rockets(user_id)
+
+        await message.answer(
+            "🏆 **Мои квесты**\n\n"
+            "У вас пока нет активных заданий.\n\n"
+            f"**Баланс {rocket_balance} 🚀**\n\n"
+            "🎯 Нажмите 'Квесты на районе' чтобы получить новые задания!",
+            parse_mode="Markdown",
+        )
+        return
+
+    # Получаем баланс ракет пользователя
+    from rockets_service import get_user_rockets
+
+    rocket_balance = get_user_rockets(user_id)
+
+    # Формируем сообщение со списком активных заданий
+    message_text = "📋 **Ваши активные задания:**\n\n"
+    message_text += "Прохождение + 3 🚀\n"
+    message_text += "⏰ Для мотивации даем 24 часа\n\n"
+    message_text += f"**Баланс {rocket_balance} 🚀**\n\n"
+
+    for i, task in enumerate(active_tasks, 1):
+        # Вычисляем оставшееся время
+        expires_at = task["expires_at"]
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=UTC)
+        time_left = expires_at - datetime.now(UTC)
+        int(time_left.total_seconds() / 3600)
+
+        category_emoji = "💪" if task["category"] == "body" else "🧘"
+        # Форматируем время выполнения в компактном виде
+        start_time = task["accepted_at"]
+        end_time = expires_at
+        time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')}"
+
+        message_text += f"{i}) {category_emoji} **{task['title']}**\n"
+        message_text += f"⏰ **Время на выполнение:** {time_period}\n\n"
+
+    # Добавляем кнопку управления заданиями
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔧 Управление заданиями", callback_data="manage_tasks")],
+            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+        ]
+    )
+
+    await message.answer(
+        message_text,
+        parse_mode="Markdown",
+        reply_markup=keyboard,
+    )
+
+
 @main_router.callback_query(F.data == "manage_tasks")
 async def handle_manage_tasks(callback: types.CallbackQuery):
     """Обработчик кнопки 'Управление заданиями'"""
@@ -5989,7 +6085,8 @@ async def main():
 
         # Публичные команды - только команды без дублирования в меню
         public_commands = [
-            # Команды убраны, так как они уже есть в меню со стикерами
+            types.BotCommand(command="tasks", description="🎯 Квесты на районе - найти задания поблизости"),
+            types.BotCommand(command="mytasks", description="🏆 Мои квесты - просмотр выполненных заданий"),
         ]
 
         # Админские команды - только для админа
