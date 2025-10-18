@@ -2893,7 +2893,7 @@ async def on_my_events(message: types.Message):
                     .replace("[", "\\[")
                 )
 
-                text_parts.append(f"{i}) **{escaped_title}**\n🕐 {time_str}\n📍 {escaped_location}\n")
+                text_parts.append(f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location}\n")
 
             if len(active_events) > 3:
                 text_parts.append(f"... и еще {len(active_events) - 3} событий")
@@ -2921,7 +2921,7 @@ async def on_my_events(message: types.Message):
                 .replace("`", "\\`")
                 .replace("[", "\\[")
             )
-            text_parts.append(f"{i}) **{escaped_title}** – {time_str}")
+            text_parts.append(f"{i}) {escaped_title} – {time_str}")
 
         if len(all_participations) > 3:
             text_parts.append(f"... и еще {len(all_participations) - 3} событий")
