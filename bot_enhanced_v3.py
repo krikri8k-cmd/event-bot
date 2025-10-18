@@ -2877,10 +2877,20 @@ async def on_my_events(message: types.Message):
                 else:
                     time_str = "Время уточняется"
 
-                # Экранируем специальные символы Markdown
-                escaped_title = title.replace("*", "\\*").replace("_", "\\_").replace("`", "\\`").replace("[", "\\[")
+                # Экранируем специальные символы Markdown (сначала \, потом остальные)
+                escaped_title = (
+                    title.replace("\\", "\\\\")
+                    .replace("*", "\\*")
+                    .replace("_", "\\_")
+                    .replace("`", "\\`")
+                    .replace("[", "\\[")
+                )
                 escaped_location = (
-                    location.replace("*", "\\*").replace("_", "\\_").replace("`", "\\`").replace("[", "\\[")
+                    location.replace("\\", "\\\\")
+                    .replace("*", "\\*")
+                    .replace("_", "\\_")
+                    .replace("`", "\\`")
+                    .replace("[", "\\[")
                 )
 
                 text_parts.append(f"{i}) **{escaped_title}**\n🕐 {time_str}\n📍 {escaped_location}\n")
@@ -2903,8 +2913,14 @@ async def on_my_events(message: types.Message):
                 time_str = local_time.strftime("%H:%M")
             else:
                 time_str = "Время уточняется"
-            # Экранируем специальные символы Markdown
-            escaped_title = title.replace("*", "\\*").replace("_", "\\_").replace("`", "\\`").replace("[", "\\[")
+            # Экранируем специальные символы Markdown (сначала \, потом остальные)
+            escaped_title = (
+                title.replace("\\", "\\\\")
+                .replace("*", "\\*")
+                .replace("_", "\\_")
+                .replace("`", "\\`")
+                .replace("[", "\\[")
+            )
             text_parts.append(f"{i}) **{escaped_title}** – {time_str}")
 
         if len(all_participations) > 3:
