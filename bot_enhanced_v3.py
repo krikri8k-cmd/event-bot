@@ -1942,7 +1942,8 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
         if city:
             logger.info(f"🏙️ Автоматически извлечен город: {city}")
         else:
-            logger.info("🏙️ Город не удалось извлечь из ссылки")
+            logger.info("🏙️ Город не удалось извлечь из ссылки, используем fallback")
+            city = "Не определен"  # Fallback значение для базы данных
     except Exception as e:
         logger.warning(f"Не удалось определить название места: {e}")
         location_name = "Место по ссылке"
@@ -1950,7 +1951,7 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
     await state.update_data(location_url=location_url, location_name=location_name, city=city)
     await state.set_state(CommunityEventCreation.waiting_for_description)
 
-    city_info = f"\n🏙️ **Город:** {city}" if city else ""
+    city_info = f"\n🏙️ **Город:** {city}" if city and city != "Не определен" else ""
     await message.answer(
         f"**Ссылка сохранена** ✅\n📍 **Место:** {location_name}{city_info}\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
         parse_mode="Markdown",
@@ -1984,7 +1985,11 @@ async def process_community_description_pm(message: types.Message, state: FSMCon
     logger.info(f"🔥 process_community_description_pm: данные FSM: {data}")
 
     # Показываем итог перед подтверждением
-    city_info = f"\n🏙️ **Город:** {data.get('city', 'Не определен')}" if data.get("city") else ""
+    city_info = (
+        f"\n🏙️ **Город:** {data.get('city', 'Не определен')}"
+        if data.get("city") and data.get("city") != "Не определен"
+        else ""
+    )
     await message.answer(
         f"📌 **Проверьте данные события для группы:**\n\n"
         f"**Название:** {data.get('title', 'НЕ УКАЗАНО')}\n"
@@ -5403,7 +5408,8 @@ async def process_community_location_url_group(message: types.Message, state: FS
         if city:
             logger.info(f"🏙️ Автоматически извлечен город: {city}")
         else:
-            logger.info("🏙️ Город не удалось извлечь из ссылки")
+            logger.info("🏙️ Город не удалось извлечь из ссылки, используем fallback")
+            city = "Не определен"  # Fallback значение для базы данных
     except Exception as e:
         logger.warning(f"Не удалось определить название места: {e}")
         location_name = "Место по ссылке"
@@ -5411,7 +5417,7 @@ async def process_community_location_url_group(message: types.Message, state: FS
     await state.update_data(location_url=location_url, location_name=location_name, city=city)
     await state.set_state(CommunityEventCreation.waiting_for_description)
 
-    city_info = f"\n🏙️ **Город:** {city}" if city else ""
+    city_info = f"\n🏙️ **Город:** {city}" if city and city != "Не определен" else ""
     await message.answer(
         f"**Ссылка сохранена** ✅\n📍 **Место:** {location_name}{city_info}\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
         parse_mode="Markdown",
