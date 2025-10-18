@@ -6094,10 +6094,10 @@ async def main():
             types.BotCommand(command="nearby", description="📍 Что рядом - найти события поблизости"),
             types.BotCommand(command="create", description="➕ Создать новое событие"),
             types.BotCommand(command="myevents", description="📋 Мои события - просмотр созданных событий"),
-            types.BotCommand(command="share", description="🔗 Поделиться ботом"),
-            types.BotCommand(command="help", description="💬 Написать отзыв Разработчику"),
             types.BotCommand(command="tasks", description="🎯 Квесты на районе - найти задания поблизости"),
             types.BotCommand(command="mytasks", description="🏆 Мои квесты - просмотр выполненных заданий"),
+            types.BotCommand(command="share", description="🔗 Поделиться ботом"),
+            types.BotCommand(command="help", description="💬 Написать отзыв Разработчику"),
         ]
 
         # Админские команды - только для админа
