@@ -2877,7 +2877,13 @@ async def on_my_events(message: types.Message):
                 else:
                     time_str = "Время уточняется"
 
-                text_parts.append(f"{i}) **{title}**\n🕐 {time_str}\n📍 {location}\n")
+                # Экранируем специальные символы Markdown
+                escaped_title = title.replace("*", "\\*").replace("_", "\\_").replace("`", "\\`").replace("[", "\\[")
+                escaped_location = (
+                    location.replace("*", "\\*").replace("_", "\\_").replace("`", "\\`").replace("[", "\\[")
+                )
+
+                text_parts.append(f"{i}) **{escaped_title}**\n🕐 {time_str}\n📍 {escaped_location}\n")
 
             if len(active_events) > 3:
                 text_parts.append(f"... и еще {len(active_events) - 3} событий")
@@ -2897,7 +2903,9 @@ async def on_my_events(message: types.Message):
                 time_str = local_time.strftime("%H:%M")
             else:
                 time_str = "Время уточняется"
-            text_parts.append(f"{i}) **{title}** – {time_str}")
+            # Экранируем специальные символы Markdown
+            escaped_title = title.replace("*", "\\*").replace("_", "\\_").replace("`", "\\`").replace("[", "\\[")
+            text_parts.append(f"{i}) **{escaped_title}** – {time_str}")
 
         if len(all_participations) > 3:
             text_parts.append(f"... и еще {len(all_participations) - 3} событий")
@@ -2948,9 +2956,7 @@ async def on_my_events(message: types.Message):
             )
 
         fallback_keyboard = (
-            InlineKeyboardMarkup(inline_keyboard=fallback_keyboard_buttons)
-            if fallback_keyboard_buttons
-            else main_menu_kb()
+            InlineKeyboardMarkup(inline_keyboard=fallback_keyboard_buttons) if fallback_keyboard_buttons else None
         )
         await message.answer(simple_text, reply_markup=fallback_keyboard)
 
