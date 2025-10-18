@@ -357,3 +357,84 @@ async def is_chat_admin(bot: Bot, chat_id: int, user_id: int) -> bool:
     except Exception as e:
         logger.error(f"❌ Ошибка проверки прав админа: {e}")
         return False
+
+
+async def get_chat_administrators(bot: Bot, chat_id: int) -> list[dict]:
+    """
+    Получает список всех администраторов чата
+
+    Args:
+        bot: Экземпляр бота
+        chat_id: ID группового чата
+
+    Returns:
+        Список словарей с информацией об админах:
+        [
+            {
+                "user_id": int,
+                "username": str | None,
+                "first_name": str,
+                "last_name": str | None,
+                "status": str,  # "creator" или "administrator"
+                "can_delete_messages": bool,
+                "can_restrict_members": bool,
+                "can_promote_members": bool,
+                # ... другие права
+            }
+        ]
+    """
+    try:
+        administrators = await bot.get_chat_administrators(chat_id)
+        admin_list = []
+
+        for admin in administrators:
+            admin_info = {
+                "user_id": admin.user.id,
+                "username": admin.user.username,
+                "first_name": admin.user.first_name,
+                "last_name": admin.user.last_name,
+                "status": admin.status,
+                "can_delete_messages": getattr(admin, "can_delete_messages", False),
+                "can_restrict_members": getattr(admin, "can_restrict_members", False),
+                "can_promote_members": getattr(admin, "can_promote_members", False),
+                "can_change_info": getattr(admin, "can_change_info", False),
+                "can_invite_users": getattr(admin, "can_invite_users", False),
+                "can_pin_messages": getattr(admin, "can_pin_messages", False),
+                "can_manage_chat": getattr(admin, "can_manage_chat", False),
+                "can_manage_video_chats": getattr(admin, "can_manage_video_chats", False),
+            }
+            admin_list.append(admin_info)
+
+        logger.info(f"✅ Получен список из {len(admin_list)} администраторов чата {chat_id}")
+        return admin_list
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка получения списка администраторов чата {chat_id}: {e}")
+        return []
+
+
+async def get_chat_creator(bot: Bot, chat_id: int) -> dict | None:
+    """
+    Получает информацию о создателе чата
+
+    Args:
+        bot: Экземпляр бота
+        chat_id: ID группового чата
+
+    Returns:
+        Словарь с информацией о создателе или None если не найден
+    """
+    try:
+        administrators = await get_chat_administrators(bot, chat_id)
+        creator = next((admin for admin in administrators if admin["status"] == "creator"), None)
+
+        if creator:
+            logger.info(f"✅ Найден создатель чата {chat_id}: {creator['first_name']} (@{creator['username']})")
+        else:
+            logger.warning(f"⚠️ Создатель чата {chat_id} не найден")
+
+        return creator
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка получения создателя чата {chat_id}: {e}")
+        return None

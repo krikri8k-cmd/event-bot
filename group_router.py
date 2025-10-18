@@ -20,7 +20,12 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import CommunityEvent
-from utils.messaging_utils import delete_all_tracked, ensure_panel, is_chat_admin
+from utils.messaging_utils import (
+    delete_all_tracked,
+    ensure_panel,
+    get_chat_administrators,
+    is_chat_admin,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +175,89 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             await message.answer("🤖 EventAroundBot активирован в этом чате!")
 
 
+@group_router.message(Command("admins"))
+async def show_admins(message: Message, bot: Bot):
+    """Показывает список администраторов чата"""
+    if message.chat.type not in ("group", "supergroup"):
+        await message.answer("❌ Эта команда работает только в групповых чатах!")
+        return
+
+    chat_id = message.chat.id
+    user_id = message.from_user.id
+
+    # Проверяем, что пользователь - админ (только админы могут видеть список)
+    if not await is_chat_admin(bot, chat_id, user_id):
+        await message.answer("❌ Только администраторы могут просматривать список админов!")
+        return
+
+    try:
+        # Получаем список администраторов
+        administrators = await get_chat_administrators(bot, chat_id)
+
+        if not administrators:
+            await message.answer("❌ Не удалось получить список администраторов.")
+            return
+
+        # Формируем сообщение
+        text_parts = ["👑 **Администраторы чата:**\n"]
+
+        for i, admin in enumerate(administrators, 1):
+            # Определяем роль
+            if admin["status"] == "creator":
+                role_emoji = "👑"
+                role_text = "Создатель"
+            else:
+                role_emoji = "🛡️"
+                role_text = "Администратор"
+
+            # Формируем имя
+            name = admin["first_name"]
+            if admin["last_name"]:
+                name += f" {admin['last_name']}"
+
+            # Добавляем username если есть
+            if admin["username"]:
+                name += f" (@{admin['username']})"
+
+            # Показываем основные права
+            rights = []
+            if admin["can_delete_messages"]:
+                rights.append("🗑️")
+            if admin["can_restrict_members"]:
+                rights.append("🔒")
+            if admin["can_promote_members"]:
+                rights.append("⬆️")
+            if admin["can_pin_messages"]:
+                rights.append("📌")
+
+            rights_text = " ".join(rights) if rights else "📝"
+
+            text_parts.append(f"{i}. {role_emoji} **{name}**\n   {role_text} {rights_text}\n")
+
+        # Добавляем информацию о боте
+        bot_member = await bot.get_chat_member(chat_id, bot.id)
+        if bot_member.status == "administrator":
+            bot_rights = []
+            if getattr(bot_member, "can_delete_messages", False):
+                bot_rights.append("🗑️")
+            if getattr(bot_member, "can_restrict_members", False):
+                bot_rights.append("🔒")
+            if getattr(bot_member, "can_pin_messages", False):
+                bot_rights.append("📌")
+
+            bot_rights_text = " ".join(bot_rights) if bot_rights else "📝"
+            text_parts.append(f"\n🤖 **@EventAroundBot**\n   Бот {bot_rights_text}")
+
+        text = "".join(text_parts)
+
+        await message.answer(text, parse_mode="Markdown")
+        logger.info(f"✅ Показан список из {len(administrators)} администраторов чата {chat_id}")
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка получения списка администраторов: {e}")
+        await message.answer("❌ Произошла ошибка при получении списка администраторов.")
+
+
 # === ИНИЦИАЛИЗАЦИЯ ===
 
 
@@ -188,6 +276,7 @@ async def setup_group_menu_button(bot):
         # Команды только для групп
         group_commands = [
             BotCommand(command="start", description="🚀 Запустить бота"),
+            BotCommand(command="admins", description="👑 Показать администраторов чата"),
         ]
 
         # Устанавливаем команды только для групп
