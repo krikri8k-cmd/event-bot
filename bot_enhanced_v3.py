@@ -2959,22 +2959,8 @@ async def on_my_events(message: types.Message):
         logger.info("✅ on_my_events: сообщение отправлено успешно")
     except Exception as e:
         logger.error(f"❌ on_my_events: ошибка отправки сообщения: {e}")
-        # Fallback - отправляем простой список с кнопкой управления
-        simple_text = (
-            f"📋 Ваши события: созданных {len(events) if events else 0}, добавленных {len(all_participations)}"
-        )
-
-        # Создаем клавиатуру для fallback сообщения
-        fallback_keyboard_buttons = []
-        if events:
-            fallback_keyboard_buttons.append(
-                [InlineKeyboardButton(text="🔧 Управление событиями", callback_data="manage_events")]
-            )
-
-        fallback_keyboard = (
-            InlineKeyboardMarkup(inline_keyboard=fallback_keyboard_buttons) if fallback_keyboard_buttons else None
-        )
-        await message.answer(simple_text, reply_markup=fallback_keyboard)
+        # Fallback - отправляем то же сообщение без Markdown
+        await message.answer(text, reply_markup=keyboard)
 
 
 @main_router.message(Command("share"))
