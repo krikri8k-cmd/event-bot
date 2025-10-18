@@ -1778,6 +1778,53 @@ async def process_community_title_pm(message: types.Message, state: FSMContext):
     title = message.text.strip()
     logger.info(f"🔥 process_community_title_pm: получили название '{title}' от пользователя {message.from_user.id}")
 
+    # Проверяем на спам-индикаторы в названии
+    spam_indicators = [
+        "http://",
+        "https://",
+        "www.",
+        ".com",
+        ".ru",
+        ".org",
+        "instagram.com",
+        "vk.com",
+        "facebook.com",
+        "youtube.com",
+        "t.me",
+        "@",
+        "tg://",
+        "bit.ly",
+        "goo.gl",
+    ]
+
+    # Проверяем на команды (символ / в начале)
+    if title.startswith("/"):
+        await message.answer(
+            "❌ В названии нельзя указывать команды (символ / в начале)!\n\n"
+            "📝 Пожалуйста, придумайте краткое название события:\n"
+            "• Что будет происходить\n"
+            "• Где будет проходить\n"
+            "• Для кого предназначено\n\n"
+            "✍️ **Введите название события:**",
+            parse_mode="Markdown",
+            reply_markup=get_community_cancel_kb(),
+        )
+        return
+
+    title_lower = title.lower()
+    if any(indicator in title_lower for indicator in spam_indicators):
+        await message.answer(
+            "❌ В названии нельзя указывать ссылки и контакты!\n\n"
+            "📝 Пожалуйста, придумайте краткое название события:\n"
+            "• Что будет происходить\n"
+            "• Где будет проходить\n"
+            "• Для кого предназначено\n\n"
+            "✍️ **Введите название события:**",
+            parse_mode="Markdown",
+            reply_markup=get_community_cancel_kb(),
+        )
+        return
+
     await state.update_data(title=title)
     await state.set_state(CommunityEventCreation.waiting_for_date)
     example_date = get_example_date()
@@ -5358,6 +5405,57 @@ async def process_community_title_group(message: types.Message, state: FSMContex
     logger.info(
         f"🔥 process_community_title_group: получили название '{title}' от пользователя {message.from_user.id} в чате {chat_id}"
     )
+
+    # Проверяем на спам-индикаторы в названии
+    spam_indicators = [
+        "http://",
+        "https://",
+        "www.",
+        ".com",
+        ".ru",
+        ".org",
+        "instagram.com",
+        "vk.com",
+        "facebook.com",
+        "youtube.com",
+        "t.me",
+        "@",
+        "tg://",
+        "bit.ly",
+        "goo.gl",
+    ]
+
+    # Проверяем на команды (символ / в начале)
+    if title.startswith("/"):
+        await message.answer(
+            "❌ В названии нельзя указывать команды (символ / в начале)!\n\n"
+            "📝 Пожалуйста, придумайте краткое название события:\n"
+            "• Что будет происходить\n"
+            "• Где будет проходить\n"
+            "• Для кого предназначено\n\n"
+            "✍ **Введите название мероприятия** (например: Встреча в кафе):",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+            ),
+        )
+        return
+
+    title_lower = title.lower()
+    if any(indicator in title_lower for indicator in spam_indicators):
+        await message.answer(
+            "❌ В названии нельзя указывать ссылки и контакты!\n\n"
+            "📝 Пожалуйста, придумайте краткое название события:\n"
+            "• Что будет происходить\n"
+            "• Где будет проходить\n"
+            "• Для кого предназначено\n\n"
+            "✍ **Введите название мероприятия** (например: Встреча в кафе):",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+            ),
+        )
+        return
 
     await state.update_data(title=title, chat_id=chat_id)
     await state.set_state(CommunityEventCreation.waiting_for_date)
