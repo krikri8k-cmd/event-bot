@@ -5991,11 +5991,14 @@ async def main():
 
         from aiogram.types import BotCommandScopeChat, BotCommandScopeDefault
 
-        # Публичные команды - только самое необходимое (без дублирования кнопок)
+        # Публичные команды - все основные функции для обычных пользователей
         public_commands = [
             types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
-            types.BotCommand(command="help", description="💬 Написать отзыв Разработчику"),
+            types.BotCommand(command="nearby", description="📍 Что рядом - найти события поблизости"),
+            types.BotCommand(command="create", description="➕ Создать новое событие"),
+            types.BotCommand(command="myevents", description="📋 Мои события - просмотр созданных событий"),
             types.BotCommand(command="share", description="🔗 Поделиться ботом"),
+            types.BotCommand(command="help", description="💬 Написать отзыв Разработчику"),
         ]
 
         # Админские команды - только для админа
