@@ -11,6 +11,7 @@
 
 import asyncio
 import logging
+import re
 from datetime import datetime
 
 from aiogram import Bot, F, Router
@@ -22,6 +23,73 @@ from database import CommunityEvent
 from utils.messaging_utils import delete_all_tracked, ensure_panel, is_chat_admin
 
 logger = logging.getLogger(__name__)
+
+
+# === УТИЛИТЫ ===
+
+
+def extract_city_from_location_url(location_url: str) -> str | None:
+    """Извлекает город из Google Maps ссылки или адреса"""
+    if not location_url:
+        return None
+
+    # Список известных городов/районов для приоритетного извлечения
+    known_cities = [
+        # Бали
+        "Canggu",
+        "Seminyak",
+        "Ubud",
+        "Sanur",
+        "Kuta",
+        "Denpasar",
+        "Uluwatu",
+        "Nusa Dua",
+        # Вьетнам
+        "Nha Trang",
+        "Ho Chi Minh",
+        "Hanoi",
+        "Da Nang",
+        "Hoi An",
+        "Phu Quoc",
+        # Россия
+        "Moscow",
+        "Saint Petersburg",
+        "SPB",
+        "Novosibirsk",
+        "Yekaterinburg",
+        # Другие популярные
+        "Bangkok",
+        "Phuket",
+        "Chiang Mai",
+        "Jakarta",
+        "Bali",
+        "Singapore",
+    ]
+
+    # Сначала ищем известные города
+    for city in known_cities:
+        if city.lower() in location_url.lower():
+            return city
+
+    # Если не нашли известный город, пробуем извлечь по паттернам
+    patterns = [
+        # Google Maps URL с адресом: "Street, City, Region, Country"
+        r",\s*([A-Za-z\s]+),\s*[A-Za-z\s]+,\s*[A-Za-z\s]+$",  # Последний элемент перед страной
+        r",\s*([A-Za-z\s]+),\s*\d{5}",  # Город перед почтовым индексом
+        r",\s*([A-Za-z\s]+),\s*[A-Z]{2}\s*\d{5}",  # Город, штат, почтовый индекс
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, location_url, re.IGNORECASE)
+        if match:
+            city = match.group(1).strip()
+            # Очищаем от лишних символов и цифр
+            city = re.sub(r"[^\w\s-]", "", city).strip()
+            city = re.sub(r"\d+", "", city).strip()  # Убираем цифры
+            if city and len(city) > 2:  # Минимум 3 символа для города
+                return city
+
+    return None
 
 
 # === КОНФИГУРАЦИЯ ===
@@ -224,6 +292,16 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
                 # Добавляем событие в список
                 text += f"{i}. **{event.title}**\n"
                 text += f"   📅 {date_str}\n"
+
+                # Город (приоритет: ручной ввод, затем автоматическое извлечение)
+                city_to_show = None
+                if event.city:
+                    city_to_show = event.city
+                elif event.location_url:
+                    city_to_show = extract_city_from_location_url(event.location_url)
+
+                if city_to_show:
+                    text += f"   🏙️ {city_to_show}\n"
 
                 # Описание (если есть)
                 if event.description:
@@ -527,6 +605,16 @@ def format_event_short(event: CommunityEvent) -> str:
     """Краткое форматирование события для списка"""
     date_str = event.starts_at.strftime("%d.%m %H:%M")
     text = f"**{event.title}**\n📅 {date_str}"
+
+    # Город (приоритет: ручной ввод, затем автоматическое извлечение)
+    city_to_show = None
+    if event.city:
+        city_to_show = event.city
+    elif event.location_url:
+        city_to_show = extract_city_from_location_url(event.location_url)
+
+    if city_to_show:
+        text += f"\n🏙️ {city_to_show}"
 
     if event.location_name:
         text += f"\n📍 {event.location_name}"
