@@ -4422,6 +4422,37 @@ async def process_title(message: types.Message, state: FSMContext):
         f"process_title: получили название '{title}' от пользователя {message.from_user.id} в чате {chat_id} (тип: {chat_type})"
     )
 
+    # Проверяем на спам-индикаторы в названии
+    spam_indicators = [
+        "http://",
+        "https://",
+        "www.",
+        ".com",
+        ".ru",
+        ".org",
+        "instagram.com",
+        "vk.com",
+        "facebook.com",
+        "youtube.com",
+        "t.me",
+        "@",
+        "tg://",
+        "bit.ly",
+        "goo.gl",
+    ]
+
+    title_lower = title.lower()
+    if any(indicator in title_lower for indicator in spam_indicators):
+        await message.answer(
+            "❌ В названии нельзя указывать ссылки и контакты!\n\n"
+            "📝 Пожалуйста, придумайте краткое название события:\n"
+            "• Что будет происходить\n"
+            "• Где будет проходить\n"
+            "• Для кого предназначено\n\n"
+            "**Введите название мероприятия** (например: Прогулка):"
+        )
+        return
+
     # Сохраняем chat_id для групповых чатов
     await state.update_data(title=title, chat_id=chat_id, chat_type=chat_type)
     await state.set_state(EventCreation.waiting_for_date)
