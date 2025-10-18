@@ -31,6 +31,7 @@ class CommunityEventsService:
         city: str,
         location_name: str = None,
         location_url: str = None,
+        admin_id: int = None,
     ) -> int:
         """
         Создание события в сообществе
@@ -38,11 +39,14 @@ class CommunityEventsService:
         Args:
             group_id: ID группового чата
             creator_id: ID создателя события
+            creator_username: Username создателя
             title: Название события
             date: Дата и время события
             description: Описание события
             city: Город события
             location_name: Название места
+            location_url: Ссылка на место
+            admin_id: ID админа группы (опционально)
 
         Returns:
             ID созданного события
@@ -54,10 +58,10 @@ class CommunityEventsService:
         with self.engine.connect() as conn:
             query = text("""
                 INSERT INTO events_community
-                (chat_id, organizer_id, organizer_username, title, starts_at,
+                (chat_id, organizer_id, organizer_username, admin_id, title, starts_at,
                  description, city, location_name, location_url, status)
                 VALUES
-                (:chat_id, :organizer_id, :organizer_username, :title, :starts_at,
+                (:chat_id, :organizer_id, :organizer_username, :admin_id, :title, :starts_at,
                  :description, :city, :location_name, :location_url, 'open')
                 RETURNING id
             """)
@@ -68,6 +72,7 @@ class CommunityEventsService:
                     "chat_id": group_id,
                     "organizer_id": creator_id,
                     "organizer_username": creator_username,
+                    "admin_id": admin_id,
                     "title": title,
                     "starts_at": date,
                     "description": description,
@@ -226,3 +231,39 @@ class CommunityEventsService:
                 "future_events": future_events,
                 "today_events": today_events,
             }
+
+    def get_group_admin_id(self, group_id: int, bot) -> int | None:
+        """
+        Получает ID первого администратора группы (создателя или админа)
+
+        Args:
+            group_id: ID группового чата
+            bot: Экземпляр бота для получения списка админов
+
+        Returns:
+            ID администратора или None если не найден
+        """
+        try:
+            import asyncio
+
+            # Получаем список администраторов
+            administrators = asyncio.run(bot.get_chat_administrators(group_id))
+
+            if not administrators:
+                return None
+
+            # Ищем создателя группы
+            for admin in administrators:
+                if admin.status == "creator":
+                    return admin.user.id
+
+            # Если создатель не найден, берем первого админа
+            for admin in administrators:
+                if admin.status == "administrator":
+                    return admin.user.id
+
+            return None
+
+        except Exception as e:
+            print(f"❌ Ошибка получения админа группы {group_id}: {e}")
+            return None

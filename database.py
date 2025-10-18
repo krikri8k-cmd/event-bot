@@ -184,6 +184,9 @@ class CommunityEvent(Base):
     chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
     organizer_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     organizer_username: Mapped[str | None] = mapped_column(String(255))
+    admin_id: Mapped[int | None] = mapped_column(
+        BigInteger, index=True
+    )  # ID админа группы, который может управлять событием
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     starts_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)

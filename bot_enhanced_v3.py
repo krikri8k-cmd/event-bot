@@ -2198,6 +2198,9 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
 
         community_service = CommunityEventsService()
 
+        # Получаем ID админа группы
+        admin_id = community_service.get_group_admin_id(data["group_id"], bot)
+
         # Создаем событие в сообществе
         event_id = community_service.create_community_event(
             group_id=data["group_id"],
@@ -2209,6 +2212,7 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
             city=data["city"],
             location_name=data.get("location_name", "Место по ссылке"),
             location_url=data.get("location_url"),
+            admin_id=admin_id,
         )
 
         logger.info(f"✅ Событие сообщества создано с ID: {event_id}")
@@ -5633,6 +5637,9 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
 
         community_service = CommunityEventsService()
 
+        # Получаем ID админа группы
+        admin_id = community_service.get_group_admin_id(data["chat_id"], bot)
+
         # Создаем событие в сообществе
         event_id = community_service.create_community_event(
             group_id=data["chat_id"],
@@ -5644,6 +5651,7 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
             city=data["city"],
             location_name=data.get("location_name", "Место по ссылке"),
             location_url=data.get("location_url"),
+            admin_id=admin_id,
         )
 
         logger.info(f"✅ Событие сообщества создано с ID: {event_id}")
