@@ -378,27 +378,65 @@ async def handle_group_hide_bot(callback: types.CallbackQuery):
     # Выполняем действие сразу без подтверждения
 
     try:
-        # Удаляем текущее сообщение
-        await callback.message.delete()
-
-        # Отправляем финальное сообщение о скрытии
         from aiogram import Bot
+
+        from database import get_session
+        from utils.messaging_utils import delete_all_tracked
 
         bot = Bot.get_current()
 
-        await bot.send_message(
+        # Проверяем права бота на удаление сообщений
+        try:
+            bot_member = await bot.get_chat_member(chat_id, bot.id)
+            logger.info(
+                f"🔥 Права бота в чате {chat_id}: status={bot_member.status}, "
+                f"can_delete_messages={getattr(bot_member, 'can_delete_messages', None)}"
+            )
+
+            if bot_member.status != "administrator" or not getattr(bot_member, "can_delete_messages", False):
+                logger.warning(f"🚫 У бота нет прав на удаление сообщений в чате {chat_id}")
+                await callback.message.edit_text(
+                    "❌ **Ошибка: Нет прав на удаление**\n\n"
+                    "Бот должен быть администратором с правом удаления сообщений.\n"
+                    "Обратитесь к администратору чата.",
+                    parse_mode="Markdown",
+                )
+                await callback.answer("❌ Нет прав на удаление", show_alert=True)
+                return
+        except Exception as e:
+            logger.error(f"❌ Ошибка проверки прав бота: {e}")
+
+        # Удаляем все трекнутые сообщения бота
+        async with get_session() as session:
+            try:
+                deleted = await delete_all_tracked(bot, session, chat_id=chat_id)
+            except Exception as e:
+                logger.error(f"❌ Ошибка удаления сообщений: {e}")
+                deleted = 0
+
+        # Отправляем финальное сообщение о скрытии
+        note = await bot.send_message(
             chat_id=chat_id,
             text=(
-                "👁️‍🗨️ **Бот скрыт**\n\n"
-                "Служебные сообщения бота были скрыты из этого чата.\n"
-                "📢 Сообщения о новых событиях остались.\n\n"
-                "💡 **Для восстановления функций бота:**\n"
-                "Используйте команду /start"
+                f"👁️‍🗨️ **Бот скрыт**\n\n"
+                f"Удалено сообщений: {deleted}\n"
+                f"События в базе данных сохранены.\n\n"
+                f"💡 **Для восстановления функций бота:**\n"
+                f"Используйте команду /start"
             ),
             parse_mode="Markdown",
         )
 
-        logger.info(f"✅ Бот скрыт в чате {chat_id} пользователем {user_id}")
+        # Автоудаление уведомления через 8 секунд
+        import asyncio
+
+        try:
+            await asyncio.sleep(8)
+            await bot.delete_message(chat_id, note.message_id)
+        except Exception as e:
+            logger.warning(f"⚠️ Не удалось удалить уведомление: {e}")
+
+        logger.info(f"✅ Бот скрыт в чате {chat_id} пользователем {user_id}, удалено {deleted} сообщений")
 
     except Exception as e:
         logger.error(f"❌ Ошибка при скрытии бота в чате {chat_id}: {e}")
