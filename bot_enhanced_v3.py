@@ -1865,10 +1865,10 @@ async def process_community_time_pm(message: types.Message, state: FSMContext):
         return
 
     await state.update_data(time=time)
-    await state.set_state(CommunityEventCreation.waiting_for_city)
+    await state.set_state(CommunityEventCreation.waiting_for_location_url)
 
     await message.answer(
-        f"**Время сохранено:** {time} ✅\n\n🏙️ **Введите город** (например: Москва):",
+        f"**Время сохранено:** {time} ✅\n\n🔗 **Введите ссылку на место** (Google Maps или адрес):",
         parse_mode="Markdown",
         reply_markup=get_community_cancel_kb(),
     )
@@ -1920,8 +1920,10 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
     location_url = message.text.strip()
     logger.info(f"🔥 process_community_location_url_pm: получили ссылку от пользователя {message.from_user.id}")
 
-    # Автоматически определяем название места по ссылке
+    # Автоматически определяем название места и город по ссылке
     location_name = "Место по ссылке"  # Базовое название
+    city = None  # Город будет извлечен автоматически
+
     try:
         # Пытаемся извлечь название из Google Maps ссылки
         if "maps.google.com" in location_url or "goo.gl" in location_url:
@@ -1932,15 +1934,25 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
             location_name = "Место на Яндекс.Картах"
         else:
             location_name = "Место по ссылке"
+
+        # Автоматически извлекаем город из ссылки
+        from group_router import extract_city_from_location_url
+
+        city = extract_city_from_location_url(location_url)
+        if city:
+            logger.info(f"🏙️ Автоматически извлечен город: {city}")
+        else:
+            logger.info("🏙️ Город не удалось извлечь из ссылки")
     except Exception as e:
         logger.warning(f"Не удалось определить название места: {e}")
         location_name = "Место по ссылке"
 
-    await state.update_data(location_url=location_url, location_name=location_name)
+    await state.update_data(location_url=location_url, location_name=location_name, city=city)
     await state.set_state(CommunityEventCreation.waiting_for_description)
 
+    city_info = f"\n🏙️ **Город:** {city}" if city else ""
     await message.answer(
-        f"**Ссылка сохранена** ✅\n📍 **Место:** {location_name}\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
+        f"**Ссылка сохранена** ✅\n📍 **Место:** {location_name}{city_info}\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
         parse_mode="Markdown",
         reply_markup=get_community_cancel_kb(),
     )
@@ -1972,12 +1984,12 @@ async def process_community_description_pm(message: types.Message, state: FSMCon
     logger.info(f"🔥 process_community_description_pm: данные FSM: {data}")
 
     # Показываем итог перед подтверждением
+    city_info = f"\n🏙️ **Город:** {data.get('city', 'Не определен')}" if data.get("city") else ""
     await message.answer(
         f"📌 **Проверьте данные события для группы:**\n\n"
         f"**Название:** {data.get('title', 'НЕ УКАЗАНО')}\n"
         f"**Дата:** {data.get('date', 'НЕ УКАЗАНО')}\n"
-        f"**Время:** {data.get('time', 'НЕ УКАЗАНО')}\n"
-        f"**Город:** {data.get('city', 'НЕ УКАЗАНО')}\n"
+        f"**Время:** {data.get('time', 'НЕ УКАЗАНО')}{city_info}\n"
         f"**Место:** {data.get('location_name', 'НЕ УКАЗАНО')}\n"
         f"**Ссылка:** {data.get('location_url', 'НЕ УКАЗАНО')}\n"
         f"**Описание:** {data.get('description', 'НЕ УКАЗАНО')}\n\n"
@@ -5299,10 +5311,10 @@ async def process_community_time_group(message: types.Message, state: FSMContext
         return
 
     await state.update_data(time=time)
-    await state.set_state(CommunityEventCreation.waiting_for_city)
+    await state.set_state(CommunityEventCreation.waiting_for_location_url)
 
     await message.answer(
-        f"**Время сохранено:** {time} ✅\n\n🏙️ **Введите город** (например: Москва):",
+        f"**Время сохранено:** {time} ✅\n\n🔗 **Введите ссылку на место** (Google Maps или адрес):",
         parse_mode="Markdown",
         reply_markup=ForceReply(selective=True),
     )
@@ -5371,11 +5383,37 @@ async def process_community_location_url_group(message: types.Message, state: FS
     location_url = message.text.strip()
     logger.info(f"🔥 process_community_location_url_group: получили ссылку от пользователя {message.from_user.id}")
 
-    await state.update_data(location_url=location_url)
+    # Автоматически определяем название места и город по ссылке
+    location_name = "Место по ссылке"  # Базовое название
+    city = None  # Город будет извлечен автоматически
+
+    try:
+        # Пытаемся извлечь название из Google Maps ссылки
+        if "maps.google.com" in location_url or "goo.gl" in location_url:
+            location_name = "Место на карте"
+        elif "yandex.ru/maps" in location_url:
+            location_name = "Место на Яндекс.Картах"
+        else:
+            location_name = "Место по ссылке"
+
+        # Автоматически извлекаем город из ссылки
+        from group_router import extract_city_from_location_url
+
+        city = extract_city_from_location_url(location_url)
+        if city:
+            logger.info(f"🏙️ Автоматически извлечен город: {city}")
+        else:
+            logger.info("🏙️ Город не удалось извлечь из ссылки")
+    except Exception as e:
+        logger.warning(f"Не удалось определить название места: {e}")
+        location_name = "Место по ссылке"
+
+    await state.update_data(location_url=location_url, location_name=location_name, city=city)
     await state.set_state(CommunityEventCreation.waiting_for_description)
 
+    city_info = f"\n🏙️ **Город:** {city}" if city else ""
     await message.answer(
-        "**Ссылка сохранена** ✅\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
+        f"**Ссылка сохранена** ✅\n📍 **Место:** {location_name}{city_info}\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
         parse_mode="Markdown",
         reply_markup=ForceReply(selective=True),
     )
