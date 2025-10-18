@@ -2817,7 +2817,11 @@ async def on_create(message: types.Message, state: FSMContext):
     """Обработчик кнопки 'Создать'"""
     await state.set_state(EventCreation.waiting_for_title)
     await message.answer(
-        "Создаём новое событие!\nНаграда 5 🚀\n\n✍ Введите название мероприятия (например: Прогулка):",
+        '➕ **Создаём событие "World"**\n\n'
+        "- Будет видно для всех игроков бота.\n\n"
+        "Награда 5 🚀\n\n"
+        "**Введите название мероприятия** (например: Прогулка):",
+        parse_mode="Markdown",
         reply_markup=types.ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="❌ Отмена")]], resize_keyboard=True),
     )
 
