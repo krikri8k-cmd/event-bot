@@ -232,9 +232,9 @@ class CommunityEventsService:
                 "today_events": today_events,
             }
 
-    def get_group_admin_id(self, group_id: int, bot) -> int | None:
+    async def get_group_admin_id_async(self, group_id: int, bot) -> int | None:
         """
-        Получает ID первого администратора группы (создателя или админа)
+        Получает ID первого администратора группы (создателя или админа) - асинхронная версия
 
         Args:
             group_id: ID группового чата
@@ -244,10 +244,8 @@ class CommunityEventsService:
             ID администратора или None если не найден
         """
         try:
-            import asyncio
-
             # Получаем список администраторов
-            administrators = asyncio.run(bot.get_chat_administrators(group_id))
+            administrators = await bot.get_chat_administrators(group_id)
 
             if not administrators:
                 return None
@@ -263,6 +261,35 @@ class CommunityEventsService:
                     return admin.user.id
 
             return None
+
+        except Exception as e:
+            print(f"❌ Ошибка получения админа группы {group_id}: {e}")
+            return None
+
+    def get_group_admin_id(self, group_id: int, bot) -> int | None:
+        """
+        Получает ID первого администратора группы (создателя или админа) - синхронная версия
+
+        Args:
+            group_id: ID группового чата
+            bot: Экземпляр бота для получения списка админов
+
+        Returns:
+            ID администратора или None если не найден
+        """
+        try:
+            import asyncio
+
+            # Проверяем, есть ли уже запущенный event loop
+            try:
+                loop = asyncio.get_running_loop()
+                # Если есть запущенный loop, создаем задачу
+                task = loop.create_task(self.get_group_admin_id_async(group_id, bot))
+                # Ждем результат
+                return loop.run_until_complete(task)
+            except RuntimeError:
+                # Нет запущенного loop, используем asyncio.run
+                return asyncio.run(self.get_group_admin_id_async(group_id, bot))
 
         except Exception as e:
             print(f"❌ Ошибка получения админа группы {group_id}: {e}")
