@@ -137,8 +137,16 @@ def delete_all_tracked_sync(bot: Bot, session: Session, *, chat_id: int) -> int:
     """
     import asyncio
 
-    # Получаем все неудаленные сообщения
-    messages = session.query(BotMessage).filter(BotMessage.chat_id == chat_id, BotMessage.deleted is False).all()
+    # Получаем все неудаленные сообщения (кроме "notification")
+    messages = (
+        session.query(BotMessage)
+        .filter(
+            BotMessage.chat_id == chat_id,
+            BotMessage.deleted is False,
+            BotMessage.tag != "notification",  # НЕ удаляем сообщения "Новое событие!"
+        )
+        .all()
+    )
 
     deleted = 0
     for bot_msg in messages:
@@ -283,7 +291,11 @@ async def delete_all_tracked(bot: Bot, session: Session, *, chat_id: int) -> int
     from sqlalchemy import select
 
     result = await session.execute(
-        select(BotMessage).where(BotMessage.chat_id == chat_id, BotMessage.deleted.is_(False))
+        select(BotMessage).where(
+            BotMessage.chat_id == chat_id,
+            BotMessage.deleted.is_(False),
+            BotMessage.tag != "notification",  # НЕ удаляем сообщения "Новое событие!"
+        )
     )
     messages = result.scalars().all()
 
