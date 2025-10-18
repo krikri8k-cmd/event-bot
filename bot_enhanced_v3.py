@@ -1612,10 +1612,6 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
         [KeyboardButton(text="🎯 Квесты на районе"), KeyboardButton(text="🏆 Мои квесты")],
         [KeyboardButton(text="🔗 Поделиться"), KeyboardButton(text="📋 Мои события")],
         [KeyboardButton(text="💬 Написать отзыв Разработчику"), KeyboardButton(text="🚀 Старт")],
-        # Команды бота для удобства пользователей
-        [KeyboardButton(text="/start"), KeyboardButton(text="/nearby")],
-        [KeyboardButton(text="/create"), KeyboardButton(text="/myevents")],
-        [KeyboardButton(text="/share"), KeyboardButton(text="/help")],
     ]
 
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
@@ -5991,14 +5987,9 @@ async def main():
 
         from aiogram.types import BotCommandScopeChat, BotCommandScopeDefault
 
-        # Публичные команды - все основные функции для обычных пользователей
+        # Публичные команды - только команды без дублирования в меню
         public_commands = [
-            types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
-            types.BotCommand(command="nearby", description="📍 Что рядом - найти события поблизости"),
-            types.BotCommand(command="create", description="➕ Создать новое событие"),
-            types.BotCommand(command="myevents", description="📋 Мои события - просмотр созданных событий"),
-            types.BotCommand(command="share", description="🔗 Поделиться ботом"),
-            types.BotCommand(command="help", description="💬 Написать отзыв Разработчику"),
+            # Команды убраны, так как они уже есть в меню со стикерами
         ]
 
         # Админские команды - только для админа
