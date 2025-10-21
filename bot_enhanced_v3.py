@@ -2245,6 +2245,9 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
         admin_ids = community_service.get_group_admin_ids(data["group_id"], bot)
         admin_id = admin_ids[0] if admin_ids else None  # LEGACY для обратной совместимости
 
+        logger.info(f"🔥 Создание события: получены админы группы {data['group_id']}: {admin_ids}")
+        logger.info(f"🔥 LEGACY admin_id: {admin_id}")
+
         # Создаем событие в сообществе
         event_id = community_service.create_community_event(
             group_id=data["group_id"],
