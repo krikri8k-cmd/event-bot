@@ -2055,14 +2055,11 @@ async def handle_group_create_event(callback: types.CallbackQuery, state: FSMCon
 
     LAST_START[chat_id] = current_time
 
-    # Импортируем GroupCreate FSM
-    from group_chat_handlers import GroupCreate
-
     # Получаем thread_id для поддержки тредов в супергруппах
     thread_id = callback.message.message_thread_id
 
-    # Устанавливаем FSM состояние
-    await state.set_state(GroupCreate.waiting_for_title)
+    # Устанавливаем FSM состояние (используем новый FSM)
+    await state.set_state(CommunityEventCreation.waiting_for_title)
     logger.info(f"🔥 handle_group_create_event: FSM состояние установлено в waiting_for_title, thread_id={thread_id}")
 
     # Отправляем сообщение с ForceReply для следующего шага
