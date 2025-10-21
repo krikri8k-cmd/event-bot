@@ -180,8 +180,8 @@ def set_bot_username(username: str):
     logger.info(f"✅ Установлен username бота для группового роутера: {username}")
 
 
-async def setup_group_menu_button(bot):
-    """Настройка Menu Button только для групповых чатов"""
+async def setup_group_menu_button(bot, group_id: int = None):
+    """Настройка Menu Button для групповых чатов с принудительной установкой"""
     try:
         from aiogram.types import BotCommand, BotCommandScopeAllGroupChats, MenuButtonCommands
 
@@ -199,7 +199,7 @@ async def setup_group_menu_button(bot):
 
         await asyncio.sleep(1)
 
-        # Устанавливаем Menu Button с диагностикой и принудительным сбросом
+        # ПРИНУДИТЕЛЬНАЯ установка Menu Button для групп
         try:
             # Сначала проверяем текущий Menu Button
             current_button = await bot.get_chat_menu_button()
@@ -213,15 +213,37 @@ async def setup_group_menu_button(bot):
                 await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
                 await asyncio.sleep(1)
 
-            # Устанавливаем Commands для групп
+            # ПРИНУДИТЕЛЬНО устанавливаем Commands для ВСЕХ групп
             await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
-            logger.info("✅ Menu Button для групп установлен успешно")
+            logger.info("✅ Menu Button принудительно установлен для всех групп")
+
+            # Если указана конкретная группа - дополнительно устанавливаем для неё
+            if group_id:
+                await bot.set_chat_menu_button(chat_id=group_id, menu_button=MenuButtonCommands())
+                logger.info(f"✅ Menu Button дополнительно установлен для группы {group_id}")
+
         except Exception as e:
             logger.warning(f"⚠️ Menu Button для групп не удалось установить: {e}")
 
         logger.info("✅ Menu Button настроен для групповых чатов")
     except Exception as e:
         logger.error(f"❌ Ошибка настройки Menu Button для групп: {e}")
+
+
+def get_group_persistent_keyboard():
+    """Создает постоянную клавиатуру для групповых чатов"""
+    from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
+
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🚀 /start")],
+            [KeyboardButton(text="📋 События группы")],
+            [KeyboardButton(text="🌍 Полная версия")],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        is_persistent=True,  # Клавиатура "прилипает" для всех участников
+    )
 
 
 # Жёсткая изоляция: роутер работает ТОЛЬКО в группах
@@ -266,10 +288,71 @@ async def group_start(message: Message, bot: Bot, session: AsyncSession):
         logger.info(f"🔥 group_start: вызываем ensure_panel для чата {chat_id}")
         panel_id = await ensure_panel(bot, session, chat_id=chat_id, text=PANEL_TEXT, kb=group_kb(chat_id))
         logger.info(f"🔥 group_start: ensure_panel вернул message_id={panel_id}")
+
+        # Отправляем постоянную клавиатуру для быстрого доступа
+        await message.answer("📱 **Быстрые действия:**", reply_markup=get_group_persistent_keyboard())
     except Exception as e:
         logger.error(f"❌ group_start: ошибка при создании панели: {e}")
         # Fallback - отправляем обычное сообщение
         await message.answer(PANEL_TEXT, reply_markup=group_kb(chat_id), parse_mode="Markdown")
+
+
+# Обработчики кнопок постоянной клавиатуры
+@group_router.message(F.text == "🚀 /start")
+async def handle_start_button(message: Message, bot: Bot, session: AsyncSession):
+    """Обработчик кнопки /start из клавиатуры"""
+    await group_start(message, bot, session)
+
+
+@group_router.message(F.text == "📋 События группы")
+async def handle_events_button(message: Message, bot: Bot, session: AsyncSession):
+    """Обработчик кнопки 'События группы'"""
+    chat_id = message.chat.id
+    logger.info(f"🔥 handle_events_button: показ событий в чате {chat_id}")
+
+    try:
+        # Получаем события через CommunityEventsService
+        from utils.community_events_service import CommunityEventsService
+
+        community_service = CommunityEventsService()
+        events = community_service.get_community_events(group_id=chat_id, limit=10, include_past=False)
+
+        if not events:
+            await message.answer(
+                "📋 **События группы**\n\n" "Пока нет запланированных событий.\n" "Создайте первое событие!",
+                reply_markup=get_group_persistent_keyboard(),
+            )
+            return
+
+        text = "📋 **События группы:**\n\n"
+        for event in events:
+            starts_at = event["starts_at"].strftime("%d.%m.%Y %H:%M")
+            text += f"🎯 **{event['title']}**\n"
+            text += f"📅 {starts_at}\n"
+            text += f"🏙️ {event['city']}\n"
+            if event["location_name"]:
+                text += f"📍 {event['location_name']}\n"
+            text += f"👤 @{event['organizer_username'] or 'Неизвестно'}\n\n"
+
+        await message.answer(text, reply_markup=get_group_persistent_keyboard())
+    except Exception as e:
+        logger.error(f"❌ Ошибка получения событий группы: {e}")
+        await message.answer("❌ Ошибка получения событий группы", reply_markup=get_group_persistent_keyboard())
+
+
+@group_router.message(F.text == "🌍 Полная версия")
+async def handle_world_version_button(message: Message):
+    """Обработчик кнопки 'Полная версия'"""
+    await message.answer(
+        '🌍 **Полная версия "World"**\n\n'
+        "Для доступа ко всем функциям:\n"
+        "• Геопоиск событий\n"
+        "• AI генерация\n"
+        "• Задания и ракеты\n"
+        "• Google Maps\n\n"
+        "Перейдите в личные сообщения с ботом:",
+        reply_markup=get_group_persistent_keyboard(),
+    )
 
 
 @group_router.callback_query(F.data == "group_list")
