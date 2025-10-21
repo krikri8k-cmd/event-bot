@@ -246,9 +246,51 @@ def get_group_persistent_keyboard():
     )
 
 
+def get_simple_start_keyboard():
+    """Простая клавиатура только с кнопкой /start - максимальная совместимость"""
+    from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
+
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="/start")],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        is_persistent=True,
+    )
+
+
 # Жёсткая изоляция: роутер работает ТОЛЬКО в группах
 group_router.message.filter(F.chat.type.in_({"group", "supergroup"}))
 group_router.callback_query.filter(F.message.chat.type.in_({"group", "supergroup"}))
+
+
+# ПРИНУДИТЕЛЬНАЯ КЛАВИАТУРА ДЛЯ ВСЕХ СООБЩЕНИЙ В ГРУППЕ
+@group_router.message()
+async def force_keyboard_for_all_messages(message: Message):
+    """Принудительно добавляет клавиатуру к ВСЕМ сообщениям в группе"""
+    # Игнорируем сообщения от бота
+    if message.from_user.is_bot:
+        return
+
+    # Игнорируем сообщения с уже установленной клавиатурой
+    if message.reply_markup:
+        return
+
+    # Игнорируем команды (у них есть свои обработчики)
+    if message.text and message.text.startswith("/"):
+        return
+
+    # Игнорируем кнопки клавиатуры (у них есть свои обработчики)
+    if message.text in ["🚀 /start", "📋 События группы", "🌍 Полная версия", "/start"]:
+        return
+
+    # Для всех остальных сообщений - добавляем клавиатуру
+    try:
+        await message.answer("💡 **Быстрый доступ к боту:**", reply_markup=get_simple_start_keyboard())
+    except Exception as e:
+        logger.warning(f"Не удалось отправить клавиатуру: {e}")
+
 
 # === ТЕКСТЫ И КЛАВИАТУРЫ ===
 
@@ -289,18 +331,35 @@ async def group_start(message: Message, bot: Bot, session: AsyncSession):
         panel_id = await ensure_panel(bot, session, chat_id=chat_id, text=PANEL_TEXT, kb=group_kb(chat_id))
         logger.info(f"🔥 group_start: ensure_panel вернул message_id={panel_id}")
 
-        # Отправляем постоянную клавиатуру для быстрого доступа
-        await message.answer("📱 **Быстрые действия:**", reply_markup=get_group_persistent_keyboard())
+        # ПРИНУДИТЕЛЬНО отправляем простую клавиатуру для максимальной совместимости
+        await message.answer(
+            "🚀 **Бот активирован!**\n\n" "Используйте кнопку ниже для быстрого доступа:",
+            reply_markup=get_simple_start_keyboard(),
+        )
+
+        # Дополнительно отправляем расширенную клавиатуру
+        await message.answer("📱 **Дополнительные действия:**", reply_markup=get_group_persistent_keyboard())
+
     except Exception as e:
         logger.error(f"❌ group_start: ошибка при создании панели: {e}")
-        # Fallback - отправляем обычное сообщение
-        await message.answer(PANEL_TEXT, reply_markup=group_kb(chat_id), parse_mode="Markdown")
+        # Fallback - отправляем обычное сообщение с клавиатурой
+        await message.answer(
+            PANEL_TEXT + "\n\n🚀 **Используйте кнопку для быстрого доступа:**",
+            reply_markup=get_simple_start_keyboard(),
+            parse_mode="Markdown",
+        )
 
 
 # Обработчики кнопок постоянной клавиатуры
 @group_router.message(F.text == "🚀 /start")
 async def handle_start_button(message: Message, bot: Bot, session: AsyncSession):
     """Обработчик кнопки /start из клавиатуры"""
+    await group_start(message, bot, session)
+
+
+@group_router.message(F.text == "/start")
+async def handle_simple_start_button(message: Message, bot: Bot, session: AsyncSession):
+    """Обработчик простой кнопки /start из клавиатуры"""
     await group_start(message, bot, session)
 
 
@@ -353,6 +412,26 @@ async def handle_world_version_button(message: Message):
         "Перейдите в личные сообщения с ботом:",
         reply_markup=get_group_persistent_keyboard(),
     )
+
+
+# ПРИНУДИТЕЛЬНАЯ КЛАВИАТУРА ПРИ ДОБАВЛЕНИИ БОТА В ГРУППУ
+@group_router.message(F.new_chat_members)
+async def handle_new_members(message: Message):
+    """Обработчик добавления новых участников в группу"""
+    # Проверяем, добавили ли бота
+    bot_added = any(member.is_bot for member in message.new_chat_members)
+
+    if bot_added:
+        logger.info(f"🔥 Бот добавлен в группу {message.chat.id}")
+
+        # ПРИНУДИТЕЛЬНО отправляем клавиатуру сразу после добавления
+        await message.answer(
+            "🤖 **EventAroundBot добавлен в группу!**\n\n" "🚀 **Используйте кнопку для активации:**",
+            reply_markup=get_simple_start_keyboard(),
+        )
+
+        # Дополнительно отправляем расширенную клавиатуру
+        await message.answer("📱 **Дополнительные функции:**", reply_markup=get_group_persistent_keyboard())
 
 
 @group_router.callback_query(F.data == "group_list")
