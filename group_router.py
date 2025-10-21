@@ -460,6 +460,9 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
         result = await session.execute(stmt)
         events = result.scalars().all()
 
+        # Проверяем, является ли пользователь админом группы
+        is_admin = await is_chat_admin(bot, chat_id, callback.from_user.id)
+
         if not events:
             text = (
                 "📋 **События этого чата**\n\n"
@@ -506,14 +509,31 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
 
                 text += "\n"
 
-            text += "💡 Нажмите **➕ Создать событие** чтобы добавить свое!"
+            if is_admin:
+                text += "🔧 **Админ-панель:** Вы можете удалить любое событие кнопками ниже!\n"
+                text += "💡 Нажмите **➕ Создать событие** чтобы добавить свое!"
+            else:
+                text += "💡 Нажмите **➕ Создать событие** чтобы добавить свое!"
 
-        # Создаем клавиатуру с кнопкой "Назад"
-        back_kb = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel")],
-            ]
-        )
+        # Создаем клавиатуру с кнопками
+        keyboard_buttons = []
+
+        if events and is_admin:
+            # Для админов добавляем кнопки удаления для каждого события
+            for i, event in enumerate(events, 1):
+                keyboard_buttons.append(
+                    [
+                        InlineKeyboardButton(
+                            text=f"❌ Удалить: {event.title[:20]}{'...' if len(event.title) > 20 else ''}",
+                            callback_data=f"group_delete_event_{event.id}",
+                        )
+                    ]
+                )
+
+        # Кнопка "Назад"
+        keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel")])
+
+        back_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
         try:
             await callback.message.edit_text(text, reply_markup=back_kb, parse_mode="Markdown")
