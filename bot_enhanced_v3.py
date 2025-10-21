@@ -24,7 +24,6 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     KeyboardButton,
-    MenuButtonCommands,
     ReplyKeyboardMarkup,
 )
 
@@ -3127,6 +3126,59 @@ async def on_diag_webhook(message: types.Message):
     except Exception as e:
         logger.error(f"Ошибка в диагностике webhook: {e}")
         await message.answer(f"❌ Ошибка диагностики: {e}")
+
+
+@main_router.message(Command("diag_commands"))
+async def on_diag_commands(message: types.Message):
+    """Диагностика команд бота"""
+    try:
+        from aiogram.types import BotCommandScopeAllGroupChats, BotCommandScopeAllPrivateChats, BotCommandScopeDefault
+
+        info_lines = ["🔧 <b>Диагностика команд бота</b>", ""]
+
+        # Проверяем Menu Button
+        try:
+            menu_button = await bot.get_chat_menu_button()
+            info_lines.append(f"📱 <b>Menu Button:</b> {menu_button}")
+            if hasattr(menu_button, "type"):
+                info_lines.append(f"   <b>Тип:</b> {menu_button.type}")
+        except Exception as e:
+            info_lines.append(f"❌ <b>Ошибка получения Menu Button:</b> {e}")
+
+        info_lines.append("")
+
+        # Проверяем команды по scope'ам
+        for scope_name, scope in [
+            ("Default", BotCommandScopeDefault()),
+            ("PrivateChats", BotCommandScopeAllPrivateChats()),
+            ("GroupChats", BotCommandScopeAllGroupChats()),
+        ]:
+            info_lines.append(f"<b>{scope_name}:</b>")
+
+            # Без языка
+            try:
+                commands = await bot.get_my_commands(scope=scope)
+                info_lines.append(f"  <b>EN:</b> {len(commands)} команд")
+                for cmd in commands:
+                    info_lines.append(f"    - /{cmd.command}: {cmd.description}")
+            except Exception as e:
+                info_lines.append(f"  <b>EN:</b> ❌ {e}")
+
+            # Русская локаль
+            try:
+                commands_ru = await bot.get_my_commands(scope=scope, language_code="ru")
+                info_lines.append(f"  <b>RU:</b> {len(commands_ru)} команд")
+                for cmd in commands_ru:
+                    info_lines.append(f"    - /{cmd.command}: {cmd.description}")
+            except Exception as e:
+                info_lines.append(f"  <b>RU:</b> ❌ {e}")
+
+            info_lines.append("")
+
+        await message.answer("\n".join(info_lines), parse_mode="HTML")
+    except Exception as e:
+        logger.error(f"Ошибка в диагностике команд: {e}")
+        await message.answer(f"❌ Ошибка диагностики команд: {e}")
 
 
 @main_router.message(Command("diag_last"))
@@ -6276,6 +6328,7 @@ async def main():
             types.BotCommand(command="diag_last", description="📊 Диагностика последнего запроса"),
             types.BotCommand(command="diag_search", description="🔍 Диагностика поиска событий"),
             types.BotCommand(command="diag_webhook", description="🔗 Диагностика webhook"),
+            types.BotCommand(command="diag_commands", description="🔧 Диагностика команд бота"),
         ]
 
         # Команды для групповых чатов - только базовые
@@ -6313,6 +6366,8 @@ async def main():
 
         # Устанавливаем кнопку меню с диагностикой
         try:
+            from aiogram.types import MenuButtonCommands
+
             await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
             logger.info("✅ Menu Button установлен успешно")
         except Exception as e:
@@ -6327,14 +6382,56 @@ async def main():
 
         await setup_group_menu_button(bot)
 
-        # Диагностика: проверяем, что команды установлены
+        # Диагностика: проверяем Menu Button и команды
         try:
-            commands_info = await bot.get_my_commands()
-            logger.info(f"✅ Команды бота установлены: {len(commands_info)} команд")
-            for cmd in commands_info:
-                logger.info(f"  - /{cmd.command}: {cmd.description}")
+            # Проверяем текущий Menu Button
+            menu_button = await bot.get_chat_menu_button()
+            logger.info(f"🔍 Текущий Menu Button: {menu_button}")
+
+            # Если Menu Button = WebApp, сбрасываем на Commands
+            if hasattr(menu_button, "type") and menu_button.type == "web_app":
+                logger.warning("⚠️ Menu Button перекрыт WebApp! Сбрасываем на Commands...")
+                from aiogram.types import MenuButtonCommands, MenuButtonDefault
+
+                await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
+                await asyncio.sleep(1)
+                await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+                logger.info("✅ Menu Button сброшен на Commands")
+
+            # Проверяем команды по всем scope и языкам
+            from aiogram.types import (
+                BotCommandScopeAllGroupChats,
+                BotCommandScopeAllPrivateChats,
+                BotCommandScopeDefault,
+            )
+
+            for scope_name, scope in [
+                ("Default", BotCommandScopeDefault()),
+                ("PrivateChats", BotCommandScopeAllPrivateChats()),
+                ("GroupChats", BotCommandScopeAllGroupChats()),
+            ]:
+                logger.info(f"🔍 Проверяем команды для {scope_name}:")
+
+                # Без языка
+                try:
+                    commands = await bot.get_my_commands(scope=scope)
+                    logger.info(f"  EN: {len(commands)} команд")
+                    for cmd in commands:
+                        logger.info(f"    - /{cmd.command}: {cmd.description}")
+                except Exception as e:
+                    logger.warning(f"  EN: Ошибка получения команд: {e}")
+
+                # Русская локаль
+                try:
+                    commands_ru = await bot.get_my_commands(scope=scope, language_code="ru")
+                    logger.info(f"  RU: {len(commands_ru)} команд")
+                    for cmd in commands_ru:
+                        logger.info(f"    - /{cmd.command}: {cmd.description}")
+                except Exception as e:
+                    logger.warning(f"  RU: Ошибка получения команд: {e}")
+
         except Exception as e:
-            logger.warning(f"⚠️ Не удалось получить информацию о командах: {e}")
+            logger.warning(f"⚠️ Не удалось выполнить диагностику: {e}")
 
         logger.info("Команды бота и Menu Button установлены")
     except Exception as e:

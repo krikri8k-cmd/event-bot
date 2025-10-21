@@ -199,8 +199,21 @@ async def setup_group_menu_button(bot):
 
         await asyncio.sleep(1)
 
-        # Устанавливаем Menu Button с диагностикой
+        # Устанавливаем Menu Button с диагностикой и принудительным сбросом
         try:
+            # Сначала проверяем текущий Menu Button
+            current_button = await bot.get_chat_menu_button()
+            logger.info(f"🔍 Текущий Menu Button для групп: {current_button}")
+
+            # Если это WebApp, сбрасываем на Default, потом на Commands
+            if hasattr(current_button, "type") and current_button.type == "web_app":
+                logger.warning("⚠️ Menu Button для групп перекрыт WebApp! Сбрасываем...")
+                from aiogram.types import MenuButtonDefault
+
+                await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
+                await asyncio.sleep(1)
+
+            # Устанавливаем Commands для групп
             await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
             logger.info("✅ Menu Button для групп установлен успешно")
         except Exception as e:
