@@ -560,14 +560,26 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
 
             # Пробуем без Markdown сначала
             await callback.message.edit_text(text, reply_markup=back_kb)
+            logger.info("✅ Список событий успешно обновлен")
         except Exception as e:
             logger.error(f"❌ Ошибка редактирования сообщения: {e}")
-            # Fallback: отправляем новое сообщение без Markdown
-            try:
-                await callback.message.answer(text, reply_markup=back_kb)
-            except Exception as e2:
-                logger.error(f"❌ Ошибка отправки нового сообщения: {e2}")
-                # Последний fallback: отправляем без клавиатуры
+
+            # Специальная обработка для ошибки "сообщение не изменено"
+            if "message is not modified" in str(e).lower():
+                logger.info("🔥 Сообщение не изменилось, отправляем новое сообщение")
+                try:
+                    await callback.message.answer(text, reply_markup=back_kb)
+                    logger.info("✅ Новое сообщение со списком событий отправлено")
+                except Exception as e2:
+                    logger.error(f"❌ Ошибка отправки нового сообщения: {e2}")
+                    await callback.answer("❌ Ошибка отображения событий", show_alert=True)
+            else:
+                # Fallback: отправляем новое сообщение без Markdown
+                try:
+                    await callback.message.answer(text, reply_markup=back_kb)
+                except Exception as e2:
+                    logger.error(f"❌ Ошибка отправки нового сообщения: {e2}")
+                    # Последний fallback: отправляем без клавиатуры
                 try:
                     await callback.message.answer(
                         "📋 **События этого чата**\n\n❌ Ошибка отображения. Попробуйте позже."
@@ -863,12 +875,14 @@ async def group_delete_event(callback: CallbackQuery, bot: Bot, session: AsyncSe
         # Удаляем событие
         session.delete(event)
         await session.commit()
+        logger.info(f"✅ Событие {event_id} успешно удалено из базы данных")
     except Exception as e:
         logger.error(f"❌ Ошибка удаления события: {e}")
         await callback.answer("❌ Ошибка удаления события", show_alert=True)
         return
 
     await callback.answer("✅ Событие удалено!", show_alert=False)
+    logger.info(f"🔥 Обновляем список событий после удаления {event_id}")
 
     # Обновляем список событий
     await group_list_events(callback, bot, session)
