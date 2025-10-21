@@ -477,8 +477,9 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
                 # Форматируем дату
                 date_str = event.starts_at.strftime("%d.%m.%Y %H:%M")
 
-                # Добавляем событие в список
-                text += f"{i}. **{event.title}**\n"
+                # Добавляем событие в список (безопасная версия)
+                safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
+                text += f"{i}. {safe_title}\n"
                 text += f"   📅 {date_str}\n"
 
                 # Город (приоритет: ручной ввод, затем автоматическое извлечение)
@@ -489,19 +490,19 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
                     city_to_show = extract_city_from_location_url(event.location_url)
 
                 if city_to_show:
-                    text += f"   🏙️ {city_to_show}\n"
+                    safe_city = city_to_show.replace("*", "").replace("_", "").replace("`", "'")
+                    text += f"   🏙️ {safe_city}\n"
 
                 # Описание (если есть)
                 if event.description:
                     desc = event.description[:80] + "..." if len(event.description) > 80 else event.description
-                    text += f"   📝 {desc}\n"
+                    safe_desc = desc.replace("*", "").replace("_", "").replace("`", "'")
+                    text += f"   📝 {safe_desc}\n"
 
-                # Место (с ссылкой если есть URL)
-                if event.location_url:
-                    location_name = event.location_name or "Место"
-                    text += f"   📍 [{location_name}]({event.location_url})\n"
-                elif event.location_name:
-                    text += f"   📍 {event.location_name}\n"
+                # Место (без ссылок для безопасности)
+                if event.location_name:
+                    safe_location = event.location_name.replace("*", "").replace("_", "").replace("`", "'")
+                    text += f"   📍 {safe_location}\n"
 
                 # Организатор
                 if event.organizer_username:
@@ -510,10 +511,10 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
                 text += "\n"
 
             if is_admin:
-                text += "🔧 **Админ-панель:** Вы можете удалить любое событие кнопками ниже!\n"
-                text += "💡 Нажмите **➕ Создать событие** чтобы добавить свое!"
+                text += "🔧 Админ-панель: Вы можете удалить любое событие кнопками ниже!\n"
+                text += "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
             else:
-                text += "💡 Нажмите **➕ Создать событие** чтобы добавить свое!"
+                text += "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
 
         # Создаем клавиатуру с кнопками
         keyboard_buttons = []
@@ -554,15 +555,26 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
             if len(text) > 4000:
                 text = text[:3900] + "\n\n... (текст обрезан)"
 
-            await callback.message.edit_text(text, reply_markup=back_kb, parse_mode="Markdown")
+            # Убираем проблемные символы из текста
+            text = text.replace("`", "'").replace("*", "").replace("_", "").replace("[", "(").replace("]", ")")
+
+            # Пробуем без Markdown сначала
+            await callback.message.edit_text(text, reply_markup=back_kb)
         except Exception as e:
             logger.error(f"❌ Ошибка редактирования сообщения: {e}")
-            # Fallback: отправляем новое сообщение вместо редактирования
+            # Fallback: отправляем новое сообщение без Markdown
             try:
-                await callback.message.answer(text, reply_markup=back_kb, parse_mode="Markdown")
+                await callback.message.answer(text, reply_markup=back_kb)
             except Exception as e2:
                 logger.error(f"❌ Ошибка отправки нового сообщения: {e2}")
-                await callback.answer("❌ Ошибка отображения событий", show_alert=True)
+                # Последний fallback: отправляем без клавиатуры
+                try:
+                    await callback.message.answer(
+                        "📋 **События этого чата**\n\n❌ Ошибка отображения. Попробуйте позже."
+                    )
+                except Exception as e3:
+                    logger.error(f"❌ Критическая ошибка: {e3}")
+                    await callback.answer("❌ Ошибка отображения событий", show_alert=True)
     except Exception as e:
         logger.error(f"❌ Ошибка получения событий: {e}")
         # Отправляем сообщение об ошибке пользователю
