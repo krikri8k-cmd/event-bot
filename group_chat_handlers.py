@@ -8,7 +8,7 @@
 import logging
 from datetime import datetime
 
-from aiogram import F, types
+from aiogram import Bot, F, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -277,7 +277,7 @@ async def group_location_step(message: types.Message, state: FSMContext):
     await state.update_data(prompt_msg_id=prompt.message_id)
 
 
-async def group_finish(message: types.Message, state: FSMContext):
+async def group_finish(message: types.Message, state: FSMContext, bot: Bot):
     """Завершение создания события в групповом чате"""
     # Проверяем, что это ответ на сообщение бота
     if not message.reply_to_message or message.reply_to_message.from_user.id != BOT_ID:
@@ -319,15 +319,22 @@ async def group_finish(message: types.Message, state: FSMContext):
             return
 
         service = CommunityEventsService()
+
+        # Получаем всех админов группы для новой системы
+        admin_ids = service.get_group_admin_ids(data["group_id"], bot)
+        admin_id = admin_ids[0] if admin_ids else None  # LEGACY для обратной совместимости
+
         event_id = service.create_community_event(
-            chat_id=data["group_id"],
-            organizer_id=data["initiator_id"],
-            organizer_username=message.from_user.username,
+            group_id=data["group_id"],  # Исправляем параметр
+            creator_id=data["initiator_id"],  # Исправляем параметр
+            creator_username=message.from_user.username,
             title=data["title"],
-            starts_at=parsed_datetime,
+            date=parsed_datetime,  # Исправляем параметр
             description=description,
             city=data["city"],
             location_name=data["location"],
+            admin_id=admin_id,  # LEGACY
+            admin_ids=admin_ids,  # Новый подход
         )
 
         # Логирование для диагностики
