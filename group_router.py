@@ -521,10 +521,15 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
         if events and is_admin:
             # Для админов добавляем кнопки удаления для каждого события
             for i, event in enumerate(events, 1):
+                # Безопасное обрезание названия события
+                safe_title = event.title[:15] if len(event.title) > 15 else event.title
+                # Убираем проблемные символы
+                safe_title = safe_title.replace("\n", " ").replace("\r", " ").strip()
+
                 keyboard_buttons.append(
                     [
                         InlineKeyboardButton(
-                            text=f"❌ Удалить: {event.title[:20]}{'...' if len(event.title) > 20 else ''}",
+                            text=f"❌ Удалить: {safe_title}",
                             callback_data=f"group_delete_event_{event.id}",
                         )
                     ]
@@ -535,10 +540,29 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
 
         back_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
+        # Логирование для диагностики
+        logger.info(
+            f"🔥 group_list_events: готовим сообщение длиной {len(text)} символов, {len(keyboard_buttons)} кнопок"
+        )
+        if keyboard_buttons:
+            for i, button_row in enumerate(keyboard_buttons):
+                for j, button in enumerate(button_row):
+                    logger.info(f"🔥 Кнопка {i},{j}: '{button.text}' -> '{button.callback_data}'")
+
         try:
+            # Ограничиваем длину текста для Telegram
+            if len(text) > 4000:
+                text = text[:3900] + "\n\n... (текст обрезан)"
+
             await callback.message.edit_text(text, reply_markup=back_kb, parse_mode="Markdown")
         except Exception as e:
             logger.error(f"❌ Ошибка редактирования сообщения: {e}")
+            # Fallback: отправляем новое сообщение вместо редактирования
+            try:
+                await callback.message.answer(text, reply_markup=back_kb, parse_mode="Markdown")
+            except Exception as e2:
+                logger.error(f"❌ Ошибка отправки нового сообщения: {e2}")
+                await callback.answer("❌ Ошибка отображения событий", show_alert=True)
     except Exception as e:
         logger.error(f"❌ Ошибка получения событий: {e}")
         # Отправляем сообщение об ошибке пользователю
