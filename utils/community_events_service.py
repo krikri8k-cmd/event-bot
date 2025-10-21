@@ -302,10 +302,12 @@ class CommunityEventsService:
             # Проверяем, есть ли уже запущенный event loop
             try:
                 loop = asyncio.get_running_loop()
-                # Если есть запущенный loop, создаем задачу
+                # Если есть запущенный loop, создаем задачу и ждем её выполнения
                 task = loop.create_task(self.get_group_admin_ids_async(group_id, bot))
-                # Ждем результат
-                return loop.run_until_complete(task)
+                # Используем asyncio.wait_for для ожидания задачи
+                import asyncio
+
+                return asyncio.wait_for(task, timeout=10.0)
             except RuntimeError:
                 # Нет запущенного loop, используем asyncio.run
                 return asyncio.run(self.get_group_admin_ids_async(group_id, bot))
