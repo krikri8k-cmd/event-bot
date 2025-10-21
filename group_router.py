@@ -190,8 +190,9 @@ async def setup_group_menu_button(bot):
             BotCommand(command="start", description="🚀 Запустить бота"),
         ]
 
-        # Устанавливаем команды только для групп
+        # Устанавливаем команды только для групп (без языка и с русской локалью)
         await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats())
+        await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats(), language_code="ru")
 
         # Небольшая задержка для применения команд
         import asyncio

@@ -6238,13 +6238,18 @@ async def main():
 
     # Устанавливаем команды бота для удобства пользователей
     try:
-        # АГРЕССИВНАЯ очистка всех команд для всех scope
+        # АГРЕССИВНАЯ очистка всех команд для всех scope и языков
         from aiogram.types import BotCommandScopeAllGroupChats, BotCommandScopeAllPrivateChats, BotCommandScopeDefault
 
-        # Очищаем команды для всех типов чатов
+        # Очищаем команды для всех типов чатов (без языка)
         await bot.delete_my_commands(scope=BotCommandScopeDefault())
         await bot.delete_my_commands(scope=BotCommandScopeAllPrivateChats())
         await bot.delete_my_commands(scope=BotCommandScopeAllGroupChats())
+
+        # Очищаем команды для русской локали
+        await bot.delete_my_commands(scope=BotCommandScopeDefault(), language_code="ru")
+        await bot.delete_my_commands(scope=BotCommandScopeAllPrivateChats(), language_code="ru")
+        await bot.delete_my_commands(scope=BotCommandScopeAllGroupChats(), language_code="ru")
 
         # Ждем дольше, чтобы Telegram точно обработал удаление
         import asyncio
@@ -6278,11 +6283,16 @@ async def main():
             types.BotCommand(command="start", description="🚀 Запустить бота"),
         ]
 
-        # Устанавливаем команды для разных типов чатов
-        # ВАЖНО: BotCommandScopeDefault() должен быть ПОСЛЕДНИМ, иначе перекроет все остальные
-        await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats())
-        await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats())
+        # Устанавливаем команды для разных типов чатов с поддержкой языков
+        # 1) Default (на все случаи) — без языка
         await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault())
+        await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats())
+        await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats())
+
+        # 2) Русская локаль (для мобильных устройств с русской локализацией)
+        await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault(), language_code="ru")
+        await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats(), language_code="ru")
+        await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats(), language_code="ru")
 
         # Устанавливаем админские команды для всех админов
         admin_ids_str = os.getenv("ADMIN_IDS", "")
