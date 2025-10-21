@@ -786,20 +786,35 @@ async def group_delete_event(callback: CallbackQuery, bot: Bot, session: AsyncSe
 
         # Проверяем права на удаление:
         # 1. Создатель события может удалить свое событие
-        # 2. Админ группы (сохраненный в admin_id) может удалить любое событие
+        # 2. Админ группы (из admin_ids) может удалить любое событие
+        # 3. LEGACY: админ группы (из admin_id) может удалить любое событие
+        # 4. FALLBACK: проверка в реальном времени
         can_delete = False
 
         if event.organizer_id == user_id:
             # Создатель события
             can_delete = True
             logger.info(f"✅ Пользователь {user_id} - создатель события {event_id}")
-        elif event.admin_id == user_id:
-            # Админ группы
-            can_delete = True
-            logger.info(f"✅ Пользователь {user_id} - админ группы для события {event_id}")
         else:
-            # Проверяем, является ли пользователь админом группы в реальном времени
-            if await is_chat_admin(bot, chat_id, user_id):
+            # Проверяем admin_ids (новый подход)
+            if event.admin_ids:
+                try:
+                    import json
+
+                    saved_admin_ids = json.loads(event.admin_ids)
+                    if user_id in saved_admin_ids:
+                        can_delete = True
+                        logger.info(f"✅ Пользователь {user_id} - админ группы (из admin_ids) для события {event_id}")
+                except (json.JSONDecodeError, TypeError):
+                    logger.warning(f"⚠️ Не удалось распарсить admin_ids: {event.admin_ids}")
+
+            # LEGACY: проверяем admin_id (для обратной совместимости)
+            if not can_delete and event.admin_id == user_id:
+                can_delete = True
+                logger.info(f"✅ Пользователь {user_id} - админ группы (LEGACY admin_id) для события {event_id}")
+
+            # FALLBACK: проверка в реальном времени
+            if not can_delete and await is_chat_admin(bot, chat_id, user_id):
                 can_delete = True
                 logger.info(f"✅ Пользователь {user_id} - админ группы (проверка в реальном времени)")
 

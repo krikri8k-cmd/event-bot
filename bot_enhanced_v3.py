@@ -2244,8 +2244,9 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
 
         community_service = CommunityEventsService()
 
-        # Получаем ID админа группы
-        admin_id = community_service.get_group_admin_id(data["group_id"], bot)
+        # Получаем ID всех админов группы
+        admin_ids = community_service.get_group_admin_ids(data["group_id"], bot)
+        admin_id = admin_ids[0] if admin_ids else None  # LEGACY для обратной совместимости
 
         # Создаем событие в сообществе
         event_id = community_service.create_community_event(
@@ -2258,7 +2259,8 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
             city=data["city"],
             location_name=data.get("location_name", "Место по ссылке"),
             location_url=data.get("location_url"),
-            admin_id=admin_id,
+            admin_id=admin_id,  # LEGACY
+            admin_ids=admin_ids,  # Новый подход
         )
 
         logger.info(f"✅ Событие сообщества создано с ID: {event_id}")
@@ -5787,8 +5789,9 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
 
         community_service = CommunityEventsService()
 
-        # Получаем ID админа группы
-        admin_id = community_service.get_group_admin_id(data["chat_id"], bot)
+        # Получаем ID всех админов группы
+        admin_ids = community_service.get_group_admin_ids(data["chat_id"], bot)
+        admin_id = admin_ids[0] if admin_ids else None  # LEGACY для обратной совместимости
 
         # Создаем событие в сообществе
         event_id = community_service.create_community_event(
@@ -5801,7 +5804,8 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
             city=data["city"],
             location_name=data.get("location_name", "Место по ссылке"),
             location_url=data.get("location_url"),
-            admin_id=admin_id,
+            admin_id=admin_id,  # LEGACY
+            admin_ids=admin_ids,  # Новый подход
         )
 
         logger.info(f"✅ Событие сообщества создано с ID: {event_id}")

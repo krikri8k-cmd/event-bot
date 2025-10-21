@@ -186,7 +186,10 @@ class CommunityEvent(Base):
     organizer_username: Mapped[str | None] = mapped_column(String(255))
     admin_id: Mapped[int | None] = mapped_column(
         BigInteger, index=True
-    )  # ID админа группы, который может управлять событием
+    )  # ID админа группы, который может управлять событием (LEGACY - для обратной совместимости)
+    admin_ids: Mapped[str | None] = mapped_column(
+        Text
+    )  # JSON массив ID всех администраторов группы на момент создания события
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     starts_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)

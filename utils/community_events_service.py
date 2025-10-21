@@ -32,6 +32,7 @@ class CommunityEventsService:
         location_name: str = None,
         location_url: str = None,
         admin_id: int = None,
+        admin_ids: list[int] = None,
     ) -> int:
         """
         Создание события в сообществе
@@ -46,7 +47,8 @@ class CommunityEventsService:
             city: Город события
             location_name: Название места
             location_url: Ссылка на место
-            admin_id: ID админа группы (опционально)
+            admin_id: ID админа группы (LEGACY - для обратной совместимости)
+            admin_ids: Список ID всех админов группы (новый подход)
 
         Returns:
             ID созданного события
@@ -55,13 +57,18 @@ class CommunityEventsService:
             f"🔥 CommunityEventsService.create_community_event: "
             f"создаем событие в группе {group_id}, создатель {creator_id}"
         )
+        # Подготавливаем admin_ids как JSON
+        import json
+
+        admin_ids_json = json.dumps(admin_ids) if admin_ids else None
+
         with self.engine.connect() as conn:
             query = text("""
                 INSERT INTO events_community
-                (chat_id, organizer_id, organizer_username, admin_id, title, starts_at,
+                (chat_id, organizer_id, organizer_username, admin_id, admin_ids, title, starts_at,
                  description, city, location_name, location_url, status)
                 VALUES
-                (:chat_id, :organizer_id, :organizer_username, :admin_id, :title, :starts_at,
+                (:chat_id, :organizer_id, :organizer_username, :admin_id, :admin_ids, :title, :starts_at,
                  :description, :city, :location_name, :location_url, 'open')
                 RETURNING id
             """)
@@ -73,6 +80,7 @@ class CommunityEventsService:
                     "organizer_id": creator_id,
                     "organizer_username": creator_username,
                     "admin_id": admin_id,
+                    "admin_ids": admin_ids_json,
                     "title": title,
                     "starts_at": date,
                     "description": description,
@@ -232,43 +240,40 @@ class CommunityEventsService:
                 "today_events": today_events,
             }
 
-    async def get_group_admin_id_async(self, group_id: int, bot) -> int | None:
+    async def get_group_admin_ids_async(self, group_id: int, bot) -> list[int]:
         """
-        Получает ID первого администратора группы (создателя или админа) - асинхронная версия
+        Получает ID всех администраторов группы - асинхронная версия
 
         Args:
             group_id: ID группового чата
             bot: Экземпляр бота для получения списка админов
 
         Returns:
-            ID администратора или None если не найден
+            Список ID всех администраторов группы
         """
         try:
             # Получаем список администраторов
             administrators = await bot.get_chat_administrators(group_id)
 
             if not administrators:
-                return None
+                return []
 
-            # Ищем создателя группы
+            admin_ids = []
             for admin in administrators:
-                if admin.status == "creator":
-                    return admin.user.id
+                if admin.status in ("creator", "administrator"):
+                    admin_ids.append(admin.user.id)
 
-            # Если создатель не найден, берем первого админа
-            for admin in administrators:
-                if admin.status == "administrator":
-                    return admin.user.id
-
-            return None
+            print(f"✅ Получены админы группы {group_id}: {admin_ids}")
+            return admin_ids
 
         except Exception as e:
-            print(f"❌ Ошибка получения админа группы {group_id}: {e}")
-            return None
+            print(f"❌ Ошибка получения админов группы {group_id}: {e}")
+            return []
 
-    def get_group_admin_id(self, group_id: int, bot) -> int | None:
+    async def get_group_admin_id_async(self, group_id: int, bot) -> int | None:
         """
-        Получает ID первого администратора группы (создателя или админа) - синхронная версия
+        Получает ID первого администратора группы (создателя или админа) - асинхронная версия
+        LEGACY метод для обратной совместимости
 
         Args:
             group_id: ID группового чата
@@ -276,6 +281,20 @@ class CommunityEventsService:
 
         Returns:
             ID администратора или None если не найден
+        """
+        admin_ids = await self.get_group_admin_ids_async(group_id, bot)
+        return admin_ids[0] if admin_ids else None
+
+    def get_group_admin_ids(self, group_id: int, bot) -> list[int]:
+        """
+        Получает ID всех администраторов группы - синхронная версия
+
+        Args:
+            group_id: ID группового чата
+            bot: Экземпляр бота для получения списка админов
+
+        Returns:
+            Список ID всех администраторов группы
         """
         try:
             import asyncio
@@ -284,13 +303,28 @@ class CommunityEventsService:
             try:
                 loop = asyncio.get_running_loop()
                 # Если есть запущенный loop, создаем задачу
-                task = loop.create_task(self.get_group_admin_id_async(group_id, bot))
+                task = loop.create_task(self.get_group_admin_ids_async(group_id, bot))
                 # Ждем результат
                 return loop.run_until_complete(task)
             except RuntimeError:
                 # Нет запущенного loop, используем asyncio.run
-                return asyncio.run(self.get_group_admin_id_async(group_id, bot))
+                return asyncio.run(self.get_group_admin_ids_async(group_id, bot))
 
         except Exception as e:
-            print(f"❌ Ошибка получения админа группы {group_id}: {e}")
-            return None
+            print(f"❌ Ошибка получения админов группы {group_id}: {e}")
+            return []
+
+    def get_group_admin_id(self, group_id: int, bot) -> int | None:
+        """
+        Получает ID первого администратора группы (создателя или админа) - синхронная версия
+        LEGACY метод для обратной совместимости
+
+        Args:
+            group_id: ID группового чата
+            bot: Экземпляр бота для получения списка админов
+
+        Returns:
+            ID администратора или None если не найден
+        """
+        admin_ids = self.get_group_admin_ids(group_id, bot)
+        return admin_ids[0] if admin_ids else None
