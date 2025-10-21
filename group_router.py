@@ -193,8 +193,17 @@ async def setup_group_menu_button(bot):
         # Устанавливаем команды только для групп
         await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats())
 
-        # Устанавливаем Menu Button
-        await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+        # Небольшая задержка для применения команд
+        import asyncio
+
+        await asyncio.sleep(1)
+
+        # Устанавливаем Menu Button с диагностикой
+        try:
+            await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+            logger.info("✅ Menu Button для групп установлен успешно")
+        except Exception as e:
+            logger.warning(f"⚠️ Menu Button для групп не удалось установить: {e}")
 
         logger.info("✅ Menu Button настроен для групповых чатов")
     except Exception as e:

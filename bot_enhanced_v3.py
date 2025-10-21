@@ -6279,10 +6279,10 @@ async def main():
         ]
 
         # Устанавливаем команды для разных типов чатов
-        # Для Menu Button на мобильных используем одинаковые команды для всех scope
-        await bot.set_my_commands(group_commands, scope=BotCommandScopeDefault())
+        # ВАЖНО: BotCommandScopeDefault() должен быть ПОСЛЕДНИМ, иначе перекроет все остальные
         await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats())
         await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats())
+        await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault())
 
         # Устанавливаем админские команды для всех админов
         admin_ids_str = os.getenv("ADMIN_IDS", "")
@@ -6301,16 +6301,30 @@ async def main():
         # Небольшая задержка для применения команд
         await asyncio.sleep(2)
 
-        # Устанавливаем кнопку меню
-        await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+        # Устанавливаем кнопку меню с диагностикой
+        try:
+            await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+            logger.info("✅ Menu Button установлен успешно")
+        except Exception as e:
+            logger.warning(f"⚠️ Menu Button не удалось установить: {e}")
+            # Fallback: полагаемся только на команды
 
         # Еще одна задержка для применения Menu Button
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)
 
         # Настраиваем Menu Button специально для групп
         from group_router import setup_group_menu_button
 
         await setup_group_menu_button(bot)
+
+        # Диагностика: проверяем, что команды установлены
+        try:
+            commands_info = await bot.get_my_commands()
+            logger.info(f"✅ Команды бота установлены: {len(commands_info)} команд")
+            for cmd in commands_info:
+                logger.info(f"  - /{cmd.command}: {cmd.description}")
+        except Exception as e:
+            logger.warning(f"⚠️ Не удалось получить информацию о командах: {e}")
 
         logger.info("Команды бота и Menu Button установлены")
     except Exception as e:
