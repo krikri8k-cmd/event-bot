@@ -873,7 +873,7 @@ async def group_delete_event(callback: CallbackQuery, bot: Bot, session: AsyncSe
             return
 
         # Удаляем событие
-        session.delete(event)
+        await session.delete(event)
         await session.commit()
         logger.info(f"✅ Событие {event_id} успешно удалено из базы данных")
     except Exception as e:
