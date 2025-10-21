@@ -871,7 +871,7 @@ async def group_delete_event(callback: CallbackQuery, bot: Bot, session: AsyncSe
     await callback.answer("✅ Событие удалено!", show_alert=False)
 
     # Обновляем список событий
-    await group_list_events(callback, bot)
+    await group_list_events(callback, bot, session)
 
 
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
