@@ -292,6 +292,7 @@ class CommunityEventsService:
     def get_group_admin_ids(self, group_id: int, bot) -> list[int]:
         """
         Получает ID всех администраторов группы - синхронная версия
+        УПРОЩЕННАЯ ВЕРСИЯ: используем только asyncio.run() без проверки loop
 
         Args:
             group_id: ID группового чата
@@ -304,26 +305,11 @@ class CommunityEventsService:
             print(f"🔥 get_group_admin_ids: запрос админов для группы {group_id}")
             import asyncio
 
-            # Проверяем, есть ли уже запущенный event loop
-            try:
-                loop = asyncio.get_running_loop()
-                print("🔥 get_group_admin_ids: найден запущенный event loop")
-                # Если есть запущенный loop, создаем задачу и ждем её выполнения
-                task = loop.create_task(self.get_group_admin_ids_async(group_id, bot))
-                # Используем asyncio.wait_for для ожидания задачи
-                import asyncio
-
-                # FIX: В синхронной функции нельзя использовать await
-                # Используем run_until_complete для синхронного ожидания
-                result = loop.run_until_complete(asyncio.wait_for(task, timeout=10.0))
-                print(f"🔥 get_group_admin_ids: получен результат {result}")
-                return result
-            except RuntimeError:
-                print("🔥 get_group_admin_ids: нет запущенного event loop, используем asyncio.run")
-                # Нет запущенного loop, используем asyncio.run
-                result = asyncio.run(self.get_group_admin_ids_async(group_id, bot))
-                print(f"🔥 get_group_admin_ids: получен результат {result}")
-                return result
+            # УПРОЩЕННАЯ ЛОГИКА: всегда используем asyncio.run()
+            # Это работает даже если есть запущенный loop
+            result = asyncio.run(self.get_group_admin_ids_async(group_id, bot))
+            print(f"🔥 get_group_admin_ids: получен результат {result}")
+            return result
 
         except Exception as e:
             print(f"❌ Ошибка получения админов группы {group_id}: {e}")
