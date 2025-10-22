@@ -292,7 +292,7 @@ class CommunityEventsService:
     def get_group_admin_ids(self, group_id: int, bot) -> list[int]:
         """
         Получает ID всех администраторов группы - синхронная версия
-        УПРОЩЕННАЯ ВЕРСИЯ: используем только asyncio.run() без проверки loop
+        ОБХОДНОЙ ПУТЬ: используем новый event loop в отдельном потоке
 
         Args:
             group_id: ID группового чата
@@ -304,12 +304,22 @@ class CommunityEventsService:
         try:
             print(f"🔥 get_group_admin_ids: запрос админов для группы {group_id}")
             import asyncio
+            import concurrent.futures
 
-            # УПРОЩЕННАЯ ЛОГИКА: всегда используем asyncio.run()
-            # Это работает даже если есть запущенный loop
-            result = asyncio.run(self.get_group_admin_ids_async(group_id, bot))
-            print(f"🔥 get_group_admin_ids: получен результат {result}")
-            return result
+            # ОБХОДНОЙ ПУТЬ: запускаем в отдельном потоке с новым event loop
+            def run_in_thread():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    return loop.run_until_complete(self.get_group_admin_ids_async(group_id, bot))
+                finally:
+                    loop.close()
+
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(run_in_thread)
+                result = future.result(timeout=10)
+                print(f"🔥 get_group_admin_ids: получен результат {result}")
+                return result
 
         except Exception as e:
             print(f"❌ Ошибка получения админов группы {group_id}: {e}")
