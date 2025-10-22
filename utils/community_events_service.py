@@ -307,7 +307,9 @@ class CommunityEventsService:
                 # Используем asyncio.wait_for для ожидания задачи
                 import asyncio
 
-                return asyncio.wait_for(task, timeout=10.0)
+                # FIX: В синхронной функции нельзя использовать await
+                # Используем run_until_complete для синхронного ожидания
+                return loop.run_until_complete(asyncio.wait_for(task, timeout=10.0))
             except RuntimeError:
                 # Нет запущенного loop, используем asyncio.run
                 return asyncio.run(self.get_group_admin_ids_async(group_id, bot))
