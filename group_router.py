@@ -104,70 +104,16 @@ group_router = Router(name="group_router")
 
 @group_router.message(Command("start"))
 async def handle_start_command(message: Message, bot: Bot, session: AsyncSession):
-    """Обработчик команды /start в группах - удаляем команду и показываем панель"""
+    """Обработчик команды /start в группах - просто показываем панель без удаления команды"""
     if message.chat.type in ("group", "supergroup"):
-        try:
-            # Удаляем сообщение пользователя с /start
-            await message.delete()
-            logger.info(f"✅ Удалена команда /start от пользователя {message.from_user.id} в чате {message.chat.id}")
-        except Exception as e:
-            logger.error(f"❌ Не удалось удалить сообщение /start: {e}")
+        # УБРАНО: автоматическое удаление команды пользователя
+        # УБРАНО: автоматическая отправка панели
+        # Теперь бот работает только через команды и меню, как в веб-версии
 
-        # Показываем панель команд бота в сообществе
-        try:
-            # Создаем простую панель с кнопками
-            keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [
-                        InlineKeyboardButton(
-                            text="➕ Создать событие", url=f"https://t.me/EventAroundBot?start=group_{message.chat.id}"
-                        )
-                    ],
-                    [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_list")],
-                    [InlineKeyboardButton(text='🚀 Расширенная версия "World"', url="https://t.me/EventAroundBot")],
-                    [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_execute")],
-                ]
-            )
-
-            # Отправляем панель с трекированием через send_tracked
-            try:
-                from utils.messaging_utils import send_tracked
-
-                await send_tracked(
-                    bot,
-                    session,
-                    chat_id=message.chat.id,
-                    text=(
-                        '👋Привет! Я @EventAroundBot - версия "Community".\n\n'
-                        "🎯Что умею:\n\n"
-                        "• Создавать события участников чата\n"
-                        "• Показывать события этого чата\n"
-                        '• Переводить в полный бот - версия "World"\n\n'
-                        "💡Выберите действие:"
-                    ),
-                    tag="panel",
-                    reply_markup=keyboard,
-                )
-                logger.info(f"✅ Панель отправлена и трекируется в чате {message.chat.id}")
-            except Exception as e:
-                logger.error(f"❌ Ошибка отправки панели: {e}")
-                # Fallback - обычная отправка без трекирования
-                await message.answer(
-                    (
-                        '👋Привет! Я @EventAroundBot - версия "Community".\n\n'
-                        "🎯Что умею:\n\n"
-                        "• Создавать события участников чата\n"
-                        "• Показывать события этого чата\n"
-                        '• Переводить в полный бот - версия "World"\n\n'
-                        "💡Выберите действие:"
-                    ),
-                    reply_markup=keyboard,
-                )
-
-        except Exception as e:
-            logger.error(f"❌ Ошибка показа панели: {e}")
-            # Fallback - простое сообщение
-            await message.answer("🤖 EventAroundBot активирован в этом чате!")
+        logger.info(
+            f"🔥 Команда /start от пользователя {message.from_user.id} "
+            f"в чате {message.chat.id} - панель не отправляется автоматически"
+        )
 
 
 # === ИНИЦИАЛИЗАЦИЯ ===
@@ -230,34 +176,7 @@ async def setup_group_menu_button(bot, group_id: int = None):
         logger.error(f"❌ Ошибка настройки Menu Button для групп: {e}")
 
 
-def get_group_persistent_keyboard():
-    """Создает постоянную клавиатуру для групповых чатов"""
-    from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
-
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="🚀 /start")],
-            [KeyboardButton(text="📋 События группы")],
-            [KeyboardButton(text="🌍 Полная версия")],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=False,
-        is_persistent=True,  # Клавиатура "прилипает" для всех участников
-    )
-
-
-def get_simple_start_keyboard():
-    """Простая клавиатура только с кнопкой /start - максимальная совместимость"""
-    from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
-
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="/start")],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=False,
-        is_persistent=True,
-    )
+# УБРАНО: функции создания Reply Keyboard - теперь используем только команды и меню
 
 
 # Жёсткая изоляция: роутер работает ТОЛЬКО в группах
@@ -266,30 +185,7 @@ group_router.callback_query.filter(F.message.chat.type.in_({"group", "supergroup
 
 
 # ПРИНУДИТЕЛЬНАЯ КЛАВИАТУРА ДЛЯ ВСЕХ СООБЩЕНИЙ В ГРУППЕ
-@group_router.message()
-async def force_keyboard_for_all_messages(message: Message):
-    """Принудительно добавляет клавиатуру к ВСЕМ сообщениям в группе"""
-    # Игнорируем сообщения от бота
-    if message.from_user.is_bot:
-        return
-
-    # Игнорируем сообщения с уже установленной клавиатурой
-    if message.reply_markup:
-        return
-
-    # Игнорируем команды (у них есть свои обработчики)
-    if message.text and message.text.startswith("/"):
-        return
-
-    # Игнорируем кнопки клавиатуры (у них есть свои обработчики)
-    if message.text in ["🚀 /start", "📋 События группы", "🌍 Полная версия", "/start"]:
-        return
-
-    # Для всех остальных сообщений - добавляем клавиатуру
-    try:
-        await message.answer("💡 **Быстрый доступ к боту:**", reply_markup=get_simple_start_keyboard())
-    except Exception as e:
-        logger.warning(f"Не удалось отправить клавиатуру: {e}")
+# УБРАНО: force_keyboard_for_all_messages - больше не принудительно добавляем клавиатуру к каждому сообщению
 
 
 # === ТЕКСТЫ И КЛАВИАТУРЫ ===
@@ -333,85 +229,21 @@ async def group_start(message: Message, bot: Bot, session: AsyncSession):
 
         # ПРИНУДИТЕЛЬНО отправляем простую клавиатуру для максимальной совместимости
         await message.answer(
-            "🚀 **Бот активирован!**\n\n" "Используйте кнопку ниже для быстрого доступа:",
-            reply_markup=get_simple_start_keyboard(),
+            "🚀 **Бот активирован!**\n\n" "Используйте команды для управления:",
         )
 
-        # Дополнительно отправляем расширенную клавиатуру
-        await message.answer("📱 **Дополнительные действия:**", reply_markup=get_group_persistent_keyboard())
+        # УБРАНО: дополнительная клавиатура - теперь используем только команды
 
     except Exception as e:
         logger.error(f"❌ group_start: ошибка при создании панели: {e}")
-        # Fallback - отправляем обычное сообщение с клавиатурой
+        # Fallback - отправляем обычное сообщение без клавиатуры
         await message.answer(
-            PANEL_TEXT + "\n\n🚀 **Используйте кнопку для быстрого доступа:**",
-            reply_markup=get_simple_start_keyboard(),
+            PANEL_TEXT + "\n\n🚀 **Используйте команды для управления:**",
             parse_mode="Markdown",
         )
 
 
-# Обработчики кнопок постоянной клавиатуры
-@group_router.message(F.text == "🚀 /start")
-async def handle_start_button(message: Message, bot: Bot, session: AsyncSession):
-    """Обработчик кнопки /start из клавиатуры"""
-    await group_start(message, bot, session)
-
-
-@group_router.message(F.text == "/start")
-async def handle_simple_start_button(message: Message, bot: Bot, session: AsyncSession):
-    """Обработчик простой кнопки /start из клавиатуры"""
-    await group_start(message, bot, session)
-
-
-@group_router.message(F.text == "📋 События группы")
-async def handle_events_button(message: Message, bot: Bot, session: AsyncSession):
-    """Обработчик кнопки 'События группы'"""
-    chat_id = message.chat.id
-    logger.info(f"🔥 handle_events_button: показ событий в чате {chat_id}")
-
-    try:
-        # Получаем события через CommunityEventsService
-        from utils.community_events_service import CommunityEventsService
-
-        community_service = CommunityEventsService()
-        events = community_service.get_community_events(group_id=chat_id, limit=10, include_past=False)
-
-        if not events:
-            await message.answer(
-                "📋 **События группы**\n\n" "Пока нет запланированных событий.\n" "Создайте первое событие!",
-                reply_markup=get_group_persistent_keyboard(),
-            )
-            return
-
-        text = "📋 **События группы:**\n\n"
-        for event in events:
-            starts_at = event["starts_at"].strftime("%d.%m.%Y %H:%M")
-            text += f"🎯 **{event['title']}**\n"
-            text += f"📅 {starts_at}\n"
-            text += f"🏙️ {event['city']}\n"
-            if event["location_name"]:
-                text += f"📍 {event['location_name']}\n"
-            text += f"👤 @{event['organizer_username'] or 'Неизвестно'}\n\n"
-
-        await message.answer(text, reply_markup=get_group_persistent_keyboard())
-    except Exception as e:
-        logger.error(f"❌ Ошибка получения событий группы: {e}")
-        await message.answer("❌ Ошибка получения событий группы", reply_markup=get_group_persistent_keyboard())
-
-
-@group_router.message(F.text == "🌍 Полная версия")
-async def handle_world_version_button(message: Message):
-    """Обработчик кнопки 'Полная версия'"""
-    await message.answer(
-        '🌍 **Полная версия "World"**\n\n'
-        "Для доступа ко всем функциям:\n"
-        "• Геопоиск событий\n"
-        "• AI генерация\n"
-        "• Задания и ракеты\n"
-        "• Google Maps\n\n"
-        "Перейдите в личные сообщения с ботом:",
-        reply_markup=get_group_persistent_keyboard(),
-    )
+# УБРАНО: обработчики кнопок Reply Keyboard - теперь бот работает только через команды и меню
 
 
 # ПРИНУДИТЕЛЬНАЯ КЛАВИАТУРА ПРИ ДОБАВЛЕНИИ БОТА В ГРУППУ
@@ -424,14 +256,8 @@ async def handle_new_members(message: Message):
     if bot_added:
         logger.info(f"🔥 Бот добавлен в группу {message.chat.id}")
 
-        # ПРИНУДИТЕЛЬНО отправляем клавиатуру сразу после добавления
-        await message.answer(
-            "🤖 **EventAroundBot добавлен в группу!**\n\n" "🚀 **Используйте кнопку для активации:**",
-            reply_markup=get_simple_start_keyboard(),
-        )
-
-        # Дополнительно отправляем расширенную клавиатуру
-        await message.answer("📱 **Дополнительные функции:**", reply_markup=get_group_persistent_keyboard())
+        # УБРАНО: автоматическая отправка клавиатуры при добавлении бота
+        # Теперь бот работает только через команды и меню, как в веб-версии
 
 
 @group_router.callback_query(F.data == "group_list")
