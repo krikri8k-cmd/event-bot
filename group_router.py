@@ -318,7 +318,8 @@ async def handle_new_members(message: Message):
 async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSession):
     """Показать список событий этого чата"""
     chat_id = callback.message.chat.id
-    logger.info(f"🔥 group_list_events: запрос списка событий в чате {chat_id}")
+    user_id = callback.from_user.id
+    logger.info(f"🔥 group_list_events: запрос списка событий в чате {chat_id} от пользователя {user_id}")
 
     await callback.answer()  # Тост, не спамим
 
@@ -394,27 +395,39 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
                 text += "🔧 Админ-панель: Вы можете удалить любое событие кнопками ниже!\n"
                 text += "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
             else:
+                text += "💡 Ваши события: Вы можете удалить свои события кнопками ниже!\n"
                 text += "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
 
         # Создаем клавиатуру с кнопками
         keyboard_buttons = []
 
-        if events and is_admin:
-            # Для админов добавляем кнопки удаления для каждого события
+        if events:
+            # Добавляем кнопки удаления для событий, которые пользователь может удалить
             for i, event in enumerate(events, 1):
-                # Безопасное обрезание названия события
-                safe_title = event.title[:15] if len(event.title) > 15 else event.title
-                # Убираем проблемные символы
-                safe_title = safe_title.replace("\n", " ").replace("\r", " ").strip()
+                # Проверяем, может ли пользователь удалить это событие
+                can_delete_this_event = False
 
-                keyboard_buttons.append(
-                    [
-                        InlineKeyboardButton(
-                            text=f"❌ Удалить: {safe_title}",
-                            callback_data=f"group_delete_event_{event.id}",
-                        )
-                    ]
-                )
+                # 1. Создатель события может удалить свое событие
+                if event.organizer_id == user_id:
+                    can_delete_this_event = True
+                # 2. Админ группы может удалить любое событие
+                elif is_admin:
+                    can_delete_this_event = True
+
+                if can_delete_this_event:
+                    # Безопасное обрезание названия события
+                    safe_title = event.title[:15] if len(event.title) > 15 else event.title
+                    # Убираем проблемные символы
+                    safe_title = safe_title.replace("\n", " ").replace("\r", " ").strip()
+
+                    keyboard_buttons.append(
+                        [
+                            InlineKeyboardButton(
+                                text=f"❌ Удалить: {safe_title}",
+                                callback_data=f"group_delete_event_{event.id}",
+                            )
+                        ]
+                    )
 
         # Кнопка "Назад"
         keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel")])
