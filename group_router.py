@@ -104,11 +104,18 @@ group_router = Router(name="group_router")
 
 @group_router.message(Command("start"))
 async def handle_start_command(message: Message, bot: Bot, session: AsyncSession):
-    """Обработчик команды /start в группах - показываем панель Community без удаления команды"""
+    """Обработчик команды /start в группах - удаляем команду пользователя и показываем панель Community"""
     if message.chat.type in ("group", "supergroup"):
         logger.info(f"🔥 Команда /start от пользователя {message.from_user.id} в чате {message.chat.id}")
 
-        # Показываем панель Community (без удаления команды пользователя)
+        # Удаляем команду /start пользователя (как было раньше)
+        try:
+            await message.delete()
+            logger.info(f"✅ Удалена команда /start от пользователя {message.from_user.id} в чате {message.chat.id}")
+        except Exception as e:
+            logger.error(f"❌ Не удалось удалить команду /start: {e}")
+
+        # Показываем панель Community
         try:
             # Создаем панель с кнопками Community
             keyboard = InlineKeyboardMarkup(
