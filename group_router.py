@@ -104,16 +104,42 @@ group_router = Router(name="group_router")
 
 @group_router.message(Command("start"))
 async def handle_start_command(message: Message, bot: Bot, session: AsyncSession):
-    """Обработчик команды /start в группах - просто показываем панель без удаления команды"""
+    """Обработчик команды /start в группах - показываем панель Community без удаления команды"""
     if message.chat.type in ("group", "supergroup"):
-        # УБРАНО: автоматическое удаление команды пользователя
-        # УБРАНО: автоматическая отправка панели
-        # Теперь бот работает только через команды и меню, как в веб-версии
+        logger.info(f"🔥 Команда /start от пользователя {message.from_user.id} в чате {message.chat.id}")
 
-        logger.info(
-            f"🔥 Команда /start от пользователя {message.from_user.id} "
-            f"в чате {message.chat.id} - панель не отправляется автоматически"
-        )
+        # Показываем панель Community (без удаления команды пользователя)
+        try:
+            # Создаем панель с кнопками Community
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text="➕ Создать событие", url=f"https://t.me/EventAroundBot?start=group_{message.chat.id}"
+                        )
+                    ],
+                    [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_list")],
+                    [InlineKeyboardButton(text='🚀 Расширенная версия "World"', url="https://t.me/EventAroundBot")],
+                    [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_execute")],
+                ]
+            )
+
+            # Отправляем панель Community
+            await message.answer(
+                '👋 **Привет! Я EventAroundBot - версия "Community".**\n\n'
+                "🎯 **Что умею:**\n\n"
+                "• Создавать события участников чата\n"
+                "• Показывать события этого чата\n"
+                '• Переводить в полный бот - версия "World"\n\n'
+                "💡 **Выберите действие:**",
+                reply_markup=keyboard,
+                parse_mode="Markdown",
+            )
+            logger.info(f"✅ Панель Community отправлена в чат {message.chat.id}")
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка отправки панели Community: {e}")
+            await message.answer("🤖 EventAroundBot активирован в этом чате!")
 
 
 # === ИНИЦИАЛИЗАЦИЯ ===
