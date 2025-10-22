@@ -57,10 +57,14 @@ class CommunityEventsService:
             f"🔥 CommunityEventsService.create_community_event: "
             f"создаем событие в группе {group_id}, создатель {creator_id}"
         )
+        print(f"🔥 Получены admin_ids: {admin_ids}")
+        print(f"🔥 Получен admin_id (LEGACY): {admin_id}")
+
         # Подготавливаем admin_ids как JSON
         import json
 
         admin_ids_json = json.dumps(admin_ids) if admin_ids else None
+        print(f"🔥 admin_ids_json для сохранения: {admin_ids_json}")
 
         with self.engine.connect() as conn:
             query = text("""
@@ -297,11 +301,13 @@ class CommunityEventsService:
             Список ID всех администраторов группы
         """
         try:
+            print(f"🔥 get_group_admin_ids: запрос админов для группы {group_id}")
             import asyncio
 
             # Проверяем, есть ли уже запущенный event loop
             try:
                 loop = asyncio.get_running_loop()
+                print("🔥 get_group_admin_ids: найден запущенный event loop")
                 # Если есть запущенный loop, создаем задачу и ждем её выполнения
                 task = loop.create_task(self.get_group_admin_ids_async(group_id, bot))
                 # Используем asyncio.wait_for для ожидания задачи
@@ -309,10 +315,15 @@ class CommunityEventsService:
 
                 # FIX: В синхронной функции нельзя использовать await
                 # Используем run_until_complete для синхронного ожидания
-                return loop.run_until_complete(asyncio.wait_for(task, timeout=10.0))
+                result = loop.run_until_complete(asyncio.wait_for(task, timeout=10.0))
+                print(f"🔥 get_group_admin_ids: получен результат {result}")
+                return result
             except RuntimeError:
+                print("🔥 get_group_admin_ids: нет запущенного event loop, используем asyncio.run")
                 # Нет запущенного loop, используем asyncio.run
-                return asyncio.run(self.get_group_admin_ids_async(group_id, bot))
+                result = asyncio.run(self.get_group_admin_ids_async(group_id, bot))
+                print(f"🔥 get_group_admin_ids: получен результат {result}")
+                return result
 
         except Exception as e:
             print(f"❌ Ошибка получения админов группы {group_id}: {e}")
