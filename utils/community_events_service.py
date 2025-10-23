@@ -247,7 +247,7 @@ class CommunityEventsService:
     async def get_group_admin_ids_async(self, group_id: int, bot) -> list[int]:
         """
         Получает ID всех администраторов группы - асинхронная версия
-        С RETRY логикой для обработки SSL ошибок
+        БЕЗ retry логики (retry делается на уровне синхронной функции)
 
         Args:
             group_id: ID группового чата
@@ -256,43 +256,28 @@ class CommunityEventsService:
         Returns:
             Список ID всех администраторов группы
         """
-        import asyncio
+        try:
+            print(f"🔄 Получение админов группы {group_id}")
 
-        for attempt in range(3):  # 3 попытки
-            try:
-                print(f"🔄 Попытка {attempt + 1}/3 получения админов группы {group_id}")
+            # Получаем список администраторов
+            administrators = await bot.get_chat_administrators(group_id)
 
-                # Получаем список администраторов
-                administrators = await bot.get_chat_administrators(group_id)
+            if not administrators:
+                print(f"⚠️ Нет администраторов в группе {group_id}")
+                return []
 
-                if not administrators:
-                    print(f"⚠️ Нет администраторов в группе {group_id}")
-                    return []
+            admin_ids = []
+            for admin in administrators:
+                if admin.status in ("creator", "administrator"):
+                    admin_ids.append(admin.user.id)
 
-                admin_ids = []
-                for admin in administrators:
-                    if admin.status in ("creator", "administrator"):
-                        admin_ids.append(admin.user.id)
+            print(f"✅ Получены админы группы {group_id}: {admin_ids}")
+            return admin_ids
 
-                print(f"✅ Получены админы группы {group_id}: {admin_ids}")
-                return admin_ids
-
-            except Exception as e:
-                error_msg = str(e)
-                print(f"❌ Попытка {attempt + 1}/3 - Ошибка получения админов группы {group_id}: {e}")
-
-                # Если это SSL ошибка, ждем перед повтором
-                if "SSL" in error_msg or "APPLICATION_DATA_AFTER_CLOSE_NOTIFY" in error_msg:
-                    if attempt < 2:  # Не последняя попытка
-                        wait_time = (attempt + 1) * 2  # 2, 4 секунды
-                        print(f"⏳ SSL ошибка, ждем {wait_time} сек перед повтором...")
-                        await asyncio.sleep(wait_time)
-                        continue
-
-                # Если не SSL ошибка или последняя попытка
-                if attempt == 2:  # Последняя попытка
-                    print(f"💥 Все попытки исчерпаны для группы {group_id}")
-                    return []
+        except Exception as e:
+            print(f"❌ Ошибка получения админов группы {group_id}: {e}")
+            # Пробрасываем ошибку наверх для retry логики в синхронной функции
+            raise
 
     async def get_group_admin_id_async(self, group_id: int, bot) -> int | None:
         """
@@ -322,33 +307,50 @@ class CommunityEventsService:
         Returns:
             Список ID всех администраторов группы
         """
-        try:
-            print(f"🔥 get_group_admin_ids: запрос админов для группы {group_id}")
-            import asyncio
-            import concurrent.futures
+        import asyncio
+        import concurrent.futures
+        import time
 
-            # ОБХОДНОЙ ПУТЬ: запускаем в отдельном потоке с новым event loop
-            def run_in_thread():
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    return loop.run_until_complete(self.get_group_admin_ids_async(group_id, bot))
-                finally:
-                    loop.close()
+        # RETRY логика на уровне синхронной функции
+        for attempt in range(3):  # 3 попытки
+            try:
+                print(f"🔥 get_group_admin_ids: попытка {attempt + 1}/3 для группы {group_id}")
 
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(run_in_thread)
-                result = future.result(timeout=15)  # Увеличили timeout
-                print(f"🔥 get_group_admin_ids: получен результат {result}")
-                return result
+                # ОБХОДНОЙ ПУТЬ: запускаем в отдельном потоке с новым event loop
+                def run_in_thread():
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        return loop.run_until_complete(self.get_group_admin_ids_async(group_id, bot))
+                    finally:
+                        loop.close()
 
-        except Exception as e:
-            print(f"❌ Ошибка получения админов группы {group_id}: {e}")
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(run_in_thread)
+                    result = future.result(timeout=15)  # Увеличили timeout
+                    print(f"🔥 get_group_admin_ids: получен результат {result}")
+                    return result
 
-            # FALLBACK: если все попытки не удались, возвращаем пустой список
-            # но логируем это для отладки
-            print(f"💡 FALLBACK: Возвращаем пустой список для группы {group_id}")
-            return []
+            except Exception as e:
+                error_msg = str(e)
+                print(f"❌ Попытка {attempt + 1}/3 - Ошибка получения админов группы {group_id}: {e}")
+
+                # Если это SSL ошибка, ждем перед повтором
+                if "SSL" in error_msg or "APPLICATION_DATA_AFTER_CLOSE_NOTIFY" in error_msg:
+                    if attempt < 2:  # Не последняя попытка
+                        wait_time = (attempt + 1) * 2  # 2, 4 секунды
+                        print(f"⏳ SSL ошибка, ждем {wait_time} сек перед повтором...")
+                        time.sleep(wait_time)
+                        continue
+
+                # Если не SSL ошибка или последняя попытка
+                if attempt == 2:  # Последняя попытка
+                    print(f"💥 Все попытки исчерпаны для группы {group_id}")
+                    break
+
+        # FALLBACK: если все попытки не удались, возвращаем пустой список
+        print(f"💡 FALLBACK: Возвращаем пустой список для группы {group_id}")
+        return []
 
     def get_group_admin_id(self, group_id: int, bot) -> int | None:
         """
