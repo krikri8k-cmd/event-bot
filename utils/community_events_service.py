@@ -353,10 +353,10 @@ class CommunityEventsService:
         print(f"🔥🔥🔥 get_group_admin_ids: bot={bot}, type={type(bot)}")
         logger.info(f"🔥 get_group_admin_ids: НАЧАЛО - запрос админов для группы {group_id}")
 
-        # RETRY логика на уровне синхронной функции
-        for attempt in range(5):  # 5 попыток для большей надежности
+        # АГРЕССИВНАЯ RETRY логика для получения админов группы
+        for attempt in range(7):  # 7 попыток для максимальной надежности
             try:
-                logger.info(f"🔥 get_group_admin_ids: попытка {attempt + 1}/5 для группы {group_id}")
+                logger.info(f"🔥 get_group_admin_ids: попытка {attempt + 1}/7 для группы {group_id}")
 
                 # ОБХОДНОЙ ПУТЬ: запускаем в отдельном потоке с новым event loop
                 def run_in_thread():
@@ -370,7 +370,7 @@ class CommunityEventsService:
                 logger.info(f"🔥 get_group_admin_ids: запуск ThreadPoolExecutor для группы {group_id}")
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future = executor.submit(run_in_thread)
-                    result = future.result(timeout=15)  # Увеличили timeout
+                    result = future.result(timeout=30)  # Увеличили timeout до 30 секунд
                     logger.info(f"🔥 get_group_admin_ids: получен результат {result} для группы {group_id}")
                     return result
 
@@ -378,19 +378,50 @@ class CommunityEventsService:
                 error_msg = str(e)
                 logger.error(f"❌ Попытка {attempt + 1}/3 - Ошибка получения админов группы {group_id}: {e}")
 
-                # Если это SSL ошибка, ждем перед повтором
+                # АГРЕССИВНАЯ SSL retry логика с разными стратегиями
                 if "SSL" in error_msg or "APPLICATION_DATA_AFTER_CLOSE_NOTIFY" in error_msg:
-                    if attempt < 4:  # Не последняя попытка (5 попыток)
-                        wait_time = (attempt + 1) * 2  # 2, 4, 6, 8 секунд
+                    if attempt < 6:  # Не последняя попытка (7 попыток)
+                        # Разные стратегии ожидания для разных попыток
+                        if attempt < 3:
+                            wait_time = (attempt + 1) * 3  # 3, 6, 9 секунд
+                        else:
+                            wait_time = (attempt + 1) * 5  # 20, 25, 30 секунд
+
                         logger.info(f"⏳ SSL ошибка, ждем {wait_time} сек перед повтором для группы {group_id}")
-                        print(f"🔥🔥🔥 SSL ошибка, попытка {attempt + 1}/5, ждем {wait_time} сек...")
+                        print(f"🔥🔥🔥 SSL ошибка, попытка {attempt + 1}/7, ждем {wait_time} сек...")
                         time.sleep(wait_time)
                         continue
 
                 # Если не SSL ошибка или последняя попытка
-                if attempt == 4:  # Последняя попытка (5 попыток)
+                if attempt == 6:  # Последняя попытка (7 попыток)
                     logger.error(f"💥 Все попытки исчерпаны для группы {group_id}")
                     break
+
+        # АЛЬТЕРНАТИВНЫЙ МЕТОД: попробуем получить админов через прямой HTTP запрос
+        try:
+            print(f"🔥🔥🔥 АЛЬТЕРНАТИВНЫЙ МЕТОД: попытка получить админов через HTTP для группы {group_id}")
+            import os
+
+            import requests
+
+            # Получаем токен бота из переменных окружения
+            bot_token = os.getenv("BOT_TOKEN")
+            if bot_token:
+                url = f"https://api.telegram.org/bot{bot_token}/getChatAdministrators"
+                params = {"chat_id": group_id}
+
+                response = requests.get(url, params=params, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("ok"):
+                        admins = data.get("result", [])
+                        admin_ids = [
+                            admin["user"]["id"] for admin in admins if admin["status"] in ("creator", "administrator")
+                        ]
+                        print(f"🔥🔥🔥 АЛЬТЕРНАТИВНЫЙ МЕТОД УСПЕШЕН: получены админы {admin_ids}")
+                        return admin_ids
+        except Exception as e:
+            print(f"🔥🔥🔥 АЛЬТЕРНАТИВНЫЙ МЕТОД НЕ УДАЛСЯ: {e}")
 
         # FALLBACK: если все попытки не удались, возвращаем пустой список
         logger.warning(f"💡 FALLBACK: Возвращаем пустой список для группы {group_id}")
