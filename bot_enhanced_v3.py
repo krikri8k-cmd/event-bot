@@ -5792,12 +5792,15 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
         community_service = CommunityEventsService()
 
         # Получаем ID всех админов группы
-        admin_ids = community_service.get_group_admin_ids(data["chat_id"], bot)
+        chat_id = callback.message.chat.id
+        print(f"🔥🔥🔥 confirm_community_event: ВЫЗОВ get_group_admin_ids для группы {chat_id}")
+        admin_ids = community_service.get_group_admin_ids(chat_id, bot)
+        print(f"🔥🔥🔥 confirm_community_event: РЕЗУЛЬТАТ get_group_admin_ids: {admin_ids}")
         admin_id = admin_ids[0] if admin_ids else None  # LEGACY для обратной совместимости
 
         # Создаем событие в сообществе
         event_id = community_service.create_community_event(
-            group_id=data["chat_id"],
+            group_id=chat_id,
             creator_id=callback.from_user.id,
             creator_username=callback.from_user.username or callback.from_user.first_name,
             title=data["title"],
