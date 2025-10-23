@@ -321,7 +321,9 @@ async def group_finish(message: types.Message, state: FSMContext, bot: Bot):
         service = CommunityEventsService()
 
         # Получаем всех админов группы для новой системы
+        print(f"🔥🔥🔥 group_chat_handlers: ВЫЗОВ get_group_admin_ids для группы {data['group_id']}")
         admin_ids = service.get_group_admin_ids(data["group_id"], bot)
+        print(f"🔥🔥🔥 group_chat_handlers: РЕЗУЛЬТАТ get_group_admin_ids: {admin_ids}")
         admin_id = admin_ids[0] if admin_ids else None  # LEGACY для обратной совместимости
 
         event_id = service.create_community_event(
