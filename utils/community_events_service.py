@@ -380,8 +380,9 @@ class CommunityEventsService:
                 # Если это SSL ошибка, ждем перед повтором
                 if "SSL" in error_msg or "APPLICATION_DATA_AFTER_CLOSE_NOTIFY" in error_msg:
                     if attempt < 4:  # Не последняя попытка (5 попыток)
-                        wait_time = (attempt + 1) * 1.5  # 1.5, 3, 4.5, 6 секунд
+                        wait_time = (attempt + 1) * 2  # 2, 4, 6, 8 секунд
                         logger.info(f"⏳ SSL ошибка, ждем {wait_time} сек перед повтором для группы {group_id}")
+                        print(f"🔥🔥🔥 SSL ошибка, попытка {attempt + 1}/5, ждем {wait_time} сек...")
                         time.sleep(wait_time)
                         continue
 

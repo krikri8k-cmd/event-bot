@@ -5793,24 +5793,31 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
 
         # Получаем ID всех админов группы
         chat_id = callback.message.chat.id
+        creator_id = callback.from_user.id
+
         print(f"🔥🔥🔥 confirm_community_event: ВЫЗОВ get_group_admin_ids для группы {chat_id}")
 
-        # ПРОБУЕМ получить админов, но с fallback на создателя
+        # ПРОБУЕМ получить админов группы
         try:
             admin_ids = community_service.get_group_admin_ids(chat_id, bot)
             print(f"🔥🔥🔥 confirm_community_event: РЕЗУЛЬТАТ get_group_admin_ids: {admin_ids}")
 
-            # Если админы не получены, используем создателя
+            # Если админы не получены из-за SSL ошибок, используем создателя
             if not admin_ids:
-                admin_ids = [callback.from_user.id]
-                print(f"🔥🔥🔥 FALLBACK: используем создателя как админа: {admin_ids}")
+                admin_ids = [creator_id]
+                print(f"🔥🔥🔥 FALLBACK: админы группы не получены, используем создателя: {admin_ids}")
+            else:
+                print(f"🔥🔥🔥 УСПЕХ: получены админы группы: {admin_ids}")
         except Exception as e:
             print(f"🔥🔥🔥 ОШИБКА получения админов: {e}")
-            admin_ids = [callback.from_user.id]
-            print(f"🔥🔥🔥 FALLBACK: используем создателя как админа: {admin_ids}")
+            admin_ids = [creator_id]
+            print(f"🔥🔥🔥 FALLBACK: ошибка получения админов, используем создателя: {admin_ids}")
 
-        admin_id = admin_ids[0] if admin_ids else callback.from_user.id
+        admin_id = admin_ids[0] if admin_ids else creator_id
         print(f"🔥🔥🔥 confirm_community_event: chat_id={chat_id}, admin_ids={admin_ids}, admin_id={admin_id}")
+        print(
+            f"🔥🔥🔥 СТАТУС: {'Админы группы получены' if len(admin_ids) > 1 or (len(admin_ids) == 1 and admin_ids[0] != creator_id) else 'Используется создатель как админ'}"
+        )
 
         # Создаем событие в сообществе
         event_id = community_service.create_community_event(
