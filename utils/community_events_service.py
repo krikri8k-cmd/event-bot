@@ -333,9 +333,9 @@ class CommunityEventsService:
         logger.info(f"🔥 get_group_admin_ids: НАЧАЛО - запрос админов для группы {group_id}")
 
         # RETRY логика на уровне синхронной функции
-        for attempt in range(3):  # 3 попытки
+        for attempt in range(5):  # 5 попыток для большей надежности
             try:
-                logger.info(f"🔥 get_group_admin_ids: попытка {attempt + 1}/3 для группы {group_id}")
+                logger.info(f"🔥 get_group_admin_ids: попытка {attempt + 1}/5 для группы {group_id}")
 
                 # ОБХОДНОЙ ПУТЬ: запускаем в отдельном потоке с новым event loop
                 def run_in_thread():
@@ -359,14 +359,14 @@ class CommunityEventsService:
 
                 # Если это SSL ошибка, ждем перед повтором
                 if "SSL" in error_msg or "APPLICATION_DATA_AFTER_CLOSE_NOTIFY" in error_msg:
-                    if attempt < 2:  # Не последняя попытка
-                        wait_time = (attempt + 1) * 2  # 2, 4 секунды
+                    if attempt < 4:  # Не последняя попытка (5 попыток)
+                        wait_time = (attempt + 1) * 1.5  # 1.5, 3, 4.5, 6 секунд
                         logger.info(f"⏳ SSL ошибка, ждем {wait_time} сек перед повтором для группы {group_id}")
                         time.sleep(wait_time)
                         continue
 
                 # Если не SSL ошибка или последняя попытка
-                if attempt == 2:  # Последняя попытка
+                if attempt == 4:  # Последняя попытка (5 попыток)
                     logger.error(f"💥 Все попытки исчерпаны для группы {group_id}")
                     break
 

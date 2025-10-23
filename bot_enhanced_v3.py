@@ -5791,15 +5791,26 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
 
         community_service = CommunityEventsService()
 
-        # ВРЕМЕННОЕ РЕШЕНИЕ: используем только ID создателя как админа
+        # Получаем ID всех админов группы
         chat_id = callback.message.chat.id
-        creator_id = callback.from_user.id
+        print(f"🔥🔥🔥 confirm_community_event: ВЫЗОВ get_group_admin_ids для группы {chat_id}")
 
-        # ВРЕМЕННО: используем создателя как единственного админа
-        admin_ids = [creator_id]
-        admin_id = creator_id
+        # ПРОБУЕМ получить админов, но с fallback на создателя
+        try:
+            admin_ids = community_service.get_group_admin_ids(chat_id, bot)
+            print(f"🔥🔥🔥 confirm_community_event: РЕЗУЛЬТАТ get_group_admin_ids: {admin_ids}")
 
-        print(f"🔥🔥🔥 ВРЕМЕННОЕ РЕШЕНИЕ: chat_id={chat_id}, admin_ids={admin_ids}, admin_id={admin_id}")
+            # Если админы не получены, используем создателя
+            if not admin_ids:
+                admin_ids = [callback.from_user.id]
+                print(f"🔥🔥🔥 FALLBACK: используем создателя как админа: {admin_ids}")
+        except Exception as e:
+            print(f"🔥🔥🔥 ОШИБКА получения админов: {e}")
+            admin_ids = [callback.from_user.id]
+            print(f"🔥🔥🔥 FALLBACK: используем создателя как админа: {admin_ids}")
+
+        admin_id = admin_ids[0] if admin_ids else callback.from_user.id
+        print(f"🔥🔥🔥 confirm_community_event: chat_id={chat_id}, admin_ids={admin_ids}, admin_id={admin_id}")
 
         # Создаем событие в сообществе
         event_id = community_service.create_community_event(
