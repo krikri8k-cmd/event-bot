@@ -5795,6 +5795,8 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
         chat_id = callback.message.chat.id
         creator_id = callback.from_user.id
 
+        print("🚨🚨🚨 НОВАЯ ВЕРСИЯ BOT_ENHANCED_V3 ЗАПУЩЕНА! 🚨🚨🚨")
+        print("🚨🚨🚨 НОВАЯ ВЕРСИЯ BOT_ENHANCED_V3 ЗАПУЩЕНА! 🚨🚨🚨")
         print(f"🔥🔥🔥 confirm_community_event: ВЫЗОВ get_group_admin_ids для группы {chat_id}")
 
         # ПРОБУЕМ получить админов группы

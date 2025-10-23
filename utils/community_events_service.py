@@ -348,6 +348,7 @@ class CommunityEventsService:
         logger = logging.getLogger(__name__)
 
         # КРИТИЧЕСКАЯ ОТЛАДКА: print для гарантированного вывода
+        print("🚨🚨🚨 НОВАЯ ВЕРСИЯ GET_GROUP_ADMIN_IDS ЗАПУЩЕНА! 🚨🚨🚨")
         print(f"🔥🔥🔥 get_group_admin_ids: НАЧАЛО - запрос админов для группы {group_id}")
         print(f"🔥🔥🔥 get_group_admin_ids: bot={bot}, type={type(bot)}")
         logger.info(f"🔥 get_group_admin_ids: НАЧАЛО - запрос админов для группы {group_id}")
