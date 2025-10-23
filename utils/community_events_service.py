@@ -425,8 +425,19 @@ class CommunityEventsService:
                     url = f"https://api.telegram.org/bot{bot_token}/getChatAdministrators"
                     params = {"chat_id": group_id}
 
-                    # Увеличиваем timeout и добавляем retry для HTTP
-                    response = requests.get(url, params=params, timeout=30, verify=False)
+                    # Увеличиваем timeout и добавляем retry для HTTP с обходом SSL
+                    import urllib3
+
+                    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+                    # Пробуем разные стратегии подключения
+                    session = requests.Session()
+                    session.verify = False
+                    session.headers.update(
+                        {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+                    )
+
+                    response = session.get(url, params=params, timeout=30)
                     if response.status_code == 200:
                         data = response.json()
                         if data.get("ok"):
@@ -450,6 +461,40 @@ class CommunityEventsService:
                 if http_attempt < 4:  # Не последняя попытка
                     time.sleep(2)  # Ждем 2 секунды перед повтором
                     continue
+
+        # ПОСЛЕДНИЙ ШАНС: попробуем через curl-подобный запрос
+        try:
+            print(f"🔥🔥🔥 ПОСЛЕДНИЙ ШАНС: curl-подобный запрос для группы {group_id}")
+            import json
+            import subprocess
+
+            bot_token = os.getenv("BOT_TOKEN")
+            if bot_token:
+                # Используем curl через subprocess для обхода SSL проблем
+                curl_cmd = [
+                    "curl",
+                    "-s",
+                    "--insecure",
+                    "--connect-timeout",
+                    "30",
+                    f"https://api.telegram.org/bot{bot_token}/getChatAdministrators",
+                    "-d",
+                    f"chat_id={group_id}",
+                ]
+
+                result = subprocess.run(curl_cmd, capture_output=True, text=True, timeout=30)
+                if result.returncode == 0:
+                    data = json.loads(result.stdout)
+                    if data.get("ok"):
+                        admins = data.get("result", [])
+                        admin_ids = [
+                            admin["user"]["id"] for admin in admins if admin["status"] in ("creator", "administrator")
+                        ]
+                        print(f"🔥🔥🔥 CURL УСПЕХ: получены админы {admin_ids}")
+                        print(f"🎉🎉🎉 CURL УСПЕХ: Получены настоящие админы группы через curl: {admin_ids}")
+                        return admin_ids
+        except Exception as e:
+            print(f"🔥🔥🔥 CURL МЕТОД НЕ УДАЛСЯ: {e}")
 
         # FALLBACK: если все попытки не удались, возвращаем пустой список
         logger.warning(f"💡 FALLBACK: Возвращаем пустой список для группы {group_id}")
