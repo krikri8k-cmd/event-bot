@@ -34,6 +34,9 @@ class CommunityEventsService:
         admin_id: int = None,
         admin_ids: list[int] = None,
     ) -> int:
+        print("🚨🚨🚨 НОВАЯ ВЕРСИЯ КОДА ЗАПУЩЕНА! 🚨🚨🚨")
+        print("🚨🚨🚨 НОВАЯ ВЕРСИЯ КОДА ЗАПУЩЕНА! 🚨🚨🚨")
+        print("🚨🚨🚨 НОВАЯ ВЕРСИЯ КОДА ЗАПУЩЕНА! 🚨🚨🚨")
         """
         Создание события в сообществе
 
