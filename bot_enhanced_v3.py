@@ -6379,6 +6379,14 @@ async def main():
         await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats(), language_code="ru")
         await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats(), language_code="ru")
 
+        # 3) Дополнительно для мобильных устройств - без языка, но с явным указанием scope
+        try:
+            # Устанавливаем команды для групп без указания языка (для мобильных)
+            await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats())
+            logger.info("✅ Команды для групп установлены для мобильных устройств")
+        except Exception as e:
+            logger.error(f"❌ Ошибка установки команд для мобильных: {e}")
+
         # Устанавливаем админские команды для всех админов
         admin_ids_str = os.getenv("ADMIN_IDS", "")
         if admin_ids_str:
@@ -6395,6 +6403,13 @@ async def main():
 
         # Небольшая задержка для применения команд
         await asyncio.sleep(2)
+
+        # ДИАГНОСТИКА: проверяем, что команды установлены
+        try:
+            current_commands = await bot.get_my_commands(scope=BotCommandScopeAllGroupChats())
+            logger.info(f"🔍 Текущие команды для групп: {[cmd.command for cmd in current_commands]}")
+        except Exception as e:
+            logger.error(f"❌ Ошибка получения команд: {e}")
 
         # Устанавливаем кнопку меню с диагностикой
         try:
