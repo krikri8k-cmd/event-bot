@@ -296,10 +296,33 @@ class CommunityEventsService:
         try:
             logger.info(f"🔄 get_group_admin_ids_async: Получение админов группы {group_id}")
 
-            # Получаем список администраторов
-            logger.info(f"🔄 get_group_admin_ids_async: Вызов bot.get_chat_administrators({group_id})")
-            administrators = await bot.get_chat_administrators(group_id)
-            logger.info(f"🔄 get_group_admin_ids_async: Получен ответ от Telegram API для группы {group_id}")
+            # ИСПРАВЛЕНИЕ SSL: создаем новую сессию с правильной SSL конфигурацией
+            import ssl
+
+            import aiohttp
+            import certifi
+
+            # Создаем SSL контекст с certifi bundle
+            ssl_context = ssl.create_default_context(cafile=certifi.where())
+            ssl_context.check_hostname = True
+            ssl_context.verify_mode = ssl.CERT_REQUIRED
+
+            # Создаем connector с исправленной SSL конфигурацией
+            connector = aiohttp.TCPConnector(ssl=ssl_context, limit=10, limit_per_host=5)
+
+            # Временно заменяем сессию бота
+            original_session = bot.session
+            try:
+                bot.session = aiohttp.ClientSession(connector=connector)
+                logger.info(
+                    f"🔄 get_group_admin_ids_async: Вызов bot.get_chat_administrators({group_id}) с исправленной SSL"
+                )
+                administrators = await bot.get_chat_administrators(group_id)
+                logger.info(f"🔄 get_group_admin_ids_async: Получен ответ от Telegram API для группы {group_id}")
+            finally:
+                # Восстанавливаем оригинальную сессию
+                bot.session = original_session
+                await connector.close()
 
             if not administrators:
                 logger.warning(f"⚠️ get_group_admin_ids_async: Нет администраторов в группе {group_id}")
