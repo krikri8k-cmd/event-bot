@@ -462,6 +462,25 @@ class CommunityEventsService:
                     time.sleep(2)  # Ждем 2 секунды перед повтором
                     continue
 
+        # ДИАГНОСТИКА SSL: проверяем окружение Railway
+        try:
+            print(f"🔥🔥🔥 ДИАГНОСТИКА SSL: проверяем окружение для группы {group_id}")
+            import ssl
+
+            import certifi
+
+            print(f"🔥🔥🔥 OpenSSL версия: {ssl.OPENSSL_VERSION}")
+            print(f"🔥🔥🔥 Certifi bundle: {certifi.where()}")
+
+            # Проверяем базовое подключение к api.telegram.org
+            import requests
+
+            test_response = requests.get("https://api.telegram.org", timeout=10, verify=certifi.where())
+            print(f"🔥🔥🔥 Тест подключения к api.telegram.org: статус {test_response.status_code}")
+
+        except Exception as e:
+            print(f"🔥🔥🔥 ДИАГНОСТИКА SSL НЕ УДАЛАСЬ: {e}")
+
         # ПОСЛЕДНИЙ ШАНС: попробуем через curl-подобный запрос
         try:
             print(f"🔥🔥🔥 ПОСЛЕДНИЙ ШАНС: curl-подобный запрос для группы {group_id}")
@@ -493,6 +512,8 @@ class CommunityEventsService:
                         print(f"🔥🔥🔥 CURL УСПЕХ: получены админы {admin_ids}")
                         print(f"🎉🎉🎉 CURL УСПЕХ: Получены настоящие админы группы через curl: {admin_ids}")
                         return admin_ids
+                else:
+                    print(f"🔥🔥🔥 CURL ОШИБКА: exit code {result.returncode}, stderr: {result.stderr}")
         except Exception as e:
             print(f"🔥🔥🔥 CURL МЕТОД НЕ УДАЛСЯ: {e}")
 
