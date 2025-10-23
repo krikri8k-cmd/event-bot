@@ -68,6 +68,8 @@ class CommunityEventsService:
             admin_ids = [creator_id]
             admin_id = creator_id  # Также исправляем LEGACY admin_id
             print(f"🔥🔥🔥 КРИТИЧЕСКИЙ FALLBACK: admin_ids пустые, используем создателя {creator_id}")
+            print("🚨🚨🚨 ВНИМАНИЕ: В таблице будет только создатель, а не админы группы!")
+            print("🚨🚨🚨 Это означает, что get_group_admin_ids() не смог получить админов из-за SSL ошибок!")
 
         # Подготавливаем admin_ids как JSON
         import json
@@ -372,6 +374,8 @@ class CommunityEventsService:
                     future = executor.submit(run_in_thread)
                     result = future.result(timeout=30)  # Увеличили timeout до 30 секунд
                     logger.info(f"🔥 get_group_admin_ids: получен результат {result} для группы {group_id}")
+                    print(f"🎉🎉🎉 УСПЕХ: Получены настоящие админы группы: {result}")
+                    print(f"🎉🎉🎉 Количество админов: {len(result)}")
                     return result
 
             except Exception as e:
@@ -419,6 +423,8 @@ class CommunityEventsService:
                             admin["user"]["id"] for admin in admins if admin["status"] in ("creator", "administrator")
                         ]
                         print(f"🔥🔥🔥 АЛЬТЕРНАТИВНЫЙ МЕТОД УСПЕШЕН: получены админы {admin_ids}")
+                        print(f"🎉🎉🎉 HTTP УСПЕХ: Получены настоящие админы группы через HTTP: {admin_ids}")
+                        print(f"🎉🎉🎉 HTTP Количество админов: {len(admin_ids)}")
                         return admin_ids
         except Exception as e:
             print(f"🔥🔥🔥 АЛЬТЕРНАТИВНЫЙ МЕТОД НЕ УДАЛСЯ: {e}")
@@ -426,6 +432,8 @@ class CommunityEventsService:
         # FALLBACK: если все попытки не удались, возвращаем пустой список
         logger.warning(f"💡 FALLBACK: Возвращаем пустой список для группы {group_id}")
         print(f"💥💥💥 FALLBACK: Возвращаем пустой список для группы {group_id}")
+        print("🚨🚨🚨 ВНИМАНИЕ: SSL ошибки блокируют получение админов группы!")
+        print("🚨🚨🚨 В результате в таблице будет только создатель события!")
         return []
 
     def get_group_admin_id(self, group_id: int, bot) -> int | None:
