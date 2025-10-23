@@ -2242,7 +2242,9 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
         community_service = CommunityEventsService()
 
         # Получаем ID всех админов группы
+        print(f"🔥🔥🔥 bot_enhanced_v3: ВЫЗОВ get_group_admin_ids для группы {data['group_id']}")
         admin_ids = community_service.get_group_admin_ids(data["group_id"], bot)
+        print(f"🔥🔥🔥 bot_enhanced_v3: РЕЗУЛЬТАТ get_group_admin_ids: {admin_ids}")
         admin_id = admin_ids[0] if admin_ids else None  # LEGACY для обратной совместимости
 
         logger.info(f"🔥 Создание события: получены админы группы {data['group_id']}: {admin_ids}")
