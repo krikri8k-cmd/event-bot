@@ -65,6 +65,9 @@ class CommunityEventsService:
 
         admin_ids_json = json.dumps(admin_ids) if admin_ids else None
         print(f"🔥 admin_ids_json для сохранения: {admin_ids_json}")
+        print("🔥🔥🔥 create_community_event: ВХОДЯЩИЕ ПАРАМЕТРЫ")
+        print(f"🔥🔥🔥 create_community_event: group_id={group_id}, admin_ids={admin_ids}")
+        print(f"🔥🔥🔥 create_community_event: admin_ids_json={admin_ids_json}")
 
         with self.engine.connect() as conn:
             query = text("""
@@ -326,6 +329,7 @@ class CommunityEventsService:
 
         # КРИТИЧЕСКАЯ ОТЛАДКА: print для гарантированного вывода
         print(f"🔥🔥🔥 get_group_admin_ids: НАЧАЛО - запрос админов для группы {group_id}")
+        print(f"🔥🔥🔥 get_group_admin_ids: bot={bot}, type={type(bot)}")
         logger.info(f"🔥 get_group_admin_ids: НАЧАЛО - запрос админов для группы {group_id}")
 
         # RETRY логика на уровне синхронной функции
@@ -368,6 +372,7 @@ class CommunityEventsService:
 
         # FALLBACK: если все попытки не удались, возвращаем пустой список
         logger.warning(f"💡 FALLBACK: Возвращаем пустой список для группы {group_id}")
+        print(f"💥💥💥 FALLBACK: Возвращаем пустой список для группы {group_id}")
         return []
 
     def get_group_admin_id(self, group_id: int, bot) -> int | None:
