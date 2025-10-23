@@ -410,33 +410,46 @@ class CommunityEventsService:
                     logger.error(f"💥 Все попытки исчерпаны для группы {group_id}")
                     break
 
-        # АЛЬТЕРНАТИВНЫЙ МЕТОД: попробуем получить админов через прямой HTTP запрос
-        try:
-            print(f"🔥🔥🔥 АЛЬТЕРНАТИВНЫЙ МЕТОД: попытка получить админов через HTTP для группы {group_id}")
-            import os
+        # АЛЬТЕРНАТИВНЫЙ МЕТОД: попробуем получить админов через прямой HTTP запрос с RETRY
+        for http_attempt in range(5):  # 5 попыток HTTP запроса
+            try:
+                print(f"🔥🔥🔥 АЛЬТЕРНАТИВНЫЙ МЕТОД: попытка {http_attempt + 1}/5 HTTP запроса для группы {group_id}")
+                import os
+                import time
 
-            import requests
+                import requests
 
-            # Получаем токен бота из переменных окружения
-            bot_token = os.getenv("BOT_TOKEN")
-            if bot_token:
-                url = f"https://api.telegram.org/bot{bot_token}/getChatAdministrators"
-                params = {"chat_id": group_id}
+                # Получаем токен бота из переменных окружения
+                bot_token = os.getenv("BOT_TOKEN")
+                if bot_token:
+                    url = f"https://api.telegram.org/bot{bot_token}/getChatAdministrators"
+                    params = {"chat_id": group_id}
 
-                response = requests.get(url, params=params, timeout=10)
-                if response.status_code == 200:
-                    data = response.json()
-                    if data.get("ok"):
-                        admins = data.get("result", [])
-                        admin_ids = [
-                            admin["user"]["id"] for admin in admins if admin["status"] in ("creator", "administrator")
-                        ]
-                        print(f"🔥🔥🔥 АЛЬТЕРНАТИВНЫЙ МЕТОД УСПЕШЕН: получены админы {admin_ids}")
-                        print(f"🎉🎉🎉 HTTP УСПЕХ: Получены настоящие админы группы через HTTP: {admin_ids}")
-                        print(f"🎉🎉🎉 HTTP Количество админов: {len(admin_ids)}")
-                        return admin_ids
-        except Exception as e:
-            print(f"🔥🔥🔥 АЛЬТЕРНАТИВНЫЙ МЕТОД НЕ УДАЛСЯ: {e}")
+                    # Увеличиваем timeout и добавляем retry для HTTP
+                    response = requests.get(url, params=params, timeout=30, verify=False)
+                    if response.status_code == 200:
+                        data = response.json()
+                        if data.get("ok"):
+                            admins = data.get("result", [])
+                            admin_ids = [
+                                admin["user"]["id"]
+                                for admin in admins
+                                if admin["status"] in ("creator", "administrator")
+                            ]
+                            print(f"🔥🔥🔥 АЛЬТЕРНАТИВНЫЙ МЕТОД УСПЕШЕН: получены админы {admin_ids}")
+                            print(f"🎉🎉🎉 HTTP УСПЕХ: Получены настоящие админы группы через HTTP: {admin_ids}")
+                            print(f"🎉🎉🎉 HTTP Количество админов: {len(admin_ids)}")
+                            return admin_ids
+                    else:
+                        print(f"🔥🔥🔥 HTTP ОШИБКА: статус {response.status_code}, попытка {http_attempt + 1}/5")
+                        if http_attempt < 4:  # Не последняя попытка
+                            time.sleep(2)  # Ждем 2 секунды перед повтором
+                            continue
+            except Exception as e:
+                print(f"🔥🔥🔥 АЛЬТЕРНАТИВНЫЙ МЕТОД НЕ УДАЛСЯ (попытка {http_attempt + 1}/5): {e}")
+                if http_attempt < 4:  # Не последняя попытка
+                    time.sleep(2)  # Ждем 2 секунды перед повтором
+                    continue
 
         # FALLBACK: если все попытки не удались, возвращаем пустой список
         logger.warning(f"💡 FALLBACK: Возвращаем пустой список для группы {group_id}")
