@@ -247,6 +247,7 @@ class CommunityEventsService:
     async def get_group_admin_ids_async(self, group_id: int, bot) -> list[int]:
         """
         Получает ID всех администраторов группы - асинхронная версия
+        С RETRY логикой для обработки SSL ошибок
 
         Args:
             group_id: ID группового чата
@@ -255,24 +256,43 @@ class CommunityEventsService:
         Returns:
             Список ID всех администраторов группы
         """
-        try:
-            # Получаем список администраторов
-            administrators = await bot.get_chat_administrators(group_id)
+        import asyncio
 
-            if not administrators:
-                return []
+        for attempt in range(3):  # 3 попытки
+            try:
+                print(f"🔄 Попытка {attempt + 1}/3 получения админов группы {group_id}")
 
-            admin_ids = []
-            for admin in administrators:
-                if admin.status in ("creator", "administrator"):
-                    admin_ids.append(admin.user.id)
+                # Получаем список администраторов
+                administrators = await bot.get_chat_administrators(group_id)
 
-            print(f"✅ Получены админы группы {group_id}: {admin_ids}")
-            return admin_ids
+                if not administrators:
+                    print(f"⚠️ Нет администраторов в группе {group_id}")
+                    return []
 
-        except Exception as e:
-            print(f"❌ Ошибка получения админов группы {group_id}: {e}")
-            return []
+                admin_ids = []
+                for admin in administrators:
+                    if admin.status in ("creator", "administrator"):
+                        admin_ids.append(admin.user.id)
+
+                print(f"✅ Получены админы группы {group_id}: {admin_ids}")
+                return admin_ids
+
+            except Exception as e:
+                error_msg = str(e)
+                print(f"❌ Попытка {attempt + 1}/3 - Ошибка получения админов группы {group_id}: {e}")
+
+                # Если это SSL ошибка, ждем перед повтором
+                if "SSL" in error_msg or "APPLICATION_DATA_AFTER_CLOSE_NOTIFY" in error_msg:
+                    if attempt < 2:  # Не последняя попытка
+                        wait_time = (attempt + 1) * 2  # 2, 4 секунды
+                        print(f"⏳ SSL ошибка, ждем {wait_time} сек перед повтором...")
+                        await asyncio.sleep(wait_time)
+                        continue
+
+                # Если не SSL ошибка или последняя попытка
+                if attempt == 2:  # Последняя попытка
+                    print(f"💥 Все попытки исчерпаны для группы {group_id}")
+                    return []
 
     async def get_group_admin_id_async(self, group_id: int, bot) -> int | None:
         """
@@ -293,6 +313,7 @@ class CommunityEventsService:
         """
         Получает ID всех администраторов группы - синхронная версия
         ОБХОДНОЙ ПУТЬ: используем новый event loop в отдельном потоке
+        С RETRY логикой и fallback механизмом
 
         Args:
             group_id: ID группового чата
@@ -317,12 +338,16 @@ class CommunityEventsService:
 
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(run_in_thread)
-                result = future.result(timeout=10)
+                result = future.result(timeout=15)  # Увеличили timeout
                 print(f"🔥 get_group_admin_ids: получен результат {result}")
                 return result
 
         except Exception as e:
             print(f"❌ Ошибка получения админов группы {group_id}: {e}")
+
+            # FALLBACK: если все попытки не удались, возвращаем пустой список
+            # но логируем это для отладки
+            print(f"💡 FALLBACK: Возвращаем пустой список для группы {group_id}")
             return []
 
     def get_group_admin_id(self, group_id: int, bot) -> int | None:
