@@ -256,14 +256,20 @@ class CommunityEventsService:
         Returns:
             Список ID всех администраторов группы
         """
+        import logging
+
+        logger = logging.getLogger(__name__)
+
         try:
-            print(f"🔄 Получение админов группы {group_id}")
+            logger.info(f"🔄 get_group_admin_ids_async: Получение админов группы {group_id}")
 
             # Получаем список администраторов
+            logger.info(f"🔄 get_group_admin_ids_async: Вызов bot.get_chat_administrators({group_id})")
             administrators = await bot.get_chat_administrators(group_id)
+            logger.info(f"🔄 get_group_admin_ids_async: Получен ответ от Telegram API для группы {group_id}")
 
             if not administrators:
-                print(f"⚠️ Нет администраторов в группе {group_id}")
+                logger.warning(f"⚠️ get_group_admin_ids_async: Нет администраторов в группе {group_id}")
                 return []
 
             admin_ids = []
@@ -271,11 +277,11 @@ class CommunityEventsService:
                 if admin.status in ("creator", "administrator"):
                     admin_ids.append(admin.user.id)
 
-            print(f"✅ Получены админы группы {group_id}: {admin_ids}")
+            logger.info(f"✅ get_group_admin_ids_async: Получены админы группы {group_id}: {admin_ids}")
             return admin_ids
 
         except Exception as e:
-            print(f"❌ Ошибка получения админов группы {group_id}: {e}")
+            logger.error(f"❌ get_group_admin_ids_async: Ошибка получения админов группы {group_id}: {e}")
             # Пробрасываем ошибку наверх для retry логики в синхронной функции
             raise
 
@@ -309,12 +315,17 @@ class CommunityEventsService:
         """
         import asyncio
         import concurrent.futures
+        import logging
         import time
+
+        logger = logging.getLogger(__name__)
+
+        logger.info(f"🔥 get_group_admin_ids: НАЧАЛО - запрос админов для группы {group_id}")
 
         # RETRY логика на уровне синхронной функции
         for attempt in range(3):  # 3 попытки
             try:
-                print(f"🔥 get_group_admin_ids: попытка {attempt + 1}/3 для группы {group_id}")
+                logger.info(f"🔥 get_group_admin_ids: попытка {attempt + 1}/3 для группы {group_id}")
 
                 # ОБХОДНОЙ ПУТЬ: запускаем в отдельном потоке с новым event loop
                 def run_in_thread():
@@ -325,31 +336,32 @@ class CommunityEventsService:
                     finally:
                         loop.close()
 
+                logger.info(f"🔥 get_group_admin_ids: запуск ThreadPoolExecutor для группы {group_id}")
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future = executor.submit(run_in_thread)
                     result = future.result(timeout=15)  # Увеличили timeout
-                    print(f"🔥 get_group_admin_ids: получен результат {result}")
+                    logger.info(f"🔥 get_group_admin_ids: получен результат {result} для группы {group_id}")
                     return result
 
             except Exception as e:
                 error_msg = str(e)
-                print(f"❌ Попытка {attempt + 1}/3 - Ошибка получения админов группы {group_id}: {e}")
+                logger.error(f"❌ Попытка {attempt + 1}/3 - Ошибка получения админов группы {group_id}: {e}")
 
                 # Если это SSL ошибка, ждем перед повтором
                 if "SSL" in error_msg or "APPLICATION_DATA_AFTER_CLOSE_NOTIFY" in error_msg:
                     if attempt < 2:  # Не последняя попытка
                         wait_time = (attempt + 1) * 2  # 2, 4 секунды
-                        print(f"⏳ SSL ошибка, ждем {wait_time} сек перед повтором...")
+                        logger.info(f"⏳ SSL ошибка, ждем {wait_time} сек перед повтором для группы {group_id}")
                         time.sleep(wait_time)
                         continue
 
                 # Если не SSL ошибка или последняя попытка
                 if attempt == 2:  # Последняя попытка
-                    print(f"💥 Все попытки исчерпаны для группы {group_id}")
+                    logger.error(f"💥 Все попытки исчерпаны для группы {group_id}")
                     break
 
         # FALLBACK: если все попытки не удались, возвращаем пустой список
-        print(f"💡 FALLBACK: Возвращаем пустой список для группы {group_id}")
+        logger.warning(f"💡 FALLBACK: Возвращаем пустой список для группы {group_id}")
         return []
 
     def get_group_admin_id(self, group_id: int, bot) -> int | None:
