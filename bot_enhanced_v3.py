@@ -5798,6 +5798,8 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
         print(f"🔥🔥🔥 confirm_community_event: РЕЗУЛЬТАТ get_group_admin_ids: {admin_ids}")
         admin_id = admin_ids[0] if admin_ids else None  # LEGACY для обратной совместимости
 
+        print(f"🔥🔥🔥 confirm_community_event: chat_id={chat_id}, admin_ids={admin_ids}, admin_id={admin_id}")
+
         # Создаем событие в сообществе
         event_id = community_service.create_community_event(
             group_id=chat_id,

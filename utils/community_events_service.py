@@ -98,6 +98,7 @@ class CommunityEventsService:
             conn.commit()
 
             print(f"✅ Создано событие сообщества ID {event_id}: '{title}' в группе {group_id}")
+            print(f"🔥🔥🔥 create_community_event: chat_id={group_id}, admin_ids={admin_ids_json}")
             return event_id
 
     def get_community_events(self, group_id: int, limit: int = 20, include_past: bool = False) -> list[dict]:
