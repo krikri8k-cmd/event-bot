@@ -77,6 +77,8 @@ class CommunityEventsService:
         print("🔥🔥🔥 create_community_event: ВХОДЯЩИЕ ПАРАМЕТРЫ")
         print(f"🔥🔥🔥 create_community_event: group_id={group_id}, admin_ids={admin_ids}")
         print(f"🔥🔥🔥 create_community_event: admin_ids_json={admin_ids_json}")
+        print(f"🔥🔥🔥 ТИПЫ ДАННЫХ: admin_ids={type(admin_ids)}, admin_ids_json={type(admin_ids_json)}")
+        print(f"🔥🔥🔥 ДЛИНА JSON: {len(admin_ids_json) if admin_ids_json else 'None'}")
 
         with self.engine.connect() as conn:
             query = text("""
@@ -89,28 +91,37 @@ class CommunityEventsService:
                 RETURNING id
             """)
 
-            result = conn.execute(
-                query,
-                {
-                    "chat_id": group_id,
-                    "organizer_id": creator_id,
-                    "organizer_username": creator_username,
-                    "admin_id": admin_id,
-                    "admin_ids": admin_ids_json,
-                    "title": title,
-                    "starts_at": date,
-                    "description": description,
-                    "city": city,
-                    "location_name": location_name,
-                    "location_url": location_url,
-                },
-            )
+            # Логируем параметры SQL запроса
+            sql_params = {
+                "chat_id": group_id,
+                "organizer_id": creator_id,
+                "organizer_username": creator_username,
+                "admin_id": admin_id,
+                "admin_ids": admin_ids_json,
+                "title": title,
+                "starts_at": date,
+                "description": description,
+                "city": city,
+                "location_name": location_name,
+                "location_url": location_url,
+            }
+            print(f"🔥🔥🔥 SQL ПАРАМЕТРЫ: {sql_params}")
+            print(f"🔥🔥🔥 admin_ids в SQL: {sql_params['admin_ids']}")
+
+            result = conn.execute(query, sql_params)
 
             event_id = result.fetchone()[0]
             conn.commit()
 
             print(f"✅ Создано событие сообщества ID {event_id}: '{title}' в группе {group_id}")
             print(f"🔥🔥🔥 create_community_event: chat_id={group_id}, admin_ids={admin_ids_json}")
+
+            # ПРОВЕРЯЕМ, что сохранилось в базе
+            check_query = text("SELECT admin_ids FROM events_community WHERE id = :event_id")
+            check_result = conn.execute(check_query, {"event_id": event_id})
+            saved_admin_ids = check_result.fetchone()[0]
+            print(f"🔥🔥🔥 ПРОВЕРКА: admin_ids в базе: {saved_admin_ids}")
+
             return event_id
 
     def get_community_events(self, group_id: int, limit: int = 20, include_past: bool = False) -> list[dict]:
