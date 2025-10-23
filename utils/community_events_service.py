@@ -60,6 +60,12 @@ class CommunityEventsService:
         print(f"🔥 Получены admin_ids: {admin_ids}")
         print(f"🔥 Получен admin_id (LEGACY): {admin_id}")
 
+        # КРИТИЧЕСКИЙ FALLBACK: если admin_ids пустые, используем создателя
+        if not admin_ids:
+            admin_ids = [creator_id]
+            admin_id = creator_id  # Также исправляем LEGACY admin_id
+            print(f"🔥🔥🔥 КРИТИЧЕСКИЙ FALLBACK: admin_ids пустые, используем создателя {creator_id}")
+
         # Подготавливаем admin_ids как JSON
         import json
 
