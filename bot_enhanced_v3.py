@@ -2298,12 +2298,8 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
             # Показываем ссылку на опубликованное сообщение
             group_link = f"https://t.me/c/{str(group_id)[4:]}/{group_message.message_id}"
 
-            # Создаем клавиатуру с кнопкой главного меню
-            keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text="🚀 Главное меню", callback_data="start_menu")]]
-            )
-
-            await callback.message.edit_text(
+            # Сообщение об успешном создании
+            success_text = (
                 f"🎉 **Событие создано и опубликовано!**\n\n"
                 f"**{data['title']}**\n"
                 f"📅 {data['date']} в {data['time']}\n"
@@ -2311,10 +2307,11 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
                 f"📍 {data['location_name']}\n\n"
                 f"✅ Событие опубликовано в группе!\n"
                 f"🔗 [Ссылка на сообщение]({group_link})\n\n"
-                f"🚀",
-                parse_mode="Markdown",
-                reply_markup=keyboard,
+                f"🚀"
             )
+
+            # Отправляем новое сообщение с ReplyKeyboardMarkup вместо edit_text
+            await callback.message.answer(success_text, parse_mode="Markdown", reply_markup=main_menu_kb())
 
         except Exception as e:
             logger.error(f"Ошибка публикации в группу: {e}")
