@@ -2241,10 +2241,10 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
 
         community_service = CommunityEventsService()
 
-        # Получаем ID всех админов группы
-        print(f"🔥🔥🔥 bot_enhanced_v3: ВЫЗОВ get_group_admin_ids для группы {data['group_id']}")
-        admin_ids = await community_service.get_group_admin_ids_async(bot, data["group_id"])
-        print(f"🔥🔥🔥 bot_enhanced_v3: РЕЗУЛЬТАТ get_group_admin_ids: {admin_ids}")
+        # Получаем ID всех админов группы с кэшированием
+        print(f"🔥🔥🔥 bot_enhanced_v3: ВЫЗОВ get_cached_admin_ids для группы {data['group_id']}")
+        admin_ids = await community_service.get_cached_admin_ids(bot, data["group_id"])
+        print(f"🔥🔥🔥 bot_enhanced_v3: РЕЗУЛЬТАТ get_cached_admin_ids: {admin_ids}")
 
         # FALLBACK: если админы не получены, оставляем пустой список
         if not admin_ids:
@@ -5805,10 +5805,10 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
         print("🚨🚨🚨 НОВАЯ ВЕРСИЯ BOT_ENHANCED_V3 ЗАПУЩЕНА! 🚨🚨🚨")
         print(f"🔥🔥🔥 confirm_community_event: ВЫЗОВ get_group_admin_ids для группы {chat_id}")
 
-        # ПРОБУЕМ получить админов группы
+        # ПРОБУЕМ получить админов группы с кэшированием
         try:
-            admin_ids = await community_service.get_group_admin_ids_async(bot, chat_id)
-            print(f"🔥🔥🔥 confirm_community_event: РЕЗУЛЬТАТ get_group_admin_ids: {admin_ids}")
+            admin_ids = await community_service.get_cached_admin_ids(bot, chat_id)
+            print(f"🔥🔥🔥 confirm_community_event: РЕЗУЛЬТАТ get_cached_admin_ids: {admin_ids}")
 
             # Если админы не получены из-за SSL ошибок, используем создателя
             if not admin_ids:

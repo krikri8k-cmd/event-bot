@@ -20,6 +20,10 @@ class CommunityEventsService:
         else:
             self.engine = engine
 
+        # Кэш для админов групп (chat_id -> (admin_ids, timestamp))
+        self._admin_cache = {}
+        self._cache_ttl = 600  # 10 минут
+
     def create_community_event(
         self,
         group_id: int,
@@ -73,24 +77,28 @@ class CommunityEventsService:
             admin_ids = []
             admin_id = None  # LEGACY тоже пустой
 
-        # Подготавливаем admin_ids как JSON
+        # Подготавливаем admin_ids как JSON и считаем admin_count
         import json
 
         admin_ids_json = json.dumps(admin_ids) if admin_ids else None
+        admin_count = len(admin_ids) if admin_ids else 0
+
         print(f"🔥 admin_ids_json для сохранения: {admin_ids_json}")
+        print(f"🔥 admin_count = {admin_count}")
         print("🔥🔥🔥 create_community_event: ВХОДЯЩИЕ ПАРАМЕТРЫ")
         print(f"🔥🔥🔥 create_community_event: group_id={group_id}, admin_ids={admin_ids}")
         print(f"🔥🔥🔥 create_community_event: admin_ids_json={admin_ids_json}")
+        print(f"🔥🔥🔥 create_community_event: admin_count={admin_count}")
         print(f"🔥🔥🔥 ТИПЫ ДАННЫХ: admin_ids={type(admin_ids)}, admin_ids_json={type(admin_ids_json)}")
         print(f"🔥🔥🔥 ДЛИНА JSON: {len(admin_ids_json) if admin_ids_json else 'None'}")
 
         with self.engine.connect() as conn:
             query = text("""
                 INSERT INTO events_community
-                (chat_id, organizer_id, organizer_username, admin_id, admin_ids, title, starts_at,
+                (chat_id, organizer_id, organizer_username, admin_id, admin_ids, admin_count, title, starts_at,
                  description, city, location_name, location_url, status)
                 VALUES
-                (:chat_id, :organizer_id, :organizer_username, :admin_id, :admin_ids, :title, :starts_at,
+                (:chat_id, :organizer_id, :organizer_username, :admin_id, :admin_ids, :admin_count, :title, :starts_at,
                  :description, :city, :location_name, :location_url, 'open')
                 RETURNING id
             """)
@@ -102,6 +110,7 @@ class CommunityEventsService:
                 "organizer_username": creator_username,
                 "admin_id": admin_id,
                 "admin_ids": admin_ids_json,
+                "admin_count": admin_count,
                 "title": title,
                 "starts_at": date,
                 "description": description,
@@ -305,12 +314,16 @@ class CommunityEventsService:
                 logger.warning(f"⚠️ get_group_admin_ids_async: Нет администраторов в группе {group_id}")
                 return []
 
+            # Получаем ID бота для исключения из списка админов
+            bot_info = await bot.get_me()
+            bot_id = bot_info.id
+
             admin_ids = []
             for admin in administrators:
-                if admin.status in ("creator", "administrator"):
+                if admin.status in ("creator", "administrator") and admin.user.id != bot_id:
                     admin_ids.append(admin.user.id)
 
-            logger.info(f"✅ get_group_admin_ids_async: Получены админы группы {group_id}: {admin_ids}")
+            logger.info(f"✅ get_group_admin_ids_async: Получены админы группы {group_id} (без бота): {admin_ids}")
             return admin_ids
 
         except Exception as e:
@@ -318,6 +331,42 @@ class CommunityEventsService:
             # FALLBACK: возвращаем пустой список
             logger.warning("⚠️ get_group_admin_ids_async: Используем fallback - возвращаем пустой список")
             return []
+
+    async def get_cached_admin_ids(self, bot, group_id: int) -> list[int]:
+        """
+        Получает ID админов группы с кэшированием
+
+        Args:
+            bot: Экземпляр бота
+            group_id: ID группового чата
+
+        Returns:
+            Список ID администраторов группы
+        """
+        import logging
+        import time
+
+        logger = logging.getLogger(__name__)
+        current_time = time.time()
+
+        # Проверяем кэш
+        if group_id in self._admin_cache:
+            admin_ids, timestamp = self._admin_cache[group_id]
+            if current_time - timestamp < self._cache_ttl:
+                logger.info(f"⚡ Использован кэш админов для группы {group_id}: {admin_ids}")
+                return admin_ids
+            else:
+                # Кэш устарел, удаляем
+                del self._admin_cache[group_id]
+
+        # Получаем свежие данные
+        admin_ids = await self.get_group_admin_ids_async(bot, group_id)
+
+        # Сохраняем в кэш
+        self._admin_cache[group_id] = (admin_ids, current_time)
+        logger.info(f"💾 Админы группы {group_id} сохранены в кэш: {admin_ids}")
+
+        return admin_ids
 
     async def get_group_admin_id_async(self, group_id: int, bot) -> int | None:
         """
