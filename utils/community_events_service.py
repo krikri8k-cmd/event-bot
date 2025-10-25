@@ -274,14 +274,14 @@ class CommunityEventsService:
                 "today_events": today_events,
             }
 
-    async def get_group_admin_ids_async(self, group_id: int, bot) -> list[int]:
+    async def get_group_admin_ids_async(self, bot, group_id: int) -> list[int]:
         """
         Получает ID всех администраторов группы - асинхронная версия
-        БЕЗ retry логики (retry делается на уровне синхронной функции)
+        Использует переданный объект bot напрямую
 
         Args:
-            group_id: ID группового чата
             bot: Экземпляр бота для получения списка админов
+            group_id: ID группового чата
 
         Returns:
             Список ID всех администраторов группы
@@ -296,36 +296,10 @@ class CommunityEventsService:
         try:
             logger.info(f"🔄 get_group_admin_ids_async: Получение админов группы {group_id}")
 
-            # ПРЯМОЙ HTTP ПОДХОД: обходим aiogram и делаем прямой запрос к Telegram API
-            import os
-
-            import aiohttp
-
-            bot_token = os.getenv("BOT_TOKEN")
-            if not bot_token:
-                logger.error("❌ BOT_TOKEN не найден в переменных окружения")
-                raise Exception("BOT_TOKEN не найден")
-
-            url = f"https://api.telegram.org/bot{bot_token}/getChatAdministrators"
-            params = {"chat_id": group_id}
-
-            logger.info(f"🔄 get_group_admin_ids_async: Прямой HTTP запрос к {url}")
-
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, params=params) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        if data.get("ok"):
-                            administrators = data.get("result", [])
-                            logger.info(
-                                f"🔄 get_group_admin_ids_async: Получен ответ от Telegram API для группы {group_id}"
-                            )
-                        else:
-                            logger.error(f"❌ Telegram API ошибка: {data.get('description')}")
-                            raise Exception(f"Telegram API ошибка: {data.get('description')}")
-                    else:
-                        logger.error(f"❌ HTTP ошибка: {response.status}")
-                        raise Exception(f"HTTP ошибка: {response.status}")
+            # ПРЯМОЕ ИСПОЛЬЗОВАНИЕ BOT: используем переданный объект bot
+            logger.info(f"🔄 get_group_admin_ids_async: Вызов bot.get_chat_administrators({group_id})")
+            administrators = await bot.get_chat_administrators(group_id)
+            logger.info(f"🔄 get_group_admin_ids_async: Получен ответ от Telegram API для группы {group_id}")
 
             if not administrators:
                 logger.warning(f"⚠️ get_group_admin_ids_async: Нет администраторов в группе {group_id}")
@@ -341,7 +315,7 @@ class CommunityEventsService:
 
         except Exception as e:
             logger.error(f"❌ get_group_admin_ids_async: Ошибка получения админов группы {group_id}: {e}")
-            # FALLBACK: возвращаем пустой список, чтобы использовался creator_id
+            # FALLBACK: возвращаем пустой список
             logger.warning("⚠️ get_group_admin_ids_async: Используем fallback - возвращаем пустой список")
             return []
 
