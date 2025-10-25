@@ -2432,7 +2432,8 @@ async def on_nearby_events_callback(callback: types.CallbackQuery, state: FSMCon
         one_time_keyboard=False,
     )
 
-    await callback.message.edit_text(
+    # Отправляем новое сообщение с ReplyKeyboardMarkup
+    await callback.message.answer(
         "Отправь свежую геопозицию, чтобы я нашла события рядом ✨", reply_markup=location_keyboard
     )
 
