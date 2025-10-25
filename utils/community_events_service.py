@@ -312,16 +312,20 @@ class CommunityEventsService:
 
             # Временно заменяем сессию бота
             original_session = bot.session
+            new_session = None
             try:
-                bot.session = aiohttp.ClientSession(connector=connector)
+                new_session = aiohttp.ClientSession(connector=connector)
+                bot.session = new_session
                 logger.info(
                     f"🔄 get_group_admin_ids_async: Вызов bot.get_chat_administrators({group_id}) с исправленной SSL"
                 )
                 administrators = await bot.get_chat_administrators(group_id)
                 logger.info(f"🔄 get_group_admin_ids_async: Получен ответ от Telegram API для группы {group_id}")
             finally:
-                # Восстанавливаем оригинальную сессию
+                # Восстанавливаем оригинальную сессию и закрываем новую
                 bot.session = original_session
+                if new_session:
+                    await new_session.close()
                 await connector.close()
 
             if not administrators:
