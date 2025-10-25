@@ -2357,11 +2357,17 @@ async def cancel_community_event(callback: types.CallbackQuery, state: FSMContex
 
     cancel_text = "❌ **Создание группового события отменено.**\n\n"
     if group_id:
-        cancel_text += "Вы можете вернуться в группу или остаться в боте нажимай : 📍Что рядом"
+        cancel_text += "Вы можете вернуться в группу или остаться в боте:"
+
+        # Создаем кнопку "Что рядом"
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="📍 Что рядом", callback_data="nearby_events")]]
+        )
+
+        await callback.message.edit_text(cancel_text, parse_mode="Markdown", reply_markup=keyboard)
     else:
         cancel_text += "Если хотите создать событие, нажмите /start"
-
-    await callback.message.edit_text(cancel_text, parse_mode="Markdown")
+        await callback.message.edit_text(cancel_text, parse_mode="Markdown")
     await callback.answer("Создание отменено", show_alert=False)
 
 
@@ -2406,6 +2412,29 @@ async def handle_group_back_to_start(callback: types.CallbackQuery):
 
     await callback.message.edit_text(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
     await callback.answer()
+
+
+@main_router.callback_query(F.data == "nearby_events")
+async def on_nearby_events_callback(callback: types.CallbackQuery, state: FSMContext):
+    """Обработчик кнопки 'Что рядом' из callback"""
+    await callback.answer()
+
+    # Устанавливаем состояние для поиска событий
+    await state.set_state(EventSearch.waiting_for_location)
+
+    # Создаем клавиатуру с кнопкой геолокации и главным меню
+    location_keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📍 Отправить геолокацию", request_location=True)],
+            [KeyboardButton(text="🏠 Главное меню")],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+    )
+
+    await callback.message.edit_text(
+        "Отправь свежую геопозицию, чтобы я нашла события рядом ✨", reply_markup=location_keyboard
+    )
 
 
 @main_router.message(Command("nearby"))
