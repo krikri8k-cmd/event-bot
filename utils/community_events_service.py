@@ -296,37 +296,12 @@ class CommunityEventsService:
         try:
             logger.info(f"🔄 get_group_admin_ids_async: Получение админов группы {group_id}")
 
-            # ИСПРАВЛЕНИЕ SSL: создаем новую сессию с правильной SSL конфигурацией
-            import ssl
-
-            import aiohttp
-            import certifi
-
-            # Создаем SSL контекст с certifi bundle
-            ssl_context = ssl.create_default_context(cafile=certifi.where())
-            ssl_context.check_hostname = True
-            ssl_context.verify_mode = ssl.CERT_REQUIRED
-
-            # Создаем connector с исправленной SSL конфигурацией
-            connector = aiohttp.TCPConnector(ssl=ssl_context, limit=10, limit_per_host=5)
-
-            # Временно заменяем сессию бота
-            original_session = bot.session
-            new_session = None
-            try:
-                new_session = aiohttp.ClientSession(connector=connector)
-                bot.session = new_session
-                logger.info(
-                    f"🔄 get_group_admin_ids_async: Вызов bot.get_chat_administrators({group_id}) с исправленной SSL"
-                )
-                administrators = await bot.get_chat_administrators(group_id)
-                logger.info(f"🔄 get_group_admin_ids_async: Получен ответ от Telegram API для группы {group_id}")
-            finally:
-                # Восстанавливаем оригинальную сессию и закрываем новую
-                bot.session = original_session
-                if new_session:
-                    await new_session.close()
-                await connector.close()
+            # ПРОСТОЙ ПОДХОД: используем оригинальную сессию без SSL исправлений
+            logger.info(
+                f"🔄 get_group_admin_ids_async: Вызов bot.get_chat_administrators({group_id}) БЕЗ SSL исправлений"
+            )
+            administrators = await bot.get_chat_administrators(group_id)
+            logger.info(f"🔄 get_group_admin_ids_async: Получен ответ от Telegram API для группы {group_id}")
 
             if not administrators:
                 logger.warning(f"⚠️ get_group_admin_ids_async: Нет администраторов в группе {group_id}")
@@ -342,8 +317,9 @@ class CommunityEventsService:
 
         except Exception as e:
             logger.error(f"❌ get_group_admin_ids_async: Ошибка получения админов группы {group_id}: {e}")
-            # Пробрасываем ошибку наверх для retry логики в синхронной функции
-            raise
+            # FALLBACK: возвращаем пустой список, чтобы использовался creator_id
+            logger.warning("⚠️ get_group_admin_ids_async: Используем fallback - возвращаем пустой список")
+            return []
 
     async def get_group_admin_id_async(self, group_id: int, bot) -> int | None:
         """
