@@ -2359,9 +2359,14 @@ async def cancel_community_event(callback: types.CallbackQuery, state: FSMContex
     if group_id:
         cancel_text += "Вы можете вернуться в группу или остаться в боте:"
 
-        # Создаем кнопку "Что рядом"
+        # Создаем кнопки "Что рядом" и "Старт (все функции)"
         keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text="📍 Что рядом", callback_data="nearby_events")]]
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="📍 Что рядом", callback_data="nearby_events"),
+                    InlineKeyboardButton(text="🚀 Старт", callback_data="start_menu"),
+                ]
+            ]
         )
 
         await callback.message.edit_text(cancel_text, parse_mode="Markdown", reply_markup=keyboard)
@@ -2412,6 +2417,30 @@ async def handle_group_back_to_start(callback: types.CallbackQuery):
 
     await callback.message.edit_text(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
     await callback.answer()
+
+
+@main_router.callback_query(F.data == "start_menu")
+async def on_start_menu_callback(callback: types.CallbackQuery, state: FSMContext):
+    """Обработчик кнопки 'Старт' из callback"""
+    await callback.answer()
+
+    # Запускаем главное меню (аналогично команде /start)
+    user_id = callback.from_user.id
+
+    # Создаем пользователя если его нет
+    ensure_user_exists(user_id, callback.from_user)
+
+    # Показываем приветственное сообщение с главным меню
+    welcome_text = (
+        'Привет! @EventAroundBot версия "World" - твой цифровой помощник по активностям.\n\n'
+        "📍 Что рядом: находи события в радиусе 5–20 км\n"
+        "🎯 Квесты на районе: автоматизированный подбор заданий с наградами 🚀\n\n"
+        "➕ Создать: организуй встречи и приглашай друзей\n"
+        '🔗 Поделиться: добавь бота версия "Community" в чат — появится лента встреч и планов только для участников сообщества.\n\n'
+        "🚀 Начинай приключение"
+    )
+
+    await callback.message.answer(welcome_text, reply_markup=main_menu_kb())
 
 
 @main_router.callback_query(F.data == "nearby_events")
