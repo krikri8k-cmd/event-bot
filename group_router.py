@@ -329,13 +329,11 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             # Отправляем ReplyKeyboard с кнопкой /start сразу после панели
             activation_msg = await message.answer("🤖 EventAroundBot активирован!", reply_markup=start_keyboard)
 
-            # Удаляем сообщение активации через 5 секунд (ReplyKeyboard остается)
+            # Удаляем сообщение активации через 1 секунду (ReplyKeyboard остается)
             try:
-                await asyncio.sleep(5)
+                await asyncio.sleep(1)
                 await bot.delete_message(message.chat.id, activation_msg.message_id)
-                logger.info(
-                    f"✅ Сообщение активации удалено через 5 сек, ReplyKeyboard остался в чате {message.chat.id}"
-                )
+                logger.info(f"✅ Сообщение активации удалено, ReplyKeyboard остался в чате {message.chat.id}")
             except Exception as e:
                 logger.warning(f"⚠️ Не удалось удалить сообщение активации: {e}")
 
