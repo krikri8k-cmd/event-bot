@@ -326,7 +326,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                 persistent=True,
             )
 
-            await message.answer("💡 **Команда бота:** `/start`", reply_markup=start_keyboard, parse_mode="Markdown")
+            await message.answer("🤖 EventAroundBot активирован!", reply_markup=start_keyboard)
 
         except Exception as e:
             logger.error(f"❌ Ошибка отправки панели Community: {e}")
