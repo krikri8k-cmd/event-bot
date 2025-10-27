@@ -16,6 +16,7 @@ import re
 from datetime import datetime
 
 from aiogram import Bot, F, Router, types
+from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -227,18 +228,23 @@ MAIN_BOT_USERNAME = None  # Будет установлен в set_bot_username(
 group_router = Router(name="group_router")
 
 
-@group_router.message(F.text == "/start")
+@group_router.message(Command("start"))
 async def handle_start_command(message: Message, bot: Bot, session: AsyncSession):
     """Обработчик команды /start в группах - удаляем команду пользователя и показываем панель Community"""
     if message.chat.type in ("group", "supergroup"):
         logger.info(f"🔥 Команда /start от пользователя {message.from_user.id} в чате {message.chat.id}")
 
-        # Удаляем команду /start пользователя (как было раньше)
-        try:
-            await message.delete()
-            logger.info(f"✅ Удалена команда /start от пользователя {message.from_user.id} в чате {message.chat.id}")
-        except Exception as e:
-            logger.error(f"❌ Не удалось удалить команду /start: {e}")
+        # Удаляем команду /start пользователя (только если это не /start@bot)
+        if message.text == "/start":
+            try:
+                await message.delete()
+                logger.info(
+                    f"✅ Удалена команда /start от пользователя {message.from_user.id} в чате {message.chat.id}"
+                )
+            except Exception as e:
+                logger.error(f"❌ Не удалось удалить команду /start: {e}")
+        else:
+            logger.info(f"ℹ️ Команда {message.text} не удаляется (с упоминанием бота)")
 
         # СТОРОЖ КОМАНД: проверяем команды при каждом /start в группе
         try:
