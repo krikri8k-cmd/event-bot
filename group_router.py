@@ -22,6 +22,66 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import CommunityEvent
 from utils.messaging_utils import delete_all_tracked, is_chat_admin
 
+# Константы для восстановления команд
+GROUP_CMDS = [types.BotCommand("start", "🚀 Запустить бота")]
+LANGS = (None, "ru", "en")  # default + ru + en
+
+
+async def restore_commands_after_hide(event_or_chat_id, bot: types.Bot):
+    """Надежное восстановление команд после скрытия бота"""
+    try:
+        # 1) Вытащим chat_id безопасно
+        if isinstance(event_or_chat_id, int):
+            chat_id = event_or_chat_id
+            thread_id = None
+        else:
+            msg = event_or_chat_id if isinstance(event_or_chat_id, types.Message) else event_or_chat_id.message
+            chat_id = msg.chat.id  # ← ТОЛЬКО chat.id (отрицательный)
+            thread_id = getattr(msg, "message_thread_id", None)
+
+        logger.info(f"[restore] chat_id={chat_id} ({type(chat_id)}), thread_id={thread_id}")
+
+        # 2) Убедимся, что chat_id валиден (строка -> int)
+        if isinstance(chat_id, str):
+            chat_id = int(chat_id)
+
+        # 3) Убедимся, что бот состоит в чате и chat_id валиден
+        try:
+            chat = await bot.get_chat(chat_id)  # выбросит BadRequest если chat_id невалиден
+            assert chat.type in ("supergroup", "group"), f"Unexpected chat type: {chat.type}"
+            logger.info(f"[restore] Чат валиден: {chat.type} {chat_id}")
+        except Exception as e:
+            logger.error(f"[restore] Невалидный chat_id {chat_id}: {e}")
+            return
+
+        # 4) Иногда клиенту нужен миллисекундный таймаут после массового удаления
+        await asyncio.sleep(0.5)
+
+        # 5) Вернём кнопку "Команды бота" и /start СПЕЦИАЛЬНО для этого чата
+        for lang in LANGS:
+            try:
+                await bot.set_my_commands(GROUP_CMDS, scope=types.BotCommandScopeChat(chat_id), language_code=lang)
+                logger.info(f"[restore] Команды установлены для языка {lang or 'default'}")
+            except Exception as e:
+                logger.error(f"[restore] Ошибка установки команд для языка {lang}: {e}")
+
+        await bot.set_chat_menu_button(chat_id=chat_id, menu_button=types.MenuButtonCommands())
+        logger.info(f"[restore] Menu Button установлен для чата {chat_id}")
+
+        # 6) Подстраховка: повтор через 2 сек (мобильный кэш Telegram)
+        await asyncio.sleep(2)
+        for lang in LANGS:
+            try:
+                await bot.set_my_commands(GROUP_CMDS, scope=types.BotCommandScopeChat(chat_id), language_code=lang)
+            except Exception as e:
+                logger.error(f"[restore] Ошибка повторной установки команд для языка {lang}: {e}")
+
+        logger.info(f"[restore] /start восстановлена в чате {chat_id}")
+
+    except Exception as e:
+        logger.error(f"[restore] Критическая ошибка восстановления команд: {e}")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -607,18 +667,8 @@ async def group_hide_execute_direct(callback: CallbackQuery, bot: Bot, session: 
         parse_mode="Markdown",
     )
 
-    # ВОССТАНАВЛИВАЕМ КОМАНДЫ ПОСЛЕ СКРЫТИЯ БОТА
-    try:
-        # Пересоздаем меню команд для этой группы
-        await bot.set_chat_menu_button(chat_id=chat_id, menu_button=types.MenuButtonCommands())
-
-        # Восстанавливаем команды только для этой группы
-        group_commands = [types.BotCommand("start", "🚀 Запустить бота")]
-        await bot.set_my_commands(group_commands, scope=types.BotCommandScopeChat(chat_id))
-
-        logger.info(f"✅ Команды восстановлены для группы {chat_id} после скрытия бота (direct)")
-    except Exception as e:
-        logger.error(f"❌ Ошибка восстановления команд для группы {chat_id} (direct): {e}")
+    # ВОССТАНАВЛИВАЕМ КОМАНДЫ ПОСЛЕ СКРЫТИЯ БОТА (НАДЕЖНО)
+    await restore_commands_after_hide(chat_id, bot)
 
     # Удаляем уведомление через 5 секунд
     try:
@@ -686,18 +736,8 @@ async def group_hide_execute(callback: CallbackQuery, bot: Bot, session: AsyncSe
         parse_mode="Markdown",
     )
 
-    # ВОССТАНАВЛИВАЕМ КОМАНДЫ ПОСЛЕ СКРЫТИЯ БОТА
-    try:
-        # Пересоздаем меню команд для этой группы
-        await bot.set_chat_menu_button(chat_id=chat_id, menu_button=types.MenuButtonCommands())
-
-        # Восстанавливаем команды только для этой группы
-        group_commands = [types.BotCommand("start", "🚀 Запустить бота")]
-        await bot.set_my_commands(group_commands, scope=types.BotCommandScopeChat(chat_id))
-
-        logger.info(f"✅ Команды восстановлены для группы {chat_id} после скрытия бота")
-    except Exception as e:
-        logger.error(f"❌ Ошибка восстановления команд для группы {chat_id}: {e}")
+    # ВОССТАНАВЛИВАЕМ КОМАНДЫ ПОСЛЕ СКРЫТИЯ БОТА (НАДЕЖНО)
+    await restore_commands_after_hide(chat_id, bot)
 
     # Автоудаление через 8 секунд
     try:

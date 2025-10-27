@@ -1686,6 +1686,40 @@ async def setup_bot_commands():
         logger.error(f"❌ Ошибка установки команд бота: {e}")
 
 
+async def ensure_group_commands(bot):
+    """СТОРОЖ КОМАНД ДЛЯ ГРУПП: проверяет и восстанавливает команды в группах"""
+    try:
+        from contextlib import suppress
+
+        from aiogram.types import BotCommandScopeAllGroupChats
+
+        # Команды для групп - только /start в режиме Community
+        GROUP_CMDS = [types.BotCommand("start", "🚀 Запустить бота")]
+        LANGS = (None, "ru", "en")  # default + ru + en
+
+        # Проверяем группы - есть ли /start
+        ok = True
+        for lang in LANGS:
+            with suppress(Exception):
+                cmds = await bot.get_my_commands(scope=BotCommandScopeAllGroupChats(), language_code=lang)
+                if not any(c.command == "start" for c in cmds):
+                    ok = False
+                    logger.warning(f"❌ /start отсутствует в группах для языка {lang or 'default'}")
+                    break
+
+        if not ok:
+            logger.warning("🔄 Восстанавливаем команды для групп...")
+            for lang in LANGS:
+                with suppress(Exception):
+                    await bot.set_my_commands(GROUP_CMDS, scope=BotCommandScopeAllGroupChats(), language_code=lang)
+            logger.info("✅ Команды для групп восстановлены")
+        else:
+            logger.info("✅ Команды для групп в порядке")
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка сторожа команд для групп: {e}")
+
+
 async def ensure_commands(bot):
     """СТОРОЖ КОМАНД: idempotent auto-heal - проверяет и восстанавливает команды"""
     try:
@@ -1795,6 +1829,7 @@ async def periodic_commands_update():
             await asyncio.sleep(900)  # 15 минут
             logger.info("🔄 Сторож команд: проверяем состояние...")
             await ensure_commands(bot)
+            await ensure_group_commands(bot)  # Дополнительная проверка для групп
             logger.info("✅ Сторож команд завершен")
         except Exception as e:
             logger.error(f"❌ Ошибка сторожа команд: {e}")
