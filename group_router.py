@@ -291,6 +291,18 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                     "💡 Выберите действие:"
                 )
 
+                # Создаем ReplyKeyboard для основного сообщения
+                from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
+
+                start_keyboard = ReplyKeyboardMarkup(
+                    keyboard=[
+                        [KeyboardButton(text="/start")],
+                    ],
+                    resize_keyboard=True,
+                    one_time_keyboard=False,
+                    persistent=True,
+                )
+
                 await send_tracked(
                     bot,
                     session,
@@ -314,8 +326,8 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                     parse_mode="Markdown",
                 )
 
-            # Сначала отправляем панель Community БЕЗ ReplyKeyboard
-            # ReplyKeyboard появится только при отправке следующего сообщения
+            # Отправляем ReplyKeyboard с кнопкой /start сразу после панели
+            await message.answer("🤖 EventAroundBot активирован!", reply_markup=start_keyboard)
 
             # ПРИНУДИТЕЛЬНО для мобильных: устанавливаем команды и меню
             try:
@@ -330,23 +342,10 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
 
                 logger.info(f"✅ Команды и меню принудительно установлены для мобильных в чате {message.chat.id}")
 
-                # ReplyKeyboard с кнопкой /start + подсказка для мобильных
+                # Подсказка для мобильных (без ReplyKeyboard - он уже отправлен выше)
                 try:
-                    from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
-
-                    start_keyboard = ReplyKeyboardMarkup(
-                        keyboard=[
-                            [KeyboardButton(text="/start")],
-                        ],
-                        resize_keyboard=True,
-                        one_time_keyboard=False,
-                        persistent=True,
-                    )
-
                     hint_msg = await message.answer(
-                        "🤖 EventAroundBot активирован!\n\n"
                         "💡 **Для мобильных:** Нажмите на иконку сетки рядом с полем ввода для доступа к командам",
-                        reply_markup=start_keyboard,
                         parse_mode="Markdown",
                     )
                     # Удаляем подсказку через 5 секунд
