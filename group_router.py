@@ -32,11 +32,43 @@ async def ensure_group_start_command(bot: Bot, chat_id: int):
     """Устанавливает команду /start для конкретной группы (ускоряет мобильный клиент)"""
     try:
         cmds = [types.BotCommand(command="start", description="🚀 Запустить бота")]
-        for lang in (None, "ru", "en"):
-            await bot.set_my_commands(cmds, scope=types.BotCommandScopeChat(chat_id=chat_id), language_code=lang)
-            logger.info(f"✅ Команда /start установлена для группы {chat_id} (язык: {lang or 'default'})")
 
-        logger.info(f"✅ Команды для группы {chat_id} установлены")
+        # Для супергрупп нужна особая обработка
+        chat_type = "supergroup" if str(chat_id).startswith("-100") else "group"
+        logger.info(f"🔥 Устанавливаем команды для {chat_type} {chat_id}")
+
+        for lang in (None, "ru", "en"):
+            try:
+                # Для супергрупп пробуем разные подходы
+                if chat_type == "supergroup":
+                    # Сначала пробуем BotCommandScopeChat
+                    try:
+                        await bot.set_my_commands(
+                            cmds, scope=types.BotCommandScopeChat(chat_id=chat_id), language_code=lang
+                        )
+                        logger.info(
+                            f"✅ Команда /start установлена для супергруппы {chat_id} (язык: {lang or 'default'})"
+                        )
+                    except Exception as chat_scope_error:
+                        logger.warning(
+                            f"⚠️ BotCommandScopeChat не сработал для супергруппы {chat_id}: {chat_scope_error}"
+                        )
+                        # Fallback: используем AllGroupChats
+                        await bot.set_my_commands(cmds, scope=types.BotCommandScopeAllGroupChats(), language_code=lang)
+                        logger.info(
+                            f"✅ Fallback: команда /start установлена через AllGroupChats "
+                            f"для супергруппы {chat_id} (язык: {lang or 'default'})"
+                        )
+                else:
+                    # Для обычных групп
+                    await bot.set_my_commands(
+                        cmds, scope=types.BotCommandScopeChat(chat_id=chat_id), language_code=lang
+                    )
+                    logger.info(f"✅ Команда /start установлена для группы {chat_id} (язык: {lang or 'default'})")
+            except Exception as lang_error:
+                logger.warning(f"⚠️ Ошибка установки команд для языка {lang} в {chat_type} {chat_id}: {lang_error}")
+
+        logger.info(f"✅ Команды для {chat_type} {chat_id} установлены")
     except Exception as e:
         logger.error(f"⚠️ Ошибка ensure_group_start_command({chat_id}): {e}")
 
@@ -226,8 +258,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
         # УСТАНАВЛИВАЕМ КОМАНДЫ ДЛЯ КОНКРЕТНОЙ ГРУППЫ
         await ensure_group_start_command(bot, message.chat.id)
 
-        # МЯГКИЙ ПИНОК ИНТЕРФЕЙСА ДЛЯ МОБИЛЬНОГО КЛИЕНТА
-        await nudge_mobile_menu(bot, message.chat.id)
+        # Убираем промежуточное сообщение - оно не несет смысла
 
         # Показываем панель Community
         try:

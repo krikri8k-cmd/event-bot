@@ -7439,11 +7439,10 @@ async def handle_bot_chat_member_update(chat_member_update: ChatMemberUpdated, b
 
         # УСТАНАВЛИВАЕМ КОМАНДЫ ДЛЯ КОНКРЕТНОЙ ГРУППЫ
         try:
-            from group_router import ensure_group_start_command, nudge_mobile_menu
+            from group_router import ensure_group_start_command
 
             await ensure_group_start_command(bot, chat_member_update.chat.id)
-            await nudge_mobile_menu(bot, chat_member_update.chat.id)
-            logger.info(f"✅ Команды и подсказка установлены для группы {chat_member_update.chat.id}")
+            logger.info(f"✅ Команды установлены для группы {chat_member_update.chat.id}")
         except Exception as e:
             logger.warning(f"⚠️ Не удалось установить команды для группы {chat_member_update.chat.id}: {e}")
 
