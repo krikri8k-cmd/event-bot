@@ -1617,16 +1617,16 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
 
 
 async def setup_bot_commands():
-    """Устанавливает команды бота для мобильных устройств"""
+    """Устанавливает команды бота для мобильных устройств в режиме Community"""
     try:
         from aiogram.types import BotCommandScopeAllGroupChats, BotCommandScopeAllPrivateChats, BotCommandScopeDefault
 
-        # Команды для групповых чатов - только базовые
+        # Команды для групповых чатов - только /start в режиме Community
         group_commands = [
             types.BotCommand(command="start", description="🚀 Запустить бота"),
         ]
 
-        # Публичные команды для личных чатов
+        # Публичные команды для личных чатов (полный набор)
         public_commands = [
             types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
             types.BotCommand(command="nearby", description="📍 Что рядом - найти события поблизости"),
@@ -1648,7 +1648,7 @@ async def setup_bot_commands():
         await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats(), language_code="ru")
         await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats(), language_code="ru")
 
-        logger.info("✅ Команды бота восстановлены после создания события")
+        logger.info("✅ Команды бота восстановлены после создания события (Community: только /start)")
 
     except Exception as e:
         logger.error(f"❌ Ошибка восстановления команд бота: {e}")
