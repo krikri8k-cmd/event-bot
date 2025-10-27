@@ -258,19 +258,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
         # УСТАНАВЛИВАЕМ КОМАНДЫ ДЛЯ КОНКРЕТНОЙ ГРУППЫ
         await ensure_group_start_command(bot, message.chat.id)
 
-        # ПРИНУДИТЕЛЬНО ПОКАЗЫВАЕМ КОМАНДУ В СУПЕРГРУППАХ
-        if str(message.chat.id).startswith("-100"):
-            try:
-                # Отправляем сообщение с командой и сразу удаляем
-                cmd_msg = await bot.send_message(
-                    message.chat.id, "💡 **Команда бота:** `/start`", parse_mode="Markdown", disable_notification=True
-                )
-                # Удаляем через 2 секунды
-                await asyncio.sleep(2)
-                await bot.delete_message(message.chat.id, cmd_msg.message_id)
-                logger.info(f"✅ Команда /start показана в супергруппе {message.chat.id}")
-            except Exception as e:
-                logger.warning(f"⚠️ Не удалось показать команду в супергруппе {message.chat.id}: {e}")
+        # Убираем промежуточное сообщение с командой
 
         # Показываем панель Community
         try:
@@ -292,11 +280,8 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             try:
                 from utils.messaging_utils import send_tracked
 
-                # Добавляем подсказку о команде для супергрупп
-                panel_text = '👋 Привет! Я EventAroundBot - версия "Community".\n\n'
-                if str(message.chat.id).startswith("-100"):
-                    panel_text += "💡 **Команда бота:** `/start`\n\n"
-                panel_text += (
+                panel_text = (
+                    '👋 Привет! Я EventAroundBot - версия "Community".\n\n'
                     "🎯 Что умею:\n\n"
                     "• Создавать события участников чата\n"
                     "• Показывать события этого чата\n"
