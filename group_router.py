@@ -27,6 +27,25 @@ GROUP_CMDS = [types.BotCommand(command="start", description="🚀 Запусти
 LANGS = (None, "ru", "en")  # default + ru + en
 
 
+async def ensure_menu_visible(bot: Bot, chat_id: int):
+    """Заставляет Telegram Mobile показать меню команд в конкретном чате"""
+    try:
+        # Устанавливаем MenuButton для конкретного чата
+        await bot.set_chat_menu_button(chat_id=chat_id, menu_button=types.MenuButtonCommands())
+
+        # Дублируем команды на уровень конкретного чата для всех языков
+        for lang in (None, "ru", "en"):
+            await bot.set_my_commands(
+                GROUP_CMDS,
+                scope=types.BotCommandScopeChat(chat_id=chat_id),
+                language_code=lang,
+            )
+
+        logger.info(f"✅ Меню команд восстановлено в чате {chat_id}")
+    except Exception as e:
+        logger.error(f"⚠️ Ошибка ensure_menu_visible({chat_id}): {e}")
+
+
 async def restore_commands_after_hide(event_or_chat_id, bot: Bot):
     """Надежное восстановление команд после скрытия бота"""
     try:
@@ -187,6 +206,9 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             logger.info(f"✅ Сторож команд выполнен при /start в группе {message.chat.id}")
         except Exception as e:
             logger.error(f"❌ Ошибка сторожа команд при /start в группе {message.chat.id}: {e}")
+
+        # ЗАСТАВЛЯЕМ TELEGRAM MOBILE ПОКАЗАТЬ МЕНЮ КОМАНД
+        await ensure_menu_visible(bot, message.chat.id)
 
         # Показываем панель Community
         try:
@@ -672,7 +694,7 @@ async def group_hide_execute_direct(callback: CallbackQuery, bot: Bot, session: 
     )
 
     # ВОССТАНАВЛИВАЕМ КОМАНДЫ ПОСЛЕ СКРЫТИЯ БОТА (НАДЕЖНО)
-    await restore_commands_after_hide(chat_id, bot)
+    await ensure_menu_visible(bot, chat_id)
 
     # Удаляем уведомление через 5 секунд
     try:
@@ -741,7 +763,7 @@ async def group_hide_execute(callback: CallbackQuery, bot: Bot, session: AsyncSe
     )
 
     # ВОССТАНАВЛИВАЕМ КОМАНДЫ ПОСЛЕ СКРЫТИЯ БОТА (НАДЕЖНО)
-    await restore_commands_after_hide(chat_id, bot)
+    await ensure_menu_visible(bot, chat_id)
 
     # Автоудаление через 8 секунд
     try:
