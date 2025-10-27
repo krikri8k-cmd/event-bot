@@ -310,8 +310,73 @@ async def handle_new_members(message: Message):
     if bot_added:
         logger.info(f"🔥 Бот добавлен в группу {message.chat.id}")
 
-        # УБРАНО: автоматическая отправка клавиатуры при добавлении бота
-        # Теперь бот работает только через команды и меню, как в веб-версии
+        # Если это супергруппа, предлагаем выбрать ветку
+        if message.chat.type == "supergroup":
+            from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+            welcome_text = (
+                "🎉 **Бот добавлен в супергруппу!**\n\n"
+                "Выберите ветку для работы бота:\n\n"
+                "🌍 **World** - полный функционал для всех\n"
+                "👥 **Community** - только групповые события\n\n"
+                "Выберите режим работы:"
+            )
+
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(text="🌍 World (полный)", callback_data="branch_world"),
+                        InlineKeyboardButton(text="👥 Community (группа)", callback_data="branch_community"),
+                    ]
+                ]
+            )
+
+            await message.answer(welcome_text, parse_mode="Markdown", reply_markup=keyboard)
+            logger.info(f"✅ Предложен выбор ветки для супергруппы {message.chat.id}")
+        else:
+            # Для обычных групп - автоматически Community
+            await message.answer(
+                "🎉 **Бот добавлен в группу!**\n\n"
+                "Режим: **Community** - групповые события\n"
+                "Используйте /start для начала работы",
+                parse_mode="Markdown",
+            )
+            logger.info(f"✅ Автоматически установлен режим Community для группы {message.chat.id}")
+
+
+@group_router.callback_query(F.data == "branch_world")
+async def handle_branch_world(callback: CallbackQuery):
+    """Обработчик выбора ветки World"""
+    await callback.answer("🌍 Режим World активирован")
+
+    await callback.message.edit_text(
+        "🌍 **Режим World активирован!**\n\n"
+        "Доступен полный функционал:\n"
+        "• 📍 Поиск событий\n"
+        "• ➕ Создание событий\n"
+        "• 🎯 Квесты на районе\n"
+        "• 📋 Управление событиями\n\n"
+        "Используйте /start для начала работы",
+        parse_mode="Markdown",
+    )
+    logger.info(f"✅ Активирован режим World для группы {callback.message.chat.id}")
+
+
+@group_router.callback_query(F.data == "branch_community")
+async def handle_branch_community(callback: CallbackQuery):
+    """Обработчик выбора ветки Community"""
+    await callback.answer("👥 Режим Community активирован")
+
+    await callback.message.edit_text(
+        "👥 **Режим Community активирован!**\n\n"
+        "Доступны только групповые события:\n"
+        "• ➕ Создание групповых событий\n"
+        "• 📋 Просмотр событий группы\n"
+        "• 🗑️ Удаление событий (админы)\n\n"
+        "Используйте /start для начала работы",
+        parse_mode="Markdown",
+    )
+    logger.info(f"✅ Активирован режим Community для группы {callback.message.chat.id}")
 
 
 @group_router.callback_query(F.data == "group_list")
