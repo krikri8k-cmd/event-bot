@@ -1638,6 +1638,21 @@ async def setup_bot_commands():
             types.BotCommand(command="help", description="💬 Написать отзыв Разработчику"),
         ]
 
+        # Сначала очищаем все команды, чтобы избежать конфликтов
+        await bot.delete_my_commands(scope=BotCommandScopeDefault())
+        await bot.delete_my_commands(scope=BotCommandScopeAllPrivateChats())
+        await bot.delete_my_commands(scope=BotCommandScopeAllGroupChats())
+
+        # Очищаем команды для русской локали
+        await bot.delete_my_commands(scope=BotCommandScopeDefault(), language_code="ru")
+        await bot.delete_my_commands(scope=BotCommandScopeAllPrivateChats(), language_code="ru")
+        await bot.delete_my_commands(scope=BotCommandScopeAllGroupChats(), language_code="ru")
+
+        # Ждем немного, чтобы Telegram обработал удаление
+        import asyncio
+
+        await asyncio.sleep(1)
+
         # Устанавливаем команды для разных типов чатов
         await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault())
         await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats())
@@ -1727,6 +1742,9 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
     # Создаем пользователя если его нет
     ensure_user_exists(user_id, message.from_user)
     logger.info(f"cmd_start: пользователь {user_id}")
+
+    # Восстанавливаем команды бота при каждом запуске
+    await setup_bot_commands()
 
     # Разная логика для личных и групповых чатов
     if chat_type == "private":
