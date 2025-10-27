@@ -27,7 +27,7 @@ GROUP_CMDS = [types.BotCommand(command="start", description="🚀 Запусти
 LANGS = (None, "ru", "en")  # default + ru + en
 
 
-async def restore_commands_after_hide(event_or_chat_id, bot: types.Bot):
+async def restore_commands_after_hide(event_or_chat_id, bot: Bot):
     """Надежное восстановление команд после скрытия бота"""
     try:
         # 1) Вытащим chat_id безопасно
