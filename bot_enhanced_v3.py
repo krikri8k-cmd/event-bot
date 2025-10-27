@@ -1616,6 +1616,44 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
+async def setup_bot_commands():
+    """Устанавливает команды бота для мобильных устройств"""
+    try:
+        from aiogram.types import BotCommandScopeAllGroupChats, BotCommandScopeAllPrivateChats, BotCommandScopeDefault
+
+        # Команды для групповых чатов - только базовые
+        group_commands = [
+            types.BotCommand(command="start", description="🚀 Запустить бота"),
+        ]
+
+        # Публичные команды для личных чатов
+        public_commands = [
+            types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
+            types.BotCommand(command="nearby", description="📍 Что рядом - найти события поблизости"),
+            types.BotCommand(command="create", description="➕ Создать новое событие"),
+            types.BotCommand(command="myevents", description="📋 Мои события - просмотр созданных событий"),
+            types.BotCommand(command="tasks", description="🎯 Квесты на районе - найти задания поблизости"),
+            types.BotCommand(command="mytasks", description="🏆 Мои квесты - просмотр выполненных заданий"),
+            types.BotCommand(command="share", description="🔗 Поделиться ботом"),
+            types.BotCommand(command="help", description="💬 Написать отзыв Разработчику"),
+        ]
+
+        # Устанавливаем команды для разных типов чатов
+        await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault())
+        await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats())
+        await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats())
+
+        # Русская локаль для мобильных устройств
+        await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault(), language_code="ru")
+        await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats(), language_code="ru")
+        await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats(), language_code="ru")
+
+        logger.info("✅ Команды бота восстановлены после создания события")
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка восстановления команд бота: {e}")
+
+
 def ensure_user_exists(user_id: int, tg_user) -> None:
     """Создаёт пользователя в БД если его нет"""
     try:
@@ -2312,6 +2350,9 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
 
             # Отправляем новое сообщение с ReplyKeyboardMarkup вместо edit_text
             await callback.message.answer(success_text, parse_mode="Markdown", reply_markup=main_menu_kb())
+
+            # Восстанавливаем команды бота после создания события
+            await setup_bot_commands()
 
         except Exception as e:
             logger.error(f"Ошибка публикации в группу: {e}")
