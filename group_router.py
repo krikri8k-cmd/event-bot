@@ -16,7 +16,6 @@ import re
 from datetime import datetime
 
 from aiogram import Bot, F, Router, types
-from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -228,7 +227,7 @@ MAIN_BOT_USERNAME = None  # Будет установлен в set_bot_username(
 group_router = Router(name="group_router")
 
 
-@group_router.message(Command("start"))
+@group_router.message(F.text == "/start")
 async def handle_start_command(message: Message, bot: Bot, session: AsyncSession):
     """Обработчик команды /start в группах - удаляем команду пользователя и показываем панель Community"""
     if message.chat.type in ("group", "supergroup"):
@@ -260,20 +259,22 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
 
         # Убираем промежуточное сообщение с командой
 
-        # Показываем панель Community
+        # Показываем панель Community с ReplyKeyboard
         try:
-            # Создаем панель с кнопками Community
-            keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [
-                        InlineKeyboardButton(
-                            text="➕ Создать событие", url=f"https://t.me/EventAroundBot?start=group_{message.chat.id}"
-                        )
-                    ],
-                    [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_list")],
-                    [InlineKeyboardButton(text='🚀 Расширенная версия "World"', url="https://t.me/EventAroundBot")],
-                    [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_execute")],
-                ]
+            # Создаем ReplyKeyboard с кнопкой /start
+            from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
+
+            keyboard = ReplyKeyboardMarkup(
+                keyboard=[
+                    [KeyboardButton(text="/start")],
+                    [KeyboardButton(text="➕ Создать событие")],
+                    [KeyboardButton(text="📋 События этого чата")],
+                    [KeyboardButton(text="🚀 World-версия")],
+                    [KeyboardButton(text="👁 Спрятать бота")],
+                ],
+                resize_keyboard=True,
+                one_time_keyboard=False,
+                persistent=True,
             )
 
             # Отправляем панель Community с трекированием (автоудаление через 4 минуты)
@@ -315,6 +316,48 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
         except Exception as e:
             logger.error(f"❌ Ошибка отправки панели Community: {e}")
             await message.answer("🤖 EventAroundBot активирован в этом чате!")
+
+
+@group_router.message(F.text == "➕ Создать событие")
+async def handle_create_event(message: Message, bot: Bot, session: AsyncSession):
+    """Обработчик кнопки создания события"""
+    if message.chat.type in ("group", "supergroup"):
+        deep_link = f"https://t.me/EventAroundBot?start=group_{message.chat.id}"
+        await message.answer(
+            f"➕ **Создание события**\n\n"
+            f"Для создания события перейдите в личные сообщения с ботом:\n"
+            f"[Нажмите здесь]({deep_link})",
+            parse_mode="Markdown",
+        )
+
+
+@group_router.message(F.text == "📋 События этого чата")
+async def handle_list_events(message: Message, bot: Bot, session: AsyncSession):
+    """Обработчик кнопки списка событий"""
+    if message.chat.type in ("group", "supergroup"):
+        await message.answer(
+            "📅 **События этого чата**\n\n" "Функция в разработке...",
+        )
+
+
+@group_router.message(F.text == "🚀 World-версия")
+async def handle_world_version(message: Message, bot: Bot, session: AsyncSession):
+    """Обработчик кнопки World-версии"""
+    if message.chat.type in ("group", "supergroup"):
+        await message.answer(
+            "🚀 **World-версия**\n\n"
+            "Для доступа к полной версии бота:\n"
+            "[Перейти в World-версию](https://t.me/EventAroundBot)",
+            parse_mode="Markdown",
+        )
+
+
+@group_router.message(F.text == "👁 Спрятать бота")
+async def handle_hide_bot(message: Message, bot: Bot, session: AsyncSession):
+    """Обработчик кнопки скрытия бота"""
+    if message.chat.type in ("group", "supergroup"):
+        # Используем существующую логику скрытия
+        await group_hide_execute_direct(message, bot, session)
 
 
 # === ИНИЦИАЛИЗАЦИЯ ===
