@@ -14,7 +14,7 @@ import logging
 import re
 from datetime import datetime
 
-from aiogram import Bot, F, Router
+from aiogram import Bot, F, Router, types
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -607,6 +607,19 @@ async def group_hide_execute_direct(callback: CallbackQuery, bot: Bot, session: 
         parse_mode="Markdown",
     )
 
+    # ВОССТАНАВЛИВАЕМ КОМАНДЫ ПОСЛЕ СКРЫТИЯ БОТА
+    try:
+        # Пересоздаем меню команд для этой группы
+        await bot.set_chat_menu_button(chat_id=chat_id, menu_button=types.MenuButtonCommands())
+
+        # Восстанавливаем команды только для этой группы
+        group_commands = [types.BotCommand("start", "🚀 Запустить бота")]
+        await bot.set_my_commands(group_commands, scope=types.BotCommandScopeChat(chat_id))
+
+        logger.info(f"✅ Команды восстановлены для группы {chat_id} после скрытия бота (direct)")
+    except Exception as e:
+        logger.error(f"❌ Ошибка восстановления команд для группы {chat_id} (direct): {e}")
+
     # Удаляем уведомление через 5 секунд
     try:
         import asyncio
@@ -672,6 +685,19 @@ async def group_hide_execute(callback: CallbackQuery, bot: Bot, session: AsyncSe
         f"Для восстановления панели используйте /start",
         parse_mode="Markdown",
     )
+
+    # ВОССТАНАВЛИВАЕМ КОМАНДЫ ПОСЛЕ СКРЫТИЯ БОТА
+    try:
+        # Пересоздаем меню команд для этой группы
+        await bot.set_chat_menu_button(chat_id=chat_id, menu_button=types.MenuButtonCommands())
+
+        # Восстанавливаем команды только для этой группы
+        group_commands = [types.BotCommand("start", "🚀 Запустить бота")]
+        await bot.set_my_commands(group_commands, scope=types.BotCommandScopeChat(chat_id))
+
+        logger.info(f"✅ Команды восстановлены для группы {chat_id} после скрытия бота")
+    except Exception as e:
+        logger.error(f"❌ Ошибка восстановления команд для группы {chat_id}: {e}")
 
     # Автоудаление через 8 секунд
     try:
