@@ -23,7 +23,7 @@ from database import CommunityEvent
 from utils.messaging_utils import delete_all_tracked, is_chat_admin
 
 # Константы для восстановления команд
-GROUP_CMDS = [types.BotCommand("start", "🚀 Запустить бота")]
+GROUP_CMDS = [types.BotCommand(command="start", description="🚀 Запустить бота")]
 LANGS = (None, "ru", "en")  # default + ru + en
 
 
@@ -60,7 +60,9 @@ async def restore_commands_after_hide(event_or_chat_id, bot: types.Bot):
         # 5) Вернём кнопку "Команды бота" и /start СПЕЦИАЛЬНО для этого чата
         for lang in LANGS:
             try:
-                await bot.set_my_commands(GROUP_CMDS, scope=types.BotCommandScopeChat(chat_id), language_code=lang)
+                await bot.set_my_commands(
+                    GROUP_CMDS, scope=types.BotCommandScopeChat(chat_id=chat_id), language_code=lang
+                )
                 logger.info(f"[restore] Команды установлены для языка {lang or 'default'}")
             except Exception as e:
                 logger.error(f"[restore] Ошибка установки команд для языка {lang}: {e}")
@@ -72,7 +74,9 @@ async def restore_commands_after_hide(event_or_chat_id, bot: types.Bot):
         await asyncio.sleep(2)
         for lang in LANGS:
             try:
-                await bot.set_my_commands(GROUP_CMDS, scope=types.BotCommandScopeChat(chat_id), language_code=lang)
+                await bot.set_my_commands(
+                    GROUP_CMDS, scope=types.BotCommandScopeChat(chat_id=chat_id), language_code=lang
+                )
             except Exception as e:
                 logger.error(f"[restore] Ошибка повторной установки команд для языка {lang}: {e}")
 

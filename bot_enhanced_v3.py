@@ -1694,7 +1694,7 @@ async def ensure_group_commands(bot):
         from aiogram.types import BotCommandScopeAllGroupChats
 
         # Команды для групп - только /start в режиме Community
-        GROUP_CMDS = [types.BotCommand("start", "🚀 Запустить бота")]
+        GROUP_CMDS = [types.BotCommand(command="start", description="🚀 Запустить бота")]
         LANGS = (None, "ru", "en")  # default + ru + en
 
         # Проверяем группы - есть ли /start
@@ -1726,18 +1726,18 @@ async def ensure_commands(bot):
         from contextlib import suppress
 
         # Команды для групп - только /start в режиме Community
-        GROUP_CMDS = [types.BotCommand("start", "🚀 Запустить бота")]
+        GROUP_CMDS = [types.BotCommand(command="start", description="🚀 Запустить бота")]
 
         # Команды для личных чатов - полный набор
         PRIVATE_CMDS = [
-            types.BotCommand("start", "🚀 Запустить бота и показать меню"),
-            types.BotCommand("nearby", "📍 Что рядом - найти события поблизости"),
-            types.BotCommand("create", "➕ Создать новое событие"),
-            types.BotCommand("myevents", "📋 Мои события - просмотр созданных событий"),
-            types.BotCommand("tasks", "🎯 Квесты на районе - найти задания поблизости"),
-            types.BotCommand("mytasks", "🏆 Мои квесты - просмотр выполненных заданий"),
-            types.BotCommand("share", "🔗 Поделиться ботом"),
-            types.BotCommand("help", "💬 Написать отзыв Разработчику"),
+            types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
+            types.BotCommand(command="nearby", description="📍 Что рядом - найти события поблизости"),
+            types.BotCommand(command="create", description="➕ Создать новое событие"),
+            types.BotCommand(command="myevents", description="📋 Мои события - просмотр созданных событий"),
+            types.BotCommand(command="tasks", description="🎯 Квесты на районе - найти задания поблизости"),
+            types.BotCommand(command="mytasks", description="🏆 Мои квесты - просмотр выполненных заданий"),
+            types.BotCommand(command="share", description="🔗 Поделиться ботом"),
+            types.BotCommand(command="help", description="💬 Написать отзыв Разработчику"),
         ]
 
         LANGS = [None, "ru", "en"]  # расширяй при необходимости
