@@ -1663,6 +1663,11 @@ async def setup_bot_commands():
         await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats(), language_code="ru")
         await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats(), language_code="ru")
 
+        # Английская локаль для мобильных устройств
+        await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault(), language_code="en")
+        await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats(), language_code="en")
+        await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats(), language_code="en")
+
         logger.info("✅ Команды бота восстановлены после создания события (Community: только /start)")
 
     except Exception as e:
@@ -6520,7 +6525,12 @@ async def main():
         await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats(), language_code="ru")
         await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats(), language_code="ru")
 
-        # 3) Дополнительно для мобильных устройств - без языка, но с явным указанием scope
+        # 3) Английская локаль (для мобильных устройств с английской локализацией)
+        await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault(), language_code="en")
+        await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats(), language_code="en")
+        await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats(), language_code="en")
+
+        # 4) Дополнительно для мобильных устройств - без языка, но с явным указанием scope
         try:
             # Устанавливаем команды для групп без указания языка (для мобильных)
             await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats())
