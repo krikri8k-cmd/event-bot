@@ -1617,7 +1617,7 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
 
 
 async def setup_bot_commands():
-    """Устанавливает команды бота для мобильных устройств в режиме Community"""
+    """ЭТАЛОН: Устанавливает команды бота для всех языков и скоупов"""
     try:
         from aiogram.types import BotCommandScopeAllGroupChats, BotCommandScopeAllPrivateChats, BotCommandScopeDefault
 
@@ -1643,35 +1643,85 @@ async def setup_bot_commands():
         await bot.delete_my_commands(scope=BotCommandScopeAllPrivateChats())
         await bot.delete_my_commands(scope=BotCommandScopeAllGroupChats())
 
-        # Очищаем команды для русской локали
-        await bot.delete_my_commands(scope=BotCommandScopeDefault(), language_code="ru")
-        await bot.delete_my_commands(scope=BotCommandScopeAllPrivateChats(), language_code="ru")
-        await bot.delete_my_commands(scope=BotCommandScopeAllGroupChats(), language_code="ru")
+        # Очищаем команды для всех локалей
+        for lang in ["ru", "en"]:
+            await bot.delete_my_commands(scope=BotCommandScopeDefault(), language_code=lang)
+            await bot.delete_my_commands(scope=BotCommandScopeAllPrivateChats(), language_code=lang)
+            await bot.delete_my_commands(scope=BotCommandScopeAllGroupChats(), language_code=lang)
 
         # Ждем немного, чтобы Telegram обработал удаление
         import asyncio
 
         await asyncio.sleep(1)
 
-        # Устанавливаем команды для разных типов чатов
-        await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault())
-        await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats())
-        await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats())
+        # Устанавливаем команды для всех скоупов и языков
+        scopes = [
+            (BotCommandScopeDefault(), public_commands),
+            (BotCommandScopeAllPrivateChats(), public_commands),
+            (BotCommandScopeAllGroupChats(), group_commands),
+        ]
 
-        # Русская локаль для мобильных устройств
-        await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault(), language_code="ru")
-        await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats(), language_code="ru")
-        await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats(), language_code="ru")
+        languages = [None, "ru", "en"]  # None = default, ru = русский, en = английский
 
-        # Английская локаль для мобильных устройств
-        await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault(), language_code="en")
-        await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats(), language_code="en")
-        await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats(), language_code="en")
+        for scope, commands in scopes:
+            for lang in languages:
+                try:
+                    await bot.set_my_commands(commands, scope=scope, language_code=lang)
+                    logger.info(f"✅ Команды установлены: {scope.__class__.__name__} {lang or 'default'}")
+                except Exception as e:
+                    logger.error(f"❌ Ошибка установки команд {scope.__class__.__name__} {lang}: {e}")
 
-        logger.info("✅ Команды бота восстановлены после создания события (Community: только /start)")
+        # Принудительно показываем меню команд в ЛС
+        try:
+            from aiogram.types import MenuButtonCommands
+
+            await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+            logger.info("✅ Menu Button установлен для принудительного показа команд")
+        except Exception as e:
+            logger.warning(f"⚠️ Не удалось установить Menu Button: {e}")
+
+        logger.info("✅ Команды бота установлены для всех языков и скоупов")
 
     except Exception as e:
-        logger.error(f"❌ Ошибка восстановления команд бота: {e}")
+        logger.error(f"❌ Ошибка установки команд бота: {e}")
+
+
+async def dump_commands_healthcheck(bot):
+    """Runtime-healthcheck: проверяет команды по всем скоупам и языкам"""
+    try:
+        from aiogram.types import BotCommandScopeAllGroupChats, BotCommandScopeAllPrivateChats, BotCommandScopeDefault
+
+        scopes = [
+            BotCommandScopeDefault(),
+            BotCommandScopeAllPrivateChats(),
+            BotCommandScopeAllGroupChats(),
+        ]
+
+        logger.info("🔍 HEALTHCHECK: Проверяем команды бота...")
+
+        for lang in (None, "ru", "en"):
+            for scope in scopes:
+                try:
+                    cmds = await bot.get_my_commands(scope=scope, language_code=lang)
+                    scope_name = scope.__class__.__name__
+                    lang_name = lang or "default"
+                    cmd_list = [c.command for c in cmds]
+
+                    logger.info(f"HEALTHCHECK: {scope_name} {lang_name} => {cmd_list}")
+
+                    # Проверяем, что /start есть
+                    if "/start" not in cmd_list:
+                        logger.error(f"❌ КРИТИЧНО: /start отсутствует в {scope_name} {lang_name}!")
+                    else:
+                        logger.info(f"✅ /start найден в {scope_name} {lang_name}")
+
+                except Exception as e:
+                    logger.error(f"❌ Ошибка проверки {scope.__class__.__name__} {lang}: {e}")
+
+        logger.info("✅ HEALTHCHECK завершен")
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка healthcheck команд: {e}")
 
 
 async def periodic_commands_update():
@@ -6486,19 +6536,7 @@ async def main():
 
         await asyncio.sleep(3)
 
-        from aiogram.types import BotCommandScopeChat, BotCommandScopeDefault
-
-        # Публичные команды - все основные функции для обычных пользователей
-        public_commands = [
-            types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
-            types.BotCommand(command="nearby", description="📍 Что рядом - найти события поблизости"),
-            types.BotCommand(command="create", description="➕ Создать новое событие"),
-            types.BotCommand(command="myevents", description="📋 Мои события - просмотр созданных событий"),
-            types.BotCommand(command="tasks", description="🎯 Квесты на районе - найти задания поблизости"),
-            types.BotCommand(command="mytasks", description="🏆 Мои квесты - просмотр выполненных заданий"),
-            types.BotCommand(command="share", description="🔗 Поделиться ботом"),
-            types.BotCommand(command="help", description="💬 Написать отзыв Разработчику"),
-        ]
+        from aiogram.types import BotCommandScopeChat
 
         # Админские команды - только для админа
         admin_commands = [
@@ -6509,34 +6547,8 @@ async def main():
             types.BotCommand(command="diag_commands", description="🔧 Диагностика команд бота"),
         ]
 
-        # Команды для групповых чатов - только базовые
-        group_commands = [
-            types.BotCommand(command="start", description="🚀 Запустить бота"),
-        ]
-
-        # Устанавливаем команды для разных типов чатов с поддержкой языков
-        # 1) Default (на все случаи) — без языка
-        await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault())
-        await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats())
-        await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats())
-
-        # 2) Русская локаль (для мобильных устройств с русской локализацией)
-        await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault(), language_code="ru")
-        await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats(), language_code="ru")
-        await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats(), language_code="ru")
-
-        # 3) Английская локаль (для мобильных устройств с английской локализацией)
-        await bot.set_my_commands(public_commands, scope=BotCommandScopeDefault(), language_code="en")
-        await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats(), language_code="en")
-        await bot.set_my_commands(public_commands, scope=BotCommandScopeAllPrivateChats(), language_code="en")
-
-        # 4) Дополнительно для мобильных устройств - без языка, но с явным указанием scope
-        try:
-            # Устанавливаем команды для групп без указания языка (для мобильных)
-            await bot.set_my_commands(group_commands, scope=BotCommandScopeAllGroupChats())
-            logger.info("✅ Команды для групп установлены для мобильных устройств")
-        except Exception as e:
-            logger.error(f"❌ Ошибка установки команд для мобильных: {e}")
+        # Используем эталонную функцию установки команд
+        await setup_bot_commands()
 
         # Устанавливаем админские команды для всех админов
         admin_ids_str = os.getenv("ADMIN_IDS", "")
@@ -6561,6 +6573,12 @@ async def main():
             logger.info(f"🔍 Текущие команды для групп: {[cmd.command for cmd in current_commands]}")
         except Exception as e:
             logger.error(f"❌ Ошибка получения команд: {e}")
+
+        # RUNTIME HEALTHCHECK: проверяем команды по всем скоупам и языкам
+        try:
+            await dump_commands_healthcheck(bot)
+        except Exception as e:
+            logger.error(f"❌ Ошибка healthcheck команд: {e}")
 
         # Устанавливаем кнопку меню с диагностикой
         try:
