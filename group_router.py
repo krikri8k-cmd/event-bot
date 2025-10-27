@@ -234,17 +234,14 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
     if message.chat.type in ("group", "supergroup"):
         logger.info(f"🔥 Команда /start от пользователя {message.from_user.id} в чате {message.chat.id}")
 
-        # Удаляем команду /start пользователя (только если это не /start@bot)
-        if message.text == "/start":
-            try:
-                await message.delete()
-                logger.info(
-                    f"✅ Удалена команда /start от пользователя {message.from_user.id} в чате {message.chat.id}"
-                )
-            except Exception as e:
-                logger.error(f"❌ Не удалось удалить команду /start: {e}")
-        else:
-            logger.info(f"ℹ️ Команда {message.text} не удаляется (с упоминанием бота)")
+        # Удаляем команду /start пользователя (все варианты)
+        try:
+            await message.delete()
+            logger.info(
+                f"✅ Удалена команда {message.text} от пользователя {message.from_user.id} в чате {message.chat.id}"
+            )
+        except Exception as e:
+            logger.error(f"❌ Не удалось удалить команду {message.text}: {e}")
 
         # СТОРОЖ КОМАНД: проверяем команды при каждом /start в группе
         try:
