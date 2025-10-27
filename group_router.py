@@ -328,6 +328,34 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
 
             await message.answer("🤖 EventAroundBot активирован!", reply_markup=start_keyboard)
 
+            # ПРИНУДИТЕЛЬНО для мобильных: устанавливаем команды и меню
+            try:
+                # Устанавливаем команды для конкретного чата
+                await bot.set_my_commands(
+                    [types.BotCommand(command="start", description="🚀 Запустить бота")],
+                    scope=types.BotCommandScopeChat(chat_id=message.chat.id),
+                )
+
+                # Устанавливаем MenuButton для принудительного показа команд
+                await bot.set_chat_menu_button(chat_id=message.chat.id, menu_button=types.MenuButtonCommands())
+
+                logger.info(f"✅ Команды и меню принудительно установлены для мобильных в чате {message.chat.id}")
+
+                # Дополнительная подсказка для мобильных (удаляется через 5 секунд)
+                try:
+                    hint_msg = await message.answer(
+                        "💡 **Для мобильных:** Нажмите на иконку сетки рядом с полем ввода для доступа к командам",
+                        parse_mode="Markdown",
+                    )
+                    # Удаляем подсказку через 5 секунд
+                    await asyncio.sleep(5)
+                    await bot.delete_message(message.chat.id, hint_msg.message_id)
+                except Exception as hint_error:
+                    logger.warning(f"⚠️ Не удалось отправить подсказку для мобильных: {hint_error}")
+
+            except Exception as e:
+                logger.warning(f"⚠️ Не удалось установить команды для мобильных: {e}")
+
         except Exception as e:
             logger.error(f"❌ Ошибка отправки панели Community: {e}")
             await message.answer("🤖 EventAroundBot активирован в этом чате!")
