@@ -7437,27 +7437,15 @@ async def handle_bot_chat_member_update(chat_member_update: ChatMemberUpdated, b
         except Exception as e:
             logger.error(f"❌ Ошибка сторожа команд для группы {chat_member_update.chat.id}: {e}")
 
-        # UX-ТРЮК: отправляем сообщение чтобы Telegram Mobile показал меню
+        # УСТАНАВЛИВАЕМ КОМАНДЫ ДЛЯ КОНКРЕТНОЙ ГРУППЫ
         try:
-            await bot.send_message(
-                chat_member_update.chat.id,
-                "👋 **Бот активирован в этом чате!**\n\n" "Используйте /start для начала работы",
-                parse_mode="Markdown",
-            )
-            logger.info(f"✅ Приветственное сообщение отправлено в группу {chat_member_update.chat.id}")
-        except Exception as e:
-            logger.warning(
-                f"⚠️ Не удалось отправить приветственное сообщение в группу {chat_member_update.chat.id}: {e}"
-            )
+            from group_router import ensure_group_start_command, nudge_mobile_menu
 
-        # Принудительно показываем меню команд для этой группы
-        try:
-            from group_router import ensure_menu_visible
-
-            await ensure_menu_visible(bot, chat_member_update.chat.id)
-            logger.info(f"✅ Меню команд установлено для группы {chat_member_update.chat.id}")
+            await ensure_group_start_command(bot, chat_member_update.chat.id)
+            await nudge_mobile_menu(bot, chat_member_update.chat.id)
+            logger.info(f"✅ Команды и подсказка установлены для группы {chat_member_update.chat.id}")
         except Exception as e:
-            logger.warning(f"⚠️ Не удалось установить меню команд для группы {chat_member_update.chat.id}: {e}")
+            logger.warning(f"⚠️ Не удалось установить команды для группы {chat_member_update.chat.id}: {e}")
 
 
 if __name__ == "__main__":

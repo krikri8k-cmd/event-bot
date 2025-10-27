@@ -10,6 +10,7 @@
 """
 
 import asyncio
+import contextlib
 import logging
 import re
 from datetime import datetime
@@ -27,23 +28,33 @@ GROUP_CMDS = [types.BotCommand(command="start", description="🚀 Запусти
 LANGS = (None, "ru", "en")  # default + ru + en
 
 
-async def ensure_menu_visible(bot: Bot, chat_id: int):
-    """Заставляет Telegram Mobile показать меню команд в конкретном чате"""
+async def ensure_group_start_command(bot: Bot, chat_id: int):
+    """Устанавливает команду /start для конкретной группы (ускоряет мобильный клиент)"""
     try:
-        # Устанавливаем MenuButton для конкретного чата
-        await bot.set_chat_menu_button(chat_id=chat_id, menu_button=types.MenuButtonCommands())
-
-        # Дублируем команды на уровень конкретного чата для всех языков
+        cmds = [types.BotCommand(command="start", description="🚀 Запустить бота")]
         for lang in (None, "ru", "en"):
-            await bot.set_my_commands(
-                GROUP_CMDS,
-                scope=types.BotCommandScopeChat(chat_id=chat_id),
-                language_code=lang,
-            )
+            await bot.set_my_commands(cmds, scope=types.BotCommandScopeChat(chat_id=chat_id), language_code=lang)
+            logger.info(f"✅ Команда /start установлена для группы {chat_id} (язык: {lang or 'default'})")
 
-        logger.info(f"✅ Меню команд восстановлено в чате {chat_id}")
+        logger.info(f"✅ Команды для группы {chat_id} установлены")
     except Exception as e:
-        logger.error(f"⚠️ Ошибка ensure_menu_visible({chat_id}): {e}")
+        logger.error(f"⚠️ Ошибка ensure_group_start_command({chat_id}): {e}")
+
+
+async def nudge_mobile_menu(bot: Bot, chat_id: int):
+    """Мягкий пинок интерфейса - подсказка для мобильного клиента"""
+    try:
+        msg = await bot.send_message(
+            chat_id,
+            "ℹ️ Чтобы открыть команды, нажмите `/` или введите `/start@EventAroundBot`.",
+            disable_notification=True,
+        )
+        await asyncio.sleep(3)
+        with contextlib.suppress(Exception):
+            await bot.delete_message(chat_id, msg.message_id)
+        logger.info(f"✅ Подсказка отправлена и удалена в группе {chat_id}")
+    except Exception as e:
+        logger.error(f"⚠️ Ошибка nudge_mobile_menu({chat_id}): {e}")
 
 
 async def restore_commands_after_hide(event_or_chat_id, bot: Bot):
@@ -207,8 +218,16 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
         except Exception as e:
             logger.error(f"❌ Ошибка сторожа команд при /start в группе {message.chat.id}: {e}")
 
-        # ЗАСТАВЛЯЕМ TELEGRAM MOBILE ПОКАЗАТЬ МЕНЮ КОМАНД
-        await ensure_menu_visible(bot, message.chat.id)
+        # ЛОГИРУЕМ ИНФОРМАЦИЮ О ЧАТЕ
+        is_forum = message.chat.type == "supergroup"
+        thread_id = getattr(message, "message_thread_id", None)
+        logger.info(f"🔥 /start в группе: chat_id={message.chat.id}, is_forum={is_forum}, thread_id={thread_id}")
+
+        # УСТАНАВЛИВАЕМ КОМАНДЫ ДЛЯ КОНКРЕТНОЙ ГРУППЫ
+        await ensure_group_start_command(bot, message.chat.id)
+
+        # МЯГКИЙ ПИНОК ИНТЕРФЕЙСА ДЛЯ МОБИЛЬНОГО КЛИЕНТА
+        await nudge_mobile_menu(bot, message.chat.id)
 
         # Показываем панель Community
         try:
@@ -694,7 +713,7 @@ async def group_hide_execute_direct(callback: CallbackQuery, bot: Bot, session: 
     )
 
     # ВОССТАНАВЛИВАЕМ КОМАНДЫ ПОСЛЕ СКРЫТИЯ БОТА (НАДЕЖНО)
-    await ensure_menu_visible(bot, chat_id)
+    await ensure_group_start_command(bot, chat_id)
 
     # Удаляем уведомление через 5 секунд
     try:
@@ -763,7 +782,7 @@ async def group_hide_execute(callback: CallbackQuery, bot: Bot, session: AsyncSe
     )
 
     # ВОССТАНАВЛИВАЕМ КОМАНДЫ ПОСЛЕ СКРЫТИЯ БОТА (НАДЕЖНО)
-    await ensure_menu_visible(bot, chat_id)
+    await ensure_group_start_command(bot, chat_id)
 
     # Автоудаление через 8 секунд
     try:
