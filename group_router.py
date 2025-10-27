@@ -115,6 +115,15 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
         except Exception as e:
             logger.error(f"❌ Не удалось удалить команду /start: {e}")
 
+        # СТОРОЖ КОМАНД: проверяем команды при каждом /start в группе
+        try:
+            from bot_enhanced_v3 import ensure_commands
+
+            await ensure_commands(bot)
+            logger.info(f"✅ Сторож команд выполнен при /start в группе {message.chat.id}")
+        except Exception as e:
+            logger.error(f"❌ Ошибка сторожа команд при /start в группе {message.chat.id}: {e}")
+
         # Показываем панель Community
         try:
             # Создаем панель с кнопками Community

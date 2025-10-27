@@ -1686,6 +1686,70 @@ async def setup_bot_commands():
         logger.error(f"❌ Ошибка установки команд бота: {e}")
 
 
+async def ensure_commands(bot):
+    """СТОРОЖ КОМАНД: idempotent auto-heal - проверяет и восстанавливает команды"""
+    try:
+        from contextlib import suppress
+
+        # Команды для групп - только /start в режиме Community
+        GROUP_CMDS = [types.BotCommand("start", "🚀 Запустить бота")]
+
+        # Команды для личных чатов - полный набор
+        PRIVATE_CMDS = [
+            types.BotCommand("start", "🚀 Запустить бота и показать меню"),
+            types.BotCommand("nearby", "📍 Что рядом - найти события поблизости"),
+            types.BotCommand("create", "➕ Создать новое событие"),
+            types.BotCommand("myevents", "📋 Мои события - просмотр созданных событий"),
+            types.BotCommand("tasks", "🎯 Квесты на районе - найти задания поблизости"),
+            types.BotCommand("mytasks", "🏆 Мои квесты - просмотр выполненных заданий"),
+            types.BotCommand("share", "🔗 Поделиться ботом"),
+            types.BotCommand("help", "💬 Написать отзыв Разработчику"),
+        ]
+
+        LANGS = [None, "ru", "en"]  # расширяй при необходимости
+
+        async def _set(scope, cmds):
+            """Устанавливает команды для всех языков"""
+            for lang in LANGS:
+                with suppress(Exception):
+                    await bot.set_my_commands(cmds, scope=scope, language_code=lang)
+
+        # Проверяем группы - есть ли /start
+        ok = True
+        for lang in LANGS:
+            with suppress(Exception):
+                cmds = await bot.get_my_commands(scope=types.BotCommandScopeAllGroupChats(), language_code=lang)
+                if not any(c.command == "start" for c in cmds):
+                    ok = False
+                    logger.warning(f"❌ /start отсутствует в группах для языка {lang or 'default'}")
+                    break
+
+        if not ok:
+            logger.warning("🔄 Восстанавливаем команды...")
+            await _set(types.BotCommandScopeDefault(), PRIVATE_CMDS)
+            await _set(types.BotCommandScopeAllPrivateChats(), PRIVATE_CMDS)
+            await _set(types.BotCommandScopeAllGroupChats(), GROUP_CMDS)
+            logger.info("✅ Команды восстановлены")
+        else:
+            logger.info("✅ Команды в порядке")
+
+        # Опционально лог-хелсчек
+        with suppress(Exception):
+            dump = []
+            for scope in (
+                types.BotCommandScopeDefault(),
+                types.BotCommandScopeAllPrivateChats(),
+                types.BotCommandScopeAllGroupChats(),
+            ):
+                for lang in LANGS:
+                    c = await bot.get_my_commands(scope=scope, language_code=lang)
+                    dump.append((scope.__class__.__name__, lang, [x.command for x in c]))
+            logger.info(f"COMMANDS_HEALTH: {dump}")
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка сторожа команд: {e}")
+
+
 async def dump_commands_healthcheck(bot):
     """Runtime-healthcheck: проверяет команды по всем скоупам и языкам"""
     try:
@@ -1725,15 +1789,15 @@ async def dump_commands_healthcheck(bot):
 
 
 async def periodic_commands_update():
-    """Периодическое обновление команд бота каждые 30 минут"""
+    """СТОРОЖ КОМАНД: проверяет и восстанавливает команды каждые 15 минут"""
     while True:
         try:
-            await asyncio.sleep(1800)  # 30 минут
-            logger.info("🔄 Периодическое обновление команд бота...")
-            await setup_bot_commands()
-            logger.info("✅ Команды бота обновлены периодически")
+            await asyncio.sleep(900)  # 15 минут
+            logger.info("🔄 Сторож команд: проверяем состояние...")
+            await ensure_commands(bot)
+            logger.info("✅ Сторож команд завершен")
         except Exception as e:
-            logger.error(f"❌ Ошибка периодического обновления команд: {e}")
+            logger.error(f"❌ Ошибка сторожа команд: {e}")
             await asyncio.sleep(300)  # При ошибке ждем 5 минут
 
 
@@ -6580,6 +6644,12 @@ async def main():
         except Exception as e:
             logger.error(f"❌ Ошибка healthcheck команд: {e}")
 
+        # СТОРОЖ КОМАНД: проверяем и восстанавливаем команды при старте
+        try:
+            await ensure_commands(bot)
+        except Exception as e:
+            logger.error(f"❌ Ошибка сторожа команд при старте: {e}")
+
         # Устанавливаем кнопку меню с диагностикой
         try:
             from aiogram.types import MenuButtonCommands
@@ -7324,6 +7394,22 @@ async def handle_bot_chat_member_update(chat_member_update: ChatMemberUpdated, b
             logger.info(f"✅ Команды настроены для группы {chat_member_update.chat.id}")
         except Exception as e:
             logger.warning(f"Не удалось настроить команды для группы {chat_member_update.chat.id}: {e}")
+
+        # СТОРОЖ КОМАНД: проверяем и восстанавливаем команды при добавлении в группу
+        try:
+            await ensure_commands(bot)
+            logger.info(f"✅ Сторож команд выполнен для группы {chat_member_update.chat.id}")
+        except Exception as e:
+            logger.error(f"❌ Ошибка сторожа команд для группы {chat_member_update.chat.id}: {e}")
+
+        # Принудительно показываем меню команд для этой группы
+        try:
+            from aiogram.types import MenuButtonCommands
+
+            await bot.set_chat_menu_button(chat_id=chat_member_update.chat.id, menu_button=MenuButtonCommands())
+            logger.info(f"✅ Menu Button установлен для группы {chat_member_update.chat.id}")
+        except Exception as e:
+            logger.warning(f"⚠️ Не удалось установить Menu Button для группы {chat_member_update.chat.id}: {e}")
 
 
 if __name__ == "__main__":
