@@ -20,7 +20,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import CommunityEvent
-from utils.messaging_utils import delete_all_tracked, ensure_panel, is_chat_admin
+from utils.messaging_utils import delete_all_tracked, is_chat_admin
 
 logger = logging.getLogger(__name__)
 
@@ -270,33 +270,6 @@ def group_kb(chat_id: int) -> InlineKeyboardMarkup:
 # === ОБРАБОТЧИКИ ===
 
 
-@group_router.message(Command("start"))
-async def group_start(message: Message, bot: Bot, session: AsyncSession):
-    """Приветствие в групповом чате - создает/редактирует панель-пост"""
-    chat_id = message.chat.id
-    logger.info(f"🔥 group_start: команда /start в группе {chat_id} от пользователя {message.from_user.id}")
-
-    try:
-        logger.info(f"🔥 group_start: вызываем ensure_panel для чата {chat_id}")
-        panel_id = await ensure_panel(bot, session, chat_id=chat_id, text=PANEL_TEXT, kb=group_kb(chat_id))
-        logger.info(f"🔥 group_start: ensure_panel вернул message_id={panel_id}")
-
-        # ПРИНУДИТЕЛЬНО отправляем простую клавиатуру для максимальной совместимости
-        await message.answer(
-            "🚀 **Бот активирован!**\n\n" "Используйте команды для управления:",
-        )
-
-        # УБРАНО: дополнительная клавиатура - теперь используем только команды
-
-    except Exception as e:
-        logger.error(f"❌ group_start: ошибка при создании панели: {e}")
-        # Fallback - отправляем обычное сообщение без клавиатуры
-        await message.answer(
-            PANEL_TEXT + "\n\n🚀 **Используйте команды для управления:**",
-            parse_mode="Markdown",
-        )
-
-
 # УБРАНО: обработчики кнопок Reply Keyboard - теперь бот работает только через команды и меню
 
 
@@ -310,73 +283,10 @@ async def handle_new_members(message: Message):
     if bot_added:
         logger.info(f"🔥 Бот добавлен в группу {message.chat.id}")
 
-        # Если это супергруппа, предлагаем выбрать ветку
-        if message.chat.type == "supergroup":
-            from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-
-            welcome_text = (
-                "🎉 **Бот добавлен в супергруппу!**\n\n"
-                "Выберите ветку для работы бота:\n\n"
-                "🌍 **World** - полный функционал для всех\n"
-                "👥 **Community** - только групповые события\n\n"
-                "Выберите режим работы:"
-            )
-
-            keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [
-                        InlineKeyboardButton(text="🌍 World (полный)", callback_data="branch_world"),
-                        InlineKeyboardButton(text="👥 Community (группа)", callback_data="branch_community"),
-                    ]
-                ]
-            )
-
-            await message.answer(welcome_text, parse_mode="Markdown", reply_markup=keyboard)
-            logger.info(f"✅ Предложен выбор ветки для супергруппы {message.chat.id}")
-        else:
-            # Для обычных групп - автоматически Community
-            await message.answer(
-                "🎉 **Бот добавлен в группу!**\n\n"
-                "Режим: **Community** - групповые события\n"
-                "Используйте /start для начала работы",
-                parse_mode="Markdown",
-            )
-            logger.info(f"✅ Автоматически установлен режим Community для группы {message.chat.id}")
-
-
-@group_router.callback_query(F.data == "branch_world")
-async def handle_branch_world(callback: CallbackQuery):
-    """Обработчик выбора ветки World"""
-    await callback.answer("🌍 Режим World активирован")
-
-    await callback.message.edit_text(
-        "🌍 **Режим World активирован!**\n\n"
-        "Доступен полный функционал:\n"
-        "• 📍 Поиск событий\n"
-        "• ➕ Создание событий\n"
-        "• 🎯 Квесты на районе\n"
-        "• 📋 Управление событиями\n\n"
-        "Используйте /start для начала работы",
-        parse_mode="Markdown",
-    )
-    logger.info(f"✅ Активирован режим World для группы {callback.message.chat.id}")
-
-
-@group_router.callback_query(F.data == "branch_community")
-async def handle_branch_community(callback: CallbackQuery):
-    """Обработчик выбора ветки Community"""
-    await callback.answer("👥 Режим Community активирован")
-
-    await callback.message.edit_text(
-        "👥 **Режим Community активирован!**\n\n"
-        "Доступны только групповые события:\n"
-        "• ➕ Создание групповых событий\n"
-        "• 📋 Просмотр событий группы\n"
-        "• 🗑️ Удаление событий (админы)\n\n"
-        "Используйте /start для начала работы",
-        parse_mode="Markdown",
-    )
-    logger.info(f"✅ Активирован режим Community для группы {callback.message.chat.id}")
+        # Простое приветствие без выбора ветки
+        await message.answer(
+            "🎉 **Бот добавлен в группу!**\n\n" "Используйте /start для начала работы", parse_mode="Markdown"
+        )
 
 
 @group_router.callback_query(F.data == "group_list")
