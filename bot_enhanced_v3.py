@@ -1623,12 +1623,12 @@ async def setup_bot_commands():
 
         # Команды для групповых чатов - только /start в режиме Community
         group_commands = [
-            types.BotCommand(command="start", description="🚀 Запустить бота"),
+            types.BotCommand(command="start", description="🎉 События чата"),
         ]
 
         # Публичные команды для личных чатов (полный набор)
         public_commands = [
-            types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
+            types.BotCommand(command="start", description="🎉 События чата"),
             types.BotCommand(command="nearby", description="📍 Что рядом - найти события поблизости"),
             types.BotCommand(command="create", description="➕ Создать новое событие"),
             types.BotCommand(command="myevents", description="📋 Мои события - просмотр созданных событий"),
@@ -1694,7 +1694,7 @@ async def ensure_group_commands(bot):
         from aiogram.types import BotCommandScopeAllGroupChats
 
         # Команды для групп - только /start в режиме Community
-        GROUP_CMDS = [types.BotCommand(command="start", description="🚀 Запустить бота")]
+        GROUP_CMDS = [types.BotCommand(command="start", description="🎉 События чата")]
         LANGS = (None, "ru", "en")  # default + ru + en
 
         # Проверяем группы - есть ли /start
@@ -1726,11 +1726,11 @@ async def ensure_commands(bot):
         from contextlib import suppress
 
         # Команды для групп - только /start в режиме Community
-        GROUP_CMDS = [types.BotCommand(command="start", description="🚀 Запустить бота")]
+        GROUP_CMDS = [types.BotCommand(command="start", description="🎉 События чата")]
 
         # Команды для личных чатов - полный набор
         PRIVATE_CMDS = [
-            types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
+            types.BotCommand(command="start", description="🎉 События чата"),
             types.BotCommand(command="nearby", description="📍 Что рядом - найти события поблизости"),
             types.BotCommand(command="create", description="➕ Создать новое событие"),
             types.BotCommand(command="myevents", description="📋 Мои события - просмотр созданных событий"),

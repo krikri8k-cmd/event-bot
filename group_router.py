@@ -24,14 +24,14 @@ from database import CommunityEvent
 from utils.messaging_utils import delete_all_tracked, is_chat_admin
 
 # Константы для восстановления команд
-GROUP_CMDS = [types.BotCommand(command="start", description="🚀 Запустить бота")]
+GROUP_CMDS = [types.BotCommand(command="start", description="🎉 События чата")]
 LANGS = (None, "ru", "en")  # default + ru + en
 
 
 async def ensure_group_start_command(bot: Bot, chat_id: int):
     """Устанавливает команду /start для конкретной группы (ускоряет мобильный клиент)"""
     try:
-        cmds = [types.BotCommand(command="start", description="🚀 Запустить бота")]
+        cmds = [types.BotCommand(command="start", description="🎉 События чата")]
 
         # Для супергрупп нужна особая обработка
         chat_type = "supergroup" if str(chat_id).startswith("-100") else "group"
@@ -351,7 +351,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             try:
                 # Устанавливаем команды для конкретного чата
                 await bot.set_my_commands(
-                    [types.BotCommand(command="start", description="🚀 Запустить бота")],
+                    [types.BotCommand(command="start", description="🎉 События чата")],
                     scope=types.BotCommandScopeChat(chat_id=message.chat.id),
                 )
 
@@ -400,7 +400,7 @@ async def setup_group_menu_button(bot, group_id: int = None):
 
         # Команды только для групп
         group_commands = [
-            BotCommand(command="start", description="🚀 Запустить бота"),
+            BotCommand(command="start", description="🎉 События чата"),
         ]
 
         # Устанавливаем команды только для групп (без языка и с русской локалью)
