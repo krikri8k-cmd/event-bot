@@ -1628,7 +1628,7 @@ async def setup_bot_commands():
 
         # Публичные команды для личных чатов (полный набор)
         public_commands = [
-            types.BotCommand(command="start", description="🎉 События чата"),
+            types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
             types.BotCommand(command="nearby", description="📍 Что рядом - найти события поблизости"),
             types.BotCommand(command="create", description="➕ Создать новое событие"),
             types.BotCommand(command="myevents", description="📋 Мои события - просмотр созданных событий"),
@@ -1730,7 +1730,7 @@ async def ensure_commands(bot):
 
         # Команды для личных чатов - полный набор
         PRIVATE_CMDS = [
-            types.BotCommand(command="start", description="🎉 События чата"),
+            types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
             types.BotCommand(command="nearby", description="📍 Что рядом - найти события поблизости"),
             types.BotCommand(command="create", description="➕ Создать новое событие"),
             types.BotCommand(command="myevents", description="📋 Мои события - просмотр созданных событий"),
