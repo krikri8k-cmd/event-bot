@@ -6395,15 +6395,27 @@ async def handle_pagination(callback: types.CallbackQuery):
         # Создаем клавиатуру пагинации
         combined_keyboard = kb_pager(page, total_pages, current_radius)
 
-        # Обновляем сообщение
+        # Обновляем сообщение (проверяем тип сообщения)
+        new_text = render_header(counts, radius_km=current_radius) + "\n\n" + page_html
+
         try:
-            await callback.message.edit_text(
-                render_header(counts, radius_km=current_radius) + "\n\n" + page_html,
-                parse_mode="HTML",
-                disable_web_page_preview=True,
-                reply_markup=combined_keyboard,
-            )
-            logger.info(f"✅ Страница {page} отредактирована успешно")
+            # Если сообщение содержит фото (карту), редактируем caption
+            if callback.message.photo:
+                await callback.message.edit_caption(
+                    caption=new_text,
+                    parse_mode="HTML",
+                    reply_markup=combined_keyboard,
+                )
+                logger.info(f"✅ Страница {page} отредактирована (caption)")
+            else:
+                # Если текстовое сообщение, редактируем текст
+                await callback.message.edit_text(
+                    new_text,
+                    parse_mode="HTML",
+                    disable_web_page_preview=True,
+                    reply_markup=combined_keyboard,
+                )
+                logger.info(f"✅ Страница {page} отредактирована (text)")
         except Exception as e:
             logger.error(f"❌ Ошибка редактирования страницы {page}: {e}")
             await callback.answer("❌ Не удалось перелистнуть страницу", show_alert=True)
