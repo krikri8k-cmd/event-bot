@@ -245,6 +245,33 @@ async def handle_events_button(message: Message, bot: Bot, session: AsyncSession
         await handle_start_command(message, bot, session)
 
 
+@group_router.message(lambda message: message.text == "/test_autodelete")
+async def test_autodelete(message: Message, bot: Bot, session: AsyncSession):
+    """Тестовая команда для проверки автоудаления"""
+    if message.chat.type in ("group", "supergroup"):
+        logger.info(f"🧪 Тест автоудаления от пользователя {message.from_user.id} в чате {message.chat.id}")
+
+        # Отправляем тестовое сообщение с автоудалением через 10 секунд
+        from utils.messaging_utils import send_tracked
+
+        test_msg = await send_tracked(
+            bot,
+            session,
+            chat_id=message.chat.id,
+            text="🧪 Тестовое сообщение - должно удалиться через 10 секунд",
+            tag="service",
+        )
+
+        # Запускаем автоудаление через 10 секунд для теста
+        import asyncio
+
+        from utils.messaging_utils import auto_delete_message
+
+        asyncio.create_task(auto_delete_message(bot, message.chat.id, test_msg.message_id, 10))
+
+        await message.answer("✅ Тест автоудаления запущен! Сообщение удалится через 10 секунд.")
+
+
 @group_router.message(Command("start"))
 async def handle_start_command(message: Message, bot: Bot, session: AsyncSession):
     """Обработчик команды /start в группах - удаляем команду пользователя и показываем панель Community"""

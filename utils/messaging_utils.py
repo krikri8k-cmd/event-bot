@@ -22,7 +22,25 @@ async def auto_delete_message(bot: Bot, chat_id: int, message_id: int, delay_sec
     try:
         import asyncio
 
+        logger.info(f"🕐 Запущено автоудаление сообщения {message_id} в чате {chat_id} через {delay_seconds}с")
         await asyncio.sleep(delay_seconds)
+
+        # Проверяем права бота перед удалением
+        try:
+            bot_member = await bot.get_chat_member(chat_id, bot.id)
+            can_delete = getattr(bot_member, "can_delete_messages", False)
+            logger.info(f"🔍 Права бота в чате {chat_id}: status={bot_member.status}, can_delete_messages={can_delete}")
+
+            if bot_member.status != "administrator" or not can_delete:
+                logger.warning(
+                    f"⚠️ Бот не может удалять сообщения в чате {chat_id}: "
+                    f"status={bot_member.status}, can_delete={can_delete}"
+                )
+                return
+        except Exception as perm_error:
+            logger.warning(f"⚠️ Не удалось проверить права бота в чате {chat_id}: {perm_error}")
+            return
+
         await bot.delete_message(chat_id=chat_id, message_id=message_id)
         logger.info(f"✅ Сообщение {message_id} автоматически удалено из чата {chat_id} через {delay_seconds}с")
     except Exception as e:
@@ -266,8 +284,9 @@ async def send_tracked(bot: Bot, session: Session, *, chat_id: int, text: str, t
 
     logger.info(f"✅ Отправлено tracked сообщение в чат {chat_id}, message_id={msg.message_id}, tag={tag}")
 
-    # Автоудаление через 4 минуты для определенных тегов (кроме важных уведомлений)
+    # Автоудаление через 3.5 минуты для определенных тегов (кроме важных уведомлений)
     if tag in ["service", "panel", "list"]:  # Не удаляем "notification" (новые события)
+        logger.info(f"🕐 Запуск автоудаления для сообщения {msg.message_id} с тегом '{tag}' в чате {chat_id}")
         asyncio.create_task(auto_delete_message(bot, chat_id, msg.message_id, 210))  # 3.5 минуты
 
     return msg
