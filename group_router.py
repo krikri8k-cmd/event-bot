@@ -234,6 +234,13 @@ async def handle_events_button(message: Message, bot: Bot, session: AsyncSession
     if message.chat.type in ("group", "supergroup"):
         logger.info(f"🎉 Кнопка Events от пользователя {message.from_user.id} в чате {message.chat.id}")
 
+        # Удаляем сообщение с кнопкой Events
+        try:
+            await message.delete()
+            logger.info(f"✅ Удалена кнопка Events от пользователя {message.from_user.id} в чате {message.chat.id}")
+        except Exception as e:
+            logger.error(f"❌ Не удалось удалить кнопку Events: {e}")
+
         # Вызываем тот же обработчик что и для /start
         await handle_start_command(message, bot, session)
 
