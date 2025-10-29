@@ -108,6 +108,18 @@ class CommunityEventsService:
 
             result = conn.execute(query, sql_params)
             event_id = result.fetchone()[0]
+
+            # Обновляем счетчик созданных событий (Community версия)
+            conn.execute(
+                text("""
+                UPDATE users
+                SET events_created_community = events_created_community + 1,
+                    updated_at_utc = NOW()
+                WHERE id = :creator_id
+            """),
+                {"creator_id": creator_id},
+            )
+
             conn.commit()
 
             print(f"✅ Создано событие сообщества ID {event_id}: '{title}' в группе {group_id}")

@@ -289,11 +289,11 @@ class UnifiedEventsService:
 
             user_event_id = user_result.fetchone()[0]
 
-            # Обновляем счетчик созданных событий
+            # Обновляем счетчик созданных событий (World версия)
             conn.execute(
                 text("""
                 UPDATE users
-                SET events_created_total = events_created_total + 1,
+                SET events_created_world = events_created_world + 1,
                     updated_at_utc = NOW()
                 WHERE id = :organizer_id
             """),

@@ -52,7 +52,8 @@ class User(Base):
     total_sessions: Mapped[int] = mapped_column(Integer, default=0)
     tasks_accepted_total: Mapped[int] = mapped_column(Integer, default=0)
     tasks_completed_total: Mapped[int] = mapped_column(Integer, default=0)
-    events_created_total: Mapped[int] = mapped_column(Integer, default=0)
+    events_created_world: Mapped[int] = mapped_column(Integer, default=0)
+    events_created_community: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Task(Base):

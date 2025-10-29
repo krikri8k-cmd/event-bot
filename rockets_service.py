@@ -51,13 +51,8 @@ def add_rockets(user_id: int, amount: int, reason: str = "") -> bool:
             if user:
                 user.rockets_balance = (user.rockets_balance or 0) + amount
 
-                # Обновляем счетчики в зависимости от причины
-                if "задание" in reason.lower() or "task" in reason.lower():
-                    # Если ракеты за задание - увеличиваем счетчик выполненных заданий
-                    user.tasks_completed_total = (user.tasks_completed_total or 0) + 1
-                elif "событие" in reason.lower() or "event" in reason.lower():
-                    # Если ракеты за событие - увеличиваем счетчик созданных событий
-                    user.events_created_total = (user.events_created_total or 0) + 1
+                # Счетчики событий и заданий обновляются напрямую в местах создания/выполнения
+                # Здесь только начисляем ракеты
 
                 session.commit()
                 logger.info(f"Добавлено {amount} ракет пользователю {user_id}. Причина: {reason}")

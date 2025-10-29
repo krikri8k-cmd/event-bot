@@ -100,14 +100,14 @@ class UserAnalytics:
             return False
 
     @staticmethod
-    def increment_events_created(user_id: int) -> bool:
-        """Увеличить счетчик созданных событий"""
+    def increment_events_created_world(user_id: int) -> bool:
+        """Увеличить счетчик созданных событий World версии"""
         try:
             with get_session() as session:
                 result = session.execute(
                     text("""
                     UPDATE users
-                    SET events_created_total = events_created_total + 1,
+                    SET events_created_world = events_created_world + 1,
                         updated_at_utc = NOW()
                     WHERE id = :user_id
                 """),
@@ -117,14 +117,42 @@ class UserAnalytics:
                 session.commit()
 
                 if result.rowcount > 0:
-                    logger.info(f"✅ Увеличено количество созданных событий для пользователя {user_id}")
+                    logger.info(f"✅ Увеличено количество созданных событий World для пользователя {user_id}")
                     return True
                 else:
-                    logger.warning(f"⚠️ Пользователь {user_id} не найден для обновления созданных событий")
+                    logger.warning(f"⚠️ Пользователь {user_id} не найден для обновления созданных событий World")
                     return False
 
         except Exception as e:
-            logger.error(f"❌ Ошибка обновления созданных событий для пользователя {user_id}: {e}")
+            logger.error(f"❌ Ошибка обновления созданных событий World для пользователя {user_id}: {e}")
+            return False
+
+    @staticmethod
+    def increment_events_created_community(user_id: int) -> bool:
+        """Увеличить счетчик созданных событий Community версии"""
+        try:
+            with get_session() as session:
+                result = session.execute(
+                    text("""
+                    UPDATE users
+                    SET events_created_community = events_created_community + 1,
+                        updated_at_utc = NOW()
+                    WHERE id = :user_id
+                """),
+                    {"user_id": user_id},
+                )
+
+                session.commit()
+
+                if result.rowcount > 0:
+                    logger.info(f"✅ Увеличено количество созданных событий Community для пользователя {user_id}")
+                    return True
+                else:
+                    logger.warning(f"⚠️ Пользователь {user_id} не найден для обновления созданных событий Community")
+                    return False
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка обновления созданных событий Community для пользователя {user_id}: {e}")
             return False
 
     @staticmethod
@@ -138,7 +166,8 @@ class UserAnalytics:
                         total_sessions,
                         tasks_accepted_total,
                         tasks_completed_total,
-                        events_created_total,
+                        events_created_world,
+                        events_created_community,
                         rockets_balance
                     FROM users
                     WHERE id = :user_id
@@ -152,8 +181,10 @@ class UserAnalytics:
                         "total_sessions": row[0],
                         "tasks_accepted_total": row[1],
                         "tasks_completed_total": row[2],
-                        "events_created_total": row[3],
-                        "rockets_balance": row[4],
+                        "events_created_world": row[3],
+                        "events_created_community": row[4],
+                        "events_created_total": row[3] + row[4],  # Итого для совместимости
+                        "rockets_balance": row[5],
                     }
                 return None
 
