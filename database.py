@@ -49,6 +49,10 @@ class User(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     rockets_balance: Mapped[int] = mapped_column(Integer, default=0)
+    total_sessions: Mapped[int] = mapped_column(Integer, default=0)
+    tasks_accepted_total: Mapped[int] = mapped_column(Integer, default=0)
+    tasks_completed_total: Mapped[int] = mapped_column(Integer, default=0)
+    events_created_total: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Task(Base):
