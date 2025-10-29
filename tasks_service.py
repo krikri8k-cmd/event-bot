@@ -143,6 +143,12 @@ def accept_task(user_id: int, task_id: int, user_lat: float = None, user_lng: fl
             )
 
             session.add(user_task)
+
+            # Обновляем счетчик принятых заданий
+            user = session.get(User, user_id)
+            if user:
+                user.tasks_accepted_total = (user.tasks_accepted_total or 0) + 1
+
             session.commit()
 
             logger.info(f"Пользователь {user_id} принял задание {task_id}, истекает {expires_at}")

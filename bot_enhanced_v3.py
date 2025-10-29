@@ -1907,6 +1907,12 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
 
     # Создаем пользователя если его нет
     ensure_user_exists(user_id, message.from_user)
+
+    # Увеличиваем счетчик сессий
+    from utils.user_analytics import UserAnalytics
+
+    UserAnalytics.increment_sessions(user_id)
+
     logger.info(f"cmd_start: пользователь {user_id}")
 
     # Восстанавливаем команды бота при каждом запуске

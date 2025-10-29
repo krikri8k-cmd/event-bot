@@ -12,3 +12,4 @@ COMMENT ON COLUMN daily_views_tasks.user_id IS 'ID пользователя';
 COMMENT ON COLUMN daily_views_tasks.view_type IS 'Тип просмотра: template (шаблон задания) или place (место)';
 COMMENT ON COLUMN daily_views_tasks.view_key IS 'ID шаблона задания или места';
 COMMENT ON COLUMN daily_views_tasks.view_date IS 'Дата и время просмотра';
+

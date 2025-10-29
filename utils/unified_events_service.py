@@ -289,6 +289,17 @@ class UnifiedEventsService:
 
             user_event_id = user_result.fetchone()[0]
 
+            # Обновляем счетчик созданных событий
+            conn.execute(
+                text("""
+                UPDATE users
+                SET events_created_total = events_created_total + 1,
+                    updated_at_utc = NOW()
+                WHERE id = :organizer_id
+            """),
+                {"organizer_id": organizer_id},
+            )
+
             print(f"✅ Создано пользовательское событие ID {user_event_id}: '{title}'")
             return user_event_id
 

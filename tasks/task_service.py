@@ -229,10 +229,12 @@ class TaskService:
                 user_task.completed_at = datetime.now()
                 user_task.user_note = user_note
 
-                # Начисляем ракеты
+                # Начисляем ракеты и обновляем счетчики
                 user = session.get(User, user_task.user_id)
                 if user:
                     user.rockets_balance += user_task.rocket_value
+                    # Увеличиваем счетчик выполненных заданий
+                    user.tasks_completed_total = (user.tasks_completed_total or 0) + 1
 
                 session.commit()
                 return True
