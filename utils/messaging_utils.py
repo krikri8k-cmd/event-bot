@@ -118,7 +118,7 @@ def send_tracked_sync(bot: Bot, session: Session, *, chat_id: int, text: str, ta
 
     # Автоудаление через 4 минуты для определенных тегов (кроме важных уведомлений)
     if tag in ["service", "panel", "list"]:  # Не удаляем "notification" (новые события)
-        asyncio.create_task(auto_delete_message(bot, chat_id, msg.message_id, 240))  # 4 минуты
+        asyncio.create_task(auto_delete_message(bot, chat_id, msg.message_id, 210))  # 3.5 минуты
 
     return msg
 
@@ -268,7 +268,7 @@ async def send_tracked(bot: Bot, session: Session, *, chat_id: int, text: str, t
 
     # Автоудаление через 4 минуты для определенных тегов (кроме важных уведомлений)
     if tag in ["service", "panel", "list"]:  # Не удаляем "notification" (новые события)
-        asyncio.create_task(auto_delete_message(bot, chat_id, msg.message_id, 240))  # 4 минуты
+        asyncio.create_task(auto_delete_message(bot, chat_id, msg.message_id, 210))  # 3.5 минуты
 
     return msg
 
