@@ -9,7 +9,7 @@ from datetime import date, datetime
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
-from database import DailyView, TaskPlace, TaskTemplate, User, UserTask, get_session
+from database import DailyViewTasks, TaskPlace, TaskTemplate, User, UserTask, get_session
 
 logger = logging.getLogger(__name__)
 
@@ -40,12 +40,12 @@ class TaskService:
                 # Получаем уже показанные сегодня шаблоны
                 today = date.today()
                 seen_templates = (
-                    session.query(DailyView.view_key)
+                    session.query(DailyViewTasks.view_key)
                     .filter(
                         and_(
-                            DailyView.user_id == user_id,
-                            DailyView.view_type == "template",
-                            func.date(DailyView.view_date) == today,
+                            DailyViewTasks.user_id == user_id,
+                            DailyViewTasks.view_type == "template",
+                            func.date(DailyViewTasks.view_date) == today,
                         )
                     )
                     .all()
@@ -71,7 +71,7 @@ class TaskService:
 
                 # Фиксируем просмотренные шаблоны
                 for template in available_templates:
-                    daily_view = DailyView(
+                    daily_view = DailyViewTasks(
                         user_id=user_id, view_type="template", view_key=str(template.id), view_date=datetime.now()
                     )
                     session.add(daily_view)

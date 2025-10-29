@@ -162,8 +162,8 @@ class TaskTemplate(Base):
     created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class DailyView(Base):
-    __tablename__ = "daily_views"
+class DailyViewTasks(Base):
+    __tablename__ = "daily_views_tasks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
