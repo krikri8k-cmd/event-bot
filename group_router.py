@@ -228,7 +228,7 @@ MAIN_BOT_USERNAME = None  # Будет установлен в set_bot_username(
 group_router = Router(name="group_router")
 
 
-@group_router.message(lambda message: message.text == "🎉 Events 🎊")
+@group_router.message(lambda message: message.text == "🎉 /start События чата")
 async def handle_events_button(message: Message, bot: Bot, session: AsyncSession):
     """Обработчик кнопки Events - работает как команда /start"""
     if message.chat.type in ("group", "supergroup"):
@@ -306,7 +306,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
 
                 start_keyboard = ReplyKeyboardMarkup(
                     keyboard=[
-                        [KeyboardButton(text="🎉 Events 🎊")],
+                        [KeyboardButton(text="🎉 /start События чата")],
                     ],
                     resize_keyboard=True,
                     one_time_keyboard=False,
