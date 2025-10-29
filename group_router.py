@@ -228,6 +228,16 @@ MAIN_BOT_USERNAME = None  # Будет установлен в set_bot_username(
 group_router = Router(name="group_router")
 
 
+@group_router.message(lambda message: message.text == "🎉 Events 🎊")
+async def handle_events_button(message: Message, bot: Bot, session: AsyncSession):
+    """Обработчик кнопки Events - работает как команда /start"""
+    if message.chat.type in ("group", "supergroup"):
+        logger.info(f"🎉 Кнопка Events от пользователя {message.from_user.id} в чате {message.chat.id}")
+
+        # Вызываем тот же обработчик что и для /start
+        await handle_start_command(message, bot, session)
+
+
 @group_router.message(Command("start"))
 async def handle_start_command(message: Message, bot: Bot, session: AsyncSession):
     """Обработчик команды /start в группах - удаляем команду пользователя и показываем панель Community"""
@@ -296,7 +306,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
 
                 start_keyboard = ReplyKeyboardMarkup(
                     keyboard=[
-                        [KeyboardButton(text="/start")],
+                        [KeyboardButton(text="🎉 Events 🎊")],
                     ],
                     resize_keyboard=True,
                     one_time_keyboard=False,
