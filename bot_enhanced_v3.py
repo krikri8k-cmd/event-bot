@@ -13,7 +13,6 @@ from math import ceil
 from urllib.parse import quote_plus, urlparse
 
 from aiogram import Bot, Dispatcher, F, types
-from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandObject, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -6396,7 +6395,7 @@ async def handle_pagination(callback: types.CallbackQuery):
         # Создаем клавиатуру пагинации
         combined_keyboard = kb_pager(page, total_pages, current_radius)
 
-        # Обновляем сообщение с защитой от ошибок
+        # Обновляем сообщение
         try:
             await callback.message.edit_text(
                 render_header(counts, radius_km=current_radius) + "\n\n" + page_html,
@@ -6404,13 +6403,11 @@ async def handle_pagination(callback: types.CallbackQuery):
                 disable_web_page_preview=True,
                 reply_markup=combined_keyboard,
             )
-        except TelegramBadRequest:
-            await callback.message.answer(
-                render_header(counts, radius_km=current_radius) + "\n\n" + page_html,
-                parse_mode="HTML",
-                disable_web_page_preview=True,
-                reply_markup=combined_keyboard,
-            )
+            logger.info(f"✅ Страница {page} отредактирована успешно")
+        except Exception as e:
+            logger.error(f"❌ Ошибка редактирования страницы {page}: {e}")
+            await callback.answer("❌ Не удалось перелистнуть страницу", show_alert=True)
+            return
 
         # Обновляем состояние
         state["page"] = page
