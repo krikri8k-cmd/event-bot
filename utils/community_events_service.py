@@ -190,12 +190,35 @@ class CommunityEventsService:
             True если событие успешно удалено
         """
         with self.engine.connect() as conn:
-            query = text("""
+            # Переносим запись в архив, затем удаляем из основной
+            archive_query = text(
+                """
+                INSERT INTO events_community_archive (
+                    id, chat_id, organizer_id, organizer_username,
+                    admin_id, admin_ids, admin_count,
+                    title, starts_at, description, city,
+                    location_name, location_url, created_at,
+                    status, archived_at_utc
+                )
+                SELECT id, chat_id, organizer_id, organizer_username,
+                       admin_id, admin_ids, admin_count,
+                       title, starts_at, description, city,
+                       location_name, location_url, created_at,
+                       status, NOW()
+                FROM events_community
+                WHERE id = :event_id AND chat_id = :chat_id
+                ON CONFLICT (id) DO NOTHING
+                """
+            )
+            conn.execute(archive_query, {"event_id": event_id, "chat_id": group_id})
+
+            delete_query = text(
+                """
                 DELETE FROM events_community
                 WHERE id = :event_id AND chat_id = :chat_id
-            """)
-
-            result = conn.execute(query, {"event_id": event_id, "chat_id": group_id})
+                """
+            )
+            result = conn.execute(delete_query, {"event_id": event_id, "chat_id": group_id})
             conn.commit()
 
             return result.rowcount > 0
@@ -211,12 +234,36 @@ class CommunityEventsService:
             Количество удаленных событий
         """
         with self.engine.connect() as conn:
-            query = text("""
+            # Сначала переносим старые записи в архив
+            archive_query = text(
+                """
+                INSERT INTO events_community_archive (
+                    id, chat_id, organizer_id, organizer_username,
+                    admin_id, admin_ids, admin_count,
+                    title, starts_at, description, city,
+                    location_name, location_url, created_at,
+                    status, archived_at_utc
+                )
+                SELECT id, chat_id, organizer_id, organizer_username,
+                       admin_id, admin_ids, admin_count,
+                       title, starts_at, description, city,
+                       location_name, location_url, created_at,
+                       status, NOW()
+                FROM events_community
+                WHERE starts_at < NOW() - INTERVAL ':days_old days'
+                ON CONFLICT (id) DO NOTHING
+                """
+            )
+            conn.execute(archive_query, {"days_old": days_old})
+
+            # Затем удаляем их из основной таблицы
+            delete_query = text(
+                """
                 DELETE FROM events_community
                 WHERE starts_at < NOW() - INTERVAL ':days_old days'
-            """)
-
-            result = conn.execute(query, {"days_old": days_old})
+                """
+            )
+            result = conn.execute(delete_query, {"days_old": days_old})
             conn.commit()
 
             deleted_count = result.rowcount

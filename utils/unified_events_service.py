@@ -410,16 +410,43 @@ class UnifiedEventsService:
     def cleanup_old_events(self, city: str) -> int:
         """Очистка старых событий из единой таблицы events"""
         with self.engine.begin() as conn:
-            # Очищаем из основной таблицы events
+            # Переносим устаревшие записи в архив
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO events_archive (
+                        id, source, external_id, title, description,
+                        time_local, date_local, city, country, venue, address,
+                        lat, lng, url, price, organizer_id, organizer_username,
+                        created_at_utc, updated_at_utc, archived_at_utc
+                    )
+                    SELECT
+                        id, source, external_id, title, description,
+                        NULL, NULL, city, country,
+                        location_name, location_name,
+                        lat, lng, url, NULL, organizer_id, organizer_username,
+                        created_at_utc, updated_at_utc, NOW()
+                    FROM events
+                    WHERE city = :city
+                    AND starts_at < NOW() - INTERVAL '1 day'
+                    ON CONFLICT (id) DO NOTHING
+                    """
+                ),
+                {"city": city},
+            )
+
+            # Удаляем их из основной таблицы
             events_deleted = conn.execute(
-                text("""
-                DELETE FROM events
-                WHERE city = :city
-                AND starts_at < NOW() - INTERVAL '1 day'
-            """),
+                text(
+                    """
+                    DELETE FROM events
+                    WHERE city = :city
+                    AND starts_at < NOW() - INTERVAL '1 day'
+                    """
+                ),
                 {"city": city},
             ).rowcount
 
-            print(f"🧹 Очистка {city}: удалено {events_deleted} событий из единой таблицы events")
+            print(f"🧹 Очистка {city}: перенесено в архив и удалено {events_deleted} событий из единой таблицы events")
 
             return events_deleted
