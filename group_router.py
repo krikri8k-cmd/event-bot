@@ -278,6 +278,14 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
     if message.chat.type in ("group", "supergroup"):
         logger.info(f"🔥 Команда /start от пользователя {message.from_user.id} в чате {message.chat.id}")
 
+        # Инкрементируем сессию Community
+        try:
+            from utils.user_analytics import UserAnalytics
+
+            UserAnalytics.increment_sessions_community(message.from_user.id)
+        except Exception as e:
+            logger.warning(f"⚠️ Не удалось инкрементировать сессию Community: {e}")
+
         # Удаляем команду /start пользователя (все варианты)
         try:
             await message.delete()

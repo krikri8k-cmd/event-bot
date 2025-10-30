@@ -1911,7 +1911,15 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
     # Увеличиваем счетчик сессий
     from utils.user_analytics import UserAnalytics
 
-    UserAnalytics.increment_sessions(user_id)
+    # Раздельные инкременты сессий: World (приват) vs Community (группа)
+    try:
+        if chat_type == "private":
+            UserAnalytics.increment_sessions_world(user_id)
+        else:
+            UserAnalytics.increment_sessions_community(user_id)
+    except Exception:
+        # Fallback, если что-то пойдет не так
+        UserAnalytics.increment_sessions(user_id)
 
     logger.info(f"cmd_start: пользователь {user_id}")
 
