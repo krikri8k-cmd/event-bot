@@ -44,7 +44,7 @@ from tasks_service import (
     get_user_active_tasks,
     get_user_completed_tasks_today,
 )
-from utils.geo_utils import haversine_km
+from utils.geo_utils import get_timezone, haversine_km
 from utils.static_map import build_static_map_url, fetch_static_map
 from utils.unified_events_service import UnifiedEventsService
 
@@ -2751,13 +2751,25 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
     current_state = await state.get_state()
     logger.info(f"📍 [ЗАДАНИЯ] Получена геолокация от пользователя {user_id}: {lat}, {lng}, состояние: {current_state}")
 
-    # Сохраняем координаты пользователя
+    # Сохраняем координаты пользователя и обновляем timezone
     with get_session() as session:
         user = session.query(User).filter(User.id == user_id).first()
         if user:
             user.last_lat = lat
             user.last_lng = lng
             user.last_geo_at_utc = datetime.now(UTC)
+
+            # Получаем timezone по координатам и сохраняем
+            try:
+                tz_name = await get_timezone(lat, lng)
+                if tz_name:
+                    user.user_tz = tz_name
+                    logger.info(f"🕒 Timezone обновлен для пользователя {user_id}: {tz_name}")
+                else:
+                    logger.warning(f"⚠️ Не удалось получить timezone для координат ({lat}, {lng})")
+            except Exception as e:
+                logger.error(f"❌ Ошибка при получении timezone: {e}")
+
             session.commit()
             logger.info(f"📍 Координаты пользователя {user_id} обновлены")
 
@@ -2821,6 +2833,18 @@ async def on_location(message: types.Message, state: FSMContext):
                 user.last_lat = lat
                 user.last_lng = lng
                 user.last_geo_at_utc = datetime.now(UTC)
+
+                # Получаем timezone по координатам и сохраняем
+                try:
+                    tz_name = await get_timezone(lat, lng)
+                    if tz_name:
+                        user.user_tz = tz_name
+                        logger.info(f"🕒 Timezone обновлен для пользователя {message.from_user.id}: {tz_name}")
+                    else:
+                        logger.warning(f"⚠️ Не удалось получить timezone для координат ({lat}, {lng})")
+                except Exception as e:
+                    logger.error(f"❌ Ошибка при получении timezone: {e}")
+
                 session.commit()
 
         # Логируем параметры поиска
