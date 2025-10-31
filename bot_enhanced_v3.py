@@ -6993,12 +6993,68 @@ async def main():
             setup_application(app, dp, bot=bot)
 
             # Добавляем health check endpoint в webhook сервер
-
             async def health_check(request):
                 return web.json_response({"ok": True})
 
             app.router.add_get("/health", health_check)
             app.router.add_get("/", health_check)
+
+            # Добавляем API endpoint для отслеживания кликов
+            async def track_click(request):
+                """Отслеживание кликов по ссылкам и редирект на оригинальный URL"""
+                try:
+                    from urllib.parse import unquote
+
+                    from database import get_engine
+                    from utils.user_participation_analytics import UserParticipationAnalytics
+
+                    # Получаем параметры из query string
+                    user_id = int(request.query.get("user_id", 0))
+                    event_id = int(request.query.get("event_id", 0))
+                    click_type = request.query.get("click_type", "")
+                    target_url = request.query.get("target_url", "")
+
+                    if not user_id or not event_id or not target_url:
+                        logger.warning(
+                            f"⚠️ Неполные параметры для track_click: user_id={user_id}, event_id={event_id}, target_url={target_url}"
+                        )
+                        # Все равно редиректим на decoded_url если есть
+                        if target_url:
+                            decoded_url = unquote(target_url)
+                            return web.HTTPFound(location=decoded_url)
+                        return web.json_response({"error": "Missing parameters"}, status=400)
+
+                    # Декодируем target_url
+                    decoded_url = unquote(target_url)
+
+                    # Валидация click_type
+                    if click_type in ["source", "route"]:
+                        # Логируем клик в базу данных
+                        engine = get_engine()
+                        analytics = UserParticipationAnalytics(engine)
+
+                        if click_type == "source":
+                            analytics.record_click_source(user_id, event_id)
+                            logger.info(f"✅ Записан click_source: user_id={user_id}, event_id={event_id}")
+                        elif click_type == "route":
+                            analytics.record_click_route(user_id, event_id)
+                            logger.info(f"✅ Записан click_route: user_id={user_id}, event_id={event_id}")
+
+                    # Редиректим на оригинальный URL
+                    return web.HTTPFound(location=decoded_url)
+
+                except Exception as e:
+                    logger.error(f"❌ Ошибка при обработке клика: {e}")
+                    # В случае ошибки все равно пытаемся редиректить
+                    try:
+                        if target_url:
+                            decoded_url = unquote(target_url)
+                            return web.HTTPFound(location=decoded_url)
+                    except Exception:
+                        pass
+                    return web.json_response({"error": "Failed to process click tracking"}, status=500)
+
+            app.router.add_get("/click", track_click)
 
             # Логируем зарегистрированные маршруты
             logger.info("Зарегистрированные маршруты:")
