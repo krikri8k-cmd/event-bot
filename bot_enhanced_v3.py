@@ -42,6 +42,7 @@ from tasks_service import (
     complete_task,
     get_daily_tasks,
     get_user_active_tasks,
+    get_user_completed_tasks_today,
 )
 from utils.geo_utils import haversine_km
 from utils.static_map import build_static_map_url, fetch_static_map
@@ -4429,8 +4430,12 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
     active_tasks = get_user_active_tasks(user_id)
     active_task_ids = {active_task["task_id"] for active_task in active_tasks}
 
-    # Фильтруем уже взятые задания
-    available_tasks = [task for task in tasks if task.id not in active_task_ids]
+    # Получаем выполненные задания за сегодня для фильтрации
+    completed_tasks_today = set(get_user_completed_tasks_today(user_id))
+
+    # Фильтруем уже взятые И выполненные сегодня задания
+    excluded_task_ids = active_task_ids | completed_tasks_today
+    available_tasks = [task for task in tasks if task.id not in excluded_task_ids]
 
     # Создаем клавиатуру с доступными заданиями
     keyboard = []

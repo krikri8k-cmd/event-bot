@@ -244,6 +244,34 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
         return result
 
 
+def get_user_completed_tasks_today(user_id: int) -> list[int]:
+    """
+    Получает список ID заданий, выполненных пользователем сегодня
+
+    Args:
+        user_id: ID пользователя
+
+    Returns:
+        Список task_id выполненных заданий за сегодня (по UTC)
+    """
+    today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    with get_session() as session:
+        completed_tasks = (
+            session.query(UserTask.task_id)
+            .filter(
+                and_(
+                    UserTask.user_id == user_id,
+                    UserTask.status == "completed",
+                    UserTask.completed_at >= today_start,
+                )
+            )
+            .all()
+        )
+
+        return [task_id for (task_id,) in completed_tasks]
+
+
 def complete_task(user_task_id: int, feedback: str) -> bool:
     """
     Завершает задание с фидбеком
