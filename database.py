@@ -52,6 +52,7 @@ class User(Base):
     total_sessions: Mapped[int] = mapped_column(Integer, default=0)
     total_sessions_world: Mapped[int] = mapped_column(Integer, default=0)
     total_sessions_community: Mapped[int] = mapped_column(Integer, default=0)
+    last_session_world_at_utc: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     tasks_accepted_total: Mapped[int] = mapped_column(Integer, default=0)
     tasks_completed_total: Mapped[int] = mapped_column(Integer, default=0)
     events_created_world: Mapped[int] = mapped_column(Integer, default=0)

@@ -47,7 +47,7 @@ class UserAnalytics:
 
     @staticmethod
     def increment_sessions_world(user_id: int) -> bool:
-        """Увеличить счетчик сессий World и суммарный total_sessions"""
+        """Увеличить счетчик сессий World и суммарный total_sessions (без проверки времени)"""
         try:
             with get_session() as session:
                 result = session.execute(
@@ -56,6 +56,7 @@ class UserAnalytics:
                     UPDATE users
                     SET total_sessions_world = total_sessions_world + 1,
                         total_sessions = total_sessions + 1,
+                        last_session_world_at_utc = NOW(),
                         updated_at_utc = NOW()
                     WHERE id = :user_id
                 """
@@ -66,6 +67,49 @@ class UserAnalytics:
                 return result.rowcount > 0
         except Exception as e:
             logger.error(f"❌ Ошибка increment_sessions_world для пользователя {user_id}: {e}")
+            return False
+
+    @staticmethod
+    def maybe_increment_sessions_world(user_id: int, min_interval_minutes: int = 6) -> bool:
+        """
+        Увеличить счетчик сессий World, только если прошло min_interval_minutes минут с последней сессии.
+        Используется для предотвращения двойного подсчета при частых командах.
+        """
+        try:
+            with get_session() as session:
+                result = session.execute(
+                    text(
+                        f"""
+                    UPDATE users
+                    SET total_sessions_world = total_sessions_world + 1,
+                        total_sessions = total_sessions + 1,
+                        last_session_world_at_utc = NOW(),
+                        updated_at_utc = NOW()
+                    WHERE id = :user_id
+                      AND (
+                        last_session_world_at_utc IS NULL
+                        OR last_session_world_at_utc < NOW() - INTERVAL '{min_interval_minutes} minutes'
+                      )
+                """
+                    ),
+                    {"user_id": user_id},
+                )
+                session.commit()
+
+                if result.rowcount > 0:
+                    logger.info(
+                        f"✅ Увеличена сессия World для пользователя {user_id} "
+                        f"(прошло >= {min_interval_minutes} минут с последней)"
+                    )
+                    return True
+                else:
+                    logger.debug(
+                        f"⏭️ Сессия World для пользователя {user_id} не увеличена "
+                        f"(прошло < {min_interval_minutes} минут с последней)"
+                    )
+                    return False
+        except Exception as e:
+            logger.error(f"❌ Ошибка maybe_increment_sessions_world для пользователя {user_id}: {e}")
             return False
 
     @staticmethod

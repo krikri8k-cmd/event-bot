@@ -2714,6 +2714,12 @@ async def on_nearby_events_callback(callback: types.CallbackQuery, state: FSMCon
 @main_router.message(F.text == "📍 Что рядом")
 async def on_what_nearby(message: types.Message, state: FSMContext):
     """Обработчик кнопки 'Что рядом'"""
+    # Инкрементируем сессию World (с проверкой времени)
+    if message.chat.type == "private":
+        from utils.user_analytics import UserAnalytics
+
+        UserAnalytics.maybe_increment_sessions_world(message.from_user.id, min_interval_minutes=6)
+
     # Устанавливаем состояние для поиска событий
     await state.set_state(EventSearch.waiting_for_location)
 
@@ -3172,6 +3178,12 @@ async def on_location(message: types.Message, state: FSMContext):
 @main_router.message(F.text == "➕ Создать")
 async def on_create(message: types.Message, state: FSMContext):
     """Обработчик кнопки 'Создать'"""
+    # Инкрементируем сессию World (с проверкой времени)
+    if message.chat.type == "private":
+        from utils.user_analytics import UserAnalytics
+
+        UserAnalytics.maybe_increment_sessions_world(message.from_user.id, min_interval_minutes=6)
+
     await state.set_state(EventCreation.waiting_for_title)
     await message.answer(
         '➕ **Создаём событие "World"**\n\n'
@@ -3196,6 +3208,12 @@ async def on_my_events(message: types.Message):
     """Обработчик кнопки 'Мои события' с управлением статусами"""
     user_id = message.from_user.id
     logger.info(f"🔍 on_my_events: запрос от пользователя {user_id}")
+
+    # Инкрементируем сессию World (с проверкой времени)
+    if message.chat.type == "private":
+        from utils.user_analytics import UserAnalytics
+
+        UserAnalytics.maybe_increment_sessions_world(user_id, min_interval_minutes=6)
 
     # Автомодерация: закрываем прошедшие события
     closed_count = auto_close_events()
@@ -3846,6 +3864,12 @@ async def on_my_tasks(message: types.Message):
 @main_router.message(Command("tasks"))
 async def cmd_tasks(message: types.Message, state: FSMContext):
     """Обработчик команды /tasks - Квесты на районе"""
+    # Инкрементируем сессию World (с проверкой времени)
+    if message.chat.type == "private":
+        from utils.user_analytics import UserAnalytics
+
+        UserAnalytics.maybe_increment_sessions_world(message.from_user.id, min_interval_minutes=6)
+
     # Устанавливаем состояние для заданий
     await state.set_state(TaskFlow.waiting_for_location)
 
@@ -3867,6 +3891,12 @@ async def cmd_tasks(message: types.Message, state: FSMContext):
 async def cmd_mytasks(message: types.Message):
     """Обработчик команды /mytasks - Мои квесты"""
     user_id = message.from_user.id
+
+    # Инкрементируем сессию World (с проверкой времени)
+    if message.chat.type == "private":
+        from utils.user_analytics import UserAnalytics
+
+        UserAnalytics.maybe_increment_sessions_world(user_id, min_interval_minutes=6)
 
     # Автомодерация: помечаем истекшие задания
     from tasks_service import mark_tasks_as_expired
