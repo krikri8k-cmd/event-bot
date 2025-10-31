@@ -280,6 +280,11 @@ def complete_task(user_task_id: int, feedback: str) -> bool:
             user_task.feedback = feedback
             user_task.completed_at = datetime.now(UTC)
 
+            # Увеличиваем счетчик выполненных заданий
+            user = session.get(User, user_task.user_id)
+            if user:
+                user.tasks_completed_total = (user.tasks_completed_total or 0) + 1
+
             session.commit()
 
             logger.info(f"Задание {user_task_id} завершено с фидбеком")
