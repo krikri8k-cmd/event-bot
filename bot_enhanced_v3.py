@@ -47,6 +47,7 @@ from tasks_service import (
 from utils.geo_utils import get_timezone, haversine_km
 from utils.static_map import build_static_map_url, fetch_static_map
 from utils.unified_events_service import UnifiedEventsService
+from utils.user_participation_analytics import UserParticipationAnalytics
 
 
 def get_user_display_name(user: types.User) -> str:
@@ -3129,6 +3130,28 @@ async def on_location(message: types.Message, state: FSMContext):
                 # 4) Рендерим события (первая страница)
                 page_html, _ = render_page(prepared, page=0, page_size=5, user_id=message.from_user.id)
                 events_text = header_html + "\n\n" + page_html
+
+                # 4.5) Логируем показ событий в списке (list_view)
+                from database import get_engine
+
+                engine = get_engine()
+                participation_analytics = UserParticipationAnalytics(engine)
+
+                # Определяем group_chat_id (NULL для World, значение для Community)
+                group_chat_id = None
+                if message.chat.type != "private":
+                    group_chat_id = message.chat.id
+
+                # Логируем каждое показанное событие на первой странице
+                shown_events = prepared[:5]  # Первые 5 событий на странице
+                for event in shown_events:
+                    event_id = event.get("id")
+                    if event_id:
+                        participation_analytics.record_list_view(
+                            user_id=message.from_user.id,
+                            event_id=event_id,
+                            group_chat_id=group_chat_id,
+                        )
 
                 # 5) Добавляем навигацию если нужно
                 total_pages = max(1, ceil(len(prepared) / 5))
@@ -6464,6 +6487,29 @@ async def handle_pagination(callback: types.CallbackQuery):
 
         # Рендерим страницу
         page_html, total_pages = render_page(prepared, page, page_size=5, user_id=callback.from_user.id)
+
+        # Логируем показ событий в списке при пагинации (list_view)
+        from database import get_engine
+
+        engine = get_engine()
+        participation_analytics = UserParticipationAnalytics(engine)
+
+        # Определяем group_chat_id (NULL для World, значение для Community)
+        group_chat_id = None
+        if callback.message.chat.type != "private":
+            group_chat_id = callback.message.chat.id
+
+        # Логируем каждое показанное событие на текущей странице
+        start_idx = (page - 1) * 5
+        shown_events = prepared[start_idx : start_idx + 5]
+        for event in shown_events:
+            event_id = event.get("id")
+            if event_id:
+                participation_analytics.record_list_view(
+                    user_id=callback.from_user.id,
+                    event_id=event_id,
+                    group_chat_id=group_chat_id,
+                )
 
         # Создаем клавиатуру пагинации
         combined_keyboard = kb_pager(page, total_pages, current_radius)
