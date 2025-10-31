@@ -106,6 +106,58 @@ def create_app() -> FastAPI:
         logger.info("🏥 Health check requested")
         return {"status": "ok"}
 
+    @app.get("/click")
+    async def track_click(
+        user_id: int = Query(..., description="ID пользователя Telegram"),
+        event_id: int = Query(..., description="ID события"),
+        click_type: str = Query(..., description="Тип клика: source или route"),
+        target_url: str = Query(..., description="URL для редиректа (encoded)"),
+    ):
+        """
+        Отслеживание кликов по ссылкам и редирект на оригинальный URL.
+        Используется для аналитики взаимодействий пользователей с событиями.
+        """
+        from urllib.parse import unquote
+
+        from fastapi.responses import RedirectResponse
+
+        from utils.user_participation_analytics import UserParticipationAnalytics
+
+        try:
+            # Декодируем target_url
+            decoded_url = unquote(target_url)
+
+            # Валидация click_type
+            if click_type not in ["source", "route"]:
+                logger.warning(f"⚠️ Неизвестный тип клика: {click_type}")
+                # Все равно редиректим, но не логируем
+                return RedirectResponse(url=decoded_url, status_code=302)
+
+            # Логируем клик в базу данных
+            engine = get_engine()
+            analytics = UserParticipationAnalytics(engine)
+
+            if click_type == "source":
+                analytics.record_click_source(user_id, event_id)
+                logger.info(f"✅ Записан click_source: user_id={user_id}, event_id={event_id}")
+            elif click_type == "route":
+                analytics.record_click_route(user_id, event_id)
+                logger.info(f"✅ Записан click_route: user_id={user_id}, event_id={event_id}")
+
+            # Редиректим на оригинальный URL
+            return RedirectResponse(url=decoded_url, status_code=302)
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка при обработке клика: {e}")
+            # В случае ошибки все равно пытаемся редиректить, если URL валидный
+            try:
+                decoded_url = unquote(target_url)
+                return RedirectResponse(url=decoded_url, status_code=302)
+            except Exception:
+                from fastapi.responses import JSONResponse
+
+                return JSONResponse(status_code=500, content={"error": "Failed to process click tracking"})
+
     @app.get("/db/ping")
     def db_ping():
         with get_engine().connect() as conn:

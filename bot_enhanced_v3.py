@@ -50,6 +50,37 @@ from utils.unified_events_service import UnifiedEventsService
 from utils.user_participation_analytics import UserParticipationAnalytics
 
 
+def _build_tracking_url(click_type: str, event: dict, target_url: str, user_id: int | None) -> str:
+    """
+    Создает URL для отслеживания кликов через API endpoint.
+    Если api_base_url не настроен или user_id отсутствует, возвращает оригинальный URL.
+    """
+    from urllib.parse import quote
+
+    if not user_id:
+        # Если user_id не указан, возвращаем оригинальный URL без отслеживания
+        return target_url
+
+    settings = load_settings()
+    if not settings.api_base_url:
+        # Если API URL не настроен, возвращаем оригинальный URL
+        return target_url
+
+    event_id = event.get("id")
+    if not event_id:
+        # Если нет event_id, возвращаем оригинальный URL
+        return target_url
+
+    # Формируем URL через API endpoint
+    api_base = settings.api_base_url.rstrip("/")
+    encoded_url = quote(target_url, safe="")
+    tracking_url = (
+        f"{api_base}/click?user_id={user_id}&event_id={event_id}&click_type={click_type}&target_url={encoded_url}"
+    )
+
+    return tracking_url
+
+
 def get_user_display_name(user: types.User) -> str:
     """Получает отображаемое имя пользователя: username или first_name"""
     if user.username:
@@ -929,19 +960,15 @@ def render_event_html(e: dict, idx: int, user_id: int = None) -> str:
         # Для источников и AI-парсинга показываем источник
         src = get_source_url(e)
         if src:
-            # Извлекаем домен для красивого отображения
-            from urllib.parse import urlparse
-
-            try:
-                urlparse(src).netloc
-                src_part = f'🔗 <a href="{html.escape(src)}">Источник</a>'
-            except Exception:
-                src_part = f'🔗 <a href="{html.escape(src)}">Источник</a>'
+            # Используем API endpoint для отслеживания кликов
+            tracking_url = _build_tracking_url("source", e, src, user_id)
+            src_part = f'🔗 <a href="{html.escape(tracking_url)}">Источник</a>'
         else:
             src_part = "ℹ️ Источник не указан"
 
     # Маршрут с приоритетом venue_name → address → coords
-    map_part = f'🚗 <a href="{build_maps_url(e)}">Маршрут</a>'
+    maps_url = build_maps_url(e)
+    map_part = f'🚗 <a href="{_build_tracking_url("route", e, maps_url, user_id)}">Маршрут</a>'
 
     # Добавляем таймер для пользовательских событий
     timer_part = ""

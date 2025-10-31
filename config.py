@@ -37,6 +37,7 @@ class Settings:
     admin_ids: set[int]
     google_application_credentials: str | None
     env_file: str | None
+    api_base_url: str | None  # Базовый URL API для редиректов (например, https://api.railway.app)
     # Moments settings
     moments_enable: bool
     moment_ttl_options: list[int]
@@ -169,6 +170,9 @@ def load_settings(require_bot: bool = False) -> Settings:
     if gcp_path:
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gcp_path
 
+    # API base URL для редиректов кликов (например, https://your-app.up.railway.app)
+    api_base_url = os.getenv("API_BASE_URL")
+
     return Settings(
         telegram_token=telegram_token,
         database_url=database_url,
@@ -215,4 +219,5 @@ def load_settings(require_bot: bool = False) -> Settings:
         maps_timeout_s=float(os.getenv("MAPS_TIMEOUT_S", "3.5")),
         maps_cb_fails=int(os.getenv("MAPS_CB_FAILS", "3")),
         maps_cb_cooldown_min=int(os.getenv("MAPS_CB_COOLDOWN_MIN", "60")),
+        api_base_url=api_base_url,
     )
