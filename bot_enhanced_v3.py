@@ -55,20 +55,26 @@ def _build_tracking_url(click_type: str, event: dict, target_url: str, user_id: 
     Создает URL для отслеживания кликов через API endpoint.
     Если api_base_url не настроен или user_id отсутствует, возвращает оригинальный URL.
     """
+    import logging
     from urllib.parse import quote
+
+    logger = logging.getLogger(__name__)
 
     if not user_id:
         # Если user_id не указан, возвращаем оригинальный URL без отслеживания
+        logger.debug("⚠️ _build_tracking_url: user_id отсутствует, используем прямой URL")
         return target_url
 
     settings = load_settings()
     if not settings.api_base_url:
         # Если API URL не настроен, возвращаем оригинальный URL
+        logger.debug("⚠️ _build_tracking_url: API_BASE_URL не настроен, используем прямой URL")
         return target_url
 
     event_id = event.get("id")
     if not event_id:
         # Если нет event_id, возвращаем оригинальный URL
+        logger.debug("⚠️ _build_tracking_url: event_id отсутствует в событии, используем прямой URL")
         return target_url
 
     # Формируем URL через API endpoint
@@ -77,6 +83,8 @@ def _build_tracking_url(click_type: str, event: dict, target_url: str, user_id: 
     tracking_url = (
         f"{api_base}/click?user_id={user_id}&event_id={event_id}&click_type={click_type}&target_url={encoded_url}"
     )
+
+    logger.debug(f"✅ _build_tracking_url: создан URL отслеживания для {click_type}: event_id={event_id}")
 
     return tracking_url
 
@@ -2907,6 +2915,7 @@ async def on_location(message: types.Message, state: FSMContext):
                 )
 
                 formatted_event = {
+                    "id": event.get("id"),  # Добавляем id для отслеживания кликов
                     "title": event["title"],
                     "description": event["description"],
                     "time_local": event["starts_at"].strftime("%Y-%m-%d %H:%M") if event["starts_at"] else None,
@@ -3174,11 +3183,16 @@ async def on_location(message: types.Message, state: FSMContext):
                 for event in shown_events:
                     event_id = event.get("id")
                     if event_id:
+                        logger.info(
+                            f"📊 Логируем list_view: user_id={message.from_user.id}, event_id={event_id}, group_chat_id={group_chat_id}"
+                        )
                         participation_analytics.record_list_view(
                             user_id=message.from_user.id,
                             event_id=event_id,
                             group_chat_id=group_chat_id,
                         )
+                    else:
+                        logger.warning(f"⚠️ У события нет id для логирования: {event.get('title', 'Без названия')[:30]}")
 
                 # 5) Добавляем навигацию если нужно
                 total_pages = max(1, ceil(len(prepared) / 5))
