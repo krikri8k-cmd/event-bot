@@ -39,20 +39,6 @@ CREATE INDEX idx_user_participation_created_at ON user_participation(created_at)
 CREATE INDEX idx_user_participation_user_event ON user_participation(user_id, event_id);
 CREATE INDEX idx_user_participation_part_type ON user_participation(participation_type) WHERE participation_type IS NOT NULL;
 
--- Триггер для автоматического обновления updated_at
-CREATE OR REPLACE FUNCTION update_user_participation_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trigger_update_user_participation_updated_at
-    BEFORE UPDATE ON user_participation
-    FOR EACH ROW
-    EXECUTE FUNCTION update_user_participation_updated_at();
-
 -- Комментарии к таблице и колонкам
 COMMENT ON TABLE user_participation IS 'Аналитика взаимодействий пользователей с событиями';
 COMMENT ON COLUMN user_participation.user_id IS 'ID пользователя Telegram';
