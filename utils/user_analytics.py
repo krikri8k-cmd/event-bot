@@ -123,6 +123,7 @@ class UserAnalytics:
                     UPDATE users
                     SET total_sessions_community = total_sessions_community + 1,
                         total_sessions = total_sessions + 1,
+                        last_session_community_at_utc = NOW(),
                         updated_at_utc = NOW()
                     WHERE id = :user_id
                 """
