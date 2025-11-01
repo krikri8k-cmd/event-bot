@@ -228,21 +228,6 @@ MAIN_BOT_USERNAME = None  # Будет установлен в set_bot_username(
 group_router = Router(name="group_router")
 
 
-@group_router.message(lambda message: message.text == "🎉 /start События чата")
-async def handle_events_button(message: Message, bot: Bot, session: AsyncSession):
-    """Обработчик кнопки Events - вызывает команду /start"""
-    logger.info(f"🎉 Кнопка Events от пользователя {message.from_user.id} в чате {message.chat.id}")
-
-    # Удаляем сообщение с кнопкой
-    try:
-        await message.delete()
-    except Exception as e:
-        logger.error(f"❌ Не удалось удалить кнопку: {e}")
-
-    # Вызываем команду /start напрямую
-    await handle_start_command(message, bot, session)
-
-
 @group_router.message(lambda message: message.text == "/test_autodelete")
 async def test_autodelete(message: Message, bot: Bot, session: AsyncSession):
     """Тестовая команда для проверки автоудаления"""
@@ -368,7 +353,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
             start_keyboard = ReplyKeyboardMarkup(
-                keyboard=[[KeyboardButton(text="🎉 /start События чата")]],
+                keyboard=[[KeyboardButton(text="/start@EventAroundBot 🎉")]],
                 resize_keyboard=True,
                 one_time_keyboard=False,
                 persistent=True,
