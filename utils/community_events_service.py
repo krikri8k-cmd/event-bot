@@ -80,7 +80,7 @@ class CommunityEventsService:
         print(f"🔥 admin_ids_json: {admin_ids_json}")
         print(f"🔥 admin_count = {admin_count}")
 
-        with self.engine.connect() as conn:
+        with self.engine.begin() as conn:
             query = text("""
                 INSERT INTO events_community
                 (chat_id, organizer_id, organizer_username, admin_id, admin_ids, admin_count, title, starts_at,
@@ -119,8 +119,6 @@ class CommunityEventsService:
             """),
                 {"creator_id": creator_id},
             )
-
-            conn.commit()
 
             print(f"✅ Создано событие сообщества ID {event_id}: '{title}' в группе {group_id}")
             return event_id
