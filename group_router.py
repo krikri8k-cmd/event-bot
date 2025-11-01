@@ -228,23 +228,6 @@ MAIN_BOT_USERNAME = None  # Будет установлен в set_bot_username(
 group_router = Router(name="group_router")
 
 
-@group_router.message(lambda message: message.text == "🎉 /start События чата")
-async def handle_events_button(message: Message, bot: Bot, session: AsyncSession):
-    """Обработчик кнопки Events - работает как команда /start"""
-    if message.chat.type in ("group", "supergroup"):
-        logger.info(f"🎉 Кнопка Events от пользователя {message.from_user.id} в чате {message.chat.id}")
-
-        # Удаляем сообщение с кнопкой Events
-        try:
-            await message.delete()
-            logger.info(f"✅ Удалена кнопка Events от пользователя {message.from_user.id} в чате {message.chat.id}")
-        except Exception as e:
-            logger.error(f"❌ Не удалось удалить кнопку Events: {e}")
-
-        # Вызываем тот же обработчик что и для /start
-        await handle_start_command(message, bot, session)
-
-
 @group_router.message(lambda message: message.text == "/test_autodelete")
 async def test_autodelete(message: Message, bot: Bot, session: AsyncSession):
     """Тестовая команда для проверки автоудаления"""
@@ -343,18 +326,6 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                     "💡 Выберите действие:"
                 )
 
-                # Создаем ReplyKeyboard для основного сообщения
-                from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
-
-                start_keyboard = ReplyKeyboardMarkup(
-                    keyboard=[
-                        [KeyboardButton(text="🎉 /start События чата")],
-                    ],
-                    resize_keyboard=True,
-                    one_time_keyboard=False,
-                    persistent=True,
-                )
-
                 await send_tracked(
                     bot,
                     session,
@@ -377,17 +348,6 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                     reply_markup=keyboard,
                     parse_mode="Markdown",
                 )
-
-            # Отправляем ReplyKeyboard с кнопкой /start сразу после панели
-            activation_msg = await message.answer("🤖 EventAroundBot активирован!", reply_markup=start_keyboard)
-
-            # Удаляем сообщение активации через 1 секунду (ReplyKeyboard остается)
-            try:
-                await asyncio.sleep(1)
-                await bot.delete_message(message.chat.id, activation_msg.message_id)
-                logger.info(f"✅ Сообщение активации удалено, ReplyKeyboard остался в чате {message.chat.id}")
-            except Exception as e:
-                logger.warning(f"⚠️ Не удалось удалить сообщение активации: {e}")
 
             # ПРИНУДИТЕЛЬНО для мобильных: устанавливаем команды и меню
             try:
