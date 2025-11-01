@@ -349,6 +349,26 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                     parse_mode="Markdown",
                 )
 
+            # Отправляем сообщение с ReplyKeyboard для мобильных
+            from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
+
+            start_keyboard = ReplyKeyboardMarkup(
+                keyboard=[[KeyboardButton(text="/start@EventAroundBot")]],
+                resize_keyboard=True,
+                one_time_keyboard=False,
+                persistent=True,
+            )
+
+            activation_msg = await message.answer("🤖 EventAroundBot активирован!", reply_markup=start_keyboard)
+
+            # Удаляем сообщение активации через 1 секунду (ReplyKeyboard остается)
+            try:
+                await asyncio.sleep(1)
+                await bot.delete_message(message.chat.id, activation_msg.message_id)
+                logger.info(f"✅ Сообщение активации удалено, ReplyKeyboard остался в чате {message.chat.id}")
+            except Exception as e:
+                logger.warning(f"⚠️ Не удалось удалить сообщение активации: {e}")
+
             # ПРИНУДИТЕЛЬНО для мобильных: устанавливаем команды и меню
             try:
                 # Устанавливаем команды для конкретного чата
