@@ -250,7 +250,28 @@ async def ensure_panel(bot: Bot, session: Session, *, chat_id: int, text: str, k
         result = await session.execute(text("SELECT nextval('chat_number_seq')"))
         chat_number = result.scalar()
         logger.info(f"✅ Назначен chat_number={chat_number} для чата {chat_id}")
-        settings = ChatSettings(chat_id=chat_id, chat_number=chat_number)
+
+        # Получаем админов группы
+        import json
+
+        admin_ids = []
+        admin_count = 0
+        try:
+            from utils.community_events_service import CommunityEventsService
+
+            community_service = CommunityEventsService()
+            admin_ids = await community_service.get_cached_admin_ids(bot, chat_id)
+            admin_count = len(admin_ids)
+            logger.info(f"✅ Получены админы для нового чата {chat_id}: count={admin_count}, ids={admin_ids}")
+        except Exception as e:
+            logger.warning(f"⚠️ Не удалось получить админов для чата {chat_id}: {e}")
+
+        settings = ChatSettings(
+            chat_id=chat_id,
+            chat_number=chat_number,
+            admin_ids=json.dumps(admin_ids) if admin_ids else None,
+            admin_count=admin_count,
+        )
         session.add(settings)
         await session.commit()
 

@@ -332,6 +332,7 @@ class ModernEventScheduler:
             async def check_chats_async():
                 checked_count = 0
                 removed_count = 0
+                updated_admins_count = 0
 
                 async with async_session_maker() as session:
                     # Получаем все активные чаты
@@ -346,6 +347,29 @@ class ModernEventScheduler:
                             # Пробуем получить информацию о чате
                             # Если бот удален, это вызовет ошибку
                             await bot.get_chat(chat.chat_id)
+
+                            # Обновляем админов
+                            try:
+                                import json
+
+                                from utils.community_events_service import CommunityEventsService
+
+                                community_service = CommunityEventsService()
+                                admin_ids = await community_service.get_cached_admin_ids(bot, chat.chat_id)
+                                admin_count = len(admin_ids)
+
+                                # Обновляем только если изменилось
+                                current_admin_ids = json.loads(chat.admin_ids) if chat.admin_ids else []
+                                if set(admin_ids) != set(current_admin_ids):
+                                    chat.admin_ids = json.dumps(admin_ids) if admin_ids else None
+                                    chat.admin_count = admin_count
+                                    updated_admins_count += 1
+                                    logger.info(f"   📝 Обновлены админы для чата {chat.chat_id}: count={admin_count}")
+
+                            except Exception as admin_error:
+                                logger.warning(
+                                    f"   ⚠️ Не удалось обновить админов для чата {chat.chat_id}: {admin_error}"
+                                )
 
                         except Exception as e:
                             error_msg = str(e).lower()
@@ -362,7 +386,10 @@ class ModernEventScheduler:
                                 removed_count += 1
 
                     await session.commit()
-                    logger.info(f"   ✅ Проверено {checked_count} чатов, удаленных найдено: {removed_count}")
+                    logger.info(
+                        f"   ✅ Проверено {checked_count} чатов, удаленных найдено: {removed_count}, "
+                        f"админов обновлено: {updated_admins_count}"
+                    )
 
                 await bot.session.close()
 
