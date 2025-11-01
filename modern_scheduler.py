@@ -301,6 +301,79 @@ class ModernEventScheduler:
         except Exception as e:
             logger.error(f"❌ Ошибка очистки просроченных заданий: {e}")
 
+    def check_removed_chats(self):
+        """Проверка чатов, из которых бот мог быть удален"""
+        try:
+            from datetime import datetime
+
+            from aiogram import Bot
+            from sqlalchemy import select
+
+            from config import load_settings
+            from database import ChatSettings
+
+            logger.info("🔍 Проверка чатов на удаление бота...")
+
+            settings = load_settings()
+            if not settings.telegram_token:
+                logger.warning("⚠️ TELEGRAM_TOKEN не настроен, пропускаем проверку")
+                return
+
+            # Создаем async бота для проверки
+            bot = Bot(token=settings.telegram_token)
+
+            # Получаем engine и создаем session
+            from database import async_engine, async_session_maker
+
+            if not async_engine or not async_session_maker:
+                logger.warning("⚠️ Async engine не инициализирован, пропускаем проверку")
+                return
+
+            async def check_chats_async():
+                checked_count = 0
+                removed_count = 0
+
+                async with async_session_maker() as session:
+                    # Получаем все активные чаты
+                    result = await session.execute(select(ChatSettings).where(ChatSettings.bot_status == "active"))
+                    chats = result.scalars().all()
+
+                    logger.info(f"   Найдено {len(chats)} активных чатов для проверки")
+
+                    for chat in chats:
+                        checked_count += 1
+                        try:
+                            # Пробуем получить информацию о чате
+                            # Если бот удален, это вызовет ошибку
+                            await bot.get_chat(chat.chat_id)
+
+                        except Exception as e:
+                            error_msg = str(e).lower()
+                            # Проверяем, не был ли бот удален
+                            if (
+                                "bot was kicked" in error_msg
+                                or "bot was removed" in error_msg
+                                or "chat not found" in error_msg
+                                or "forbidden" in error_msg
+                            ):
+                                logger.warning(f"   🚫 Бот удален из чата {chat.chat_id}")
+                                chat.bot_status = "removed"
+                                chat.bot_removed_at = datetime.utcnow()
+                                removed_count += 1
+
+                    await session.commit()
+                    logger.info(f"   ✅ Проверено {checked_count} чатов, удаленных найдено: {removed_count}")
+
+                await bot.session.close()
+
+            # Запускаем async функцию
+            import asyncio
+
+            asyncio.run(check_chats_async())
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка проверки удаленных чатов: {e}")
+
     def start(self):
         """Запуск планировщика"""
         if self.scheduler and self.scheduler.running:
@@ -324,12 +397,18 @@ class ModernEventScheduler:
             self.cleanup_expired_tasks, "interval", hours=2, id="tasks-cleanup", max_instances=1, coalesce=True
         )
 
+        # Проверка удаленных чатов каждые 24 часа
+        self.scheduler.add_job(
+            self.check_removed_chats, "interval", hours=24, id="chat-status-check", max_instances=1, coalesce=True
+        )
+
         self.scheduler.start()
         logger.info("🚀 Современный планировщик запущен!")
         logger.info("   📅 Полный цикл: каждые 12 часов (2 раза в день)")
         logger.info("   🌴 BaliForum (Бали) + 🎭 KudaGo (Москва, СПб)")
         logger.info("   🧹 Очистка событий: каждые 6 часов")
         logger.info("   ⏰ Очистка заданий: каждые 2 часа")
+        logger.info("   🔍 Проверка удаленных чатов: каждые 24 часа")
 
         # Запускаем первый цикл сразу
         self.run_full_ingest()
