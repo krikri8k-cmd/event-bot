@@ -530,13 +530,54 @@ def group_kb(chat_id: int) -> InlineKeyboardMarkup:
 
 # ПРИНУДИТЕЛЬНАЯ КЛАВИАТУРА ПРИ ДОБАВЛЕНИИ БОТА В ГРУППУ
 @group_router.message(F.new_chat_members)
-async def handle_new_members(message: Message):
+async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
     """Обработчик добавления новых участников в группу"""
     # Проверяем, добавили ли бота
     bot_added = any(member.is_bot for member in message.new_chat_members)
 
     if bot_added:
         logger.info(f"🔥 Бот добавлен в группу {message.chat.id}")
+
+        # Создаем или обновляем запись в chat_settings сразу
+        import json
+
+        from sqlalchemy import select, text
+
+        from database import ChatSettings
+
+        result = await session.execute(select(ChatSettings).where(ChatSettings.chat_id == message.chat.id))
+        settings = result.scalar_one_or_none()
+
+        if not settings:
+            logger.info(f"🔥 Создаем запись в chat_settings для нового чата {message.chat.id}")
+            # Получаем следующий chat_number
+            result = await session.execute(text("SELECT nextval('chat_number_seq')"))
+            chat_number = result.scalar()
+            logger.info(f"✅ Назначен chat_number={chat_number} для чата {message.chat.id}")
+
+            # Получаем админов группы
+            admin_ids = []
+            admin_count = 0
+            try:
+                from utils.community_events_service import CommunityEventsService
+
+                community_service = CommunityEventsService()
+                admin_ids = await community_service.get_cached_admin_ids(bot, message.chat.id)
+                admin_count = len(admin_ids)
+                logger.info(f"✅ Получены админы для нового чата {message.chat.id}: count={admin_count}")
+            except Exception as e:
+                logger.warning(f"⚠️ Не удалось получить админов для чата {message.chat.id}: {e}")
+
+            settings = ChatSettings(
+                chat_id=message.chat.id,
+                chat_number=chat_number,
+                admin_ids=json.dumps(admin_ids) if admin_ids else None,
+                admin_count=admin_count,
+                bot_status="active",
+            )
+            session.add(settings)
+            await session.commit()
+            logger.info(f"✅ Запись chat_settings создана для чата {message.chat.id}")
 
         # Простое приветствие без выбора ветки
         await message.answer(
