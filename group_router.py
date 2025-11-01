@@ -353,7 +353,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
             start_keyboard = ReplyKeyboardMarkup(
-                keyboard=[[KeyboardButton(text="/start@EventAroundBot")]],
+                keyboard=[[KeyboardButton(text="🎉 /start@EventAroundBot")]],
                 resize_keyboard=True,
                 one_time_keyboard=False,
                 persistent=True,
