@@ -231,18 +231,16 @@ group_router = Router(name="group_router")
 @group_router.message(lambda message: message.text == "🎉 /start События чата")
 async def handle_events_button(message: Message, bot: Bot, session: AsyncSession):
     """Обработчик кнопки Events - вызывает команду /start"""
-    if message.chat.type in ("group", "supergroup"):
-        logger.info(f"🎉 Кнопка Events от пользователя {message.from_user.id} в чате {message.chat.id}")
+    logger.info(f"🎉 Кнопка Events от пользователя {message.from_user.id} в чате {message.chat.id}")
 
-        # Удаляем сообщение с кнопкой
-        try:
-            await message.delete()
-        except Exception as e:
-            logger.error(f"❌ Не удалось удалить кнопку: {e}")
+    # Удаляем сообщение с кнопкой
+    try:
+        await message.delete()
+    except Exception as e:
+        logger.error(f"❌ Не удалось удалить кнопку: {e}")
 
-        # Вызываем команду /start через диспетчер
-        message.text = "/start@EventAroundBot"
-        await handle_start_command(message, bot, session)
+    # Вызываем команду /start напрямую
+    await handle_start_command(message, bot, session)
 
 
 @group_router.message(lambda message: message.text == "/test_autodelete")
