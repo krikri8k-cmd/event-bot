@@ -241,7 +241,7 @@ async def handle_events_button(message: Message, bot: Bot, session: AsyncSession
             logger.error(f"❌ Не удалось удалить кнопку: {e}")
 
         # Вызываем команду /start через диспетчер
-        message.text = "/start"
+        message.text = "/start@EventAroundBot"
         await handle_start_command(message, bot, session)
 
 
