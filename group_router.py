@@ -529,7 +529,7 @@ def group_kb(chat_id: int) -> InlineKeyboardMarkup:
 
 
 # ПРИНУДИТЕЛЬНАЯ КЛАВИАТУРА ПРИ ДОБАВЛЕНИИ БОТА В ГРУППУ
-@group_router.message(F.new_chat_members)
+@group_router.message(F.new_chat_members, F.chat.type.in_({"group", "supergroup"}))
 async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
     """Обработчик добавления новых участников в группу"""
     # Проверяем, добавили ли бота
