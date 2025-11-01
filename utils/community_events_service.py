@@ -5,7 +5,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
 from config import load_settings
 
@@ -16,7 +16,10 @@ class CommunityEventsService:
     def __init__(self, engine=None):
         if engine is None:
             settings = load_settings()
-            self.engine = create_engine(settings.database_url)
+            # Используем ту же функцию что и в database.py для нормализации URL
+            from database import make_engine
+
+            self.engine = make_engine(settings.database_url)
         else:
             self.engine = engine
 
