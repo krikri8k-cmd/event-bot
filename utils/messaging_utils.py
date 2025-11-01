@@ -68,7 +68,13 @@ def ensure_panel_sync(bot: Bot, session: Session, *, chat_id: int, text: str, kb
     settings = session.query(ChatSettings).filter(ChatSettings.chat_id == chat_id).first()
 
     if not settings:
-        settings = ChatSettings(chat_id=chat_id)
+        # Получаем следующий chat_number из последовательности
+        from sqlalchemy import text
+
+        result = session.execute(text("SELECT nextval('chat_number_seq')"))
+        chat_number = result.scalar()
+        logger.info(f"✅ Назначен chat_number={chat_number} для чата {chat_id}")
+        settings = ChatSettings(chat_id=chat_id, chat_number=chat_number)
         session.add(settings)
         session.commit()
 
@@ -210,7 +216,7 @@ async def ensure_panel(bot: Bot, session: Session, *, chat_id: int, text: str, k
     logger.info(f"🔥 ensure_panel: начинаем для чата {chat_id}")
 
     # Получаем настройки чата
-    from sqlalchemy import select
+    from sqlalchemy import select, text
 
     result = await session.execute(select(ChatSettings).where(ChatSettings.chat_id == chat_id))
     settings = result.scalar_one_or_none()
@@ -218,7 +224,11 @@ async def ensure_panel(bot: Bot, session: Session, *, chat_id: int, text: str, k
 
     if not settings:
         logger.info(f"🔥 ensure_panel: создаем новые настройки для чата {chat_id}")
-        settings = ChatSettings(chat_id=chat_id)
+        # Получаем следующий chat_number из последовательности
+        result = await session.execute(text("SELECT nextval('chat_number_seq')"))
+        chat_number = result.scalar()
+        logger.info(f"✅ Назначен chat_number={chat_number} для чата {chat_id}")
+        settings = ChatSettings(chat_id=chat_id, chat_number=chat_number)
         session.add(settings)
         await session.commit()
 

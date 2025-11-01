@@ -229,6 +229,7 @@ class ChatSettings(Base):
     __tablename__ = "chat_settings"
 
     chat_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    chat_number: Mapped[int | None] = mapped_column(Integer, unique=True, index=True)
     last_panel_message_id: Mapped[int | None] = mapped_column(BigInteger)
     muted: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
