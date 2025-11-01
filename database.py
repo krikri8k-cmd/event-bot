@@ -232,6 +232,8 @@ class ChatSettings(Base):
     chat_number: Mapped[int | None] = mapped_column(Integer, unique=True, index=True)
     last_panel_message_id: Mapped[int | None] = mapped_column(BigInteger)
     muted: Mapped[bool] = mapped_column(Boolean, default=False)
+    bot_status: Mapped[str | None] = mapped_column(String(20), default="active")  # active, removed, inactive
+    bot_removed_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

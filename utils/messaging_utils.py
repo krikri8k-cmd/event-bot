@@ -17,6 +17,28 @@ from database import BotMessage, ChatSettings
 logger = logging.getLogger(__name__)
 
 
+async def mark_bot_removed(session: Session, chat_id: int) -> None:
+    """
+    Помечает бота как удаленного из группы
+
+    Args:
+        session: SQLAlchemy сессия
+        chat_id: ID группового чата
+    """
+    from datetime import datetime
+
+    from sqlalchemy import select
+
+    result = await session.execute(select(ChatSettings).where(ChatSettings.chat_id == chat_id))
+    settings = result.scalar_one_or_none()
+
+    if settings and settings.bot_status != "removed":
+        settings.bot_status = "removed"
+        settings.bot_removed_at = datetime.utcnow()
+        await session.commit()
+        logger.warning(f"🚫 Бот помечен как удаленный из группы {chat_id}")
+
+
 async def auto_delete_message(bot: Bot, chat_id: int, message_id: int, delay_seconds: int):
     """Автоудаление сообщения через указанное количество секунд (только для групповых чатов)"""
     try:
@@ -252,7 +274,18 @@ async def ensure_panel(bot: Bot, session: Session, *, chat_id: int, text: str, k
 
     # Создаем новое сообщение
     logger.info(f"🔥 ensure_panel: создаем новое сообщение для чата {chat_id}")
-    msg = await bot.send_message(chat_id, text, reply_markup=kb, parse_mode="Markdown")
+    try:
+        msg = await bot.send_message(chat_id, text, reply_markup=kb, parse_mode="Markdown")
+    except TelegramForbiddenError as e:
+        logger.error(f"🚫 Бот был удален из группы {chat_id}: {e}")
+        await mark_bot_removed(session, chat_id)
+        raise
+    except TelegramBadRequest as e:
+        logger.error(f"⚠️ Ошибка отправки сообщения в группу {chat_id}: {e}")
+        # Проверяем, не был ли бот удален
+        if "chat not found" in str(e).lower() or "bot was kicked" in str(e).lower():
+            await mark_bot_removed(session, chat_id)
+        raise
 
     # Сохраняем ID панели и трекаем сообщение
     logger.info(f"🔥 ensure_panel: сохраняем message_id={msg.message_id} в настройках и bot_messages")
@@ -285,7 +318,18 @@ async def send_tracked(bot: Bot, session: Session, *, chat_id: int, text: str, t
     Returns:
         Отправленное сообщение
     """
-    msg = await bot.send_message(chat_id, text, **kwargs)
+    try:
+        msg = await bot.send_message(chat_id, text, **kwargs)
+    except TelegramForbiddenError as e:
+        logger.error(f"🚫 Бот был удален из группы {chat_id}: {e}")
+        await mark_bot_removed(session, chat_id)
+        raise
+    except TelegramBadRequest as e:
+        logger.error(f"⚠️ Ошибка отправки сообщения в группу {chat_id}: {e}")
+        # Проверяем, не был ли бот удален
+        if "chat not found" in str(e).lower() or "bot was kicked" in str(e).lower():
+            await mark_bot_removed(session, chat_id)
+        raise
 
     # Трекаем сообщение
     bot_msg = BotMessage(chat_id=chat_id, message_id=msg.message_id, tag=tag)
