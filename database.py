@@ -272,7 +272,15 @@ def make_async_engine(database_url: str):
         else:
             async_url = database_url
 
-        return create_async_engine(async_url, future=True, pool_pre_ping=True)
+        # asyncpg не поддерживает sslmode=require в query, удаляем его и добавляем ssl=False для локального подключения
+        if "sslmode=require" in async_url:
+            async_url = async_url.replace("?sslmode=require", "").replace("&sslmode=require", "")
+            # Для локального подключения отключаем SSL
+            connect_args = {"ssl": False}
+        else:
+            connect_args = {}
+
+        return create_async_engine(async_url, future=True, pool_pre_ping=True, connect_args=connect_args)
     except ImportError:
         logging.warning("asyncpg не установлен, async engine недоступен")
         return None
