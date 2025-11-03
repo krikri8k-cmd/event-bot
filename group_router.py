@@ -761,30 +761,33 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                 text = text[:3900] + "\n\n... (текст обрезан)"
 
             # Убираем проблемные символы из текста, но сохраняем Markdown ссылки
-            # Заменяем только проблемные символы, но НЕ трогаем ссылки в формате [текст](url)
             import re
+            import uuid
 
-            # Временно заменяем ссылки на плейсхолдеры
+            # Сначала извлекаем все ссылки и заменяем их на уникальные маркеры
             link_pattern = r"\[([^\]]+)\]\(([^\)]+)\)"
-            links = []
-            placeholder_template = "___LINK_{}___"
+            links_map = {}  # Маркер -> (link_text, link_url)
 
-            def replace_link(match):
+            def replace_with_marker(match):
                 link_text = match.group(1)
                 link_url = match.group(2)
-                placeholder = placeholder_template.format(len(links))
-                links.append((placeholder, link_text, link_url))
-                return placeholder
+                # Используем уникальный маркер без подчеркиваний и других проблемных символов
+                marker = f"LINKMARKER{uuid.uuid4().hex}"
+                links_map[marker] = (link_text, link_url)
+                return marker
 
-            # Сохраняем ссылки и заменяем на плейсхолдеры
-            text = re.sub(link_pattern, replace_link, text)
+            # Заменяем все ссылки на маркеры
+            text = re.sub(link_pattern, replace_with_marker, text)
 
-            # Убираем проблемные символы
+            # Теперь безопасно убираем проблемные символы (маркеры не содержат их)
             text = text.replace("`", "'").replace("*", "").replace("_", "").replace("[", "(").replace("]", ")")
 
-            # Восстанавливаем ссылки
-            for placeholder, link_text, link_url in links:
-                text = text.replace(placeholder, f"[{link_text}]({link_url})")
+            # Восстанавливаем ссылки из маркеров
+            for marker, (link_text, link_url) in links_map.items():
+                # Очищаем текст и URL от проблемных символов
+                safe_text = link_text.replace("*", "").replace("_", " ").replace("[", "").replace("]", "")
+                safe_url = link_url.replace("(", "%28").replace(")", "%29")
+                text = text.replace(marker, f"[{safe_text}]({safe_url})")
 
             # Отправляем с Markdown для поддержки ссылок
             await callback.message.edit_text(text, reply_markup=back_kb, parse_mode="Markdown")
