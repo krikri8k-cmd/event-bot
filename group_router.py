@@ -567,17 +567,48 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
 
 @group_router.callback_query(F.data == "group_list")
 async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSession):
-    """Показать список событий этого чата"""
+    """Показать список событий этого чата (первая страница)"""
+    await group_list_events_page(callback, bot, session, page=1)
+
+
+@group_router.callback_query(F.data.startswith("group_list_page_"))
+async def group_list_events_page_handler(callback: CallbackQuery, bot: Bot, session: AsyncSession):
+    """Обработчик навигации по страницам списка событий"""
+    try:
+        page = int(callback.data.split("_")[-1])
+    except (ValueError, IndexError):
+        page = 1
+    await group_list_events_page(callback, bot, session, page)
+
+
+async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: AsyncSession, page: int = 1):
+    """Показать список событий этого чата с пагинацией"""
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id
-    logger.info(f"🔥 group_list_events: запрос списка событий в чате {chat_id} от пользователя {user_id}")
+    events_per_page = 10
+
+    logger.info(f"🔥 group_list_events_page: запрос списка событий в чате {chat_id}, страница {page}")
 
     await callback.answer()  # Тост, не спамим
 
     try:
         # Получаем будущие события этого чата
-        from sqlalchemy import select
+        from sqlalchemy import func, select
 
+        # Сначала получаем общее количество событий
+        count_stmt = select(func.count(CommunityEvent.id)).where(
+            CommunityEvent.chat_id == chat_id,
+            CommunityEvent.status == "open",
+            CommunityEvent.starts_at >= datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0),
+        )
+        total_result = await session.execute(count_stmt)
+        total_events = total_result.scalar() or 0
+
+        # Вычисляем offset для текущей страницы
+        offset = (page - 1) * events_per_page
+        total_pages = (total_events + events_per_page - 1) // events_per_page if total_events > 0 else 1
+
+        # Получаем события для текущей страницы
         stmt = (
             select(CommunityEvent)
             .where(
@@ -586,7 +617,8 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
                 CommunityEvent.starts_at >= datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0),
             )
             .order_by(CommunityEvent.starts_at)
-            .limit(10)
+            .offset(offset)
+            .limit(events_per_page)
         )
 
         result = await session.execute(stmt)
@@ -603,15 +635,21 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
                 "💡 Создайте первое событие, нажав кнопку **➕ Создать событие**!"
             )
         else:
-            text = f"📋 **События этого чата** ({len(events)} событий)\n\n"
+            # Формируем заголовок с информацией о пагинации
+            if total_pages > 1:
+                text = f"📋 **События этого чата** ({total_events} событий, стр. {page}/{total_pages})\n\n"
+            else:
+                text = f"📋 **События этого чата** ({total_events} событий)\n\n"
 
             for i, event in enumerate(events, 1):
+                # Номер события на текущей странице (с учетом offset)
+                event_number = offset + i
                 # Форматируем дату
                 date_str = event.starts_at.strftime("%d.%m.%Y %H:%M")
 
                 # Добавляем событие в список (безопасная версия)
                 safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
-                text += f"{i}. {safe_title}\n"
+                text += f"{event_number}. {safe_title}\n"
                 text += f"   📅 {date_str}\n"
 
                 # Город (приоритет: ручной ввод, затем автоматическое извлечение)
@@ -679,6 +717,20 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
                             )
                         ]
                     )
+
+        # Добавляем кнопки навигации по страницам
+        navigation_buttons = []
+        if total_pages > 1:
+            if page > 1:
+                navigation_buttons.append(
+                    InlineKeyboardButton(text="◀️ Предыдущая", callback_data=f"group_list_page_{page - 1}")
+                )
+            if page < total_pages:
+                navigation_buttons.append(
+                    InlineKeyboardButton(text="▶️ Следующая", callback_data=f"group_list_page_{page + 1}")
+                )
+            if navigation_buttons:
+                keyboard_buttons.append(navigation_buttons)
 
         # Кнопка "Назад"
         keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel")])
