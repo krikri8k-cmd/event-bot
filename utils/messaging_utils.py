@@ -10,6 +10,7 @@ from typing import Any
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.types import InlineKeyboardMarkup
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from database import BotMessage, ChatSettings
@@ -17,26 +18,40 @@ from database import BotMessage, ChatSettings
 logger = logging.getLogger(__name__)
 
 
-async def mark_bot_removed(session: Session, chat_id: int) -> None:
+async def mark_bot_removed(session: AsyncSession | Session, chat_id: int) -> None:
     """
     Помечает бота как удаленного из группы
 
     Args:
-        session: SQLAlchemy сессия
+        session: SQLAlchemy сессия (async или sync)
         chat_id: ID группового чата
     """
     from datetime import datetime
 
     from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import AsyncSession
 
-    result = await session.execute(select(ChatSettings).where(ChatSettings.chat_id == chat_id))
-    settings = result.scalar_one_or_none()
+    # Проверяем тип сессии
+    is_async = isinstance(session, AsyncSession)
 
-    if settings and settings.bot_status != "removed":
-        settings.bot_status = "removed"
-        settings.bot_removed_at = datetime.utcnow()
-        await session.commit()
-        logger.warning(f"🚫 Бот помечен как удаленный из группы {chat_id}")
+    if is_async:
+        result = await session.execute(select(ChatSettings).where(ChatSettings.chat_id == chat_id))
+        settings = result.scalar_one_or_none()
+
+        if settings and settings.bot_status != "removed":
+            settings.bot_status = "removed"
+            settings.bot_removed_at = datetime.utcnow()
+            await session.commit()
+            logger.warning(f"🚫 Бот помечен как удаленный из группы {chat_id}")
+    else:
+        # Синхронная версия для обратной совместимости
+        settings = session.query(ChatSettings).filter(ChatSettings.chat_id == chat_id).first()
+
+        if settings and settings.bot_status != "removed":
+            settings.bot_status = "removed"
+            settings.bot_removed_at = datetime.utcnow()
+            session.commit()
+            logger.warning(f"🚫 Бот помечен как удаленный из группы {chat_id}")
 
 
 async def auto_delete_message(bot: Bot, chat_id: int, message_id: int, delay_seconds: int):
@@ -221,7 +236,7 @@ def delete_all_tracked_sync(bot: Bot, session: Session, *, chat_id: int) -> int:
 # === ASYNC ВЕРСИИ (для асинхронной работы) ===
 
 
-async def ensure_panel(bot: Bot, session: Session, *, chat_id: int, text: str, kb: InlineKeyboardMarkup) -> int:
+async def ensure_panel(bot: Bot, session: AsyncSession, *, chat_id: int, text: str, kb: InlineKeyboardMarkup) -> int:
     """
     Редактирует существующий панель-пост или создает новый (ASYNC версия)
 
@@ -324,7 +339,9 @@ async def ensure_panel(bot: Bot, session: Session, *, chat_id: int, text: str, k
     return msg.message_id
 
 
-async def send_tracked(bot: Bot, session: Session, *, chat_id: int, text: str, tag: str = "service", **kwargs) -> Any:
+async def send_tracked(
+    bot: Bot, session: AsyncSession, *, chat_id: int, text: str, tag: str = "service", **kwargs
+) -> Any:
     """
     Отправляет сообщение и сохраняет его ID для последующего удаления (ASYNC версия)
 
@@ -367,7 +384,7 @@ async def send_tracked(bot: Bot, session: Session, *, chat_id: int, text: str, t
     return msg
 
 
-async def delete_all_tracked(bot: Bot, session: Session, *, chat_id: int) -> int:
+async def delete_all_tracked(bot: Bot, session: AsyncSession, *, chat_id: int) -> int:
     """
     Удаляет все трекнутые сообщения бота в чате (ASYNC версия)
 
