@@ -669,10 +669,19 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                     safe_desc = desc.replace("*", "").replace("_", "").replace("`", "'")
                     text += f"   📝 {safe_desc}\n"
 
-                # Место (без ссылок для безопасности)
+                # Место с ссылкой на карту (если есть)
                 if event.location_name:
                     safe_location = event.location_name.replace("*", "").replace("_", "").replace("`", "'")
-                    text += f"   📍 {safe_location}\n"
+                    if event.location_url:
+                        # Создаем ссылку на карту в Markdown формате
+                        safe_url = event.location_url.replace("(", "").replace(")", "")
+                        text += f"   📍 [{safe_location}]({safe_url})\n"
+                    else:
+                        text += f"   📍 {safe_location}\n"
+                elif event.location_url:
+                    # Если есть только ссылка, без названия места
+                    safe_url = event.location_url.replace("(", "").replace(")", "")
+                    text += f"   📍 [Место на карте]({safe_url})\n"
 
                 # Организатор
                 if event.organizer_username:
@@ -751,11 +760,34 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
             if len(text) > 4000:
                 text = text[:3900] + "\n\n... (текст обрезан)"
 
-            # Убираем проблемные символы из текста
+            # Убираем проблемные символы из текста, но сохраняем Markdown ссылки
+            # Заменяем только проблемные символы, но НЕ трогаем ссылки в формате [текст](url)
+            import re
+
+            # Временно заменяем ссылки на плейсхолдеры
+            link_pattern = r"\[([^\]]+)\]\(([^\)]+)\)"
+            links = []
+            placeholder_template = "___LINK_{}___"
+
+            def replace_link(match):
+                link_text = match.group(1)
+                link_url = match.group(2)
+                placeholder = placeholder_template.format(len(links))
+                links.append((placeholder, link_text, link_url))
+                return placeholder
+
+            # Сохраняем ссылки и заменяем на плейсхолдеры
+            text = re.sub(link_pattern, replace_link, text)
+
+            # Убираем проблемные символы
             text = text.replace("`", "'").replace("*", "").replace("_", "").replace("[", "(").replace("]", ")")
 
-            # Пробуем без Markdown сначала
-            await callback.message.edit_text(text, reply_markup=back_kb)
+            # Восстанавливаем ссылки
+            for placeholder, link_text, link_url in links:
+                text = text.replace(placeholder, f"[{link_text}]({link_url})")
+
+            # Отправляем с Markdown для поддержки ссылок
+            await callback.message.edit_text(text, reply_markup=back_kb, parse_mode="Markdown")
             logger.info("✅ Список событий успешно обновлен")
         except Exception as e:
             logger.error(f"❌ Ошибка редактирования сообщения: {e}")
@@ -764,21 +796,22 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
             if "message is not modified" in str(e).lower():
                 logger.info("🔥 Сообщение не изменилось, отправляем новое сообщение")
                 try:
-                    await callback.message.answer(text, reply_markup=back_kb)
+                    await callback.message.answer(text, reply_markup=back_kb, parse_mode="Markdown")
                     logger.info("✅ Новое сообщение со списком событий отправлено")
                 except Exception as e2:
                     logger.error(f"❌ Ошибка отправки нового сообщения: {e2}")
                     await callback.answer("❌ Ошибка отображения событий", show_alert=True)
             else:
-                # Fallback: отправляем новое сообщение без Markdown
+                # Fallback: отправляем новое сообщение с Markdown
                 try:
-                    await callback.message.answer(text, reply_markup=back_kb)
+                    await callback.message.answer(text, reply_markup=back_kb, parse_mode="Markdown")
                 except Exception as e2:
                     logger.error(f"❌ Ошибка отправки нового сообщения: {e2}")
                     # Последний fallback: отправляем без клавиатуры
                 try:
                     await callback.message.answer(
-                        "📋 **События этого чата**\n\n❌ Ошибка отображения. Попробуйте позже."
+                        "📋 **События этого чата**\n\n❌ Ошибка отображения. Попробуйте позже.",
+                        parse_mode="Markdown",
                     )
                 except Exception as e3:
                     logger.error(f"❌ Критическая ошибка: {e3}")
