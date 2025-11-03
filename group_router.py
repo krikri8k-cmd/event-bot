@@ -353,7 +353,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
             start_keyboard = ReplyKeyboardMarkup(
-                keyboard=[[KeyboardButton(text="/start@EventAroundBot 🎉")]],
+                keyboard=[[KeyboardButton(text="События чата 🎉")]],
                 resize_keyboard=True,
                 one_time_keyboard=False,
                 persistent=True,
@@ -402,7 +402,28 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             await message.answer("🤖 EventAroundBot активирован в этом чате!")
 
 
-# Убраны обработчики ReplyKeyboard кнопок - теперь используем только InlineKeyboard
+# Обработчик кнопки ReplyKeyboard "События чата 🎉"
+@group_router.message(F.text == "События чата 🎉")
+async def handle_events_chat_button(message: Message, bot: Bot, session: AsyncSession):
+    """Обработчик кнопки 'События чата 🎉' - показывает панель Community"""
+    # Сохраняем исходный текст и entities
+    original_text = message.text
+    original_entities = message.entities
+
+    # Временно меняем текст на команду /start
+    message.text = "/start"
+    message.entities = None
+
+    # Вызываем обработчик команды /start
+    try:
+        await handle_start_command(message, bot, session)
+    finally:
+        # Восстанавливаем исходные значения (хотя это может быть не нужно)
+        message.text = original_text
+        message.entities = original_entities
+
+
+# Убраны другие обработчики ReplyKeyboard кнопок - теперь используем только InlineKeyboard
 
 
 # === ИНИЦИАЛИЗАЦИЯ ===
