@@ -6440,7 +6440,7 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
     # Добавляем информацию о создателе
     creator_name = callback.from_user.username or callback.from_user.first_name or "пользователь"
     share_message += f"\n*Создано пользователем @{creator_name}*\n\n"
-    share_message += "💡 **Присоединяйся через бота:** [@EventAroundBot](https://t.me/EventAroundBot)"
+    share_message += "💡 **Больше событий в боте:** [@EventAroundBot](https://t.me/EventAroundBot)"
 
     # Отправляем новое сообщение (которое можно переслать) вместо edit_text
     await callback.message.answer(
