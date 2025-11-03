@@ -512,11 +512,21 @@ def group_kb(chat_id: int) -> InlineKeyboardMarkup:
 @group_router.message(F.new_chat_members, F.chat.type.in_({"group", "supergroup"}))
 async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
     """Обработчик добавления новых участников в группу"""
-    # Проверяем, добавили ли бота
-    bot_added = any(member.is_bot for member in message.new_chat_members)
+    logger.info(f"🔥 handle_new_members: получено событие new_chat_members в чате {message.chat.id}")
+
+    # Получаем информацию о нашем боте
+    bot_info = await bot.get_me()
+    logger.info(f"🔥 Наш бот ID: {bot_info.id}, username: {bot_info.username}")
+
+    # Логируем всех новых участников
+    for member in message.new_chat_members:
+        logger.info(f"🔥 Новый участник: id={member.id}, is_bot={member.is_bot}, username={member.username}")
+
+    # Проверяем, добавили ли именно нашего бота (по ID)
+    bot_added = any(member.id == bot_info.id and member.is_bot for member in message.new_chat_members)
 
     if bot_added:
-        logger.info(f"🔥 Бот добавлен в группу {message.chat.id}")
+        logger.info(f"✅ Наш бот добавлен в группу {message.chat.id} (тип: {message.chat.type})")
 
         # Создаем или обновляем запись в chat_settings сразу
         import json
@@ -525,44 +535,77 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
 
         from database import ChatSettings
 
-        result = await session.execute(select(ChatSettings).where(ChatSettings.chat_id == message.chat.id))
-        settings = result.scalar_one_or_none()
+        try:
+            result = await session.execute(select(ChatSettings).where(ChatSettings.chat_id == message.chat.id))
+            settings = result.scalar_one_or_none()
 
-        if not settings:
-            logger.info(f"🔥 Создаем запись в chat_settings для нового чата {message.chat.id}")
-            # Получаем следующий chat_number
-            result = await session.execute(text("SELECT nextval('chat_number_seq')"))
-            chat_number = result.scalar()
-            logger.info(f"✅ Назначен chat_number={chat_number} для чата {message.chat.id}")
+            if not settings:
+                logger.info(f"🔥 Создаем запись в chat_settings для нового чата {message.chat.id}")
+                # Получаем следующий chat_number
+                result = await session.execute(text("SELECT nextval('chat_number_seq')"))
+                chat_number = result.scalar()
+                logger.info(f"✅ Назначен chat_number={chat_number} для чата {message.chat.id}")
 
-            # Получаем админов группы
-            admin_ids = []
-            admin_count = 0
-            try:
-                from utils.community_events_service import CommunityEventsService
+                # Получаем админов группы
+                admin_ids = []
+                admin_count = 0
+                try:
+                    from utils.community_events_service import CommunityEventsService
 
-                community_service = CommunityEventsService()
-                admin_ids = await community_service.get_cached_admin_ids(bot, message.chat.id)
-                admin_count = len(admin_ids)
-                logger.info(f"✅ Получены админы для нового чата {message.chat.id}: count={admin_count}")
-            except Exception as e:
-                logger.warning(f"⚠️ Не удалось получить админов для чата {message.chat.id}: {e}")
+                    community_service = CommunityEventsService()
+                    admin_ids = await community_service.get_cached_admin_ids(bot, message.chat.id)
+                    admin_count = len(admin_ids)
+                    logger.info(f"✅ Получены админы для нового чата {message.chat.id}: count={admin_count}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Не удалось получить админов для чата {message.chat.id}: {e}")
 
-            settings = ChatSettings(
-                chat_id=message.chat.id,
-                chat_number=chat_number,
-                admin_ids=json.dumps(admin_ids) if admin_ids else None,
-                admin_count=admin_count,
-                bot_status="active",
+                settings = ChatSettings(
+                    chat_id=message.chat.id,
+                    chat_number=chat_number,
+                    admin_ids=json.dumps(admin_ids) if admin_ids else None,
+                    admin_count=admin_count,
+                    bot_status="active",
+                )
+                session.add(settings)
+                await session.commit()
+                logger.info(f"✅ Запись chat_settings создана для чата {message.chat.id}, chat_number={chat_number}")
+            else:
+                logger.info(f"🔥 Запись chat_settings уже существует для чата {message.chat.id}, обновляем статус")
+                # Обновляем статус и админов при повторном добавлении
+                settings.bot_status = "active"
+                settings.bot_removed_at = None
+
+                # Обновляем админов
+                try:
+                    from utils.community_events_service import CommunityEventsService
+
+                    community_service = CommunityEventsService()
+                    admin_ids = await community_service.get_cached_admin_ids(bot, message.chat.id)
+                    admin_count = len(admin_ids)
+                    settings.admin_ids = json.dumps(admin_ids) if admin_ids else None
+                    settings.admin_count = admin_count
+                    logger.info(f"✅ Обновлены админы для чата {message.chat.id}: count={admin_count}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Не удалось обновить админов для чата {message.chat.id}: {e}")
+
+                await session.commit()
+                logger.info(f"✅ Запись chat_settings обновлена для чата {message.chat.id}")
+
+            # Простое приветствие без выбора ветки
+            await message.answer(
+                "🎉 **Бот добавлен в группу!**\n\n" "Используйте /start для начала работы", parse_mode="Markdown"
             )
-            session.add(settings)
-            await session.commit()
-            logger.info(f"✅ Запись chat_settings создана для чата {message.chat.id}")
-
-        # Простое приветствие без выбора ветки
-        await message.answer(
-            "🎉 **Бот добавлен в группу!**\n\n" "Используйте /start для начала работы", parse_mode="Markdown"
-        )
+        except Exception as e:
+            logger.error(
+                f"❌ ОШИБКА при создании/обновлении chat_settings для чата {message.chat.id}: {e}", exc_info=True
+            )
+            # Пробуем откатить транзакцию
+            try:
+                await session.rollback()
+            except Exception as rollback_error:
+                logger.error(f"❌ Ошибка при откате транзакции: {rollback_error}")
+    else:
+        logger.info(f"ℹ️ В чат {message.chat.id} добавлен не наш бот или не бот вообще")
 
 
 @group_router.callback_query(F.data == "group_list")
