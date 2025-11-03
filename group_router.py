@@ -565,6 +565,7 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
                     admin_ids=json.dumps(admin_ids) if admin_ids else None,
                     admin_count=admin_count,
                     bot_status="active",
+                    total_events=0,  # Инициализируем счетчик событий
                 )
                 session.add(settings)
                 await session.commit()

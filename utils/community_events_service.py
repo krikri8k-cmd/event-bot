@@ -84,6 +84,7 @@ class CommunityEventsService:
         print(f"🔥 admin_count = {admin_count}")
 
         with self.engine.begin() as conn:
+            # Создаем событие
             query = text("""
                 INSERT INTO events_community
                 (chat_id, organizer_id, organizer_username, admin_id, admin_ids, admin_count, title, starts_at,
@@ -112,7 +113,7 @@ class CommunityEventsService:
             result = conn.execute(query, sql_params)
             event_id = result.fetchone()[0]
 
-            # Обновляем счетчик созданных событий (Community версия)
+            # Обновляем счетчик созданных событий (Community версия) для пользователя
             conn.execute(
                 text("""
                 UPDATE users
@@ -121,6 +122,17 @@ class CommunityEventsService:
                 WHERE id = :creator_id
             """),
                 {"creator_id": creator_id},
+            )
+
+            # Обновляем счетчик total_events в chat_settings
+            conn.execute(
+                text("""
+                UPDATE chat_settings
+                SET total_events = COALESCE(total_events, 0) + 1,
+                    updated_at = NOW()
+                WHERE chat_id = :group_id
+            """),
+                {"group_id": group_id},
             )
 
             print(f"✅ Создано событие сообщества ID {event_id}: '{title}' в группе {group_id}")

@@ -237,6 +237,7 @@ class ChatSettings(Base):
     bot_removed_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     admin_ids: Mapped[str | None] = mapped_column(Text)  # JSON массив ID всех администраторов группы
     admin_count: Mapped[int | None] = mapped_column(Integer)  # Количество админов в группе
+    total_events: Mapped[int] = mapped_column(Integer, default=0)  # Общее количество событий, созданных в этом чате
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
