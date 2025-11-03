@@ -33,6 +33,7 @@ from simple_status_manager import (
     auto_close_events,
     change_event_status,
     format_event_for_display,
+    get_event_by_id,
     get_status_change_buttons,
     get_user_events,
 )
@@ -7209,6 +7210,72 @@ async def handle_open_event(callback: types.CallbackQuery):
             await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
     else:
         await callback.answer("❌ Ошибка при возобновлении мероприятия")
+
+
+@main_router.callback_query(F.data.startswith("share_event_"))
+async def handle_share_event(callback: types.CallbackQuery):
+    """Поделиться событием - формирует структурированное сообщение для пересылки"""
+    event_id = int(callback.data.split("_")[-1])
+    user_id = callback.from_user.id
+
+    # Получаем полные данные события
+    event = get_event_by_id(event_id, user_id)
+    if not event:
+        await callback.answer("❌ Событие не найдено")
+        return
+
+    # Формируем структурированное сообщение (как после создания события)
+    share_message = "🎉 **Новое событие!**\n\n"
+    share_message += f"**{event['title']}**\n"
+
+    # Форматируем дату и время
+    if event.get("starts_at"):
+        import pytz
+
+        from database import User, get_session
+
+        # Получаем часовой пояс пользователя
+        user_tz = "Asia/Makassar"  # По умолчанию Бали
+        try:
+            with get_session() as session:
+                user = session.get(User, event.get("organizer_id"))
+                if user and user.user_tz:
+                    user_tz = user.user_tz
+        except Exception:
+            pass
+
+        # Конвертируем UTC в часовой пояс пользователя
+        tz = pytz.timezone(user_tz)
+        local_time = event["starts_at"].astimezone(tz)
+        date_str = local_time.strftime("%d.%m.%Y")
+        time_str = local_time.strftime("%H:%M")
+        share_message += f"📅 {date_str} в {time_str}\n"
+    else:
+        share_message += "📅 Время не указано\n"
+
+    # Добавляем место на карте с активной ссылкой (компактно)
+    location_name = event.get("location_name") or "Место не указано"
+    location_url = event.get("location_url")
+    if location_url:
+        share_message += f"📍 [{location_name}]({location_url})\n"
+    else:
+        share_message += f"📍 {location_name}\n"
+
+    # Добавляем описание
+    if event.get("description"):
+        share_message += f"\n📝 {event['description']}\n"
+
+    # Добавляем информацию о создателе
+    creator_name = callback.from_user.username or callback.from_user.first_name or "пользователь"
+    share_message += f"\n*Создано пользователем @{creator_name}*\n\n"
+    share_message += "💡 **Больше событий в боте:** [@EventAroundBot](https://t.me/EventAroundBot)"
+
+    # Отправляем сообщение, которое можно переслать
+    await callback.message.answer(
+        share_message,
+        parse_mode="Markdown",
+    )
+    await callback.answer("✅ Сообщение готово к пересылке!")
 
 
 @main_router.callback_query(F.data.startswith("edit_event_"))

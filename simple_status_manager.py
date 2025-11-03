@@ -144,8 +144,8 @@ def get_event_by_id(event_id: int, user_id: int):
     try:
         with engine.connect() as conn:
             query = text("""
-                SELECT id, title, description, status, starts_at, location_name,
-                       created_at_utc, updated_at_utc
+                SELECT id, title, description, status, starts_at, location_name, location_url,
+                       organizer_id, created_at_utc, updated_at_utc
                 FROM events
                 WHERE id = :event_id AND organizer_id = :user_id
             """)
@@ -164,6 +164,8 @@ def get_event_by_id(event_id: int, user_id: int):
                 "status_description": get_status_description(event.status),
                 "starts_at": event.starts_at,
                 "location_name": event.location_name,
+                "location_url": event.location_url,
+                "organizer_id": event.organizer_id,
                 "created_at_utc": event.created_at_utc,
                 "updated_at_utc": event.updated_at_utc,
             }
@@ -257,6 +259,9 @@ def get_status_change_buttons(event_id: int, current_status: str):
 
     # Кнопка редактирования (всегда доступна)
     buttons.append({"text": "✏ Редактировать", "callback_data": f"edit_event_{event_id}"})
+
+    # Кнопка поделиться событием
+    buttons.append({"text": "🔗 Поделиться", "callback_data": f"share_event_{event_id}"})
 
     # Кнопка возврата в главное меню (всегда доступна)
     buttons.append({"text": "✨ Всё супер → Главное меню", "callback_data": f"back_to_main_{event_id}"})
