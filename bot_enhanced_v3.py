@@ -6427,10 +6427,9 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
     share_message += f"**{data['title']}**\n"
     share_message += f"📅 {data['date']} в {data['time']}\n"
 
-    # Добавляем место на карте с активной ссылкой
+    # Добавляем место на карте с активной ссылкой (компактно)
     if location_url:
-        share_message += f"📍 {location_name}\n"
-        share_message += f"🔗 {location_url}\n"
+        share_message += f"📍 [{location_name}]({location_url})\n"
     else:
         share_message += f"📍 {location_name}\n"
 
