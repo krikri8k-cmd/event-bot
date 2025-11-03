@@ -6378,6 +6378,8 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
                 logger.error(f"❌ Ошибка геокодирования: {e}")
 
         # Используем новую упрощенную архитектуру
+        # Определяем город заранее для использования в сообщении
+        city = "bali"  # Значение по умолчанию
         try:
             from database import get_engine
             from utils.simple_timezone import get_city_from_coordinates
@@ -6419,17 +6421,35 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
             raise
 
     await state.clear()
-    await callback.message.edit_text(
-        f"🎉 **Мероприятие сохранено!**\n\n"
-        f"**Название:** {data['title']}\n"
-        f"**Дата:** {data['date']}\n"
-        f"**Время:** {data['time']}\n"
-        f"**Место:** {location_name}\n"
-        f"**Описание:** {data['description']}\n\n"
-        f"Теперь другие пользователи смогут найти его через '📍 Что рядом'.",
+
+    # Формируем структурированное сообщение для поделиться, похожее на Community версию
+    share_message = "🎉 **Новое событие!**\n\n"
+    share_message += f"**{data['title']}**\n"
+    share_message += f"📅 {data['date']} в {data['time']}\n"
+
+    # Добавляем место на карте с активной ссылкой
+    if location_url:
+        share_message += f"📍 {location_name}\n"
+        share_message += f"🔗 {location_url}\n"
+    else:
+        share_message += f"📍 {location_name}\n"
+
+    # Добавляем описание
+    if data.get("description"):
+        share_message += f"\n📝 {data['description']}\n"
+
+    # Добавляем информацию о создателе
+    creator_name = callback.from_user.username or callback.from_user.first_name or "пользователь"
+    share_message += f"\n*Создано пользователем @{creator_name}*\n\n"
+    share_message += "💡 **Присоединяйся через бота:** [@EventAroundBot](https://t.me/EventAroundBot)"
+
+    # Отправляем новое сообщение (которое можно переслать) вместо edit_text
+    await callback.message.answer(
+        share_message,
         parse_mode="Markdown",
-        reply_markup=None,  # Убираем все кнопки после сохранения
+        reply_markup=main_menu_kb(),
     )
+
     await callback.answer("Событие создано!")
 
     # Показываем крутую анимацию после сохранения
