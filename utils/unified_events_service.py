@@ -142,6 +142,69 @@ class UnifiedEventsService:
 
                 events.append(event_data)
 
+            # Если не найдено событий с координатами, проверяем соответствие координат региону
+            # и если координаты не соответствуют региону, пробуем поиск без радиуса
+            if not events and user_lat and user_lng:
+                from utils.simple_timezone import get_city_from_coordinates
+
+                detected_city = get_city_from_coordinates(user_lat, user_lng)
+                if detected_city != city:
+                    logger.warning(
+                        f"⚠️ Координаты пользователя ({user_lat}, {user_lng}) не соответствуют региону '{city}'. "
+                        f"Определен регион: '{detected_city}'. Пробуем поиск без радиуса..."
+                    )
+                    # Fallback: поиск без радиуса по временным границам региона
+                    fallback_query = text("""
+                        SELECT source, id, title, description, starts_at,
+                               location_name as city, lat, lng, location_name, location_url, url as event_url,
+                               organizer_id, organizer_username, max_participants,
+                               current_participants, status, created_at_utc,
+                               community_name as country, community_name as venue_name, location_name as address,
+                               '' as geo_hash, starts_at as starts_at_normalized
+                        FROM events
+                        WHERE starts_at >= :start_utc
+                        AND starts_at < :end_utc
+                        AND status NOT IN ('closed', 'canceled')
+                        ORDER BY starts_at
+                        LIMIT 50
+                    """)
+                    fallback_result = conn.execute(
+                        fallback_query,
+                        {
+                            "start_utc": start_utc,
+                            "end_utc": end_utc,
+                        },
+                    )
+                    # Обрабатываем результаты fallback поиска
+                    for row in fallback_result:
+                        source_type = "user" if row[0] == "user" else "parser"
+                        event_data = {
+                            "source_type": source_type,
+                            "source": row[0],
+                            "id": row[1],
+                            "title": row[2],
+                            "description": row[3],
+                            "starts_at": row[4],
+                            "city": row[5],
+                            "lat": row[6],
+                            "lng": row[7],
+                            "location_name": row[8],
+                            "location_url": row[9],
+                            "event_url": row[10],
+                            "organizer_id": row[11],
+                            "organizer_username": row[12],
+                            "max_participants": row[13],
+                            "current_participants": row[14],
+                            "status": row[15],
+                            "created_at_utc": row[16],
+                        }
+                        events.append(event_data)
+                    if events:
+                        logger.info(
+                            f"✅ Fallback поиск нашел {len(events)} событий для региона '{city}' "
+                            f"(координаты пользователя не соответствуют региону)"
+                        )
+
             # Логируем результат поиска
             empty_reason = None
             if not events:
