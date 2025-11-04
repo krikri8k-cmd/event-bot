@@ -281,23 +281,39 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
 
     # Удаляем команду /start пользователя (только в группах, не в каналах)
     if not is_channel:
-        try:
-            await message.delete()
+        # Проверяем, является ли чат форумом и есть ли thread_id
+        # В форумах нельзя удалять сообщения из общего чата (thread_id=None)
+        is_forum = getattr(message.chat, "is_forum", False)
+        thread_id = getattr(message, "message_thread_id", None)
+
+        if is_forum and thread_id is None:
+            # Это форум, и сообщение в общем чате - нельзя удалить
             logger.info(
-                f"✅ Удалена команда {message.text} от пользователя {message.from_user.id} в чате {message.chat.id}"
+                f"ℹ️ Сообщение в форуме вне темы (thread_id=None), "
+                f"не удаляем команду {message.text} в чате {message.chat.id}"
             )
-        except Exception as e:
-            error_str = str(e).lower()
-            # В форумах нельзя удалять сообщения вне темы (thread_id=None)
-            # Это нормальная ситуация, просто логируем
-            if "message to delete not found" in error_str or "can't delete message" in error_str:
+        else:
+            # Пытаемся удалить сообщение
+            try:
+                await message.delete()
                 logger.info(
-                    f"ℹ️ Не удалось удалить команду {message.text} в чате {message.chat.id} "
-                    "(возможно, форум вне темы или сообщение уже удалено)"
+                    f"✅ Удалена команда {message.text} от пользователя {message.from_user.id} в чате {message.chat.id}"
                 )
-            else:
-                # Другие ошибки - логируем как предупреждение
-                logger.warning(f"⚠️ Не удалось удалить команду {message.text}: {e}")
+            except Exception as e:
+                error_str = str(e).lower()
+                # Проверяем конкретные ошибки
+                if (
+                    "message to delete not found" in error_str
+                    or "can't delete message" in error_str
+                    or "сообщение невозможно удалить" in error_str
+                ):
+                    logger.info(
+                        f"ℹ️ Не удалось удалить команду {message.text} в чате {message.chat.id} "
+                        "(возможно, форум вне темы, нет прав на удаление или сообщение уже удалено)"
+                    )
+                else:
+                    # Другие ошибки - логируем как предупреждение
+                    logger.warning(f"⚠️ Не удалось удалить команду {message.text}: {e}")
 
     # СТОРОЖ КОМАНД: проверяем команды при каждом /start в группе
     try:
@@ -418,11 +434,20 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
 
             # ПРИНУДИТЕЛЬНО для мобильных: устанавливаем команды и меню (только в группах)
             try:
-                # Устанавливаем команды для конкретного чата
-                await bot.set_my_commands(
-                    [types.BotCommand(command="start", description="🎉 События чата")],
-                    scope=types.BotCommandScopeChat(chat_id=message.chat.id),
-                )
+                # Проверяем, является ли чат форумом
+                # Для форумов может не работать BotCommandScopeChat
+                is_forum_check = getattr(message.chat, "is_forum", False)
+                if is_forum_check:
+                    logger.info(
+                        f"ℹ️ Пропускаем установку команд для конкретного чата "
+                        f"(форум {message.chat.id} - команды уже установлены через BotCommandScopeAllGroupChats)"
+                    )
+                else:
+                    # Устанавливаем команды для конкретного чата (только для не-форумов)
+                    await bot.set_my_commands(
+                        [types.BotCommand(command="start", description="🎉 События чата")],
+                        scope=types.BotCommandScopeChat(chat_id=message.chat.id),
+                    )
 
                 # Устанавливаем MenuButton для принудительного показа команд
                 await bot.set_chat_menu_button(chat_id=message.chat.id, menu_button=types.MenuButtonCommands())
