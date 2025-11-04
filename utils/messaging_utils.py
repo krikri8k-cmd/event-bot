@@ -363,9 +363,17 @@ async def send_tracked(
         await mark_bot_removed(session, chat_id)
         raise
     except TelegramBadRequest as e:
+        error_msg = str(e).lower()
+        # Обработка закрытой темы форума - это не критичная ошибка
+        if "topic_closed" in error_msg:
+            logger.warning(
+                f"⚠️ Тема форума закрыта в чате {chat_id}. " "Бот не может отправлять сообщения в закрытые темы."
+            )
+            # Не поднимаем исключение - просто логируем
+            return None
         logger.error(f"⚠️ Ошибка отправки сообщения в группу {chat_id}: {e}")
         # Проверяем, не был ли бот удален
-        if "chat not found" in str(e).lower() or "bot was kicked" in str(e).lower():
+        if "chat not found" in error_msg or "bot was kicked" in error_msg:
             await mark_bot_removed(session, chat_id)
         raise
 

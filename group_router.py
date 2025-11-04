@@ -257,11 +257,21 @@ async def test_autodelete(message: Message, bot: Bot, session: AsyncSession):
 
 @group_router.message(Command("start"))
 async def handle_start_command(message: Message, bot: Bot, session: AsyncSession):
-    """Обработчик команды /start в группах - удаляем команду пользователя и показываем панель Community"""
-    if message.chat.type in ("group", "supergroup"):
-        logger.info(f"🔥 Команда /start от пользователя {message.from_user.id} в чате {message.chat.id}")
+    """Обработчик команды /start в группах и каналах - показываем панель Community"""
+    # Проверяем тип чата - поддерживаем группы, супергруппы и каналы
+    if message.chat.type not in ("group", "supergroup", "channel"):
+        logger.warning(f"⚠️ Команда /start из неподдерживаемого типа чата '{message.chat.type}' (ID: {message.chat.id})")
+        return
 
-        # Инкрементируем сессию Community
+    logger.info(
+        f"🔥 Команда /start от пользователя {message.from_user.id} в чате {message.chat.id} (тип: {message.chat.type})"
+    )
+
+    # Для каналов - особая обработка (в каналах боты не могут удалять сообщения пользователей)
+    is_channel = message.chat.type == "channel"
+
+    # Инкрементируем сессию Community (только для пользователей, не для каналов)
+    if not is_channel:
         try:
             from utils.user_analytics import UserAnalytics
 
@@ -269,7 +279,8 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
         except Exception as e:
             logger.warning(f"⚠️ Не удалось инкрементировать сессию Community: {e}")
 
-        # Удаляем команду /start пользователя (все варианты)
+    # Удаляем команду /start пользователя (только в группах, не в каналах)
+    if not is_channel:
         try:
             await message.delete()
             logger.info(
@@ -278,66 +289,74 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
         except Exception as e:
             logger.error(f"❌ Не удалось удалить команду {message.text}: {e}")
 
-        # СТОРОЖ КОМАНД: проверяем команды при каждом /start в группе
+    # СТОРОЖ КОМАНД: проверяем команды при каждом /start в группе
+    try:
+        from bot_enhanced_v3 import ensure_commands
+
+        await ensure_commands(bot)
+        logger.info(f"✅ Сторож команд выполнен при /start в группе {message.chat.id}")
+    except Exception as e:
+        logger.error(f"❌ Ошибка сторожа команд при /start в группе {message.chat.id}: {e}")
+
+    # ЛОГИРУЕМ ИНФОРМАЦИЮ О ЧАТЕ
+    is_forum = message.chat.type == "supergroup"
+    thread_id = getattr(message, "message_thread_id", None)
+    logger.info(f"🔥 /start в группе: chat_id={message.chat.id}, is_forum={is_forum}, thread_id={thread_id}")
+
+    # УСТАНАВЛИВАЕМ КОМАНДЫ ДЛЯ КОНКРЕТНОЙ ГРУППЫ
+    await ensure_group_start_command(bot, message.chat.id)
+
+    # Убираем промежуточное сообщение с командой
+
+    # Показываем панель Community с InlineKeyboard под сообщением
+    try:
+        # Создаем InlineKeyboard для действий под сообщением
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="➕ Создать событие", url=f"https://t.me/EventAroundBot?start=group_{message.chat.id}"
+                    )
+                ],
+                [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_list")],
+                [InlineKeyboardButton(text='🚀 Расширенная версия "World"', url="https://t.me/EventAroundBot")],
+                [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_execute")],
+            ]
+        )
+
+        # Отправляем панель Community с трекированием (автоудаление через 4 минуты)
         try:
-            from bot_enhanced_v3 import ensure_commands
+            from utils.messaging_utils import send_tracked
 
-            await ensure_commands(bot)
-            logger.info(f"✅ Сторож команд выполнен при /start в группе {message.chat.id}")
-        except Exception as e:
-            logger.error(f"❌ Ошибка сторожа команд при /start в группе {message.chat.id}: {e}")
-
-        # ЛОГИРУЕМ ИНФОРМАЦИЮ О ЧАТЕ
-        is_forum = message.chat.type == "supergroup"
-        thread_id = getattr(message, "message_thread_id", None)
-        logger.info(f"🔥 /start в группе: chat_id={message.chat.id}, is_forum={is_forum}, thread_id={thread_id}")
-
-        # УСТАНАВЛИВАЕМ КОМАНДЫ ДЛЯ КОНКРЕТНОЙ ГРУППЫ
-        await ensure_group_start_command(bot, message.chat.id)
-
-        # Убираем промежуточное сообщение с командой
-
-        # Показываем панель Community с InlineKeyboard под сообщением
-        try:
-            # Создаем InlineKeyboard для действий под сообщением
-            keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [
-                        InlineKeyboardButton(
-                            text="➕ Создать событие", url=f"https://t.me/EventAroundBot?start=group_{message.chat.id}"
-                        )
-                    ],
-                    [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_list")],
-                    [InlineKeyboardButton(text='🚀 Расширенная версия "World"', url="https://t.me/EventAroundBot")],
-                    [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_execute")],
-                ]
+            panel_text = (
+                '👋 Привет! Я EventAroundBot - версия "Community".\n\n'
+                "🎯 Что умею:\n\n"
+                "• Создавать события участников чата\n"
+                "• Показывать события этого чата\n"
+                '• Переводить в полный бот - версия "World"\n\n'
+                "💡 Выберите действие:"
             )
 
-            # Отправляем панель Community с трекированием (автоудаление через 4 минуты)
+            await send_tracked(
+                bot,
+                session,
+                chat_id=message.chat.id,
+                text=panel_text,
+                tag="panel",  # Тег для автоудаления через 4 минуты
+                reply_markup=keyboard,
+            )
+            logger.info(f"✅ Панель Community отправлена и трекируется в чате {message.chat.id}")
+        except Exception as e:
+            logger.error(f"❌ Ошибка send_tracked: {e}")
+            # Проверяем, не закрыта ли тема форума
+            if "TOPIC_CLOSED" in str(e):
+                logger.warning(
+                    f"⚠️ Тема форума закрыта в чате {message.chat.id}. "
+                    "Бот не может отправлять сообщения в закрытые темы."
+                )
+                return
+            # Fallback - обычная отправка без трекирования
             try:
-                from utils.messaging_utils import send_tracked
-
-                panel_text = (
-                    '👋 Привет! Я EventAroundBot - версия "Community".\n\n'
-                    "🎯 Что умею:\n\n"
-                    "• Создавать события участников чата\n"
-                    "• Показывать события этого чата\n"
-                    '• Переводить в полный бот - версия "World"\n\n'
-                    "💡 Выберите действие:"
-                )
-
-                await send_tracked(
-                    bot,
-                    session,
-                    chat_id=message.chat.id,
-                    text=panel_text,
-                    tag="panel",  # Тег для автоудаления через 4 минуты
-                    reply_markup=keyboard,
-                )
-                logger.info(f"✅ Панель Community отправлена и трекируется в чате {message.chat.id}")
-            except Exception as e:
-                logger.error(f"❌ Ошибка send_tracked: {e}")
-                # Fallback - обычная отправка без трекирования
                 await message.answer(
                     '👋 Привет! Я EventAroundBot - версия "Community".\n\n'
                     "🎯 Что умею:\n\n"
@@ -348,8 +367,17 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                     reply_markup=keyboard,
                     parse_mode="Markdown",
                 )
+            except Exception as fallback_error:
+                if "TOPIC_CLOSED" in str(fallback_error):
+                    logger.warning(
+                        f"⚠️ Тема форума закрыта в чате {message.chat.id}. "
+                        "Бот не может отправлять сообщения в закрытые темы."
+                    )
+                    return
+                raise
 
-            # Отправляем сообщение с ReplyKeyboard для мобильных
+        # Отправляем сообщение с ReplyKeyboard для мобильных (только в группах, не в каналах)
+        if not is_channel:
             from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
             start_keyboard = ReplyKeyboardMarkup(
@@ -359,7 +387,16 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                 persistent=True,
             )
 
-            activation_msg = await message.answer("🤖 EventAroundBot активирован!", reply_markup=start_keyboard)
+            try:
+                activation_msg = await message.answer("🤖 EventAroundBot активирован!", reply_markup=start_keyboard)
+            except Exception as e:
+                if "TOPIC_CLOSED" in str(e):
+                    logger.warning(
+                        f"⚠️ Тема форума закрыта в чате {message.chat.id}. "
+                        "Бот не может отправлять сообщения в закрытые темы."
+                    )
+                    return
+                raise
 
             # Удаляем сообщение активации через 1 секунду (ReplyKeyboard остается)
             try:
@@ -369,7 +406,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             except Exception as e:
                 logger.warning(f"⚠️ Не удалось удалить сообщение активации: {e}")
 
-            # ПРИНУДИТЕЛЬНО для мобильных: устанавливаем команды и меню
+            # ПРИНУДИТЕЛЬНО для мобильных: устанавливаем команды и меню (только в группах)
             try:
                 # Устанавливаем команды для конкретного чата
                 await bot.set_my_commands(
@@ -396,10 +433,28 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
 
             except Exception as e:
                 logger.warning(f"⚠️ Не удалось установить команды для мобильных: {e}")
+        else:
+            # Для каналов - просто логируем успех
+            logger.info(f"✅ Панель Community отправлена в канал {message.chat.id}")
 
-        except Exception as e:
-            logger.error(f"❌ Ошибка отправки панели Community: {e}")
+    except Exception as e:
+        logger.error(f"❌ Ошибка отправки панели Community: {e}")
+        # Проверяем, не закрыта ли тема форума
+        if "TOPIC_CLOSED" in str(e):
+            logger.warning(
+                f"⚠️ Тема форума закрыта в чате {message.chat.id}. " "Бот не может отправлять сообщения в закрытые темы."
+            )
+            return
+        try:
             await message.answer("🤖 EventAroundBot активирован в этом чате!")
+        except Exception as fallback_error:
+            if "TOPIC_CLOSED" in str(fallback_error):
+                logger.warning(
+                    f"⚠️ Тема форума закрыта в чате {message.chat.id}. "
+                    "Бот не может отправлять сообщения в закрытые темы."
+                )
+                return
+            raise
 
 
 # Убраны обработчики ReplyKeyboard кнопок - теперь используем только InlineKeyboard
@@ -508,11 +563,13 @@ def group_kb(chat_id: int) -> InlineKeyboardMarkup:
 # УБРАНО: обработчики кнопок Reply Keyboard - теперь бот работает только через команды и меню
 
 
-# ПРИНУДИТЕЛЬНАЯ КЛАВИАТУРА ПРИ ДОБАВЛЕНИИ БОТА В ГРУППУ
-@group_router.message(F.new_chat_members, F.chat.type.in_({"group", "supergroup"}))
+# ПРИНУДИТЕЛЬНАЯ КЛАВИАТУРА ПРИ ДОБАВЛЕНИИ БОТА В ГРУППУ ИЛИ КАНАЛ
+@group_router.message(F.new_chat_members, F.chat.type.in_({"group", "supergroup", "channel"}))
 async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
-    """Обработчик добавления новых участников в группу"""
-    logger.info(f"🔥 handle_new_members: получено событие new_chat_members в чате {message.chat.id}")
+    """Обработчик добавления новых участников в группу или канал"""
+    logger.info(
+        f"🔥 handle_new_members: получено событие new_chat_members в чате {message.chat.id} (тип: {message.chat.type})"
+    )
 
     # Получаем информацию о нашем боте
     bot_info = await bot.get_me()
@@ -526,7 +583,8 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
     bot_added = any(member.id == bot_info.id and member.is_bot for member in message.new_chat_members)
 
     if bot_added:
-        logger.info(f"✅ Наш бот добавлен в группу {message.chat.id} (тип: {message.chat.type})")
+        chat_type_name = "канал" if message.chat.type == "channel" else "группу"
+        logger.info(f"✅ Наш бот добавлен в {chat_type_name} {message.chat.id} (тип: {message.chat.type})")
 
         # Создаем или обновляем запись в chat_settings сразу
         import json
@@ -592,10 +650,14 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
                 await session.commit()
                 logger.info(f"✅ Запись chat_settings обновлена для чата {message.chat.id}")
 
-            # Простое приветствие без выбора ветки
-            await message.answer(
-                "🎉 **Бот добавлен в группу!**\n\n" "Используйте /start для начала работы", parse_mode="Markdown"
-            )
+            # Простое приветствие без выбора ветки (только в группах, не в каналах)
+            if message.chat.type != "channel":
+                await message.answer(
+                    "🎉 **Бот добавлен в группу!**\n\n" "Используйте /start для начала работы", parse_mode="Markdown"
+                )
+            else:
+                # Для каналов - логируем, что бот готов к работе
+                logger.info(f"✅ Бот готов к работе в канале {message.chat.id}. Используйте /start для начала работы")
         except Exception as e:
             logger.error(
                 f"❌ ОШИБКА при создании/обновлении chat_settings для чата {message.chat.id}: {e}", exc_info=True
