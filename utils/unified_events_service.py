@@ -148,7 +148,8 @@ class UnifiedEventsService:
                 from utils.simple_timezone import get_city_from_coordinates
 
                 detected_city = get_city_from_coordinates(user_lat, user_lng)
-                if detected_city != city:
+                # Fallback поиск только если координаты определены и не соответствуют региону
+                if detected_city is not None and detected_city != city:
                     logger.warning(
                         f"⚠️ Координаты пользователя ({user_lat}, {user_lng}) не соответствуют региону '{city}'. "
                         f"Определен регион: '{detected_city}'. Пробуем поиск без радиуса..."

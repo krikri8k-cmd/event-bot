@@ -120,8 +120,12 @@ def accept_task(user_id: int, task_id: int, user_lat: float = None, user_lng: fl
                 from utils.simple_timezone import get_city_from_coordinates, get_city_timezone
 
                 city = get_city_from_coordinates(user_lat, user_lng)
-                tz_name = get_city_timezone(city)
-                user_tz = ZoneInfo(tz_name)
+                if city:
+                    tz_name = get_city_timezone(city)
+                    user_tz = ZoneInfo(tz_name)
+                else:
+                    # Если город не определен, используем UTC
+                    user_tz = ZoneInfo("UTC")
 
                 # Используем местное время пользователя
                 accepted_at_local = datetime.now(user_tz)
@@ -185,10 +189,14 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                 from utils.simple_timezone import get_city_from_coordinates, get_city_timezone
 
                 city = get_city_from_coordinates(user.last_lat, user.last_lng)
-                tz_name = get_city_timezone(city)
-                user_tz = ZoneInfo(tz_name)
-
-                logger.info(f"Пользователь {user_id} в городе {city} (часовой пояс {tz_name})")
+                if city:
+                    tz_name = get_city_timezone(city)
+                    user_tz = ZoneInfo(tz_name)
+                    logger.info(f"Пользователь {user_id} в городе {city} (часовой пояс {tz_name})")
+                else:
+                    # Если город не определен, используем UTC
+                    user_tz = ZoneInfo("UTC")
+                    logger.info(f"Пользователь {user_id}: город не определен, используем UTC")
             except Exception as e:
                 logger.warning(f"Не удалось определить часовой пояс для пользователя {user_id}: {e}")
 

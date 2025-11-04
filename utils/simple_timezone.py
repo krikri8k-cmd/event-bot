@@ -103,7 +103,7 @@ def convert_local_to_utc(local_dt: datetime, city: str) -> datetime:
     return local_dt.astimezone(UTC)
 
 
-def get_city_from_coordinates(lat: float, lng: float) -> str:
+def get_city_from_coordinates(lat: float, lng: float) -> str | None:
     """
     Определяет город по координатам (простая логика)
 
@@ -112,7 +112,7 @@ def get_city_from_coordinates(lat: float, lng: float) -> str:
         lng: Долгота
 
     Returns:
-        Название города
+        Название города или None, если регион не определен
     """
     # Простая логика по координатам
     if -8.5 <= lat <= -8.0 and 114.0 <= lng <= 116.0:
@@ -124,7 +124,7 @@ def get_city_from_coordinates(lat: float, lng: float) -> str:
     elif -6.5 <= lat <= -6.0 and 106.0 <= lng <= 107.0:
         return "jakarta"
     else:
-        return "bali"  # По умолчанию
+        return None  # Регион не определен
 
 
 def format_city_time_info(city: str) -> str:

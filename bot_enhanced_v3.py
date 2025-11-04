@@ -1517,13 +1517,14 @@ def human_when(event: dict, region: str = None, user_id: int = None) -> str:
                     if user and user.last_lat and user.last_lng:
                         # Определяем город по координатам
                         city = get_city_from_coordinates(user.last_lat, user.last_lng)
-                        city_tz_map = {
-                            "bali": "Asia/Makassar",
-                            "moscow": "Europe/Moscow",
-                            "spb": "Europe/Moscow",
-                            "jakarta": "Asia/Jakarta",
-                        }
-                        user_tz = city_tz_map.get(city, "UTC")
+                        if city:
+                            city_tz_map = {
+                                "bali": "Asia/Makassar",
+                                "moscow": "Europe/Moscow",
+                                "spb": "Europe/Moscow",
+                                "jakarta": "Asia/Jakarta",
+                            }
+                            user_tz = city_tz_map.get(city, "UTC")
             except Exception:
                 pass
 
@@ -2900,6 +2901,11 @@ async def on_location(message: types.Message, state: FSMContext):
 
             # Определяем город по координатам
             city = get_city_from_coordinates(lat, lng)
+            if not city:
+                logger.warning(f"⚠️ Не удалось определить город по координатам ({lat}, {lng})")
+                await loading_message.edit_text("❌ Не удалось определить регион по координатам")
+                return
+
             logger.info(f"🌍 Определен город: {city}")
 
             # Ищем события
@@ -6391,8 +6397,11 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
             engine = get_engine()
             events_service = UnifiedEventsService(engine)
 
-            # Определяем город по координатам
-            city = get_city_from_coordinates(lat, lng) if lat and lng else "bali"
+            # Определяем город по координатам (для создания события используем регион из состояния)
+            city = get_city_from_coordinates(lat, lng) if lat and lng else None
+            if not city:
+                # Если город не определен, используем регион из состояния или "bali" как fallback
+                city = data.get("region", "bali")
 
             # Создаем событие через упрощенный сервис
             event_id = events_service.create_user_event(

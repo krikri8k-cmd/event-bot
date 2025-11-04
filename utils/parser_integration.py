@@ -50,6 +50,17 @@ class ParserIntegration:
 
                 # Определяем город по координатам
                 city = get_city_from_coordinates(lat, lng)
+                if not city:
+                    # Если город не определен, используем источник для определения
+                    if "bali" in source.lower():
+                        city = "bali"
+                    elif "jakarta" in source.lower():
+                        city = "jakarta"
+                    else:
+                        logger.warning(
+                            f"⚠️ Не удалось определить город для координат ({lat}, {lng}), источник: {source}"
+                        )
+                        continue  # Пропускаем это событие
 
                 # Извлекаем external_id из URL
                 external_id = self._extract_external_id(url, source)
