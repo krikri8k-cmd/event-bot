@@ -279,15 +279,25 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
         except Exception as e:
             logger.warning(f"⚠️ Не удалось инкрементировать сессию Community: {e}")
 
-    # Удаляем команду /start пользователя (только в группах, не в каналах)
+    # Удаляем команду /start пользователя (только в группах, не в каналах и не в форумах вне темы)
     if not is_channel:
-        try:
-            await message.delete()
+        # В форумах нельзя удалять сообщения вне темы (thread_id=None)
+        is_forum = message.chat.type == "supergroup"
+        thread_id = getattr(message, "message_thread_id", None)
+        if is_forum and thread_id is None:
             logger.info(
-                f"✅ Удалена команда {message.text} от пользователя {message.from_user.id} в чате {message.chat.id}"
+                f"⚠️ Сообщение в форуме вне темы (thread_id=None), "
+                f"не удаляем команду {message.text} в чате {message.chat.id}"
             )
-        except Exception as e:
-            logger.error(f"❌ Не удалось удалить команду {message.text}: {e}")
+        else:
+            try:
+                await message.delete()
+                logger.info(
+                    f"✅ Удалена команда {message.text} от пользователя {message.from_user.id} в чате {message.chat.id}"
+                )
+            except Exception as e:
+                # Не критичная ошибка - просто логируем
+                logger.warning(f"⚠️ Не удалось удалить команду {message.text}: {e}")
 
     # СТОРОЖ КОМАНД: проверяем команды при каждом /start в группе
     try:
