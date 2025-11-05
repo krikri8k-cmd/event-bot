@@ -68,10 +68,32 @@ class ParserIntegration:
                 # Конвертируем время в UTC
                 starts_at_utc = self._convert_time_to_utc(event, city)
 
-                # Извлекаем место
+                # Извлекаем место (поддерживаем разные форматы источников)
+                location_name = ""
+                location_url = ""
+
+                # Пробуем разные форматы:
+                # 1. venue.name (стандартный формат)
                 venue = event.get("venue", {})
-                location_name = venue.get("name", "")
-                location_url = venue.get("address", "")
+                if venue:
+                    location_name = venue.get("name", "")
+                    location_url = venue.get("address", "")
+
+                # 2. venue_name (KudaGo и другие)
+                if not location_name:
+                    location_name = event.get("venue_name", "")
+
+                # 3. location_name напрямую
+                if not location_name:
+                    location_name = event.get("location_name", "")
+
+                # 4. address
+                if not location_name:
+                    location_name = event.get("address", "")
+
+                # Если location_url не найден, пробуем другие поля
+                if not location_url:
+                    location_url = event.get("location_url", "")
 
                 # Если location_name пустое, пробуем reverse geocoding по координатам
                 if not location_name and lat and lng:
