@@ -248,6 +248,7 @@ class CommunityEventsService:
         """
         with self.engine.connect() as conn:
             # Сначала переносим старые записи в архив
+            # Используем make_interval для параметризованного запроса
             archive_query = text(
                 """
                 INSERT INTO events_community_archive (
@@ -263,7 +264,7 @@ class CommunityEventsService:
                        location_name, location_url, created_at,
                        status, NOW()
                 FROM events_community
-                WHERE starts_at < NOW() - INTERVAL ':days_old days'
+                WHERE starts_at < NOW() - make_interval(days => :days_old)
                 ON CONFLICT (id) DO NOTHING
                 """
             )
@@ -273,7 +274,7 @@ class CommunityEventsService:
             delete_query = text(
                 """
                 DELETE FROM events_community
-                WHERE starts_at < NOW() - INTERVAL ':days_old days'
+                WHERE starts_at < NOW() - make_interval(days => :days_old)
                 """
             )
             result = conn.execute(delete_query, {"days_old": days_old})
