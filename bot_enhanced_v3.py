@@ -3645,6 +3645,28 @@ async def on_share(message: types.Message):
         "чистит свои сообщения в чате\n\n"
         "Теперь все события в одном месте ❤"
     )
+
+    # Пытаемся отправить фото, если оно есть (поддерживаем разные форматы)
+    photo_paths = [
+        "images/community_instruction.jpg",
+        "images/community_instruction.png",
+        "images/community_instruction.webp",
+        "images/community_instruction.jpeg",
+    ]
+
+    for photo_path in photo_paths:
+        if os.path.exists(photo_path):
+            try:
+                from aiogram.types import FSInputFile
+
+                photo = FSInputFile(photo_path)
+                await message.answer_photo(photo, caption=text, reply_markup=main_menu_kb())
+                return
+            except Exception as e:
+                logger.warning(f"⚠️ Не удалось отправить фото инструкции: {e}, отправляем только текст")
+                break
+
+    # Если фото нет или произошла ошибка, отправляем только текст
     await message.answer(text, reply_markup=main_menu_kb())
 
 
