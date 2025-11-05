@@ -628,6 +628,9 @@ async def send_compact_events_list_prepared(
 
     # Рендерим страницу
     header_html = render_header(counts, radius_km=int(radius))
+    # Обогащаем события reverse geocoding для названий локаций
+    prepared_events = await enrich_events_with_reverse_geocoding(prepared_events)
+
     events_text, total_pages = render_page(prepared_events, page + 1, page_size=5, user_id=message.from_user.id)
 
     # Отладочная информация
@@ -708,7 +711,10 @@ async def send_compact_events_list(
         "region": region,  # Добавляем регион
     }
 
-    # 5) Рендерим страницу
+    # 5) Обогащаем события reverse geocoding для названий локаций
+    prepared = await enrich_events_with_reverse_geocoding(prepared)
+
+    # 6) Рендерим страницу
     header_html = render_header(counts, radius_km=int(radius))
     page_html, total_pages = render_page(prepared, page=page + 1, page_size=5, user_id=message.from_user.id)
     text = header_html + "\n\n" + page_html
@@ -820,8 +826,9 @@ def build_maps_url(e: dict) -> str:
         return e["location_url"]
 
     # Поддерживаем новую структуру venue и старую
+    # Приоритет: location_name (из геокодирования) > venue_name > venue.name
     venue = e.get("venue", {})
-    name = (venue.get("name") or e.get("venue_name") or "").strip()
+    name = (e.get("location_name") or venue.get("name") or e.get("venue_name") or "").strip()
     addr = (venue.get("address") or e.get("address") or "").strip()
     lat = venue.get("lat") or e.get("lat")
     lng = venue.get("lon") or e.get("lng")
@@ -829,7 +836,37 @@ def build_maps_url(e: dict) -> str:
     # Пропускаем generic названия мест
     generic_venues = ["Локация", "📍 Локация уточняется", "Место проведения", "Место не указано", "", "None"]
 
-    if name and name not in generic_venues:
+    # Проверяем, что name не содержит временные/календарные слова (не название места)
+    time_patterns = [
+        "по понедельникам",
+        "по вторникам",
+        "по средам",
+        "по четвергам",
+        "по пятницам",
+        "по субботам",
+        "по воскресеньям",
+        "понедельник",
+        "вторник",
+        "среда",
+        "четверг",
+        "пятница",
+        "суббота",
+        "воскресенье",
+        "ежедневно",
+        "еженедельно",
+        "каждый день",
+        "каждую неделю",
+    ]
+
+    # Проверяем, что name похож на название места (не слишком короткий, не содержит временные слова)
+    name_is_valid = (
+        name
+        and name not in generic_venues
+        and len(name) > 3  # Минимум 4 символа для названия места
+        and not any(pattern in name.lower() for pattern in time_patterns)
+    )
+
+    if name_is_valid:
         return f"https://www.google.com/maps/search/?api=1&query={quote_plus(name)}"
     if addr and addr not in generic_venues:
         return f"https://www.google.com/maps/search/?api=1&query={quote_plus(addr)}"
@@ -896,14 +933,42 @@ def render_event_html(e: dict, idx: int, user_id: int = None) -> str:
     logger.info(f"🔍 FINAL: event_type={event_type} для события '{e.get('title', 'Без названия')[:20]}'")
 
     # Поддерживаем новую структуру venue и старую
+    # Приоритет: location_name (из геокодирования) > venue.name > venue_name
     venue = e.get("venue", {})
-    venue_name = venue.get("name") or e.get("location_name") or e.get("venue_name")
+    venue_name = e.get("location_name") or venue.get("name") or e.get("venue_name")
     venue_address = venue.get("address") or e.get("address") or e.get("location_url")
 
     logger.info(f"🔍 DEBUG VENUE: venue={venue}, venue_name='{venue_name}', venue_address='{venue_address}'")
     logger.info(
         f"🔍 DEBUG EVENT FIELDS: e.get('venue_name')='{e.get('venue_name')}', e.get('location_name')='{e.get('location_name')}', e.get('address')='{e.get('address')}'"
     )
+
+    # Проверяем, что venue_name не содержит временные/календарные слова
+    time_patterns = [
+        "по понедельникам",
+        "по вторникам",
+        "по средам",
+        "по четвергам",
+        "по пятницам",
+        "по субботам",
+        "по воскресеньям",
+        "понедельник",
+        "вторник",
+        "среда",
+        "четверг",
+        "пятница",
+        "суббота",
+        "воскресенье",
+        "ежедневно",
+        "еженедельно",
+        "каждый день",
+        "каждую неделю",
+    ]
+
+    # Если venue_name содержит временные слова, считаем его невалидным
+    if venue_name and any(pattern in venue_name.lower() for pattern in time_patterns):
+        logger.warning(f"🔍 DEBUG: venue_name содержит временные слова: '{venue_name}', пропускаем")
+        venue_name = None
 
     # Приоритет: venue_name → address → coords → description (для пользовательских событий)
     if venue_name:
@@ -1034,6 +1099,75 @@ def render_fallback(lat: float, lng: float) -> str:
         f"📍 Локация\n"
         f'ℹ️ Источник не указан  🚗 <a href="https://www.google.com/maps/search/?api=1&query={lat},{lng}">Маршрут</a>'
     )
+
+
+async def enrich_events_with_reverse_geocoding(events: list[dict]) -> list[dict]:
+    """
+    Обогащает события обратным геокодированием для получения названий локаций из координат
+    (как для пользовательских событий)
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    # Временные/календарные паттерны, которые не являются названиями мест
+    time_patterns = [
+        "по понедельникам",
+        "по вторникам",
+        "по средам",
+        "по четвергам",
+        "по пятницам",
+        "по субботам",
+        "по воскресеньям",
+        "понедельник",
+        "вторник",
+        "среда",
+        "четверг",
+        "пятница",
+        "суббота",
+        "воскресенье",
+        "ежедневно",
+        "еженедельно",
+        "каждый день",
+        "каждую неделю",
+    ]
+
+    generic_venues = ["Локация", "📍 Локация уточняется", "Место проведения", "Место не указано", "", "None"]
+
+    enriched_events = []
+    for event in events:
+        # Проверяем, нужно ли обогащать это событие
+        venue_name = event.get("location_name") or event.get("venue_name")
+        lat = event.get("lat")
+        lng = event.get("lng")
+
+        # Если venue_name пустое, невалидное (содержит временные слова) или generic, но есть координаты
+        needs_enrichment = (
+            lat
+            and lng
+            and (
+                not venue_name
+                or venue_name in generic_venues
+                or any(pattern in venue_name.lower() for pattern in time_patterns)
+            )
+        )
+
+        if needs_enrichment:
+            try:
+                from utils.geo_utils import reverse_geocode
+
+                reverse_name = await reverse_geocode(lat, lng)
+                if reverse_name:
+                    event["location_name"] = reverse_name
+                    logger.info(f"✅ Обогащено событие '{event.get('title', '')[:30]}': location_name={reverse_name}")
+                else:
+                    logger.debug(f"⚠️ Не удалось получить название места для координат ({lat}, {lng})")
+            except Exception as e:
+                logger.warning(f"⚠️ Ошибка при reverse geocoding для события {event.get('id')}: {e}")
+
+        enriched_events.append(event)
+
+    return enriched_events
 
 
 def render_page(events: list[dict], page: int, page_size: int = 5, user_id: int = None) -> tuple[str, int]:
@@ -3092,7 +3226,10 @@ async def on_location(message: types.Message, state: FSMContext):
             # 4) Формируем заголовок с правильным отчётом
             header_html = render_header(counts, radius_km=int(radius))
 
-            # 5) Рендерим первые 3 события для карты
+            # 5) Обогащаем события reverse geocoding для названий локаций
+            prepared = await enrich_events_with_reverse_geocoding(prepared)
+
+            # 6) Рендерим первые 3 события для карты
             page_html, _ = render_page(prepared, page=1, page_size=3, user_id=message.from_user.id)
             short_caption = header_html + "\n\n" + page_html
 
@@ -3170,7 +3307,10 @@ async def on_location(message: types.Message, state: FSMContext):
                 # 3) Создаем заголовок с событиями
                 header_html = render_header(counts, radius_km=int(radius))
 
-                # 4) Рендерим события (первая страница)
+                # 4) Обогащаем события reverse geocoding для названий локаций
+                prepared = await enrich_events_with_reverse_geocoding(prepared)
+
+                # 5) Рендерим события (первая страница)
                 page_html, _ = render_page(prepared, page=0, page_size=5, user_id=message.from_user.id)
                 events_text = header_html + "\n\n" + page_html
 
@@ -4375,6 +4515,9 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         "diag": {"kept": len(prepared), "dropped": 0, "reasons_top3": []},
         "region": region,
     }
+
+    # Обогащаем события reverse geocoding для названий локаций
+    prepared = await enrich_events_with_reverse_geocoding(prepared)
 
     # Рендерим страницу
     header_html = render_header(counts, radius_km=new_radius)
@@ -6575,6 +6718,9 @@ async def handle_pagination(callback: types.CallbackQuery):
         prepared = state["prepared"]
         counts = state["counts"]
         current_radius = state.get("radius", 5)
+
+        # Обогащаем события reverse geocoding для названий локаций
+        prepared = await enrich_events_with_reverse_geocoding(prepared)
 
         # Рендерим страницу
         page_html, total_pages = render_page(prepared, page, page_size=5, user_id=callback.from_user.id)
