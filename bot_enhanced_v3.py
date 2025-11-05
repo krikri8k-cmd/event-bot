@@ -1134,9 +1134,8 @@ async def enrich_events_with_reverse_geocoding(events: list[dict]) -> list[dict]
 
     generic_venues = ["Локация", "📍 Локация уточняется", "Место проведения", "Место не указано", "", "None"]
 
-    enriched_events = []
-    for event in events:
-        # Проверяем, нужно ли обогащать это событие
+    async def enrich_single_event(event: dict) -> dict:
+        """Обогащает одно событие"""
         venue_name = event.get("location_name") or event.get("venue_name")
         lat = event.get("lat")
         lng = event.get("lng")
@@ -1159,15 +1158,17 @@ async def enrich_events_with_reverse_geocoding(events: list[dict]) -> list[dict]
                 reverse_name = await reverse_geocode(lat, lng)
                 if reverse_name:
                     event["location_name"] = reverse_name
-                    logger.info(f"✅ Обогащено событие '{event.get('title', '')[:30]}': location_name={reverse_name}")
-                else:
-                    logger.debug(f"⚠️ Не удалось получить название места для координат ({lat}, {lng})")
+                    logger.debug(f"✅ Обогащено: location_name={reverse_name}")
             except Exception as e:
-                logger.warning(f"⚠️ Ошибка при reverse geocoding для события {event.get('id')}: {e}")
+                logger.debug(f"⚠️ Ошибка reverse geocoding: {e}")
 
-        enriched_events.append(event)
+        return event
 
-    return enriched_events
+    # Выполняем обогащение параллельно для всех событий (быстрее чем последовательно)
+    import asyncio
+
+    enriched_events = await asyncio.gather(*[enrich_single_event(event) for event in events])
+    return list(enriched_events)
 
 
 def render_page(events: list[dict], page: int, page_size: int = 5, user_id: int = None) -> tuple[str, int]:
