@@ -227,7 +227,7 @@ def enrich_venue_name(e: dict) -> dict:
         "Место проведения",
         "Место не указано",
     ]:
-        e["venue_name"] = "📍 Локация"
+        e["venue_name"] = "Локация"
 
     return e
 
@@ -256,7 +256,7 @@ def get_venue_name(event: dict) -> str:
 
     # Если всё ещё пустое, используем fallback
     if not venue_name:
-        venue_name = "📍 Локация"
+        venue_name = "Локация"
 
     # Ограничиваем длину для компактности
     if len(venue_name) > 30:
@@ -827,7 +827,7 @@ def build_maps_url(e: dict) -> str:
     lng = venue.get("lon") or e.get("lng")
 
     # Пропускаем generic названия мест
-    generic_venues = ["📍 Локация", "📍 Локация уточняется", "Место проведения", "Место не указано", "", "None"]
+    generic_venues = ["Локация", "📍 Локация уточняется", "Место проведения", "Место не указано", "", "None"]
 
     if name and name not in generic_venues:
         return f"https://www.google.com/maps/search/?api=1&query={quote_plus(name)}"
@@ -925,10 +925,10 @@ def render_event_html(e: dict, idx: int, user_id: int = None) -> str:
             venue_display = html.escape(description)
             logger.info(f"🔍 DEBUG: Используем описание: '{venue_display}'")
         else:
-            venue_display = "📍 Локация"
+            venue_display = "Локация"
             logger.info(f"🔍 DEBUG: Описание пустое, используем fallback: '{venue_display}'")
     else:
-        venue_display = "📍 Локация"
+        venue_display = "Локация"
         logger.info(f"🔍 DEBUG: Используем fallback: '{venue_display}'")
 
     # Источник/Автор - ТОЛЬКО из таблицы events
