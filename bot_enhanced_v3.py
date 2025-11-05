@@ -1496,16 +1496,21 @@ def human_when(event: dict, region: str = None, user_id: int = None) -> str:
             return ""
 
     try:
-        # Определяем timezone события по его координатам
-        # Если событие в радиусе 5-20 км, то timezone события = timezone пользователя (скорее всего)
+        # Определяем timezone события
+        # Приоритет: 1) city из события, 2) координаты, 3) region, 4) UTC
         event_tz = "UTC"
 
-        # Определяем по координатам события
-        if event.get("lat") and event.get("lng"):
-            city = get_city_from_coordinates(event["lat"], event["lng"])
-            event_tz = get_city_timezone(city)  # Вернет UTC, если city=None
+        # 1. Используем city из события (если есть в БД)
+        event_city = event.get("city")
+        if event_city:
+            event_tz = get_city_timezone(event_city)
+        else:
+            # 2. Определяем по координатам события
+            if event.get("lat") and event.get("lng"):
+                city = get_city_from_coordinates(event["lat"], event["lng"])
+                event_tz = get_city_timezone(city)  # Вернет UTC, если city=None
 
-        # Fallback на регион (если передан)
+        # 3. Fallback на регион (если передан)
         if event_tz == "UTC" and region:
             region_tz_map = {
                 "bali": "Asia/Makassar",
