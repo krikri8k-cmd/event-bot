@@ -1328,9 +1328,23 @@ async def group_delete_event(callback: CallbackQuery, bot: Bot, session: AsyncSe
             return
 
         # Удаляем событие
-        await session.delete(event)
-        await session.commit()
-        logger.info(f"✅ Событие {event_id} успешно удалено из базы данных")
+        # Используем метод CommunityEventsService для правильного архивирования
+        from utils.community_events_service import CommunityEventsService
+
+        community_service = CommunityEventsService()
+        deleted = community_service.delete_community_event(event_id, chat_id)
+
+        if deleted:
+            logger.info(f"✅ Событие {event_id} успешно удалено и заархивировано в events_community_archive")
+        else:
+            logger.warning(f"⚠️ Не удалось удалить событие {event_id} (возможно, уже удалено)")
+            # Пробуем удалить через ORM как fallback
+            try:
+                await session.delete(event)
+                await session.commit()
+                logger.info(f"✅ Событие {event_id} удалено через fallback")
+            except Exception as fallback_error:
+                logger.error(f"❌ Ошибка fallback удаления: {fallback_error}")
     except Exception as e:
         logger.error(f"❌ Ошибка удаления события: {e}")
         await callback.answer("❌ Ошибка удаления события", show_alert=True)
