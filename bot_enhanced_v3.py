@@ -1238,6 +1238,9 @@ bot = Bot(token=settings.telegram_token)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
+# Кеш для bot_info (не меняется часто, можно кешировать)
+_bot_info_cache: types.User | None = None
+
 # === MIDDLEWARE ДЛЯ СЕССИЙ ===
 from collections.abc import Awaitable, Callable  # noqa: E402
 from typing import Any  # noqa: E402
@@ -1847,8 +1850,8 @@ async def periodic_commands_update():
             await asyncio.sleep(300)  # При ошибке ждем 5 минут
 
 
-def ensure_user_exists(user_id: int, tg_user) -> None:
-    """Создаёт пользователя в БД если его нет"""
+def _ensure_user_exists_sync(user_id: int, tg_user) -> None:
+    """Синхронная версия создания пользователя (для выполнения в отдельном потоке)"""
     try:
         with get_session() as session:
             user = session.get(User, user_id)
@@ -1864,6 +1867,11 @@ def ensure_user_exists(user_id: int, tg_user) -> None:
                 logger.info(f"Создан новый пользователь {user_id}")
     except Exception as e:
         logger.error(f"Ошибка создания пользователя {user_id}: {e}")
+
+
+async def ensure_user_exists(user_id: int, tg_user) -> None:
+    """Создаёт пользователя в БД если его нет (выполняется в отдельном потоке)"""
+    await asyncio.to_thread(_ensure_user_exists_sync, user_id, tg_user)
 
 
 def kb_radius(current: int | None = None) -> InlineKeyboardMarkup:
@@ -1896,6 +1904,14 @@ async def cmd_radius_settings(message: types.Message):
     )
 
 
+async def get_bot_info_cached() -> types.User:
+    """Получает информацию о боте с кешированием"""
+    global _bot_info_cache
+    if _bot_info_cache is None:
+        _bot_info_cache = await bot.get_me()
+    return _bot_info_cache
+
+
 @main_router.message(Command("start"))
 @main_router.message(F.text == "🚀 Старт")
 async def cmd_start(message: types.Message, state: FSMContext, command: CommandObject = None):
@@ -1917,26 +1933,27 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
         await start_group_event_creation(message, group_id, state)
         return
 
-    # Создаем пользователя если его нет
-    ensure_user_exists(user_id, message.from_user)
+    # Создаем пользователя если его нет (в фоне, не ждём)
+    asyncio.create_task(ensure_user_exists(user_id, message.from_user))
 
-    # Увеличиваем счетчик сессий
-    from utils.user_analytics import UserAnalytics
+    # Увеличиваем счетчик сессий (в фоне, не ждём)
+    async def _update_analytics():
+        from utils.user_analytics import UserAnalytics
 
-    # Раздельные инкременты сессий: World (приват) vs Community (группа)
-    try:
-        if chat_type == "private":
-            UserAnalytics.increment_sessions_world(user_id)
-        else:
-            UserAnalytics.increment_sessions_community(user_id)
-    except Exception:
-        # Fallback, если что-то пойдет не так
-        UserAnalytics.increment_sessions(user_id)
+        try:
+            if chat_type == "private":
+                UserAnalytics.increment_sessions_world(user_id)
+            else:
+                UserAnalytics.increment_sessions_community(user_id)
+        except Exception:
+            UserAnalytics.increment_sessions(user_id)
+
+    asyncio.create_task(_update_analytics())
 
     logger.info(f"cmd_start: пользователь {user_id}")
 
-    # Восстанавливаем команды бота при каждом запуске
-    await setup_bot_commands()
+    # Восстанавливаем команды бота в фоне (не ждём завершения)
+    asyncio.create_task(setup_bot_commands())
 
     # Разная логика для личных и групповых чатов
     if chat_type == "private":
@@ -1961,8 +1978,8 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
             "💡 **Выберите действие:**"
         )
 
-        # Получаем username бота для создания ссылки
-        bot_info = await bot.get_me()
+        # Получаем username бота для создания ссылки (с кешированием)
+        bot_info = await get_bot_info_cached()
 
         # Создаем inline кнопки для групповых чатов
         keyboard = InlineKeyboardMarkup(
@@ -2660,8 +2677,8 @@ async def handle_group_back_to_start(callback: types.CallbackQuery):
         "💡 **Выберите действие:**"
     )
 
-    # Получаем username бота для создания ссылки
-    bot_info = await bot.get_me()
+    # Получаем username бота для создания ссылки (с кешированием)
+    bot_info = await get_bot_info_cached()
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -2689,8 +2706,8 @@ async def on_start_menu_callback(callback: types.CallbackQuery, state: FSMContex
     # Запускаем главное меню (аналогично команде /start)
     user_id = callback.from_user.id
 
-    # Создаем пользователя если его нет
-    ensure_user_exists(user_id, callback.from_user)
+    # Создаем пользователя если его нет (в фоне, не ждём)
+    asyncio.create_task(ensure_user_exists(user_id, callback.from_user))
 
     # Показываем приветственное сообщение с главным меню
     welcome_text = (
@@ -3426,7 +3443,7 @@ async def on_my_events(message: types.Message):
 @main_router.message(F.text == "🔗 Добавить бота в чат")
 async def on_share(message: types.Message):
     """Обработчик кнопки 'Добавить бота в чат'"""
-    bot_info = await bot.get_me()
+    bot_info = await get_bot_info_cached()
     text = (
         '🤝Версия "Community"- наведет структуру и порядок событий в вашем чате.\n\n'
         "Инструкция:\n\n"
