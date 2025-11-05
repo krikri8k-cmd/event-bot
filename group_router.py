@@ -492,7 +492,14 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             )
             return
         try:
-            await message.answer("🤖 EventAroundBot активирован в этом чате!")
+            fallback_msg = await message.answer("🤖 EventAroundBot активирован в этом чате!")
+            # Удаляем fallback сообщение через 3 секунды
+            try:
+                await asyncio.sleep(3)
+                await bot.delete_message(message.chat.id, fallback_msg.message_id)
+                logger.info(f"✅ Fallback сообщение активации удалено в чате {message.chat.id}")
+            except Exception as delete_error:
+                logger.warning(f"⚠️ Не удалось удалить fallback сообщение активации: {delete_error}")
         except Exception as fallback_error:
             if "TOPIC_CLOSED" in str(fallback_error):
                 logger.warning(
