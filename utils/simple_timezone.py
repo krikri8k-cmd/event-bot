@@ -117,7 +117,8 @@ def get_city_from_coordinates(lat: float, lng: float) -> str | None:
         Название города или None, если регион не определен
     """
     # Простая логика по координатам
-    if -8.5 <= lat <= -8.0 and 114.0 <= lng <= 116.0:
+    # Расширенные границы для Бали (включая южные районы типа Нуса Дуа, Джимбаран)
+    if -9.0 <= lat <= -8.0 and 114.0 <= lng <= 116.0:
         return "bali"
     elif 55.0 <= lat <= 56.0 and 37.0 <= lng <= 38.0:
         return "moscow"
