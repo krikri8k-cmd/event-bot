@@ -73,6 +73,20 @@ class ParserIntegration:
                 location_name = venue.get("name", "")
                 location_url = venue.get("address", "")
 
+                # Если location_name пустое, пробуем reverse geocoding по координатам
+                if not location_name and lat and lng:
+                    try:
+                        from utils.geo_utils import reverse_geocode
+
+                        reverse_name = await reverse_geocode(lat, lng)
+                        if reverse_name:
+                            location_name = reverse_name
+                            logger.info(f"✅ Получено название места через reverse geocoding: {location_name}")
+                        else:
+                            logger.debug(f"⚠️ Не удалось получить название места для координат ({lat}, {lng})")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Ошибка при reverse geocoding: {e}")
+
                 # Сохраняем событие
                 event_id = self.events_service.save_parser_event(
                     source=source,

@@ -54,6 +54,73 @@ async def geocode_address(address: str, region_bias: str = "bali") -> tuple[floa
     return None
 
 
+async def reverse_geocode(lat: float, lng: float) -> str | None:
+    """
+    Выполняет reverse geocoding для получения названия места по координатам
+
+    Args:
+        lat: Широта
+        lng: Долгота
+
+    Returns:
+        Название места (establishment name) или None если не найдено
+    """
+    settings = load_settings()
+    if not settings.google_maps_api_key:
+        return None
+
+    params = {
+        "latlng": f"{lat:.6f},{lng:.6f}",
+        "key": settings.google_maps_api_key,
+        "result_type": "establishment|premise|point_of_interest",  # Приоритет на заведения
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get("https://maps.googleapis.com/maps/api/geocode/json", params=params)
+            r.raise_for_status()
+            data = r.json()
+
+            if data.get("status") == "OK" and data.get("results"):
+                # Ищем название заведения (establishment)
+                for result in data.get("results", []):
+                    # Проверяем типы результатов
+                    types = result.get("types", [])
+                    # Ищем establishment, premise, point_of_interest
+                    if any(t in types for t in ["establishment", "premise", "point_of_interest"]):
+                        # Сначала пробуем найти название в address_components (более точное)
+                        name = None
+                        for component in result.get("address_components", []):
+                            if "establishment" in component.get("types", []):
+                                name = component.get("long_name", "")
+                                break
+
+                        # Если не нашли в address_components, используем formatted_address
+                        # Но берем только первую часть (до запятой), чтобы убрать адрес
+                        if not name:
+                            formatted_address = result.get("formatted_address", "")
+                            if formatted_address:
+                                # Берем первую часть до запятой (обычно это название места)
+                                name = formatted_address.split(",")[0].strip()
+
+                        if name:
+                            return name
+
+                # Если не нашли establishment, берем первое место
+                # И берем только первую часть адреса (название места)
+                first_result = data.get("results", [{}])[0]
+                formatted_address = first_result.get("formatted_address", "")
+                if formatted_address:
+                    # Берем первую часть до запятой
+                    name = formatted_address.split(",")[0].strip()
+                    return name
+
+    except Exception as e:
+        print(f"❌ Ошибка reverse geocoding: {e}")
+
+    return None
+
+
 async def get_timezone(lat: float, lng: float, timestamp: int | None = None) -> str | None:
     settings = load_settings()
     if not settings.google_maps_api_key:
