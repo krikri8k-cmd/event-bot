@@ -758,7 +758,13 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
     user_id = callback.from_user.id
     events_per_page = 10
 
-    logger.info(f"🔥 group_list_events_page: запрос списка событий в чате {chat_id}, страница {page}")
+    # Получаем thread_id для форумов
+    is_forum = getattr(callback.message.chat, "is_forum", False)
+    thread_id = getattr(callback.message, "message_thread_id", None)
+
+    logger.info(
+        f"🔥 group_list_events_page: запрос списка событий в чате {chat_id}, страница {page}, thread_id={thread_id}"
+    )
 
     await callback.answer()  # Тост, не спамим
 
@@ -970,7 +976,10 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
             if "message is not modified" in str(e).lower():
                 logger.info("🔥 Сообщение не изменилось, отправляем новое сообщение")
                 try:
-                    await callback.message.answer(text, reply_markup=back_kb, parse_mode="Markdown")
+                    answer_kwargs = {"reply_markup": back_kb, "parse_mode": "Markdown"}
+                    if is_forum and thread_id:
+                        answer_kwargs["message_thread_id"] = thread_id
+                    await callback.message.answer(text, **answer_kwargs)
                     logger.info("✅ Новое сообщение со списком событий отправлено")
                 except Exception as e2:
                     logger.error(f"❌ Ошибка отправки нового сообщения: {e2}")
@@ -978,15 +987,21 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
             else:
                 # Fallback: отправляем новое сообщение с Markdown
                 try:
-                    await callback.message.answer(text, reply_markup=back_kb, parse_mode="Markdown")
+                    answer_kwargs = {"reply_markup": back_kb, "parse_mode": "Markdown"}
+                    if is_forum and thread_id:
+                        answer_kwargs["message_thread_id"] = thread_id
+                    await callback.message.answer(text, **answer_kwargs)
                 except Exception as e2:
                     logger.error(f"❌ Ошибка отправки нового сообщения: {e2}")
                     # Последний fallback: отправляем без клавиатуры
                 try:
-                    await callback.message.answer(
-                        "📋 **События этого чата**\n\n❌ Ошибка отображения. Попробуйте позже.",
-                        parse_mode="Markdown",
-                    )
+                    answer_kwargs = {
+                        "text": "📋 **События этого чата**\n\n❌ Ошибка отображения. Попробуйте позже.",
+                        "parse_mode": "Markdown",
+                    }
+                    if is_forum and thread_id:
+                        answer_kwargs["message_thread_id"] = thread_id
+                    await callback.message.answer(**answer_kwargs)
                 except Exception as e3:
                     logger.error(f"❌ Критическая ошибка: {e3}")
                     await callback.answer("❌ Ошибка отображения событий", show_alert=True)
@@ -1007,6 +1022,16 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
             await callback.message.edit_text(error_text, reply_markup=back_kb, parse_mode="Markdown")
         except Exception as edit_error:
             logger.error(f"❌ Ошибка отправки сообщения об ошибке: {edit_error}")
+            # Fallback: отправляем новое сообщение
+            try:
+                is_forum = getattr(callback.message.chat, "is_forum", False)
+                thread_id = getattr(callback.message, "message_thread_id", None)
+                answer_kwargs = {"reply_markup": back_kb, "parse_mode": "Markdown"}
+                if is_forum and thread_id:
+                    answer_kwargs["message_thread_id"] = thread_id
+                await callback.message.answer(error_text, **answer_kwargs)
+            except Exception as fallback_error:
+                logger.error(f"❌ Критическая ошибка отправки сообщения об ошибке: {fallback_error}")
 
 
 @group_router.callback_query(F.data == "group_back_to_panel")
@@ -1065,13 +1090,21 @@ async def group_hide_confirm(callback: CallbackQuery, bot: Bot, session: AsyncSe
         from utils.messaging_utils import send_tracked
 
         try:
+            # Получаем thread_id для форумов
+            is_forum = getattr(callback.message.chat, "is_forum", False)
+            thread_id = getattr(callback.message, "message_thread_id", None)
+
+            send_kwargs = {"reply_markup": keyboard}
+            if is_forum and thread_id:
+                send_kwargs["message_thread_id"] = thread_id
+
             await send_tracked(
                 bot,
                 session,
                 chat_id=chat_id,
                 text=confirmation_text,
-                reply_markup=keyboard,
                 tag="service",
+                **send_kwargs,
             )
         except Exception as e:
             logger.error(f"❌ Ошибка отправки подтверждения: {e}")
@@ -1082,7 +1115,14 @@ async def group_hide_execute_direct(callback: CallbackQuery, bot: Bot, session: 
     """Прямое выполнение скрытия бота без подтверждения"""
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id
-    logger.info(f"🔥 group_hide_execute_direct: пользователь {user_id} скрывает бота в чате {chat_id}")
+
+    # Получаем thread_id для форумов
+    is_forum = getattr(callback.message.chat, "is_forum", False)
+    thread_id = getattr(callback.message, "message_thread_id", None)
+
+    logger.info(
+        f"🔥 group_hide_execute_direct: пользователь {user_id} скрывает бота в чате {chat_id}, thread_id={thread_id}"
+    )
 
     await callback.answer("Скрываем сервисные сообщения бота…", show_alert=False)
 
@@ -1122,16 +1162,18 @@ async def group_hide_execute_direct(callback: CallbackQuery, bot: Bot, session: 
         deleted = 0
 
     # Короткое уведомление о результате (не трекаем, чтобы не гоняться за ним)
-    note = await bot.send_message(
-        chat_id,
-        f"👁️‍🗨️ **Бот скрыт**\n\n"
+    send_kwargs = {
+        "text": f"👁️‍🗨️ **Бот скрыт**\n\n"
         f"✅ Удалено сообщений бота: {deleted}\n"
         f"✅ Команды /start автоматически удаляются\n"
         f"✅ События в базе данных сохранены\n\n"
         f"💡 **Для восстановления функций бота:**\n"
         f"Используйте команду /start",
-        parse_mode="Markdown",
-    )
+        "parse_mode": "Markdown",
+    }
+    if is_forum and thread_id:
+        send_kwargs["message_thread_id"] = thread_id
+    note = await bot.send_message(chat_id, **send_kwargs)
 
     # ВОССТАНАВЛИВАЕМ КОМАНДЫ ПОСЛЕ СКРЫТИЯ БОТА (НАДЕЖНО)
     await ensure_group_start_command(bot, chat_id)
@@ -1153,7 +1195,14 @@ async def group_hide_execute(callback: CallbackQuery, bot: Bot, session: AsyncSe
     """Выполнение скрытия бота"""
     chat_id = int(callback.data.split("_")[-1])
     user_id = callback.from_user.id
-    logger.info(f"🔥 group_hide_execute: пользователь {user_id} подтвердил скрытие бота в чате {chat_id}")
+
+    # Получаем thread_id для форумов
+    is_forum = getattr(callback.message.chat, "is_forum", False)
+    thread_id = getattr(callback.message, "message_thread_id", None)
+
+    logger.info(
+        f"🔥 group_hide_execute: пользователь {user_id} подтвердил скрытие бота в чате {chat_id}, thread_id={thread_id}"
+    )
 
     await callback.answer("Скрываем сервисные сообщения бота…", show_alert=False)
 
@@ -1193,14 +1242,16 @@ async def group_hide_execute(callback: CallbackQuery, bot: Bot, session: AsyncSe
         deleted = 0
 
     # Короткое уведомление о результате (не трекаем, чтобы не гоняться за ним)
-    note = await bot.send_message(
-        chat_id,
-        f"👁️‍🗨️ **Бот скрыт**\n\n"
+    send_kwargs = {
+        "text": f"👁️‍🗨️ **Бот скрыт**\n\n"
         f"Удалено сообщений: {deleted}\n"
         f"События в базе данных сохранены.\n\n"
         f"Для восстановления панели используйте /start",
-        parse_mode="Markdown",
-    )
+        "parse_mode": "Markdown",
+    }
+    if is_forum and thread_id:
+        send_kwargs["message_thread_id"] = thread_id
+    note = await bot.send_message(chat_id, **send_kwargs)
 
     # ВОССТАНАВЛИВАЕМ КОМАНДЫ ПОСЛЕ СКРЫТИЯ БОТА (НАДЕЖНО)
     await ensure_group_start_command(bot, chat_id)
