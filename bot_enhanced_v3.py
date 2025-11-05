@@ -6373,6 +6373,21 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
             except Exception as e:
                 logger.error(f"❌ Ошибка геокодирования: {e}")
 
+        # Если location_name пустое или "Место не указано", но есть координаты, пробуем reverse geocoding
+        if (not location_name or location_name == "Место не указано") and lat and lng:
+            logger.info(f"🌍 location_name пустое, пробуем reverse geocoding для координат ({lat}, {lng})")
+            try:
+                from utils.geo_utils import reverse_geocode
+
+                reverse_name = await reverse_geocode(lat, lng)
+                if reverse_name:
+                    location_name = reverse_name
+                    logger.info(f"✅ Получено название места через reverse geocoding: {location_name}")
+                else:
+                    logger.debug(f"⚠️ Не удалось получить название места для координат ({lat}, {lng})")
+            except Exception as e:
+                logger.warning(f"⚠️ Ошибка при reverse geocoding: {e}")
+
         # Используем новую упрощенную архитектуру
         # Определяем город заранее для использования в сообщении
         city = "bali"  # Значение по умолчанию
