@@ -826,9 +826,10 @@ def build_maps_url(e: dict) -> str:
         return e["location_url"]
 
     # Поддерживаем новую структуру venue и старую
-    # Приоритет: location_name (из геокодирования) > venue_name > venue.name
+    # Приоритет: venue.name (из источника) > venue_name (из источника) > location_name (может быть из reverse geocoding)
+    # Это важно, чтобы названия из источника имели приоритет над адресами
     venue = e.get("venue", {})
-    name = (e.get("location_name") or venue.get("name") or e.get("venue_name") or "").strip()
+    name = (venue.get("name") or e.get("venue_name") or e.get("location_name") or "").strip()
     addr = (venue.get("address") or e.get("address") or "").strip()
     lat = venue.get("lat") or e.get("lat")
     lng = venue.get("lon") or e.get("lng")
@@ -933,9 +934,10 @@ def render_event_html(e: dict, idx: int, user_id: int = None) -> str:
     logger.info(f"🔍 FINAL: event_type={event_type} для события '{e.get('title', 'Без названия')[:20]}'")
 
     # Поддерживаем новую структуру venue и старую
-    # Приоритет: location_name (из геокодирования) > venue.name > venue_name
+    # Приоритет: venue.name (из источника) > venue_name (из источника) > location_name (может быть из reverse geocoding)
+    # Это важно, чтобы названия из источника (например "Valle Canggu") имели приоритет над адресами из reverse geocoding
     venue = e.get("venue", {})
-    venue_name = e.get("location_name") or venue.get("name") or e.get("venue_name")
+    venue_name = venue.get("name") or e.get("venue_name") or e.get("location_name")
     venue_address = venue.get("address") or e.get("address") or e.get("location_url")
 
     logger.info(f"🔍 DEBUG VENUE: venue={venue}, venue_name='{venue_name}', venue_address='{venue_address}'")
@@ -1149,18 +1151,38 @@ async def enrich_events_with_reverse_geocoding(events: list[dict]) -> list[dict]
 
     async def enrich_single_event(event: dict) -> dict:
         """Обогащает одно событие"""
-        venue_name = event.get("location_name") or event.get("venue_name")
+        # Проверяем все возможные источники названия места (приоритет источника)
+        venue = event.get("venue", {})
+        venue_name_from_source = venue.get("name") or event.get("venue_name")
+        location_name_current = event.get("location_name", "")
+
+        # Если есть валидное название из источника, НЕ перезаписываем его reverse geocoding
+        has_valid_source_name = (
+            venue_name_from_source
+            and venue_name_from_source not in generic_venues
+            and len(venue_name_from_source) > 3
+            and not any(pattern in venue_name_from_source.lower() for pattern in time_patterns)
+            # Проверяем, что это не адрес (не начинается с "Jl.", "ул.", "Street" и т.д.)
+            and not venue_name_from_source.strip().startswith(
+                ("Jl.", "ул.", "Street", "st.", "avenue", "проспект", "проспект")
+            )
+        )
+
         lat = event.get("lat")
         lng = event.get("lng")
 
-        # Если venue_name пустое, невалидное (содержит временные слова) или generic, но есть координаты
+        # Обогащаем ТОЛЬКО если:
+        # 1. Нет валидного названия из источника
+        # 2. И текущий location_name пустой или generic
+        # 3. И есть координаты
         needs_enrichment = (
-            lat
+            not has_valid_source_name
+            and lat
             and lng
             and (
-                not venue_name
-                or venue_name in generic_venues
-                or any(pattern in venue_name.lower() for pattern in time_patterns)
+                not location_name_current
+                or location_name_current in generic_venues
+                or any(pattern in location_name_current.lower() for pattern in time_patterns)
             )
         )
 
@@ -1170,8 +1192,19 @@ async def enrich_events_with_reverse_geocoding(events: list[dict]) -> list[dict]
 
                 reverse_name = await reverse_geocode(lat, lng)
                 if reverse_name:
-                    event["location_name"] = reverse_name
-                    logger.debug(f"✅ Обогащено: location_name={reverse_name}")
+                    # Проверяем, что reverse geocoding не вернул адрес (улицу)
+                    # Адреса обычно начинаются с "Jl.", содержат "No." или слишком длинные
+                    is_address = (
+                        reverse_name.startswith(("Jl.", "ул.", "Street", "st.", "avenue"))
+                        or "No." in reverse_name
+                        or len(reverse_name) > 50  # Слишком длинное для названия места
+                    )
+
+                    if not is_address:
+                        event["location_name"] = reverse_name
+                        logger.debug(f"✅ Обогащено: location_name={reverse_name}")
+                    else:
+                        logger.debug(f"⚠️ Reverse geocoding вернул адрес, пропускаем: {reverse_name}")
             except Exception as e:
                 logger.debug(f"⚠️ Ошибка reverse geocoding: {e}")
 
