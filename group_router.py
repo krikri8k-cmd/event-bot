@@ -361,13 +361,18 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                 "💡 Выберите действие:"
             )
 
+            # Передаем message_thread_id для форумов
+            send_kwargs = {"reply_markup": keyboard}
+            if is_forum and thread_id:
+                send_kwargs["message_thread_id"] = thread_id
+
             await send_tracked(
                 bot,
                 session,
                 chat_id=message.chat.id,
                 text=panel_text,
                 tag="panel",  # Тег для автоудаления через 4 минуты
-                reply_markup=keyboard,
+                **send_kwargs,
             )
             logger.info(f"✅ Панель Community отправлена и трекируется в чате {message.chat.id}")
         except Exception as e:
@@ -412,7 +417,11 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             )
 
             try:
-                activation_msg = await message.answer("🤖 EventAroundBot активирован!", reply_markup=start_keyboard)
+                # Для форумов передаем message_thread_id
+                answer_kwargs = {"reply_markup": start_keyboard}
+                if is_forum and thread_id:
+                    answer_kwargs["message_thread_id"] = thread_id
+                activation_msg = await message.answer("🤖 EventAroundBot активирован!", **answer_kwargs)
             except Exception as e:
                 if "TOPIC_CLOSED" in str(e):
                     logger.warning(
