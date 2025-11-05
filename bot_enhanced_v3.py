@@ -5633,7 +5633,7 @@ async def process_description(message: types.Message, state: FSMContext):
 
     # Показываем итог перед подтверждением
     location_text = data.get("location", "Не указано")
-    if "location_name" in data:
+    if "location_name" in data and data["location_name"]:
         location_text = data["location_name"]
         if "location_url" in data:
             location_text += f"\n🌍 [Открыть на карте]({data['location_url']})"
