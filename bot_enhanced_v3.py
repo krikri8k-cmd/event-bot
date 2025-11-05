@@ -1480,18 +1480,22 @@ def human_when(event: dict, region: str = None, user_id: int = None) -> str:
 
     try:
         # Определяем timezone события
-        # Приоритет: 1) city из события, 2) координаты, 3) region, 4) UTC
+        # Приоритет: 1) city из события (если это известный город), 2) координаты, 3) region, 4) UTC
         event_tz = "UTC"
 
-        # 1. Используем city из события (если есть в БД)
+        # 1. Используем city из события (если это известный город)
         event_city = event.get("city")
         if event_city:
-            event_tz = get_city_timezone(event_city)
-        else:
-            # 2. Определяем по координатам события
-            if event.get("lat") and event.get("lng"):
-                city = get_city_from_coordinates(event["lat"], event["lng"])
-                event_tz = get_city_timezone(city)  # Вернет UTC, если city=None
+            # Проверяем, что это известный город, а не название заведения
+            known_cities = ["bali", "moscow", "spb", "jakarta"]
+            if event_city.lower() in known_cities:
+                event_tz = get_city_timezone(event_city)
+
+        # 2. Если timezone еще не определен, определяем по координатам события
+        if event_tz == "UTC" and event.get("lat") and event.get("lng"):
+            city = get_city_from_coordinates(event["lat"], event["lng"])
+            if city:
+                event_tz = get_city_timezone(city)
 
         # 3. Fallback на регион (если передан)
         if event_tz == "UTC" and region:
