@@ -200,7 +200,9 @@ def sort_events_by_time(events: list) -> list:
 def enrich_venue_name(e: dict) -> dict:
     """
     Обогащает событие названием места, если его нет
+    НЕ извлекает из названия события - использует только данные из БД (геокодирование)
     """
+    # Проверяем venue_name из БД (должен быть из геокодирования)
     if e.get("venue_name") and e.get("venue_name") not in [
         "",
         "Место проведения",
@@ -208,21 +210,18 @@ def enrich_venue_name(e: dict) -> dict:
     ]:
         return e
 
-    # 1) из title/description
+    # Проверяем location_name из БД (альтернативный источник)
+    if e.get("location_name") and e.get("location_name") not in [
+        "",
+        "Место проведения",
+        "Место не указано",
+        "Место по ссылке",
+    ]:
+        e["venue_name"] = e.get("location_name")
+        return e
 
-    VENUE_RX = r"(?:в|at|@)\s+([A-Za-zА-Яа-я0-9''&\s.-]+)$"
-
-    for field in ("title", "description"):
-        v = (e.get(field) or "").strip()
-        m = re.search(VENUE_RX, v)
-        if m:
-            venue_name = m.group(1).strip()
-            # Проверяем, что это не просто часть названия события
-            if len(venue_name) > 3 and venue_name not in ["момент", "событие", "встреча"]:
-                e["venue_name"] = venue_name
-                return e
-
-    # 2) если всё ещё пустое, используем fallback
+    # Если всё ещё пустое, используем fallback
+    # НЕ извлекаем из названия события - это неправильно!
     if not e.get("venue_name") or e.get("venue_name") in [
         "",
         "Место проведения",
@@ -243,33 +242,17 @@ def create_google_maps_url(event: dict) -> str:
 def get_venue_name(event: dict) -> str:
     """
     Возвращает название места для события
+    НЕ извлекает из названия/описания - использует только данные из БД (геокодирование)
     """
-    # Приоритет: venue_name -> location_name -> address
+    # Приоритет: venue_name -> location_name -> address (все из БД/геокодирования)
     venue_name = event.get("venue_name") or event.get("location_name") or event.get("address") or ""
 
     # Фильтруем мусорные названия
-    if venue_name in ["Место проведения", "Место не указано", "Локация", ""]:
+    if venue_name in ["Место проведения", "Место не указано", "Локация", "", "Место по ссылке"]:
         venue_name = ""
 
-    # Если название пустое, пытаемся извлечь из описания
-    if not venue_name and event.get("description"):
-        description = event.get("description", "")
-        # Простые регулярки для извлечения места
-
-        # Ищем паттерны типа "в Canggu Studio", "at Museum", "@Place"
-        patterns = [
-            r"в\s+([^,.\n]+)",
-            r"at\s+([^,.\n]+)",
-            r"@([^\s,.\n]+)",
-            r"место:\s*([^,.\n]+)",
-            r"адрес:\s*([^,.\n]+)",
-        ]
-
-        for pattern in patterns:
-            match = re.search(pattern, description, re.IGNORECASE)
-            if match:
-                venue_name = match.group(1).strip()
-                break
+    # НЕ извлекаем из описания - это неправильно!
+    # Название места должно браться только из карты (геокодирование)
 
     # Если всё ещё пустое, используем fallback
     if not venue_name:
@@ -2115,7 +2098,6 @@ async def process_community_date_pm(message: types.Message, state: FSMContext):
     logger.info(f"🔥 process_community_date_pm: получили дату '{date}' от пользователя {message.from_user.id}")
 
     # Валидация формата даты DD.MM.YYYY
-    import re
 
     if not re.match(r"^\d{1,2}\.\d{1,2}\.\d{4}$", date):
         await message.answer(
@@ -2154,7 +2136,6 @@ async def process_community_time_pm(message: types.Message, state: FSMContext):
     logger.info(f"🔥 process_community_time_pm: получили время '{time}' от пользователя {message.from_user.id}")
 
     # Валидация формата времени HH:MM
-    import re
 
     if not re.match(r"^\d{1,2}:\d{2}$", time):
         await message.answer(
@@ -5027,7 +5008,6 @@ async def process_date(message: types.Message, state: FSMContext):
     logger.info(f"process_date: получили дату '{date}' от пользователя {message.from_user.id}")
 
     # Валидация формата даты DD.MM.YYYY
-    import re
 
     if not re.match(r"^\d{1,2}\.\d{1,2}\.\d{4}$", date):
         await message.answer(
@@ -5071,7 +5051,6 @@ async def process_time(message: types.Message, state: FSMContext):
     logger.info(f"process_time: получили время '{time}' от пользователя {message.from_user.id}")
 
     # Валидация формата времени HH:MM
-    import re
 
     if not re.match(r"^\d{1,2}:\d{2}$", time):
         await message.answer(
@@ -5704,7 +5683,6 @@ async def handle_community_date_step(message: types.Message, state: FSMContext):
         return
 
     date = message.text.strip()
-    import re
 
     if not re.match(r"^\d{1,2}\.\d{1,2}\.\d{4}$", date):
         await message.answer(
@@ -5739,7 +5717,6 @@ async def handle_community_time_step(message: types.Message, state: FSMContext):
         return
 
     time = message.text.strip()
-    import re
 
     if not re.match(r"^\d{1,2}:\d{2}$", time):
         await message.answer(
@@ -5990,7 +5967,6 @@ async def process_community_date_group(message: types.Message, state: FSMContext
     logger.info(f"🔥 process_community_date_group: получили дату '{date}' от пользователя {message.from_user.id}")
 
     # Валидация формата даты DD.MM.YYYY
-    import re
 
     if not re.match(r"^\d{1,2}\.\d{1,2}\.\d{4}$", date):
         await message.answer(
@@ -6039,7 +6015,6 @@ async def process_community_time_group(message: types.Message, state: FSMContext
     logger.info(f"🔥 process_community_time_group: получили время '{time}' от пользователя {message.from_user.id}")
 
     # Валидация формата времени HH:MM
-    import re
 
     if not re.match(r"^\d{1,2}:\d{2}$", time):
         await message.answer(
