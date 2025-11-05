@@ -1478,12 +1478,12 @@ async def send_spinning_menu(message):
 
 
 def human_when(event: dict, region: str = None, user_id: int = None) -> str:
-    """Возвращает время в формате 'HH:MM' в локальном времени пользователя"""
+    """Возвращает время в формате 'HH:MM' в локальном времени события (определяется по координатам события)"""
     from datetime import datetime
-    from zoneinfo import ZoneInfo
 
-    from database import User, get_session
-    from utils.simple_timezone import get_city_from_coordinates
+    import pytz
+
+    from utils.simple_timezone import get_city_from_coordinates, get_city_timezone
 
     dt_utc = event.get("starts_at") or event.get("start_time")
     if not dt_utc:
@@ -1496,55 +1496,33 @@ def human_when(event: dict, region: str = None, user_id: int = None) -> str:
             return ""
 
     try:
-        # Определяем часовой пояс пользователя
-        user_tz = None
+        # Определяем timezone события по его координатам
+        # Если событие в радиусе 5-20 км, то timezone события = timezone пользователя (скорее всего)
+        event_tz = "UTC"
 
-        # 1. Пробуем получить из БД по user_id
-        if user_id:
-            try:
-                with get_session() as session:
-                    user = session.get(User, user_id)
-                    if user and user.user_tz:
-                        user_tz = user.user_tz
-            except Exception:
-                pass
+        # Определяем по координатам события
+        if event.get("lat") and event.get("lng"):
+            city = get_city_from_coordinates(event["lat"], event["lng"])
+            event_tz = get_city_timezone(city)  # Вернет UTC, если city=None
 
-        # 2. Если не найдено, определяем по геолокации пользователя
-        if not user_tz and user_id:
-            try:
-                with get_session() as session:
-                    user = session.get(User, user_id)
-                    if user and user.last_lat and user.last_lng:
-                        # Определяем город по координатам
-                        city = get_city_from_coordinates(user.last_lat, user.last_lng)
-                        if city:
-                            city_tz_map = {
-                                "bali": "Asia/Makassar",
-                                "moscow": "Europe/Moscow",
-                                "spb": "Europe/Moscow",
-                                "jakarta": "Asia/Jakarta",
-                            }
-                            user_tz = city_tz_map.get(city, "UTC")
-            except Exception:
-                pass
+        # Fallback на регион (если передан)
+        if event_tz == "UTC" and region:
+            region_tz_map = {
+                "bali": "Asia/Makassar",
+                "moscow": "Europe/Moscow",
+                "spb": "Europe/Moscow",
+                "jakarta": "Asia/Jakarta",
+            }
+            event_tz = region_tz_map.get(region, "UTC")
 
-        # 3. Fallback на региональный часовой пояс
-        if not user_tz:
-            if region:
-                region_tz_map = {
-                    "bali": "Asia/Makassar",
-                    "moscow": "Europe/Moscow",
-                    "spb": "Europe/Moscow",
-                    "jakarta": "Asia/Jakarta",
-                }
-                user_tz = region_tz_map.get(region, "UTC")
-            else:
-                # По умолчанию используем UTC+3 (Москва) для большинства пользователей
-                user_tz = "Europe/Moscow"
+        # Конвертируем время в часовой пояс события
+        utc = pytz.UTC
+        event_timezone = pytz.timezone(event_tz)
 
-        # Конвертируем время в часовой пояс пользователя
-        user_timezone = ZoneInfo(user_tz)
-        local_time = dt_utc.astimezone(user_timezone)
+        if dt_utc.tzinfo is None:
+            dt_utc = utc.localize(dt_utc)
+
+        local_time = dt_utc.astimezone(event_timezone)
 
         if not (local_time.hour == 0 and local_time.minute == 0):
             return local_time.strftime("%H:%M")
@@ -1553,13 +1531,20 @@ def human_when(event: dict, region: str = None, user_id: int = None) -> str:
         return ""
 
 
-def format_event_time(starts_at, city="bali") -> str:
-    """Форматирует время события для отображения"""
+def format_event_time(starts_at, event_tz="UTC") -> str:
+    """
+    Форматирует время события для отображения в timezone события
+
+    Args:
+        starts_at: Время события (datetime в UTC или naive)
+        event_tz: Timezone события в формате IANA (например, "Europe/Madrid")
+                   Определяется по координатам события
+    """
     import logging
 
     logger = logging.getLogger(__name__)
 
-    logger.info(f"🕐 format_event_time: starts_at={starts_at}, type={type(starts_at)}, city={city}")
+    logger.info(f"🕐 format_event_time: starts_at={starts_at}, type={type(starts_at)}, event_tz={event_tz}")
 
     if not starts_at:
         logger.info("🕐 starts_at пустое, возвращаем 'время уточняется'")
@@ -1567,11 +1552,6 @@ def format_event_time(starts_at, city="bali") -> str:
 
     try:
         from datetime import datetime
-
-        from utils.simple_timezone import get_city_timezone
-
-        # Получаем часовой пояс города
-        tz_name = get_city_timezone(city)
 
         # Если starts_at это строка, парсим её
         if isinstance(starts_at, str):
@@ -1581,19 +1561,19 @@ def format_event_time(starts_at, city="bali") -> str:
             except (ValueError, TypeError):
                 return "время уточняется"
 
-        # Конвертируем в локальное время города
+        # Конвертируем в timezone события
         import pytz
 
         utc = pytz.UTC
-        local_tz = pytz.timezone(tz_name)
+        event_timezone = pytz.timezone(event_tz)
 
         if starts_at.tzinfo is None:
             starts_at = utc.localize(starts_at)
 
-        local_time = starts_at.astimezone(local_tz)
+        local_time = starts_at.astimezone(event_timezone)
 
         # Форматируем красиво
-        now = datetime.now(local_tz)
+        now = datetime.now(event_timezone)
         today = now.date()
 
         if local_time.date() == today:
@@ -1603,7 +1583,8 @@ def format_event_time(starts_at, city="bali") -> str:
             # Другой день - показываем дату и время
             return f"{local_time.strftime('%d.%m в %H:%M')}"
 
-    except Exception:
+    except Exception as e:
+        logger.error(f"❌ Ошибка форматирования времени: {e}")
         # Если что-то пошло не так, возвращаем базовое значение
         return "время уточняется"
 
@@ -2381,11 +2362,20 @@ async def handle_group_chat_events(callback: types.CallbackQuery):
         )
     else:
         text = f"📋 **События этого чата** ({len(events)} событий):\n\n"
+        from utils.simple_timezone import get_city_from_coordinates, get_city_timezone
+
         for i, event in enumerate(events, 1):
             text += f"**{i}. {event['title']}**\n"
             if event["description"]:
                 text += f"   {event['description'][:100]}{'...' if len(event['description']) > 100 else ''}\n"
-            text += f"   📅 {event['starts_at'].strftime('%d.%m.%Y %H:%M')}\n"
+            # Определяем timezone события по его координатам
+            event_tz = "UTC"
+            if event.get("lat") and event.get("lng"):
+                city = get_city_from_coordinates(event["lat"], event["lng"])
+                event_tz = get_city_timezone(city)
+            # Форматируем время в timezone события
+            time_str = format_event_time(event["starts_at"], event_tz=event_tz)
+            text += f"   📅 {time_str}\n"
             text += f"   🏙️ {event['city']}\n"
             if event["location_url"]:
                 location_name = event.get("location_name", "Место")
@@ -2900,14 +2890,12 @@ async def on_location(message: types.Message, state: FSMContext):
             events_service = UnifiedEventsService(engine)
 
             # Определяем город по координатам (для временных границ)
-            # Если город не определен, используем "bali" как fallback для временных границ
+            # Если город не определен, используем UTC для временных границ
             # Поиск все равно идет по радиусу (координатам), независимо от региона
             city = get_city_from_coordinates(lat, lng)
             if not city:
-                logger.info(
-                    f"ℹ️ Регион не определен по координатам ({lat}, {lng}), используем 'bali' для временных границ"
-                )
-                city = "bali"  # Fallback для временных границ, поиск все равно идет по радиусу
+                logger.info(f"ℹ️ Регион не определен по координатам ({lat}, {lng}), используем UTC для временных границ")
+                # city останется None, get_city_timezone вернет UTC
 
             logger.info(
                 f"🌍 Поиск событий: координаты=({lat}, {lng}), радиус={radius}км, регион для временных границ={city}"
@@ -2932,7 +2920,7 @@ async def on_location(message: types.Message, state: FSMContext):
                     "description": event["description"],
                     "time_local": event["starts_at"].strftime("%Y-%m-%d %H:%M") if event["starts_at"] else None,
                     "starts_at": event["starts_at"],  # Добавляем поле starts_at!
-                    "city": event.get("city", "bali"),  # Добавляем город для правильного форматирования времени
+                    "city": event.get("city"),  # Город события (может быть None)
                     "location_name": event["location_name"],
                     "location_url": event["location_url"],
                     "lat": event["lat"],
@@ -4298,7 +4286,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             "description": event["description"],
             "time_local": event["starts_at"].strftime("%Y-%m-%d %H:%M") if event["starts_at"] else None,
             "starts_at": event["starts_at"],
-            "city": event.get("city", "bali"),
+            "city": event.get("city"),  # Город события (может быть None)
             "location_name": event["location_name"],
             "location_url": event["location_url"],
             "lat": event["lat"],
@@ -6336,7 +6324,20 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
 
         # Определяем предварительный город (для правильного часового пояса)
         # Позже будет уточнен по координатам
-        preliminary_city = "bali"  # По умолчанию Бали
+        from utils.simple_timezone import get_city_from_coordinates, get_city_timezone
+
+        preliminary_city = None  # По умолчанию None (будет UTC)
+
+        # Пробуем определить город по региону из состояния
+        preliminary_city = data.get("region")  # Может быть None
+
+        # Если координаты есть в data, используем их для определения города
+        event_lat = data.get("location_lat")
+        event_lng = data.get("location_lng")
+        if event_lat and event_lng:
+            city_from_coords = get_city_from_coordinates(event_lat, event_lng)
+            if city_from_coords:
+                preliminary_city = city_from_coords
 
         # Парсим дату и время для starts_at с учетом часового пояса
         from datetime import datetime
@@ -6354,13 +6355,9 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
             # Парсим время как локальное для региона
             naive_dt = datetime.strptime(time_local_fixed, "%d.%m.%Y %H:%M")
 
-            # Определяем часовой пояс по городу
-            if preliminary_city == "bali":
-                tz = pytz.timezone("Asia/Makassar")
-            elif preliminary_city in ["moscow", "spb"]:
-                tz = pytz.timezone("Europe/Moscow")
-            else:
-                tz = pytz.UTC
+            # Определяем часовой пояс по городу (используем get_city_timezone для правильного fallback на UTC)
+            tz_name = get_city_timezone(preliminary_city)  # Вернет UTC, если city=None или неизвестен
+            tz = pytz.timezone(tz_name)
 
             # Локализуем время и конвертируем в UTC
             local_dt = tz.localize(naive_dt)
@@ -6405,8 +6402,8 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
             # Определяем город по координатам (для создания события используем регион из состояния)
             city = get_city_from_coordinates(lat, lng) if lat and lng else None
             if not city:
-                # Если город не определен, используем регион из состояния или "bali" как fallback
-                city = data.get("region", "bali")
+                # Если город не определен, используем регион из состояния или None (будет UTC)
+                city = data.get("region")  # Может быть None
 
             # Создаем событие через упрощенный сервис
             event_id = events_service.create_user_event(

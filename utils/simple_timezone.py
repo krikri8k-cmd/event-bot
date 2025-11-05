@@ -14,20 +14,22 @@ CITY_TIMEZONES = {
 }
 
 
-def get_city_timezone(city: str) -> str:
+def get_city_timezone(city: str | None) -> str:
     """
     Получает часовой пояс для города
 
     Args:
-        city: Название города
+        city: Название города или None, если регион не определен
 
     Returns:
-        Часовой пояс в формате IANA
+        Часовой пояс в формате IANA (UTC, если город не определен)
     """
-    return CITY_TIMEZONES.get(city.lower(), "Asia/Makassar")  # По умолчанию Бали
+    if city is None:
+        return "UTC"  # Если регион не определен, используем UTC
+    return CITY_TIMEZONES.get(city.lower(), "UTC")  # По умолчанию UTC, если город неизвестен
 
 
-def get_today_start_utc(city: str) -> datetime:
+def get_today_start_utc(city: str | None) -> datetime:
     """
     Получает начало сегодняшнего дня в UTC для города
     Окно "сегодня" = с 00:00 до 23:59:59 по местному времени города
@@ -53,7 +55,7 @@ def get_today_start_utc(city: str) -> datetime:
     return start_utc
 
 
-def get_tomorrow_start_utc(city: str) -> datetime:
+def get_tomorrow_start_utc(city: str | None) -> datetime:
     """
     Получает начало завтрашнего дня в UTC для города
     Окно "сегодня" заканчивается в 00:00:00 следующего дня по местному времени
@@ -81,7 +83,7 @@ def get_tomorrow_start_utc(city: str) -> datetime:
     return tomorrow_utc
 
 
-def convert_local_to_utc(local_dt: datetime, city: str) -> datetime:
+def convert_local_to_utc(local_dt: datetime, city: str | None) -> datetime:
     """
     Конвертирует локальное время города в UTC
 
@@ -127,7 +129,7 @@ def get_city_from_coordinates(lat: float, lng: float) -> str | None:
         return None  # Регион не определен
 
 
-def format_city_time_info(city: str) -> str:
+def format_city_time_info(city: str | None) -> str:
     """
     Форматирует информацию о времени для города
 
@@ -144,8 +146,9 @@ def format_city_time_info(city: str) -> str:
     today_start_utc = get_today_start_utc(city)
     tomorrow_start_utc = get_tomorrow_start_utc(city)
 
+    city_name = city.title() if city else "Не определен"
     return (
-        f"🌍 Город: {city.title()}\n"
+        f"🌍 Город: {city_name}\n"
         f"🕒 Часовой пояс: {tz_name}\n"
         f"⏰ Текущее время: {now_local.strftime('%Y-%m-%d %H:%M:%S')}\n"
         f"📅 Начало дня (UTC): {today_start_utc.isoformat()}\n"
