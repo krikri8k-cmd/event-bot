@@ -465,18 +465,6 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
 
                 logger.info(f"✅ Команды и меню принудительно установлены для мобильных в чате {message.chat.id}")
 
-                # Подсказка для мобильных (без ReplyKeyboard - он уже отправлен выше)
-                try:
-                    hint_msg = await message.answer(
-                        "💡 **Для мобильных:** Нажмите на иконку сетки рядом с полем ввода для доступа к командам",
-                        parse_mode="Markdown",
-                    )
-                    # Удаляем подсказку через 5 секунд
-                    await asyncio.sleep(5)
-                    await bot.delete_message(message.chat.id, hint_msg.message_id)
-                except Exception as hint_error:
-                    logger.warning(f"⚠️ Не удалось отправить подсказку для мобильных: {hint_error}")
-
             except Exception as e:
                 logger.warning(f"⚠️ Не удалось установить команды для мобильных: {e}")
         else:
