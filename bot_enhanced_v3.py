@@ -965,16 +965,19 @@ def render_event_html(e: dict, idx: int, user_id: int = None) -> str:
         "каждую неделю",
     ]
 
-    # Если venue_name содержит временные слова, считаем его невалидным
-    if venue_name and any(pattern in venue_name.lower() for pattern in time_patterns):
-        logger.warning(f"🔍 DEBUG: venue_name содержит временные слова: '{venue_name}', пропускаем")
+    # Проверяем generic названия
+    generic_venues = ["Локация", "📍 Локация уточняется", "Место проведения", "Место не указано", "", "None"]
+
+    # Если venue_name содержит временные слова или generic, считаем его невалидным
+    if venue_name and (venue_name in generic_venues or any(pattern in venue_name.lower() for pattern in time_patterns)):
+        logger.warning(f"🔍 DEBUG: venue_name невалидное: '{venue_name}', пропускаем")
         venue_name = None
 
     # Приоритет: venue_name → address → coords → description (для пользовательских событий)
     if venue_name:
         venue_display = html.escape(venue_name)
         logger.info(f"🔍 DEBUG: Используем venue_name: '{venue_display}'")
-    elif venue_address:
+    elif venue_address and venue_address not in generic_venues:
         venue_display = html.escape(venue_address)
         logger.info(f"🔍 DEBUG: Используем venue_address: '{venue_display}'")
     elif e.get("lat") and e.get("lng"):
@@ -990,11 +993,21 @@ def render_event_html(e: dict, idx: int, user_id: int = None) -> str:
             venue_display = html.escape(description)
             logger.info(f"🔍 DEBUG: Используем описание: '{venue_display}'")
         else:
-            venue_display = "Локация"
-            logger.info(f"🔍 DEBUG: Описание пустое, используем fallback: '{venue_display}'")
+            # Если нет описания, но есть координаты, показываем координаты
+            if e.get("lat") and e.get("lng"):
+                venue_display = f"координаты ({e['lat']:.4f}, {e['lng']:.4f})"
+                logger.info(f"🔍 DEBUG: Описание пустое, используем координаты: '{venue_display}'")
+            else:
+                venue_display = "Локация"
+                logger.info(f"🔍 DEBUG: Описание пустое, используем fallback: '{venue_display}'")
     else:
-        venue_display = "Локация"
-        logger.info(f"🔍 DEBUG: Используем fallback: '{venue_display}'")
+        # Для событий от парсеров: если нет venue_name, но есть координаты, показываем координаты
+        if e.get("lat") and e.get("lng"):
+            venue_display = f"координаты ({e['lat']:.4f}, {e['lng']:.4f})"
+            logger.info(f"🔍 DEBUG: Используем координаты как fallback: '{venue_display}'")
+        else:
+            venue_display = "Локация"
+            logger.info(f"🔍 DEBUG: Используем fallback: '{venue_display}'")
 
     # Источник/Автор - ТОЛЬКО из таблицы events
     if event_type == "user":
