@@ -301,6 +301,24 @@ class ModernEventScheduler:
         except Exception as e:
             logger.error(f"❌ Ошибка очистки просроченных заданий: {e}")
 
+    def cleanup_expired_community_events(self):
+        """Очистка старых событий сообществ (перенос в архив)"""
+        try:
+            from utils.community_events_service import CommunityEventsService
+
+            logger.info("🧹 Очистка старых событий сообществ...")
+            community_service = CommunityEventsService()
+            # Очищаем события старше 1 дня (они переносятся в архив)
+            deleted_count = community_service.cleanup_expired_events(days_old=1)
+
+            if deleted_count > 0:
+                logger.info(f"   ✅ Архивировано и удалено {deleted_count} старых событий сообществ")
+            else:
+                logger.info("   ℹ️ Старых событий сообществ не найдено")
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка очистки событий сообществ: {e}")
+
     def check_removed_chats(self):
         """Проверка чатов, из которых бот мог быть удален"""
         try:
@@ -424,6 +442,16 @@ class ModernEventScheduler:
             self.cleanup_expired_tasks, "interval", hours=2, id="tasks-cleanup", max_instances=1, coalesce=True
         )
 
+        # Очистка старых событий сообществ каждые 6 часов (перенос в архив)
+        self.scheduler.add_job(
+            self.cleanup_expired_community_events,
+            "interval",
+            hours=6,
+            id="community-events-cleanup",
+            max_instances=1,
+            coalesce=True,
+        )
+
         # Проверка удаленных чатов каждые 24 часа
         self.scheduler.add_job(
             self.check_removed_chats, "interval", hours=24, id="chat-status-check", max_instances=1, coalesce=True
@@ -434,6 +462,7 @@ class ModernEventScheduler:
         logger.info("   📅 Полный цикл: каждые 12 часов (2 раза в день)")
         logger.info("   🌴 BaliForum (Бали) + 🎭 KudaGo (Москва, СПб)")
         logger.info("   🧹 Очистка событий: каждые 6 часов")
+        logger.info("   🧹 Очистка событий сообществ: каждые 6 часов (архив)")
         logger.info("   ⏰ Очистка заданий: каждые 2 часа")
         logger.info("   🔍 Проверка удаленных чатов: каждые 24 часа")
 
