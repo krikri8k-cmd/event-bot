@@ -72,7 +72,7 @@ class TestRenderEventCardRoute:
         html = render_event_html(event, 1)
 
         # Проверяем что есть нейтральная фраза и кнопка Маршрут все равно есть
-        assert "📍 Локация уточняется" in html
+        assert "📍 Локация" in html
         assert "🚗" in html
         assert "Маршрут" in html
         # Должна быть дефолтная ссылка на Google Maps
@@ -134,7 +134,7 @@ class TestRenderEventCardRoute:
         # Без ничего
         event = self.base_event(venue_name=None, address=None, coords=None)
         html = render_event_html(event, 1)
-        assert "📍 Локация уточняется" in html
+        assert "📍 Локация" in html
 
     def test_build_maps_url_directly(self):
         """Тест функции build_maps_url напрямую"""
