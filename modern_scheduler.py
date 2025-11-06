@@ -263,13 +263,7 @@ class ModernEventScheduler:
         else:
             logger.info("🌴 BaliForum пропущен (отключен в настройках)")
 
-        # 2. Парсим KudaGo (Москва и СПб) - только если включен
-        if self.settings.kudago_enabled:
-            import asyncio
-
-            asyncio.run(self.ingest_kudago())
-        else:
-            logger.info("🎭 KudaGo пропущен (отключен в настройках)")
+        # KudaGo теперь запускается отдельно по своему расписанию (см. start())
 
         # 3. Генерируем AI события (если включено)
         if self.settings.ai_generate_synthetic:
@@ -284,6 +278,21 @@ class ModernEventScheduler:
 
         duration = time.time() - start_time
         logger.info(f"✅ === ЦИКЛ ЗАВЕРШЕН ЗА {duration:.1f}с ===")
+
+    def run_kudago_ingest(self):
+        """Отдельный цикл парсинга KudaGo для Москвы и СПб"""
+        logger.info("🎭 === НАЧАЛО ЦИКЛА ПАРСИНГА KUDAGO (МОСКВА, СПБ) ===")
+        start_time = time.time()
+
+        if self.settings.kudago_enabled:
+            import asyncio
+
+            asyncio.run(self.ingest_kudago())
+        else:
+            logger.info("🎭 KudaGo пропущен (отключен в настройках)")
+
+        duration = time.time() - start_time
+        logger.info(f"✅ === ЦИКЛ KUDAGO ЗАВЕРШЕН ЗА {duration:.1f}с ===")
 
     def cleanup_expired_tasks(self):
         """Очистка просроченных заданий"""
@@ -427,7 +436,7 @@ class ModernEventScheduler:
 
         self.scheduler = BackgroundScheduler(timezone="UTC")
 
-        # Основной цикл парсинга событий (2 раза в день по времени Бали)
+        # Основной цикл парсинга событий BaliForum (2 раза в день по времени Бали)
         # Утренний запуск: 18:02 UTC = 00:02 Бали (начало нового дня по Бали)
         self.scheduler.add_job(
             self.run_full_ingest,
@@ -445,6 +454,28 @@ class ModernEventScheduler:
             hour=4,
             minute=2,
             id="modern-ingest-evening",
+            max_instances=1,
+            coalesce=True,
+        )
+
+        # Парсинг KudaGo (Москва и СПб) - отдельное расписание по времени МСК
+        # Утренний запуск: 21:02 UTC = 00:02 МСК (начало нового дня по МСК)
+        self.scheduler.add_job(
+            self.run_kudago_ingest,
+            "cron",
+            hour=21,
+            minute=2,
+            id="kudago-ingest-morning",
+            max_instances=1,
+            coalesce=True,
+        )
+        # Вечерний запуск: 09:02 UTC = 12:02 МСК (середина дня по МСК)
+        self.scheduler.add_job(
+            self.run_kudago_ingest,
+            "cron",
+            hour=9,
+            minute=2,
+            id="kudago-ingest-evening",
             max_instances=1,
             coalesce=True,
         )
