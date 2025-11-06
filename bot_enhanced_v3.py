@@ -4086,11 +4086,32 @@ async def on_tasks_goal(message: types.Message, state: FSMContext):
         one_time_keyboard=True,  # Кнопка исчезнет после использования
     )
 
-    await message.answer(
-        "🎯 Квесты на районе\nНаграда 3 🚀\n\nСамое время развлечься и получить награды.\n\nНажмите кнопку **'📍 Отправить геолокацию'** чтобы начать!",
-        parse_mode="Markdown",
-        reply_markup=location_keyboard,
-    )
+    quest_text = "🎯 Квесты на районе\nНаграда 3 🚀\n\nСамое время развлечься и получить награды.\n\nНажмите кнопку **'📍 Отправить геолокацию'** чтобы начать!"
+
+    # Пытаемся отправить фото, если оно есть (поддерживаем разные форматы)
+    photo_paths = [
+        "images/quests_instruction.jpg",
+        "images/quests_instruction.png",
+        "images/quests_instruction.webp",
+        "images/quests_instruction.jpeg",
+    ]
+
+    for photo_path in photo_paths:
+        if os.path.exists(photo_path):
+            try:
+                from aiogram.types import FSInputFile
+
+                photo = FSInputFile(photo_path)
+                await message.answer_photo(
+                    photo, caption=quest_text, parse_mode="Markdown", reply_markup=location_keyboard
+                )
+                return
+            except Exception as e:
+                logger.warning(f"⚠️ Не удалось отправить фото квестов: {e}, отправляем только текст")
+                break
+
+    # Если фото нет или произошла ошибка, отправляем только текст
+    await message.answer(quest_text, parse_mode="Markdown", reply_markup=location_keyboard)
 
 
 @main_router.message(F.text == "🏆 Мои квесты")
@@ -4188,11 +4209,32 @@ async def cmd_tasks(message: types.Message, state: FSMContext):
         one_time_keyboard=True,
     )
 
-    await message.answer(
-        "🎯 Квесты на районе\nНаграда 3 🚀\n\nСамое время развлечься и получить награды.\n\nНажмите кнопку **'📍 Отправить геолокацию'** чтобы начать!",
-        parse_mode="Markdown",
-        reply_markup=location_keyboard,
-    )
+    quest_text = "🎯 Квесты на районе\nНаграда 3 🚀\n\nСамое время развлечься и получить награды.\n\nНажмите кнопку **'📍 Отправить геолокацию'** чтобы начать!"
+
+    # Пытаемся отправить фото, если оно есть (поддерживаем разные форматы)
+    photo_paths = [
+        "images/quests_instruction.jpg",
+        "images/quests_instruction.png",
+        "images/quests_instruction.webp",
+        "images/quests_instruction.jpeg",
+    ]
+
+    for photo_path in photo_paths:
+        if os.path.exists(photo_path):
+            try:
+                from aiogram.types import FSInputFile
+
+                photo = FSInputFile(photo_path)
+                await message.answer_photo(
+                    photo, caption=quest_text, parse_mode="Markdown", reply_markup=location_keyboard
+                )
+                return
+            except Exception as e:
+                logger.warning(f"⚠️ Не удалось отправить фото квестов: {e}, отправляем только текст")
+                break
+
+    # Если фото нет или произошла ошибка, отправляем только текст
+    await message.answer(quest_text, parse_mode="Markdown", reply_markup=location_keyboard)
 
 
 @main_router.message(Command("mytasks"))
