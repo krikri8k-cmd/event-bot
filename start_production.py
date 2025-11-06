@@ -73,12 +73,26 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
 
     try:
+        # Запускаем простой health check сервер СРАЗУ для Railway
+        # Это нужно, чтобы Railway мог проверить /health до того, как webhook сервер запустится
+        try:
+            logger.info("🏥 Запуск простого health check сервера для Railway...")
+            from bot_health import health_server
+
+            if health_server.start():
+                logger.info("✅ Health check сервер запущен и готов отвечать на /health")
+            else:
+                logger.warning("⚠️ Не удалось запустить health check сервер")
+        except Exception as e:
+            logger.error(f"❌ Ошибка запуска health check сервера: {e}")
+
         # Запускаем автоматизацию в отдельном потоке
         automation_thread = Thread(target=start_automation, daemon=True)
         automation_thread.start()
         logger.info("✅ Автоматизация запущена в фоне")
 
         # Запускаем бота в основном потоке
+        # Webhook сервер также будет иметь /health endpoint, но health check сервер уже работает
         start_bot()
 
     except KeyboardInterrupt:
