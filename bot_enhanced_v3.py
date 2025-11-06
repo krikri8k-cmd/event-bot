@@ -7205,6 +7205,35 @@ async def main():
     logger.info("🔥 MAIN FUNCTION STARTED!")
     logger.info("Запуск улучшенного EventBot (aiogram 3.x)...")
 
+    # Читаем переменные окружения СРАЗУ
+    RUN_MODE = os.getenv("BOT_RUN_MODE", "webhook")
+    PORT = int(os.getenv("PORT", "8000"))
+    WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+
+    # В WEBHOOK РЕЖИМЕ: запускаем минимальный сервер СРАЗУ для health check
+    # Это критично для Railway - health check должен быть доступен сразу
+    webhook_app = None
+    webhook_runner = None
+    if RUN_MODE == "webhook" and WEBHOOK_URL:
+        from aiohttp import web
+
+        # Создаем минимальное приложение СРАЗУ
+        webhook_app = web.Application()
+
+        # Добавляем health check endpoint СРАЗУ
+        async def health_check_early(request):
+            return web.json_response({"ok": True, "status": "starting"})
+
+        webhook_app.router.add_get("/health", health_check_early)
+        webhook_app.router.add_get("/", health_check_early)
+
+        # Запускаем сервер СРАЗУ для health check
+        webhook_runner = web.AppRunner(webhook_app)
+        await webhook_runner.setup()
+        site = web.TCPSite(webhook_runner, "0.0.0.0", PORT)
+        await site.start()
+        logger.info(f"✅ Сервер запущен на http://0.0.0.0:{PORT} - health check доступен СРАЗУ")
+
     # Инициализируем BOT_ID для корректной фильтрации в групповых чатах
     global BOT_ID
     bot_info = await bot.me()
@@ -7427,12 +7456,17 @@ async def main():
             await bot.delete_webhook(drop_pending_updates=True)
             logger.info("Старый webhook удален")
 
-            # Запускаем webhook сервер на отдельном порту
+            # Используем уже созданное приложение (webhook_app) или создаем новое
             from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
             from aiohttp import web
 
-            # Создаем aiohttp приложение
-            app = web.Application()
+            # Если приложение уже создано (для health check), используем его
+            if webhook_app is not None:
+                app = webhook_app
+                logger.info("✅ Используем уже запущенное приложение для webhook")
+            else:
+                # Создаем новое приложение (fallback)
+                app = web.Application()
 
             # Настраиваем безопасный webhook handler
             webhook_path = "/webhook"
