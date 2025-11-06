@@ -622,6 +622,7 @@ async def send_compact_events_list_prepared(
         "lng": user_lng,
         "radius": int(radius),
         "page": 1,
+        "date_filter": "today",  # По умолчанию показываем события на сегодня
         "diag": {"kept": len(prepared_events), "dropped": 0, "reasons_top3": []},
         "region": region,
     }
@@ -707,6 +708,7 @@ async def send_compact_events_list(
         "lng": user_lng,
         "radius": int(radius),
         "page": 1,
+        "date_filter": "today",  # По умолчанию показываем события на сегодня
         "diag": diag,
         "region": region,  # Добавляем регион
     }
@@ -1251,8 +1253,8 @@ def render_page(events: list[dict], page: int, page_size: int = 5, user_id: int 
     return "\n".join(parts).strip(), total_pages
 
 
-def kb_pager(page: int, total: int, current_radius: int = None) -> InlineKeyboardMarkup:
-    """Создает клавиатуру пагинации с кнопками расширения радиуса"""
+def kb_pager(page: int, total: int, current_radius: int = None, date_filter: str = "today") -> InlineKeyboardMarkup:
+    """Создает клавиатуру пагинации с кнопками расширения радиуса и фильтрации даты"""
     from config import load_settings
 
     settings = load_settings()
@@ -1267,6 +1269,22 @@ def kb_pager(page: int, total: int, current_radius: int = None) -> InlineKeyboar
         ],
         [InlineKeyboardButton(text=f"Стр. {page}/{total}", callback_data="pg:noop")],
     ]
+
+    # Добавляем кнопки фильтрации даты (Сегодня/Завтра)
+    if date_filter == "today":
+        buttons.append(
+            [
+                InlineKeyboardButton(text="📅 Сегодня ✅", callback_data="date_filter:today"),
+                InlineKeyboardButton(text="📅 Завтра", callback_data="date_filter:tomorrow"),
+            ]
+        )
+    else:
+        buttons.append(
+            [
+                InlineKeyboardButton(text="📅 Сегодня", callback_data="date_filter:today"),
+                InlineKeyboardButton(text="📅 Завтра ✅", callback_data="date_filter:tomorrow"),
+            ]
+        )
 
     # Добавляем кнопки расширения радиуса, используя фиксированные RADIUS_OPTIONS
     if current_radius is None:
@@ -3236,6 +3254,7 @@ async def on_location(message: types.Message, state: FSMContext):
                     "lng": lng,
                     "radius": int(current_radius),
                     "page": 1,
+                    "date_filter": "today",  # По умолчанию показываем события на сегодня
                     "diag": diag,
                     "region": region,
                 }
@@ -3264,6 +3283,7 @@ async def on_location(message: types.Message, state: FSMContext):
                 "lng": lng,
                 "radius": int(radius),
                 "page": 1,
+                "date_filter": "today",  # По умолчанию показываем события на сегодня
                 "diag": diag,
             }
             logger.info(
@@ -3394,7 +3414,9 @@ async def on_location(message: types.Message, state: FSMContext):
                     events_text += f"\n\n📄 Страница 1 из {total_pages}"
 
                 # 6) Создаем клавиатуру с пагинацией И расширением радиуса
-                combined_keyboard = kb_pager(1, total_pages, int(radius))
+                # Используем date_filter из состояния (по умолчанию "today")
+                date_filter_state = user_state.get(message.chat.id, {}).get("date_filter", "today")
+                combined_keyboard = kb_pager(1, total_pages, int(radius), date_filter=date_filter_state)
 
                 # 7) Отправляем ОДНО сообщение с картой И событиями
                 if map_bytes:
@@ -4532,8 +4554,17 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     engine = get_engine()
     events_service = UnifiedEventsService(engine)
 
+    # Получаем date_filter из состояния (по умолчанию "today")
+    date_filter = state_data.get("date_filter", "today")
+    date_offset = 0 if date_filter == "today" else 1
+
     events = events_service.search_events_today(
-        city=region, user_lat=lat, user_lng=lng, radius_km=new_radius, message_id=f"{callback.message.message_id}"
+        city=region,
+        user_lat=lat,
+        user_lng=lng,
+        radius_km=new_radius,
+        date_offset=date_offset,
+        message_id=f"{callback.message.message_id}",
     )
 
     # Конвертируем в старый формат для совместимости
@@ -4623,6 +4654,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         "lng": lng,
         "radius": new_radius,
         "page": 1,
+        "date_filter": date_filter,  # Сохраняем текущий фильтр даты
         "diag": {"kept": len(prepared), "dropped": 0, "reasons_top3": []},
         "region": region,
     }
@@ -4637,7 +4669,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     text = header_html + "\n\n" + events_text
 
     # Создаем клавиатуру с кнопками пагинации и расширения радиуса
-    keyboard = kb_pager(1, total_pages, new_radius)
+    keyboard = kb_pager(1, total_pages, new_radius, date_filter=date_filter)
 
     # Отправляем результаты с картой (как в основном поиске)
     try:
@@ -6806,6 +6838,139 @@ async def echo_message(message: types.Message, state: FSMContext):
     await message.answer("Используйте кнопки меню для навигации:", reply_markup=main_menu_kb())
 
 
+@main_router.callback_query(F.data.startswith("date_filter:"))
+async def handle_date_filter_change(callback: types.CallbackQuery):
+    """Обработчик переключения фильтра даты (Сегодня/Завтра)"""
+    try:
+        # Извлекаем тип фильтра из callback_data
+        date_type = callback.data.split(":")[1]  # "today" или "tomorrow"
+
+        # Получаем сохраненное состояние
+        state = user_state.get(callback.message.chat.id)
+        if not state:
+            logger.warning(f"Состояние не найдено для пользователя {callback.message.chat.id}")
+            await callback.answer("❌ Состояние потеряно. Отправьте геолокацию заново.")
+            return
+
+        # Проверяем, что фильтр действительно изменился
+        current_filter = state.get("date_filter", "today")
+        if current_filter == date_type:
+            await callback.answer("Эта дата уже выбрана")
+            return
+
+        # Показываем индикатор загрузки
+        try:
+            await callback.message.edit_text("🔍 Загружаю события...")
+        except Exception:
+            pass
+
+        # Получаем параметры из состояния
+        lat = state.get("lat")
+        lng = state.get("lng")
+        radius = state.get("radius", 5)
+        region = state.get("region", "bali")
+        city = region
+
+        if not lat or not lng:
+            await callback.answer("❌ Геолокация не найдена. Отправьте геолокацию заново.")
+            return
+
+        # Вычисляем date_offset
+        date_offset = 0 if date_type == "today" else 1
+
+        # Перезагружаем события с новым фильтром
+        from database import get_engine
+
+        engine = get_engine()
+        events_service = UnifiedEventsService(engine)
+
+        logger.info(
+            f"🔄 Переключение фильтра даты: {current_filter} → {date_type} "
+            f"(offset={date_offset}) для пользователя {callback.from_user.id}"
+        )
+
+        events = events_service.search_events_today(
+            city=city, user_lat=lat, user_lng=lng, radius_km=int(radius), date_offset=date_offset
+        )
+
+        # Конвертируем в старый формат для совместимости
+        formatted_events = []
+        for event in events:
+            formatted_event = {
+                "id": event.get("id"),
+                "title": event["title"],
+                "description": event["description"],
+                "time_local": event["starts_at"].strftime("%Y-%m-%d %H:%M") if event["starts_at"] else None,
+                "starts_at": event["starts_at"],
+                "city": event.get("city"),
+                "location_name": event["location_name"],
+                "location_url": event["location_url"],
+                "lat": event["lat"],
+                "lng": event["lng"],
+                "source": event.get("source", ""),
+                "source_type": event.get("source_type", ""),
+                "url": event.get("event_url", ""),
+                "community_name": "",
+                "community_link": "",
+                "organizer_id": event.get("organizer_id"),
+                "organizer_username": event.get("organizer_username"),
+            }
+            formatted_events.append(formatted_event)
+
+        events = formatted_events
+
+        # Сортируем события по времени
+        events = sort_events_by_time(events)
+
+        # Фильтруем и подготавливаем события
+        prepared, diag = prepare_events_for_feed(events, user_point=(lat, lng), radius_km=int(radius), with_diag=True)
+
+        # Обогащаем события reverse geocoding для названий локаций
+        prepared = await enrich_events_with_reverse_geocoding(prepared)
+
+        # Группируем и считаем
+        groups = group_by_type(prepared)
+        counts = make_counts(groups)
+
+        # Обновляем состояние
+        state["prepared"] = prepared
+        state["counts"] = counts
+        state["date_filter"] = date_type
+        state["page"] = 1  # Сбрасываем страницу на 1
+        state["diag"] = diag
+        user_state[callback.message.chat.id] = state
+
+        # Рендерим первую страницу
+        page_html, total_pages = render_page(prepared, page=1, page_size=5, user_id=callback.from_user.id)
+
+        # Формируем заголовок
+        header_html = render_header(counts, radius_km=int(radius))
+        new_text = header_html + "\n\n" + page_html
+
+        # Создаем клавиатуру с правильным фильтром даты
+        combined_keyboard = kb_pager(1, total_pages, current_radius=int(radius), date_filter=date_type)
+
+        # Обновляем сообщение
+        try:
+            if callback.message.photo:
+                await callback.message.edit_caption(caption=new_text, parse_mode="HTML", reply_markup=combined_keyboard)
+            else:
+                await callback.message.edit_text(
+                    new_text, parse_mode="HTML", disable_web_page_preview=True, reply_markup=combined_keyboard
+                )
+            logger.info(f"✅ Фильтр даты переключен на {date_type}, найдено {len(prepared)} событий")
+        except Exception as e:
+            logger.error(f"❌ Ошибка обновления сообщения при переключении даты: {e}")
+            await callback.answer("❌ Не удалось переключить дату", show_alert=True)
+            return
+
+        await callback.answer(f"📅 Показаны события на {date_type}")
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка обработки переключения даты: {e}")
+        await callback.answer("❌ Произошла ошибка при переключении даты")
+
+
 @main_router.callback_query(F.data.startswith("pg:"))
 async def handle_pagination(callback: types.CallbackQuery):
     """Обработчик пагинации событий"""
@@ -6829,6 +6994,7 @@ async def handle_pagination(callback: types.CallbackQuery):
         prepared = state["prepared"]
         counts = state["counts"]
         current_radius = state.get("radius", 5)
+        date_filter = state.get("date_filter", "today")  # Получаем фильтр даты из состояния
 
         # Обогащаем события reverse geocoding для названий локаций
         prepared = await enrich_events_with_reverse_geocoding(prepared)
@@ -6859,8 +7025,8 @@ async def handle_pagination(callback: types.CallbackQuery):
                     group_chat_id=group_chat_id,
                 )
 
-        # Создаем клавиатуру пагинации
-        combined_keyboard = kb_pager(page, total_pages, current_radius)
+        # Создаем клавиатуру пагинации с учетом фильтра даты
+        combined_keyboard = kb_pager(page, total_pages, current_radius, date_filter=date_filter)
 
         # Обновляем сообщение (проверяем тип сообщения)
         new_text = render_header(counts, radius_km=current_radius) + "\n\n" + page_html

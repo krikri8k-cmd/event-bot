@@ -26,18 +26,45 @@ class UnifiedEventsService:
         user_lat: float | None = None,
         user_lng: float | None = None,
         radius_km: float = 15,
+        date_offset: int = 0,
         message_id: str | None = None,
     ) -> list[dict]:
         """
-        Поиск сегодняшних событий из единой таблицы events
+        Поиск событий из единой таблицы events
+
+        Args:
+            city: Название города
+            user_lat: Широта пользователя
+            user_lng: Долгота пользователя
+            radius_km: Радиус поиска в километрах
+            date_offset: Смещение даты (0 = сегодня, 1 = завтра, по умолчанию 0)
+            message_id: ID сообщения для логирования
         """
+        from datetime import timedelta
+
         start_time = time.time()
 
-        # Получаем временные границы для города
-        start_utc = get_today_start_utc(city)
-        end_utc = get_tomorrow_start_utc(city)
+        # Получаем временные границы для города с учетом смещения даты
+        if date_offset == 0:
+            # Сегодня
+            start_utc = get_today_start_utc(city)
+            end_utc = get_tomorrow_start_utc(city)
+        elif date_offset == 1:
+            # Завтра
+            start_utc = get_tomorrow_start_utc(city)
+            # Конец завтрашнего дня = начало послезавтрашнего дня
+            end_utc = get_tomorrow_start_utc(city) + timedelta(days=1)
+        else:
+            # Для других значений используем общую формулу
+            base_start = get_today_start_utc(city)
+            start_utc = base_start + timedelta(days=date_offset)
+            end_utc = start_utc + timedelta(days=1)
 
-        logger.info(f"🔍 SEARCH: city='{city}', user_lat={user_lat}, user_lng={user_lng}, radius_km={radius_km}")
+        date_label = "сегодня" if date_offset == 0 else "завтра" if date_offset == 1 else f"+{date_offset} дней"
+        logger.info(
+            f"🔍 SEARCH: city='{city}', user_lat={user_lat}, user_lng={user_lng}, "
+            f"radius_km={radius_km}, date={date_label} (offset={date_offset})"
+        )
 
         with self.engine.connect() as conn:
             if user_lat and user_lng:
