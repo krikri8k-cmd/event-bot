@@ -428,22 +428,22 @@ class ModernEventScheduler:
         self.scheduler = BackgroundScheduler(timezone="UTC")
 
         # Основной цикл парсинга событий (2 раза в день по времени Бали)
-        # Утренний запуск: 18:10 UTC = 00:10 Бали (начало нового дня по Бали)
+        # Утренний запуск: 18:02 UTC = 00:02 Бали (начало нового дня по Бали)
         self.scheduler.add_job(
             self.run_full_ingest,
             "cron",
             hour=18,
-            minute=10,
+            minute=2,
             id="modern-ingest-morning",
             max_instances=1,
             coalesce=True,
         )
-        # Вечерний запуск: 04:10 UTC = 12:10 Бали (середина дня по Бали)
+        # Вечерний запуск: 04:02 UTC = 12:02 Бали (середина дня по Бали)
         self.scheduler.add_job(
             self.run_full_ingest,
             "cron",
             hour=4,
-            minute=10,
+            minute=2,
             id="modern-ingest-evening",
             max_instances=1,
             coalesce=True,
