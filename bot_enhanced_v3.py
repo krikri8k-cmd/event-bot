@@ -4558,6 +4558,8 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     date_filter = state_data.get("date_filter", "today")
     date_offset = 0 if date_filter == "today" else 1
 
+    logger.info(f"🔍 РАСШИРЕНИЕ РАДИУСА: radius={new_radius} км, date_filter={date_filter}, date_offset={date_offset}")
+
     events = events_service.search_events_today(
         city=region,
         user_lat=lat,
@@ -4658,6 +4660,10 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         "diag": {"kept": len(prepared), "dropped": 0, "reasons_top3": []},
         "region": region,
     }
+    logger.info(
+        f"✅ РАДИУС РАСШИРЕН: новый радиус={new_radius} км, найдено событий={len(prepared)}, "
+        f"date_filter={date_filter} сохранен в состоянии"
+    )
 
     # Обогащаем события reverse geocoding для названий локаций
     prepared = await enrich_events_with_reverse_geocoding(prepared)
