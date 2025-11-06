@@ -7606,7 +7606,11 @@ async def main():
             except asyncio.CancelledError:
                 logger.info("Получен сигнал завершения")
             finally:
-                await runner.cleanup()
+                # Используем webhook_runner если он есть, иначе runner
+                if webhook_runner is not None:
+                    await webhook_runner.cleanup()
+                elif "runner" in locals():
+                    await runner.cleanup()
 
         else:
             # Polling режим для локальной разработки
