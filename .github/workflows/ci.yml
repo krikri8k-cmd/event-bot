@@ -63,6 +63,9 @@ jobs:
         ports:
           - 5432:5432
     
+    # Увеличиваем таймаут для job (включая время на скачивание Docker образа)
+    timeout-minutes: 20
+    
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
