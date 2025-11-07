@@ -4197,7 +4197,7 @@ async def on_my_tasks(message: types.Message):
         import os
         from pathlib import Path
 
-        photo_path = Path(__file__).parent / "images" / "my_quests.png"
+        photo_path = Path(__file__).parent / "images" / "imagesmy_quests.png"
         if os.path.exists(photo_path):
             try:
                 from aiogram.types import FSInputFile
@@ -4343,7 +4343,7 @@ async def cmd_mytasks(message: types.Message):
         import os
         from pathlib import Path
 
-        photo_path = Path(__file__).parent / "images" / "my_quests.png"
+        photo_path = Path(__file__).parent / "images" / "imagesmy_quests.png"
         if os.path.exists(photo_path):
             try:
                 from aiogram.types import FSInputFile
@@ -4522,7 +4522,7 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
         import os
         from pathlib import Path
 
-        photo_path = Path(__file__).parent / "images" / "my_quests.png"
+        photo_path = Path(__file__).parent / "images" / "imagesmy_quests.png"
         if os.path.exists(photo_path):
             try:
                 from aiogram.types import FSInputFile
