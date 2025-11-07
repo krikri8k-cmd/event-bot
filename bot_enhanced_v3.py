@@ -4226,20 +4226,10 @@ async def on_my_tasks(message: types.Message):
         import os
         from pathlib import Path
 
-        # Пробуем разные варианты имени файла
-        photo_paths = [
-            Path(__file__).parent / "images" / "my events.png",  # с пробелом
-            Path(__file__).parent / "images" / "imagesmy_quests.png",
-            Path(__file__).parent / "images" / "my_quests.png",
-        ]
+        # Используем одно имя файла
+        photo_path = Path(__file__).parent / "images" / "my_quests.png"
 
-        photo_path = None
-        for path in photo_paths:
-            if os.path.exists(path):
-                photo_path = path
-                break
-
-        if photo_path and os.path.exists(photo_path):
+        if os.path.exists(photo_path):
             try:
                 from aiogram.types import FSInputFile
 
@@ -4384,20 +4374,10 @@ async def cmd_mytasks(message: types.Message):
         import os
         from pathlib import Path
 
-        # Пробуем разные варианты имени файла
-        photo_paths = [
-            Path(__file__).parent / "images" / "my events.png",  # с пробелом
-            Path(__file__).parent / "images" / "imagesmy_quests.png",
-            Path(__file__).parent / "images" / "my_quests.png",
-        ]
+        # Используем одно имя файла
+        photo_path = Path(__file__).parent / "images" / "my_quests.png"
 
-        photo_path = None
-        for path in photo_paths:
-            if os.path.exists(path):
-                photo_path = path
-                break
-
-        if photo_path and os.path.exists(photo_path):
+        if os.path.exists(photo_path):
             try:
                 from aiogram.types import FSInputFile
 
@@ -4575,20 +4555,10 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
         import os
         from pathlib import Path
 
-        # Пробуем разные варианты имени файла
-        photo_paths = [
-            Path(__file__).parent / "images" / "my events.png",  # с пробелом
-            Path(__file__).parent / "images" / "imagesmy_quests.png",
-            Path(__file__).parent / "images" / "my_quests.png",
-        ]
+        # Используем одно имя файла
+        photo_path = Path(__file__).parent / "images" / "my_quests.png"
 
-        photo_path = None
-        for path in photo_paths:
-            if os.path.exists(path):
-                photo_path = path
-                break
-
-        if photo_path and os.path.exists(photo_path):
+        if os.path.exists(photo_path):
             try:
                 from aiogram.types import FSInputFile
 
