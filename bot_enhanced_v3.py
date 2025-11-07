@@ -4234,87 +4234,85 @@ async def on_my_tasks(message: types.Message):
     # Получаем активные задания пользователя
     active_tasks = get_user_active_tasks(user_id)
 
-    if not active_tasks:
-        # Получаем баланс ракет пользователя
-        from rockets_service import get_user_rockets
-
-        rocket_balance = get_user_rockets(user_id)
-
-        text = (
-            "🏆 **Мои квесты**\n\n"
-            "У вас пока нет активных заданий.\n\n"
-            f"**Баланс {rocket_balance} 🚀**\n\n"
-            "🎯 Нажмите 'Квесты на районе' чтобы получить новые задания!"
-        )
-
-        # Пытаемся отправить с изображением
-        import os
-        from pathlib import Path
-
-        # Используем одно имя файла
-        photo_path = Path(__file__).parent / "images" / "my_quests.png"
-
-        logger.info(f"🖼️ Проверяем наличие изображения: {photo_path}, exists={os.path.exists(photo_path)}")
-
-        if os.path.exists(photo_path):
-            try:
-                from aiogram.types import FSInputFile
-
-                photo = FSInputFile(photo_path)
-                logger.info(f"✅ Отправляем изображение для 'Мои квесты': {photo_path}")
-                await message.answer_photo(photo, caption=text, parse_mode="Markdown")
-                return
-            except Exception as e:
-                logger.error(f"❌ Ошибка отправки фото для 'Мои квесты': {e}", exc_info=True)
-                # Продолжаем отправку текста
-        else:
-            logger.warning(f"⚠️ Изображение не найдено: {photo_path}")
-
-        # Fallback: отправляем только текст
-        await message.answer(text, parse_mode="Markdown")
-        return
-
     # Получаем баланс ракет пользователя
     from rockets_service import get_user_rockets
 
     rocket_balance = get_user_rockets(user_id)
 
-    # Формируем сообщение со списком активных заданий
-    message_text = "📋 **Ваши активные задания:**\n\n"
-    message_text += "Прохождение + 3 🚀\n"
-    message_text += "⏰ Для мотивации даем 24 часа\n\n"
-    message_text += f"**Баланс {rocket_balance} 🚀**\n\n"
+    # Формируем текст сообщения
+    if not active_tasks:
+        message_text = (
+            "🏆 **Мои квесты**\n\n"
+            "У вас пока нет активных заданий.\n\n"
+            f"**Баланс {rocket_balance} 🚀**\n\n"
+            "🎯 Нажмите 'Квесты на районе' чтобы получить новые задания!"
+        )
+        # Клавиатура не нужна, когда нет заданий
+        keyboard = None
+    else:
+        # Формируем сообщение со списком активных заданий
+        message_text = "📋 **Ваши активные задания:**\n\n"
+        message_text += "Прохождение + 3 🚀\n"
+        message_text += "⏰ Для мотивации даем 24 часа\n\n"
+        message_text += f"**Баланс {rocket_balance} 🚀**\n\n"
 
-    for i, task in enumerate(active_tasks, 1):
-        # Вычисляем оставшееся время
-        expires_at = task["expires_at"]
-        if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=UTC)
-        time_left = expires_at - datetime.now(UTC)
-        int(time_left.total_seconds() / 3600)
+        for i, task in enumerate(active_tasks, 1):
+            # Вычисляем оставшееся время
+            expires_at = task["expires_at"]
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=UTC)
+            time_left = expires_at - datetime.now(UTC)
+            int(time_left.total_seconds() / 3600)
 
-        category_emoji = "💪" if task["category"] == "body" else "🧘"
-        # Форматируем время выполнения в компактном виде
-        start_time = task["accepted_at"]
-        end_time = expires_at
-        time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')}"
+            category_emoji = "💪" if task["category"] == "body" else "🧘"
+            # Форматируем время выполнения в компактном виде
+            start_time = task["accepted_at"]
+            end_time = expires_at
+            time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')}"
 
-        message_text += f"{i}) {category_emoji} **{task['title']}**\n"
-        message_text += f"⏰ **Время на выполнение:** {time_period}\n\n"
+            message_text += f"{i}) {category_emoji} **{task['title']}**\n"
+            message_text += f"⏰ **Время на выполнение:** {time_period}\n\n"
 
-    # Добавляем кнопку управления заданиями
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="🔧 Управление заданиями", callback_data="manage_tasks")],
-            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
-        ]
-    )
+        # Добавляем кнопку управления заданиями
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🔧 Управление заданиями", callback_data="manage_tasks")],
+                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+            ]
+        )
 
-    await message.answer(
-        message_text,
-        parse_mode="Markdown",
-        reply_markup=keyboard,
-    )
+    # Пытаемся отправить с изображением (всегда, независимо от наличия заданий)
+    import os
+    from pathlib import Path
+
+    # Используем одно имя файла
+    photo_path = Path(__file__).parent / "images" / "my_quests.png"
+
+    logger.info(f"🖼️ Проверяем наличие изображения: {photo_path}, exists={os.path.exists(photo_path)}")
+
+    if os.path.exists(photo_path):
+        try:
+            from aiogram.types import FSInputFile
+
+            photo = FSInputFile(photo_path)
+            logger.info(f"✅ Отправляем изображение для 'Мои квесты': {photo_path}")
+            if keyboard:
+                await message.answer_photo(photo, caption=message_text, reply_markup=keyboard, parse_mode="Markdown")
+            else:
+                await message.answer_photo(photo, caption=message_text, parse_mode="Markdown")
+            logger.info("✅ on_my_tasks: сообщение с изображением отправлено успешно")
+            return
+        except Exception as e:
+            logger.error(f"❌ Ошибка отправки фото для 'Мои квесты': {e}", exc_info=True)
+            # Продолжаем отправку текста
+    else:
+        logger.warning(f"⚠️ Изображение не найдено: {photo_path}")
+
+    # Fallback: отправляем только текст
+    if keyboard:
+        await message.answer(message_text, parse_mode="Markdown", reply_markup=keyboard)
+    else:
+        await message.answer(message_text, parse_mode="Markdown")
 
 
 @main_router.message(Command("tasks"))
@@ -4388,87 +4386,85 @@ async def cmd_mytasks(message: types.Message):
     # Получаем активные задания пользователя
     active_tasks = get_user_active_tasks(user_id)
 
-    if not active_tasks:
-        # Получаем баланс ракет пользователя
-        from rockets_service import get_user_rockets
-
-        rocket_balance = get_user_rockets(user_id)
-
-        text = (
-            "🏆 **Мои квесты**\n\n"
-            "У вас пока нет активных заданий.\n\n"
-            f"**Баланс {rocket_balance} 🚀**\n\n"
-            "🎯 Нажмите 'Квесты на районе' чтобы получить новые задания!"
-        )
-
-        # Пытаемся отправить с изображением
-        import os
-        from pathlib import Path
-
-        # Используем одно имя файла
-        photo_path = Path(__file__).parent / "images" / "my_quests.png"
-
-        logger.info(f"🖼️ Проверяем наличие изображения: {photo_path}, exists={os.path.exists(photo_path)}")
-
-        if os.path.exists(photo_path):
-            try:
-                from aiogram.types import FSInputFile
-
-                photo = FSInputFile(photo_path)
-                logger.info(f"✅ Отправляем изображение для 'Мои квесты': {photo_path}")
-                await message.answer_photo(photo, caption=text, parse_mode="Markdown")
-                return
-            except Exception as e:
-                logger.error(f"❌ Ошибка отправки фото для 'Мои квесты': {e}", exc_info=True)
-                # Продолжаем отправку текста
-        else:
-            logger.warning(f"⚠️ Изображение не найдено: {photo_path}")
-
-        # Fallback: отправляем только текст
-        await message.answer(text, parse_mode="Markdown")
-        return
-
     # Получаем баланс ракет пользователя
     from rockets_service import get_user_rockets
 
     rocket_balance = get_user_rockets(user_id)
 
-    # Формируем сообщение со списком активных заданий
-    message_text = "📋 **Ваши активные задания:**\n\n"
-    message_text += "Прохождение + 3 🚀\n"
-    message_text += "⏰ Для мотивации даем 24 часа\n\n"
-    message_text += f"**Баланс {rocket_balance} 🚀**\n\n"
+    # Формируем текст сообщения
+    if not active_tasks:
+        message_text = (
+            "🏆 **Мои квесты**\n\n"
+            "У вас пока нет активных заданий.\n\n"
+            f"**Баланс {rocket_balance} 🚀**\n\n"
+            "🎯 Нажмите 'Квесты на районе' чтобы получить новые задания!"
+        )
+        # Клавиатура не нужна, когда нет заданий
+        keyboard = None
+    else:
+        # Формируем сообщение со списком активных заданий
+        message_text = "📋 **Ваши активные задания:**\n\n"
+        message_text += "Прохождение + 3 🚀\n"
+        message_text += "⏰ Для мотивации даем 24 часа\n\n"
+        message_text += f"**Баланс {rocket_balance} 🚀**\n\n"
 
-    for i, task in enumerate(active_tasks, 1):
-        # Вычисляем оставшееся время
-        expires_at = task["expires_at"]
-        if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=UTC)
-        time_left = expires_at - datetime.now(UTC)
-        int(time_left.total_seconds() / 3600)
+        for i, task in enumerate(active_tasks, 1):
+            # Вычисляем оставшееся время
+            expires_at = task["expires_at"]
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=UTC)
+            time_left = expires_at - datetime.now(UTC)
+            int(time_left.total_seconds() / 3600)
 
-        category_emoji = "💪" if task["category"] == "body" else "🧘"
-        # Форматируем время выполнения в компактном виде
-        start_time = task["accepted_at"]
-        end_time = expires_at
-        time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')}"
+            category_emoji = "💪" if task["category"] == "body" else "🧘"
+            # Форматируем время выполнения в компактном виде
+            start_time = task["accepted_at"]
+            end_time = expires_at
+            time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')}"
 
-        message_text += f"{i}) {category_emoji} **{task['title']}**\n"
-        message_text += f"⏰ **Время на выполнение:** {time_period}\n\n"
+            message_text += f"{i}) {category_emoji} **{task['title']}**\n"
+            message_text += f"⏰ **Время на выполнение:** {time_period}\n\n"
 
-    # Добавляем кнопку управления заданиями
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="🔧 Управление заданиями", callback_data="manage_tasks")],
-            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
-        ]
-    )
+        # Добавляем кнопку управления заданиями
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🔧 Управление заданиями", callback_data="manage_tasks")],
+                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+            ]
+        )
 
-    await message.answer(
-        message_text,
-        parse_mode="Markdown",
-        reply_markup=keyboard,
-    )
+    # Пытаемся отправить с изображением (всегда, независимо от наличия заданий)
+    import os
+    from pathlib import Path
+
+    # Используем одно имя файла
+    photo_path = Path(__file__).parent / "images" / "my_quests.png"
+
+    logger.info(f"🖼️ Проверяем наличие изображения: {photo_path}, exists={os.path.exists(photo_path)}")
+
+    if os.path.exists(photo_path):
+        try:
+            from aiogram.types import FSInputFile
+
+            photo = FSInputFile(photo_path)
+            logger.info(f"✅ Отправляем изображение для 'Мои квесты': {photo_path}")
+            if keyboard:
+                await message.answer_photo(photo, caption=message_text, reply_markup=keyboard, parse_mode="Markdown")
+            else:
+                await message.answer_photo(photo, caption=message_text, parse_mode="Markdown")
+            logger.info("✅ cmd_mytasks: сообщение с изображением отправлено успешно")
+            return
+        except Exception as e:
+            logger.error(f"❌ Ошибка отправки фото для 'Мои квесты': {e}", exc_info=True)
+            # Продолжаем отправку текста
+    else:
+        logger.warning(f"⚠️ Изображение не найдено: {photo_path}")
+
+    # Fallback: отправляем только текст
+    if keyboard:
+        await message.answer(message_text, parse_mode="Markdown", reply_markup=keyboard)
+    else:
+        await message.answer(message_text, parse_mode="Markdown")
 
 
 @main_router.callback_query(F.data == "manage_tasks")
@@ -4655,6 +4651,36 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
         ]
     )
 
+    # Пытаемся отправить с изображением (для callback удаляем старое сообщение)
+    import os
+    from pathlib import Path
+
+    photo_path = Path(__file__).parent / "images" / "my_quests.png"
+
+    logger.info(
+        f"🖼️ Проверяем наличие изображения (callback с заданиями): {photo_path}, exists={os.path.exists(photo_path)}"
+    )
+
+    if os.path.exists(photo_path):
+        try:
+            from aiogram.types import FSInputFile
+
+            photo = FSInputFile(photo_path)
+            logger.info(f"✅ Отправляем изображение для 'Мои квесты' (callback с заданиями): {photo_path}")
+            # Удаляем старое сообщение и отправляем новое с фото
+            await callback.message.delete()
+            await callback.message.answer_photo(
+                photo, caption=message_text, reply_markup=keyboard, parse_mode="Markdown"
+            )
+            await callback.answer()
+            return
+        except Exception as e:
+            logger.error(f"❌ Ошибка отправки фото для 'Мои квесты' (callback с заданиями): {e}", exc_info=True)
+            # Продолжаем с edit_text
+    else:
+        logger.warning(f"⚠️ Изображение не найдено (callback с заданиями): {photo_path}")
+
+    # Fallback: редактируем текст
     await callback.message.edit_text(
         message_text,
         parse_mode="Markdown",
