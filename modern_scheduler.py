@@ -51,6 +51,25 @@ class ModernEventScheduler:
                         skipped_no_coords += 1
                         continue
 
+                    # Логируем дату события для отладки
+                    if event.starts_at:
+                        from datetime import datetime, timedelta
+                        from zoneinfo import ZoneInfo
+
+                        now_bali = datetime.now(ZoneInfo("Asia/Makassar"))
+                        event_date_bali = event.starts_at.astimezone(ZoneInfo("Asia/Makassar")).date()
+                        today_bali = now_bali.date()
+                        tomorrow_bali = today_bali + timedelta(days=1)
+
+                        date_label = (
+                            "сегодня"
+                            if event_date_bali == today_bali
+                            else "завтра"
+                            if event_date_bali == tomorrow_bali
+                            else f"{event_date_bali}"
+                        )
+                        logger.info(f"   📅 BaliForum событие: '{event.title}' - {date_label} ({event.starts_at})")
+
                     # ПРАВИЛЬНАЯ АРХИТЕКТУРА: Сохраняем через UnifiedEventsService
                     # Сначала в events_parser, потом автоматически синхронизируется в events
                     event_id = self.service.save_parser_event(
@@ -123,6 +142,28 @@ class ModernEventScheduler:
 
                     for event in events:
                         try:
+                            # Логируем дату события для отладки
+                            if event.get("starts_at"):
+                                from datetime import datetime, timedelta
+                                from zoneinfo import ZoneInfo
+
+                                now_msk = datetime.now(ZoneInfo("Europe/Moscow"))
+                                event_date_msk = event.get("starts_at").astimezone(ZoneInfo("Europe/Moscow")).date()
+                                today_msk = now_msk.date()
+                                tomorrow_msk = today_msk + timedelta(days=1)
+
+                                date_label = (
+                                    "сегодня"
+                                    if event_date_msk == today_msk
+                                    else "завтра"
+                                    if event_date_msk == tomorrow_msk
+                                    else f"{event_date_msk}"
+                                )
+                                logger.info(
+                                    f"   📅 KudaGo событие: '{event.get('title', '')}' - {date_label} "
+                                    f"({event.get('starts_at')})"
+                                )
+
                             # ПРАВИЛЬНАЯ АРХИТЕКТУРА: Сохраняем через UnifiedEventsService
                             event_id = self.service.save_parser_event(
                                 source="kudago",
