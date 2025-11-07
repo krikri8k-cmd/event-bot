@@ -2696,6 +2696,24 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
         f"🔥 confirm_community_event_pm: пользователь {callback.from_user.id} подтверждает создание события в ЛС"
     )
 
+    # Антидребезг: предотвращаем двойное создание события
+    user_id = callback.from_user.id
+    from time import time
+
+    # Используем глобальный словарь для отслеживания обработки
+    if not hasattr(confirm_community_event_pm, "_processing"):
+        confirm_community_event_pm._processing = {}
+
+    current_time = time()
+    last_processing = confirm_community_event_pm._processing.get(user_id, 0)
+
+    if current_time - last_processing < 3:  # 3 секунды защиты от двойного клика
+        logger.warning(f"⚠️ confirm_community_event_pm: игнорируем двойной клик от пользователя {user_id}")
+        await callback.answer("⏳ Подождите, событие уже создается...", show_alert=False)
+        return
+
+    confirm_community_event_pm._processing[user_id] = current_time
+
     try:
         data = await state.get_data()
         logger.info(f"🔥 confirm_community_event_pm: данные события: {data}")
@@ -2801,11 +2819,19 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
 
         await state.clear()
 
+        # Очищаем флаг обработки после успешного создания
+        if hasattr(confirm_community_event_pm, "_processing"):
+            confirm_community_event_pm._processing.pop(user_id, None)
+
     except Exception as e:
         logger.error(f"Ошибка создания события: {e}")
         await callback.message.edit_text(
             "❌ **Произошла ошибка при создании события.** Попробуйте еще раз.", parse_mode="Markdown"
         )
+
+        # Очищаем флаг обработки даже при ошибке
+        if hasattr(confirm_community_event_pm, "_processing"):
+            confirm_community_event_pm._processing.pop(user_id, None)
 
     await callback.answer()
 
@@ -6500,6 +6526,25 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
     logger.info(
         f"🔥 confirm_community_event: пользователь {callback.from_user.id} подтверждает создание события в чате {callback.message.chat.id}"
     )
+
+    # Антидребезг: предотвращаем двойное создание события
+    user_id = callback.from_user.id
+    from time import time
+
+    # Используем глобальный словарь для отслеживания обработки
+    if not hasattr(confirm_community_event, "_processing"):
+        confirm_community_event._processing = {}
+
+    current_time = time()
+    last_processing = confirm_community_event._processing.get(user_id, 0)
+
+    if current_time - last_processing < 3:  # 3 секунды защиты от двойного клика
+        logger.warning(f"⚠️ confirm_community_event: игнорируем двойной клик от пользователя {user_id}")
+        await callback.answer("⏳ Подождите, событие уже создается...", show_alert=False)
+        return
+
+    confirm_community_event._processing[user_id] = current_time
+
     try:
         data = await state.get_data()
         logger.info(f"🔥 confirm_community_event: данные события: {data}")
