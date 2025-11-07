@@ -14,18 +14,43 @@ from fastapi import FastAPI, Request
 logger = logging.getLogger(__name__)
 
 # Переменные окружения
-PUBLIC_URL = os.getenv("WEBHOOK_URL") or os.getenv("PUBLIC_URL")
+# Приоритет: WEBHOOK_URL > PUBLIC_URL > RAILWAY_PUBLIC_DOMAIN (автоматически)
+WEBHOOK_URL_ENV = os.getenv("WEBHOOK_URL")
+PUBLIC_URL_ENV = os.getenv("PUBLIC_URL")
+RAILWAY_PUBLIC_DOMAIN = os.getenv("RAILWAY_PUBLIC_DOMAIN")  # Railway автоматически предоставляет
+PORT = os.getenv("PORT", "8000")
+
 WEBHOOK_PATH = os.getenv("WEBHOOK_PATH", "/webhook")
 
-# Логируем переменные окружения для отладки (без токена)
-logger.info(f"🔍 WEBHOOK_URL из окружения: {os.getenv('WEBHOOK_URL', 'НЕ УСТАНОВЛЕН')}")
-logger.info(f"🔍 PUBLIC_URL из окружения: {os.getenv('PUBLIC_URL', 'НЕ УСТАНОВЛЕН')}")
-logger.info(f"🔍 Используемый PUBLIC_URL: {PUBLIC_URL}")
+# Определяем PUBLIC_URL
+if WEBHOOK_URL_ENV:
+    # Если WEBHOOK_URL уже полный URL с /webhook, используем его без пути
+    if WEBHOOK_URL_ENV.endswith("/webhook"):
+        PUBLIC_URL = WEBHOOK_URL_ENV[:-8]  # Убираем /webhook
+    else:
+        PUBLIC_URL = WEBHOOK_URL_ENV
+elif PUBLIC_URL_ENV:
+    PUBLIC_URL = PUBLIC_URL_ENV
+elif RAILWAY_PUBLIC_DOMAIN:
+    # Railway автоматически предоставляет публичный домен
+    PUBLIC_URL = f"https://{RAILWAY_PUBLIC_DOMAIN}"
+    logger.info(f"✅ Используется автоматический Railway домен: {PUBLIC_URL}")
+else:
+    PUBLIC_URL = None
+
+# Логируем переменные окружения для отладки
+logger.info(f"🔍 WEBHOOK_URL из окружения: {WEBHOOK_URL_ENV or 'НЕ УСТАНОВЛЕН'}")
+logger.info(f"🔍 PUBLIC_URL из окружения: {PUBLIC_URL_ENV or 'НЕ УСТАНОВЛЕН'}")
+logger.info(f"🔍 RAILWAY_PUBLIC_DOMAIN: {RAILWAY_PUBLIC_DOMAIN or 'НЕ УСТАНОВЛЕН'}")
+logger.info(f"🔍 Используемый PUBLIC_URL: {PUBLIC_URL or 'НЕ УСТАНОВЛЕН'}")
 logger.info(f"🔍 WEBHOOK_PATH: {WEBHOOK_PATH}")
 
 if not PUBLIC_URL:
-    logger.error("❌ WEBHOOK_URL или PUBLIC_URL не установлен - webhook не будет работать!")
-    logger.error("❌ Установите PUBLIC_URL=https://your-app.up.railway.app в Railway Environment Variables")
+    logger.error("❌ PUBLIC_URL не установлен - webhook не будет работать!")
+    logger.error("❌ Варианты решения:")
+    logger.error("   1. Установите PUBLIC_URL=https://your-app.up.railway.app в Railway Variables")
+    logger.error("   2. Установите WEBHOOK_URL=https://your-app.up.railway.app/webhook в Railway Variables")
+    logger.error("   3. Включите публичный домен в Railway Settings → Networking")
 
 
 def attach_bot_to_app(app: FastAPI) -> None:
