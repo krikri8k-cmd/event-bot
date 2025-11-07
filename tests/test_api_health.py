@@ -21,7 +21,10 @@ def test_health_ok():
 
     r = client.get("/health")
     assert r.status_code == 200
-    assert r.json().get("status") == "ok"
+    # Новый формат health check: {"ok": True, "ready": False/True}
+    json_response = r.json()
+    assert json_response.get("ok") is True
+    assert "ready" in json_response  # ready может быть False или True в зависимости от инициализации
 
 
 def test_db_ping_ok():
