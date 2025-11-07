@@ -65,21 +65,52 @@ async def auto_delete_message(bot: Bot, chat_id: int, message_id: int, delay_sec
         # Проверяем права бота перед удалением
         try:
             bot_member = await bot.get_chat_member(chat_id, bot.id)
+            status = bot_member.status
             can_delete = getattr(bot_member, "can_delete_messages", False)
-            logger.info(f"🔍 Права бота в чате {chat_id}: status={bot_member.status}, can_delete_messages={can_delete}")
 
-            if bot_member.status != "administrator" or not can_delete:
+            logger.info(
+                f"🔍 Права бота в чате {chat_id}: status={status}, "
+                f"can_delete_messages={can_delete}, type={type(bot_member)}"
+            )
+
+            # Проверяем статус: может быть "administrator", "member", "left", "kicked", "restricted"
+            # Для администраторов проверяем can_delete_messages
+            # Для обычных участников (member) тоже можем попробовать удалить (если это их сообщение)
+            is_admin = status == "administrator"
+
+            if is_admin and not can_delete:
                 logger.warning(
-                    f"⚠️ Бот не может удалять сообщения в чате {chat_id}: "
-                    f"status={bot_member.status}, can_delete={can_delete}"
+                    f"⚠️ Бот - администратор, но не имеет права удалять сообщения в чате {chat_id}: "
+                    f"status={status}, can_delete={can_delete}"
                 )
-                return
+                # Всё равно пробуем удалить - возможно, проверка прав не точная
+            elif not is_admin:
+                logger.info(
+                    f"ℹ️ Бот не является администратором (status={status}), "
+                    f"но попробуем удалить сообщение {message_id}"
+                )
+                # Пробуем удалить - возможно, это сообщение бота и его можно удалить
         except Exception as perm_error:
-            logger.warning(f"⚠️ Не удалось проверить права бота в чате {chat_id}: {perm_error}")
-            return
+            logger.warning(
+                f"⚠️ Не удалось проверить права бота в чате {chat_id}: {perm_error}. "
+                f"Попробуем удалить сообщение {message_id} без проверки прав."
+            )
+            # Продолжаем попытку удаления даже если проверка прав не удалась
 
-        await bot.delete_message(chat_id=chat_id, message_id=message_id)
-        logger.info(f"✅ Сообщение {message_id} автоматически удалено из чата {chat_id} через {delay_seconds}с")
+        # Пытаемся удалить сообщение
+        try:
+            await bot.delete_message(chat_id=chat_id, message_id=message_id)
+            logger.info(f"✅ Сообщение {message_id} автоматически удалено из чата {chat_id} через {delay_seconds}с")
+        except Exception as delete_error:
+            error_str = str(delete_error).lower()
+            if "message to delete not found" in error_str or "message can't be deleted" in error_str:
+                logger.info(f"ℹ️ Сообщение {message_id} уже удалено или недоступно для удаления: {delete_error}")
+            elif "not enough rights" in error_str or "can't delete" in error_str:
+                logger.warning(
+                    f"⚠️ Недостаточно прав для удаления сообщения {message_id} в чате {chat_id}: {delete_error}"
+                )
+            else:
+                logger.warning(f"⚠️ Ошибка при удалении сообщения {message_id}: {delete_error}")
     except Exception as e:
         logger.warning(f"⚠️ Не удалось автоматически удалить сообщение {message_id}: {e}")
 
