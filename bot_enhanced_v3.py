@@ -7460,13 +7460,17 @@ async def main():
             from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
             from aiohttp import web
 
-            # Если приложение уже создано (для health check), используем его
-            if webhook_app is not None:
+            # Если приложение уже создано и запущено (для health check), используем его
+            if webhook_app is not None and webhook_runner is not None:
                 app = webhook_app
-                logger.info("✅ Используем уже запущенное приложение для webhook")
+                logger.info("✅ Используем уже запущенное приложение для webhook - добавляем handlers")
+                # Сервер уже запущен, просто добавляем handlers
+                server_already_running = True
             else:
-                # Создаем новое приложение (fallback)
+                # Создаем новое приложение (fallback для polling режима или если ранний запуск не был выполнен)
                 app = web.Application()
+                server_already_running = False
+                logger.info("✅ Создаем новое приложение для webhook")
 
             # Настраиваем безопасный webhook handler
             webhook_path = "/webhook"
@@ -7505,12 +7509,25 @@ async def main():
             # Настраиваем приложение
             setup_application(app, dp, bot=bot)
 
-            # Добавляем health check endpoint в webhook сервер
-            async def health_check(request):
-                return web.json_response({"ok": True})
+            # Обновляем health check endpoint (если был ранний, обновляем на готовый)
+            async def health_check_ready(request):
+                return web.json_response({"ok": True, "status": "ready"})
 
-            app.router.add_get("/health", health_check)
-            app.router.add_get("/", health_check)
+            # Удаляем старый health check если был, и добавляем новый
+            # Удаляем маршруты которые могут конфликтовать
+            try:
+                # Пытаемся удалить старые маршруты если они есть
+                for route in list(app.router.routes()):
+                    if hasattr(route, "resource") and route.resource and hasattr(route.resource, "canonical"):
+                        if route.resource.canonical == "/health":
+                            app.router.routes().discard(route)
+                        elif route.resource.canonical == "/":
+                            app.router.routes().discard(route)
+            except Exception:
+                pass  # Игнорируем ошибки при удалении
+
+            app.router.add_get("/health", health_check_ready)
+            app.router.add_get("/", health_check_ready)
 
             # Добавляем API endpoint для отслеживания кликов
             async def track_click(request):
@@ -7574,20 +7591,25 @@ async def main():
             for route in app.router.routes():
                 logger.info(f"  {route.method} {route.resource.canonical}")
 
-            # Запускаем объединенный сервер (webhook + health check)
-            port = int(PORT)
-            logger.info(f"Запуск объединенного сервера (webhook + health) на порту {port}")
-
             # Запускаем фоновую задачу для периодического обновления команд
             asyncio.create_task(periodic_commands_update())
             logger.info("✅ Фоновая задача обновления команд запущена")
 
-            # Запускаем сервер в фоне
-            runner = web.AppRunner(app)
-            await runner.setup()
-            site = web.TCPSite(runner, "0.0.0.0", port)
-            await site.start()
-            logger.info(f"Сервер запущен на http://0.0.0.0:{port}")
+            # Запускаем сервер ТОЛЬКО если он еще не запущен
+            if not server_already_running:
+                # Запускаем объединенный сервер (webhook + health check)
+                port = int(PORT)
+                logger.info(f"Запуск объединенного сервера (webhook + health) на порту {port}")
+
+                # Запускаем сервер в фоне
+                runner = web.AppRunner(app)
+                await runner.setup()
+                site = web.TCPSite(runner, "0.0.0.0", port)
+                await site.start()
+                logger.info(f"Сервер запущен на http://0.0.0.0:{port}")
+                webhook_runner = runner  # Сохраняем runner для cleanup
+            else:
+                logger.info("✅ Сервер уже запущен - handlers добавлены к существующему приложению")
 
             # ТЕПЕРЬ устанавливаем webhook после запуска сервера
             try:
