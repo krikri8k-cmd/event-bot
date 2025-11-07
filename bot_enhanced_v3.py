@@ -3679,35 +3679,6 @@ async def on_my_events(message: types.Message):
             f"**Баланс {rocket_balance} 🚀**",
         ]
 
-        text = "\n".join(text_parts)
-
-        # Пытаемся отправить с изображением
-        import os
-        from pathlib import Path
-
-        # Используем изображение my_events.png
-        photo_path = Path(__file__).parent / "images" / "my_events.png"
-
-        logger.info(f"🖼️ Проверяем наличие изображения: {photo_path}, exists={os.path.exists(photo_path)}")
-
-        if os.path.exists(photo_path):
-            try:
-                from aiogram.types import FSInputFile
-
-                photo = FSInputFile(photo_path)
-                logger.info(f"✅ Отправляем изображение для 'Мои события': {photo_path}")
-                await message.answer_photo(photo, caption=text, parse_mode="Markdown")
-                return
-            except Exception as e:
-                logger.error(f"❌ Ошибка отправки фото для 'Мои события': {e}", exc_info=True)
-                # Продолжаем отправку текста
-        else:
-            logger.warning(f"⚠️ Изображение не найдено: {photo_path}")
-
-        # Fallback: отправляем только текст
-        await message.answer(text, parse_mode="Markdown")
-        return
-
     text = "\n".join(text_parts)
 
     # Создаем клавиатуру
@@ -3723,6 +3694,31 @@ async def on_my_events(message: types.Message):
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons) if keyboard_buttons else main_menu_kb()
 
+    # Пытаемся отправить с изображением (всегда, независимо от наличия событий)
+    import os
+    from pathlib import Path
+
+    # Используем изображение my_events.png
+    photo_path = Path(__file__).parent / "images" / "my_events.png"
+
+    logger.info(f"🖼️ Проверяем наличие изображения: {photo_path}, exists={os.path.exists(photo_path)}")
+
+    if os.path.exists(photo_path):
+        try:
+            from aiogram.types import FSInputFile
+
+            photo = FSInputFile(photo_path)
+            logger.info(f"✅ Отправляем изображение для 'Мои события': {photo_path}")
+            await message.answer_photo(photo, caption=text, reply_markup=keyboard, parse_mode="Markdown")
+            logger.info("✅ on_my_events: сообщение с изображением отправлено успешно")
+            return
+        except Exception as e:
+            logger.error(f"❌ Ошибка отправки фото для 'Мои события': {e}", exc_info=True)
+            # Продолжаем отправку текста
+    else:
+        logger.warning(f"⚠️ Изображение не найдено: {photo_path}")
+
+    # Fallback: отправляем только текст
     try:
         await message.answer(text, reply_markup=keyboard, parse_mode="Markdown")
         logger.info("✅ on_my_events: сообщение отправлено успешно")
