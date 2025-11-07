@@ -4197,16 +4197,31 @@ async def on_my_tasks(message: types.Message):
         import os
         from pathlib import Path
 
-        photo_path = Path(__file__).parent / "images" / "quests_instruction.png"
-        if os.path.exists(photo_path):
-            try:
-                from aiogram.types import FSInputFile
+        # Пробуем разные варианты имени файла и расширений
+        photo_paths = [
+            "images/my_quests.jpg",
+            "images/my_quests.png",
+            "images/my_quests.webp",
+            "images/my_quests.jpeg",
+            "images/quests_instruction.jpg",
+            "images/quests_instruction.png",
+            "images/quests_instruction.webp",
+            "images/quests_instruction.jpeg",
+        ]
 
-                photo = FSInputFile(photo_path)
-                await message.answer_photo(photo, caption=text, parse_mode="Markdown")
-                return
-            except Exception as e:
-                logger.warning(f"⚠️ Не удалось отправить фото для 'Мои квесты': {e}, отправляем только текст")
+        base_path = Path(__file__).parent
+        for photo_name in photo_paths:
+            photo_path = base_path / photo_name
+            if os.path.exists(photo_path):
+                try:
+                    from aiogram.types import FSInputFile
+
+                    photo = FSInputFile(photo_path)
+                    await message.answer_photo(photo, caption=text, parse_mode="Markdown")
+                    return
+                except Exception as e:
+                    logger.warning(f"⚠️ Не удалось отправить фото для 'Мои квесты': {e}, пробуем следующий файл")
+                    continue
 
         # Fallback: отправляем только текст
         await message.answer(text, parse_mode="Markdown")
@@ -4343,16 +4358,31 @@ async def cmd_mytasks(message: types.Message):
         import os
         from pathlib import Path
 
-        photo_path = Path(__file__).parent / "images" / "quests_instruction.png"
-        if os.path.exists(photo_path):
-            try:
-                from aiogram.types import FSInputFile
+        # Пробуем разные варианты имени файла и расширений
+        photo_paths = [
+            "images/my_quests.jpg",
+            "images/my_quests.png",
+            "images/my_quests.webp",
+            "images/my_quests.jpeg",
+            "images/quests_instruction.jpg",
+            "images/quests_instruction.png",
+            "images/quests_instruction.webp",
+            "images/quests_instruction.jpeg",
+        ]
 
-                photo = FSInputFile(photo_path)
-                await message.answer_photo(photo, caption=text, parse_mode="Markdown")
-                return
-            except Exception as e:
-                logger.warning(f"⚠️ Не удалось отправить фото для 'Мои квесты': {e}, отправляем только текст")
+        base_path = Path(__file__).parent
+        for photo_name in photo_paths:
+            photo_path = base_path / photo_name
+            if os.path.exists(photo_path):
+                try:
+                    from aiogram.types import FSInputFile
+
+                    photo = FSInputFile(photo_path)
+                    await message.answer_photo(photo, caption=text, parse_mode="Markdown")
+                    return
+                except Exception as e:
+                    logger.warning(f"⚠️ Не удалось отправить фото для 'Мои квесты': {e}, пробуем следующий файл")
+                    continue
 
         # Fallback: отправляем только текст
         await message.answer(text, parse_mode="Markdown")
@@ -4522,19 +4552,34 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
         import os
         from pathlib import Path
 
-        photo_path = Path(__file__).parent / "images" / "quests_instruction.png"
-        if os.path.exists(photo_path):
-            try:
-                from aiogram.types import FSInputFile
+        # Пробуем разные варианты имени файла и расширений
+        photo_paths = [
+            "images/my_quests.jpg",
+            "images/my_quests.png",
+            "images/my_quests.webp",
+            "images/my_quests.jpeg",
+            "images/quests_instruction.jpg",
+            "images/quests_instruction.png",
+            "images/quests_instruction.webp",
+            "images/quests_instruction.jpeg",
+        ]
 
-                photo = FSInputFile(photo_path)
-                # Удаляем старое сообщение и отправляем новое с фото
-                await callback.message.delete()
-                await callback.message.answer_photo(photo, caption=text, parse_mode="Markdown")
-                await callback.answer()
-                return
-            except Exception as e:
-                logger.warning(f"⚠️ Не удалось отправить фото для 'Мои квесты': {e}, используем edit_text")
+        base_path = Path(__file__).parent
+        for photo_name in photo_paths:
+            photo_path = base_path / photo_name
+            if os.path.exists(photo_path):
+                try:
+                    from aiogram.types import FSInputFile
+
+                    photo = FSInputFile(photo_path)
+                    # Удаляем старое сообщение и отправляем новое с фото
+                    await callback.message.delete()
+                    await callback.message.answer_photo(photo, caption=text, parse_mode="Markdown")
+                    await callback.answer()
+                    return
+                except Exception as e:
+                    logger.warning(f"⚠️ Не удалось отправить фото для 'Мои квесты': {e}, пробуем следующий файл")
+                    continue
 
         # Fallback: редактируем текст
         await callback.message.edit_text(text, parse_mode="Markdown")
