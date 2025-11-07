@@ -4474,19 +4474,60 @@ async def handle_manage_tasks(callback: types.CallbackQuery):
     active_tasks = get_user_active_tasks(user_id)
 
     if not active_tasks:
-        await callback.message.edit_text(
-            "🏆 **Мои квесты**\n\n" "У вас нет активных заданий.",
-            parse_mode="Markdown",
-        )
+        # Проверяем, содержит ли сообщение фото
+        if callback.message.photo:
+            try:
+                chat_id = callback.message.chat.id
+                bot = callback.bot
+                await callback.message.delete()
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text="🏆 **Мои квесты**\n\n" "У вас нет активных заданий.",
+                    parse_mode="Markdown",
+                )
+            except Exception as e:
+                logger.error(f"❌ Ошибка при удалении сообщения с фото: {e}", exc_info=True)
+                # Fallback: отправляем новое сообщение
+                chat_id = callback.message.chat.id
+                bot = callback.bot
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text="🏆 **Мои квесты**\n\n" "У вас нет активных заданий.",
+                    parse_mode="Markdown",
+                )
+        else:
+            try:
+                await callback.message.edit_text(
+                    "🏆 **Мои квесты**\n\n" "У вас нет активных заданий.",
+                    parse_mode="Markdown",
+                )
+            except Exception as e:
+                logger.error(f"❌ Ошибка при редактировании сообщения: {e}", exc_info=True)
+                # Fallback: отправляем новое сообщение
+                chat_id = callback.message.chat.id
+                bot = callback.bot
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text="🏆 **Мои квесты**\n\n" "У вас нет активных заданий.",
+                    parse_mode="Markdown",
+                )
+        await callback.answer()
         return
 
     # Показываем первое задание
-    await show_task_detail(callback.message, active_tasks, 0, user_id)
+    await show_task_detail(callback, active_tasks, 0, user_id)
     await callback.answer()
 
 
-async def show_task_detail(message, tasks: list, task_index: int, user_id: int):
-    """Показывает детальную информацию о задании"""
+async def show_task_detail(callback_or_message, tasks: list, task_index: int, user_id: int):
+    """Показывает детальную информацию о задании
+
+    Args:
+        callback_or_message: Может быть либо CallbackQuery, либо Message объект
+        tasks: Список заданий
+        task_index: Индекс текущего задания
+        user_id: ID пользователя
+    """
     task = tasks[task_index]
 
     # Вычисляем оставшееся время
@@ -4542,11 +4583,72 @@ async def show_task_detail(message, tasks: list, task_index: int, user_id: int):
 
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-    await message.edit_text(
-        message_text,
-        parse_mode="Markdown",
-        reply_markup=reply_markup,
-    )
+    # Определяем, является ли это callback или message
+    if hasattr(callback_or_message, "message"):
+        # Это CallbackQuery
+        callback = callback_or_message
+        message = callback.message
+
+        # Проверяем, содержит ли сообщение фото (нельзя редактировать сообщения с фото)
+        if message.photo:
+            # Удаляем старое сообщение с фото и отправляем новое текстовое
+            try:
+                chat_id = message.chat.id
+                bot = callback.bot
+                await message.delete()
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=message_text,
+                    parse_mode="Markdown",
+                    reply_markup=reply_markup,
+                )
+            except Exception as e:
+                logger.error(f"❌ Ошибка при удалении сообщения с фото и отправке нового: {e}", exc_info=True)
+                # Fallback: отправляем новое сообщение без удаления старого
+                chat_id = message.chat.id
+                bot = callback.bot
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=message_text,
+                    parse_mode="Markdown",
+                    reply_markup=reply_markup,
+                )
+        else:
+            # Обычное текстовое сообщение, можно редактировать
+            try:
+                await message.edit_text(
+                    message_text,
+                    parse_mode="Markdown",
+                    reply_markup=reply_markup,
+                )
+            except Exception as e:
+                logger.error(f"❌ Ошибка при редактировании сообщения: {e}", exc_info=True)
+                # Fallback: отправляем новое сообщение
+                chat_id = message.chat.id
+                bot = callback.bot
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=message_text,
+                    parse_mode="Markdown",
+                    reply_markup=reply_markup,
+                )
+    else:
+        # Это Message объект (старый способ вызова для обратной совместимости)
+        message = callback_or_message
+        try:
+            await message.edit_text(
+                message_text,
+                parse_mode="Markdown",
+                reply_markup=reply_markup,
+            )
+        except Exception as e:
+            logger.error(f"❌ Ошибка при редактировании сообщения: {e}", exc_info=True)
+            # Fallback: отправляем новое сообщение
+            await message.answer(
+                message_text,
+                parse_mode="Markdown",
+                reply_markup=reply_markup,
+            )
 
 
 @main_router.callback_query(F.data.startswith("task_nav:"))
@@ -4560,7 +4662,7 @@ async def handle_task_navigation(callback: types.CallbackQuery):
         await callback.answer("Задание не найдено")
         return
 
-    await show_task_detail(callback.message, active_tasks, task_index, user_id)
+    await show_task_detail(callback, active_tasks, task_index, user_id)
     await callback.answer()
 
 
