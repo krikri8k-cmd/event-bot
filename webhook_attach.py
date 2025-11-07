@@ -17,8 +17,15 @@ logger = logging.getLogger(__name__)
 PUBLIC_URL = os.getenv("WEBHOOK_URL") or os.getenv("PUBLIC_URL")
 WEBHOOK_PATH = os.getenv("WEBHOOK_PATH", "/webhook")
 
+# Логируем переменные окружения для отладки (без токена)
+logger.info(f"🔍 WEBHOOK_URL из окружения: {os.getenv('WEBHOOK_URL', 'НЕ УСТАНОВЛЕН')}")
+logger.info(f"🔍 PUBLIC_URL из окружения: {os.getenv('PUBLIC_URL', 'НЕ УСТАНОВЛЕН')}")
+logger.info(f"🔍 Используемый PUBLIC_URL: {PUBLIC_URL}")
+logger.info(f"🔍 WEBHOOK_PATH: {WEBHOOK_PATH}")
+
 if not PUBLIC_URL:
-    logger.warning("⚠️ WEBHOOK_URL или PUBLIC_URL не установлен - webhook не будет работать")
+    logger.error("❌ WEBHOOK_URL или PUBLIC_URL не установлен - webhook не будет работать!")
+    logger.error("❌ Установите PUBLIC_URL=https://your-app.up.railway.app в Railway Environment Variables")
 
 
 def attach_bot_to_app(app: FastAPI) -> None:
@@ -46,16 +53,22 @@ def attach_bot_to_app(app: FastAPI) -> None:
         try:
             # Получаем JSON данные от Telegram
             data = await req.json()
+            logger.debug(f"📨 Получен webhook update: update_id={data.get('update_id')}")
 
             # Создаем Update объект
             update = Update(**data)
 
-            # Передаем в dispatcher
-            await dp.feed_webhook_update(bot, update)
+            # Передаем в dispatcher (не ждем завершения, чтобы быстро ответить Telegram)
+            # Создаем задачу в фоне для обработки update
+            asyncio.create_task(dp.feed_webhook_update(bot, update))
 
+            # Возвращаем 200 сразу, чтобы Telegram не ждал
             return {"ok": True}
         except Exception as e:
             logger.error(f"❌ Ошибка обработки webhook: {e}")
+            import traceback
+
+            logger.error(f"❌ Детали ошибки: {traceback.format_exc()}")
             # Возвращаем 200 чтобы Telegram не повторял запрос
             return {"ok": False, "error": str(e)}
 
@@ -113,13 +126,34 @@ def attach_bot_to_app(app: FastAPI) -> None:
             # Устанавливаем webhook
             if PUBLIC_URL:
                 webhook_url = PUBLIC_URL.rstrip("/") + WEBHOOK_PATH
+                logger.info(f"🔗 Устанавливаем webhook на URL: {webhook_url}")
                 try:
-                    await bot.set_webhook(url=webhook_url, drop_pending_updates=False)
-                    logger.info(f"✅ Webhook установлен: {webhook_url}")
+                    # Сначала удаляем старый webhook
+                    await bot.delete_webhook(drop_pending_updates=False)
+                    logger.info("✅ Старый webhook удален")
+
+                    # Устанавливаем новый webhook
+                    result = await bot.set_webhook(url=webhook_url, drop_pending_updates=False)
+                    logger.info(f"✅ setWebhook вызван, результат: {result}")
+
+                    # Проверяем что webhook установлен
+                    webhook_info = await bot.get_webhook_info()
+                    logger.info(f"📡 Webhook info: url={webhook_info.url}, pending={webhook_info.pending_update_count}")
+
+                    if webhook_info.url != webhook_url:
+                        logger.error(
+                            f"❌ Webhook URL не совпадает! Ожидалось: {webhook_url}, получено: {webhook_info.url}"
+                        )
+                    else:
+                        logger.info(f"✅ Webhook установлен успешно: {webhook_url}")
                 except Exception as e:
                     logger.error(f"❌ Ошибка установки webhook: {e}")
+                    import traceback
+
+                    logger.error(f"❌ Детали ошибки: {traceback.format_exc()}")
             else:
-                logger.warning("⚠️ PUBLIC_URL не установлен - webhook не установлен")
+                logger.error("❌ PUBLIC_URL не установлен - webhook не будет установлен!")
+                logger.error("❌ Установите PUBLIC_URL в переменных окружения Railway")
 
             # Запускаем фоновую задачу для периодического обновления команд
             try:
