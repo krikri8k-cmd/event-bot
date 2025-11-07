@@ -64,11 +64,11 @@ def _cache_put(key: str, data: list[dict[str, Any]]) -> None:
 
 
 def today_window_utc(tz: ZoneInfo = ZoneInfo("Europe/Moscow")) -> tuple[datetime, datetime]:
-    """Возвращает окно 'сегодня' в UTC с учётом часового пояса"""
+    """Возвращает окно 'сегодня + завтра' в UTC с учётом часового пояса"""
     now_tz = datetime.now(tz)
     start = datetime(now_tz.year, now_tz.month, now_tz.day, 0, 0, 0, tzinfo=tz).astimezone(UTC)
-    # Окно только на сегодня (до конца дня)
-    end = (start + timedelta(days=1) - timedelta(seconds=1)).astimezone(UTC)
+    # Окно на сегодня + завтра (до конца завтрашнего дня)
+    end = (start + timedelta(days=2) - timedelta(seconds=1)).astimezone(UTC)
     return start, end
 
 
@@ -181,8 +181,30 @@ def _normalize_event(raw: dict[str, Any], city_slug: str) -> dict[str, Any]:
                     valid_dates.append(d)
 
         if valid_dates:
-            # Сортируем по времени начала и берем ближайшую к сегодня
-            first = sorted(valid_dates, key=lambda d: abs(d.get("start", 0) - now))[0]
+            # Определяем часовой пояс для города
+            city_tz = ZoneInfo("Europe/Moscow") if city_slug in ["msk", "spb"] else ZoneInfo("UTC")
+
+            # Сортируем по времени начала и берем первую дату в диапазоне сегодня+завтра
+            # Ищем дату, которая попадает в окно сегодня+завтра (2 дня от начала сегодня)
+            today_start = datetime.now(city_tz).replace(hour=0, minute=0, second=0, microsecond=0)
+            tomorrow_end = today_start + timedelta(days=2)
+            window_start_ts = int(today_start.astimezone(UTC).timestamp())
+            window_end_ts = int(tomorrow_end.astimezone(UTC).timestamp())
+
+            # Ищем даты в окне сегодня+завтра, если нет - берем ближайшую
+            dates_in_window = [d for d in valid_dates if window_start_ts <= d.get("start", 0) < window_end_ts]
+            if dates_in_window:
+                # Берем первую дату в окне (самую раннюю) - это может быть сегодня или завтра
+                first = sorted(dates_in_window, key=lambda d: d.get("start", 0))[0]
+            else:
+                # Если нет дат в окне, берем ближайшую к сегодня (но не в прошлом)
+                future_dates = [d for d in valid_dates if d.get("start", 0) >= now]
+                if future_dates:
+                    first = sorted(future_dates, key=lambda d: d.get("start", 0))[0]
+                else:
+                    # Если все даты в прошлом, берем последнюю (ближайшую к сегодня)
+                    first = sorted(valid_dates, key=lambda d: d.get("start", 0), reverse=True)[0]
+
             start_ts = int(first.get("start"))
             end_ts = int(first.get("end") or 0) or None
         else:
@@ -349,12 +371,12 @@ class KudaGoSource(BaseSource):
     async def _fetch_today_kudago(
         self, city_slug: str, user_point: tuple[float, float] | None = None, radius_m: int | None = None
     ) -> list[dict[str, Any]]:
-        """Получает события на сегодня из KudaGo"""
+        """Получает события на сегодня + завтра из KudaGo"""
 
         start_utc, end_utc = today_window_utc()
         lat_str = f"{round(user_point[0],3)}" if user_point else "na"
         lon_str = f"{round(user_point[1],3)}" if user_point else "na"
-        cache_key = f"today:{city_slug}:{lat_str}:{lon_str}:{radius_m or 0}"
+        cache_key = f"today_tomorrow:{city_slug}:{lat_str}:{lon_str}:{radius_m or 0}"
 
         cached = _cache_get(cache_key)
         if cached is not None:
