@@ -2002,6 +2002,23 @@ async def dump_commands_healthcheck(bot):
     try:
         from aiogram.types import BotCommandScopeAllGroupChats, BotCommandScopeAllPrivateChats, BotCommandScopeDefault
 
+        # Команды для групп - только /start в режиме Community
+        group_commands = [
+            types.BotCommand(command="start", description="🎉 События чата"),
+        ]
+
+        # Публичные команды для личных чатов (полный набор)
+        public_commands = [
+            types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
+            types.BotCommand(command="nearby", description="📍 Что рядом - найти события поблизости"),
+            types.BotCommand(command="create", description="➕ Создать новое событие"),
+            types.BotCommand(command="myevents", description="📋 Мои события - просмотр созданных событий"),
+            types.BotCommand(command="tasks", description="🎯 Квесты на районе - найти задания поблизости"),
+            types.BotCommand(command="mytasks", description="🏆 Мои квесты - просмотр выполненных заданий"),
+            types.BotCommand(command="share", description="🔗 Добавить бота в чат"),
+            types.BotCommand(command="help", description="💬 Написать отзыв Разработчику"),
+        ]
+
         scopes = [
             BotCommandScopeDefault(),
             BotCommandScopeAllPrivateChats(),
@@ -2023,6 +2040,18 @@ async def dump_commands_healthcheck(bot):
                     # Проверяем, что start есть (без слэша, т.к. cmd_list содержит только имена команд)
                     if "start" not in cmd_list:
                         logger.error(f"❌ КРИТИЧНО: /start отсутствует в {scope_name} {lang_name}!")
+                        # Автоматически восстанавливаем команды
+                        try:
+                            if scope_name == "BotCommandScopeAllGroupChats":
+                                restore_cmds = group_commands
+                            else:
+                                restore_cmds = public_commands
+                            await bot.set_my_commands(restore_cmds, scope=scope, language_code=lang)
+                            logger.info(f"🔄 Восстановлены команды для {scope_name} {lang_name}")
+                        except Exception as restore_error:
+                            logger.error(
+                                f"❌ Не удалось восстановить команды для {scope_name} {lang_name}: {restore_error}"
+                            )
                     else:
                         logger.info(f"✅ /start найден в {scope_name} {lang_name}")
 
@@ -4197,8 +4226,20 @@ async def on_my_tasks(message: types.Message):
         import os
         from pathlib import Path
 
-        photo_path = Path(__file__).parent / "images" / "imagesmy_quests.png"
-        if os.path.exists(photo_path):
+        # Пробуем разные варианты имени файла
+        photo_paths = [
+            Path(__file__).parent / "images" / "my events.png",  # с пробелом
+            Path(__file__).parent / "images" / "imagesmy_quests.png",
+            Path(__file__).parent / "images" / "my_quests.png",
+        ]
+
+        photo_path = None
+        for path in photo_paths:
+            if os.path.exists(path):
+                photo_path = path
+                break
+
+        if photo_path and os.path.exists(photo_path):
             try:
                 from aiogram.types import FSInputFile
 
@@ -4343,8 +4384,20 @@ async def cmd_mytasks(message: types.Message):
         import os
         from pathlib import Path
 
-        photo_path = Path(__file__).parent / "images" / "imagesmy_quests.png"
-        if os.path.exists(photo_path):
+        # Пробуем разные варианты имени файла
+        photo_paths = [
+            Path(__file__).parent / "images" / "my events.png",  # с пробелом
+            Path(__file__).parent / "images" / "imagesmy_quests.png",
+            Path(__file__).parent / "images" / "my_quests.png",
+        ]
+
+        photo_path = None
+        for path in photo_paths:
+            if os.path.exists(path):
+                photo_path = path
+                break
+
+        if photo_path and os.path.exists(photo_path):
             try:
                 from aiogram.types import FSInputFile
 
@@ -4522,8 +4575,20 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
         import os
         from pathlib import Path
 
-        photo_path = Path(__file__).parent / "images" / "imagesmy_quests.png"
-        if os.path.exists(photo_path):
+        # Пробуем разные варианты имени файла
+        photo_paths = [
+            Path(__file__).parent / "images" / "my events.png",  # с пробелом
+            Path(__file__).parent / "images" / "imagesmy_quests.png",
+            Path(__file__).parent / "images" / "my_quests.png",
+        ]
+
+        photo_path = None
+        for path in photo_paths:
+            if os.path.exists(path):
+                photo_path = path
+                break
+
+        if photo_path and os.path.exists(photo_path):
             try:
                 from aiogram.types import FSInputFile
 
