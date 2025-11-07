@@ -338,22 +338,88 @@ def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> 
 
         # Детальная страница
         venue = None
+        lat = lng = None
         try:
             detail = _fetch(url)
             ds = BeautifulSoup(detail, "html.parser")
             v = ds.select_one(".event-venue, .place, .location, .event-meta .place")
             venue = v.get_text(strip=True) if v else None
-        except Exception:
+
+            # Ищем координаты на детальной странице
+            # 1. В ссылках на Google Maps
+            for link in ds.find_all("a", href=True):
+                href = link["href"]
+                if "google.com/maps" in href or "maps.google.com" in href or "/maps" in href:
+                    lat, lng = _extract_latlng_from_maps(href)
+                    if lat and lng:
+                        print(f"DEBUG: baliforum: найдены координаты на детальной странице: {lat}, {lng} для '{title}'")
+                        break
+
+            # 2. В data-атрибутах элементов
+            if not lat or not lng:
+                for elem in ds.find_all(attrs={"data-lat": True, "data-lng": True}):
+                    try:
+                        lat = float(elem.get("data-lat"))
+                        lng = float(elem.get("data-lng"))
+                        print(f"DEBUG: baliforum: найдены координаты в data-атрибутах: {lat}, {lng} для '{title}'")
+                        break
+                    except (ValueError, TypeError):
+                        continue
+
+            # 3. В тексте страницы (ищем паттерны координат)
+            if not lat or not lng:
+                import re
+
+                # Ищем паттерны типа "-8.674763, 115.230137" или "lat: -8.674763, lng: 115.230137"
+                coord_patterns = [
+                    r"(-?\d+\.\d+),\s*(-?\d+\.\d+)",  # Простые координаты
+                    r"lat[itude]?[:\s]+(-?\d+\.\d+).*?lng[itude]?[:\s]+(-?\d+\.\d+)",  # lat: X, lng: Y
+                    r"@(-?\d+\.\d+),(-?\d+\.\d+)",  # @lat,lng
+                ]
+                page_text = ds.get_text()
+                for pattern in coord_patterns:
+                    match = re.search(pattern, page_text, re.IGNORECASE)
+                    if match:
+                        try:
+                            lat = float(match.group(1))
+                            lng = float(match.group(2))
+                            # Проверяем что координаты в разумных пределах для Бали
+                            if -9.0 <= lat <= -8.0 and 114.0 <= lng <= 116.0:
+                                print(f"DEBUG: baliforum: найдены координаты в тексте: {lat}, {lng} для '{title}'")
+                                break
+                        except (ValueError, IndexError):
+                            continue
+        except Exception as e:
+            print(f"DEBUG: baliforum: ошибка при парсинге детальной страницы для '{title}': {e}")
             ds = None
 
-        # Извлекаем координаты из ссылок на карты
-        lat = lng = None
-        for link in card.find_all("a", href=True):
-            href = link["href"]
-            if "google.com/maps" in href or "/maps" in href:
-                lat, lng = _extract_latlng_from_maps(href)
-                if lat and lng:
-                    break
+        # Если координаты не найдены на детальной странице, ищем в карточке
+        if not lat or not lng:
+            for link in card.find_all("a", href=True):
+                href = link["href"]
+                if "google.com/maps" in href or "/maps" in href:
+                    lat, lng = _extract_latlng_from_maps(href)
+                    if lat and lng:
+                        print(f"DEBUG: baliforum: найдены координаты в карточке: {lat}, {lng} для '{title}'")
+                        break
+
+        # Если координаты все еще не найдены, пробуем геокодинг по адресу/venue
+        if (not lat or not lng) and venue:
+            try:
+                from utils.geo_utils import geocode
+
+                # Пробуем геокодинг по venue/address
+                address = venue.strip()
+                if address and len(address) > 5:  # Минимальная длина адреса
+                    coords = geocode(address)
+                    if coords:
+                        lat, lng = coords
+                        print(
+                            f"DEBUG: baliforum: координаты получены через геокодинг адреса "
+                            f"'{address}': {lat}, {lng} для '{title}'"
+                        )
+            except Exception as e:
+                print(f"DEBUG: baliforum: ошибка геокодинга для '{title}': {e}")
 
         # Создаем стабильный external_id
         import hashlib
