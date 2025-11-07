@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+"""
+Интеграция aiogram бота с FastAPI
+Подключает webhook и health check к FastAPI приложению
+"""
+
+import asyncio
+import logging
+import os
+
+from aiogram.types import Update
+from fastapi import FastAPI, Request
+
+logger = logging.getLogger(__name__)
+
+# Переменные окружения
+PUBLIC_URL = os.getenv("WEBHOOK_URL") or os.getenv("PUBLIC_URL")
+WEBHOOK_PATH = os.getenv("WEBHOOK_PATH", "/webhook")
+
+if not PUBLIC_URL:
+    logger.warning("⚠️ WEBHOOK_URL или PUBLIC_URL не установлен - webhook не будет работать")
+
+
+def attach_bot_to_app(app: FastAPI) -> None:
+    """
+    Регистрирует /health, /webhook и инициализирует бота после старта FastAPI.
+
+    Args:
+        app: FastAPI приложение к которому нужно подключить бота
+    """
+    # Импортируем bot и dp из основного модуля (после того как они созданы)
+    from bot_enhanced_v3 import bot, dp
+
+    # Флаг готовности
+    if not hasattr(app.state, "ready"):
+        app.state.ready = False
+
+    @app.get("/health")
+    async def health():
+        """Health check endpoint для Railway"""
+        return {"ok": True, "ready": app.state.ready}
+
+    @app.post(WEBHOOK_PATH)
+    async def telegram_webhook(req: Request):
+        """Обработчик webhook от Telegram"""
+        try:
+            # Получаем JSON данные от Telegram
+            data = await req.json()
+
+            # Создаем Update объект
+            update = Update(**data)
+
+            # Передаем в dispatcher
+            await dp.feed_webhook_update(bot, update)
+
+            return {"ok": True}
+        except Exception as e:
+            logger.error(f"❌ Ошибка обработки webhook: {e}")
+            # Возвращаем 200 чтобы Telegram не повторял запрос
+            return {"ok": False, "error": str(e)}
+
+    async def init_bot():
+        """
+        Инициализация бота после старта FastAPI.
+        Выполняет все длительные операции: БД, команды, роутеры и т.д.
+        """
+        try:
+            logger.info("🚀 Начало инициализации бота...")
+
+            # Инициализируем BOT_ID для корректной фильтрации в групповых чатах
+            bot_info = await bot.me()
+            # Обновляем BOT_ID глобально
+            import bot_enhanced_v3
+
+            bot_enhanced_v3.BOT_ID = bot_info.id
+            logger.info(f"BOT_ID инициализирован: {bot_info.id}")
+
+            # === НОВАЯ ИНТЕГРАЦИЯ ГРУППОВЫХ ЧАТОВ (ИЗОЛИРОВАННЫЙ РОУТЕР) ===
+            # Устанавливаем username бота для deep-links в group_router
+            try:
+                from group_router import set_bot_username
+
+                set_bot_username(bot_info.username)
+                logger.info("✅ Групповой роутер успешно проинициализирован")
+            except Exception as e:
+                logger.error(f"❌ Ошибка инициализации группового роутера: {e}")
+                import traceback
+
+                logger.error(f"❌ Детали ошибки: {traceback.format_exc()}")
+
+            # Запускаем фоновую задачу для очистки моментов
+            from config import load_settings
+            from tasks_service import mark_tasks_as_expired
+
+            load_settings()
+
+            # Очищаем просроченные задания при старте
+            try:
+                expired_count = mark_tasks_as_expired()
+                if expired_count > 0:
+                    logger.info(f"При старте помечено как истекшие: {expired_count} заданий")
+                else:
+                    logger.info("При старте просроченных заданий не найдено")
+            except Exception as e:
+                logger.error(f"Ошибка очистки просроченных заданий при старте: {e}")
+
+            # Устанавливаем команды бота
+            try:
+                await setup_bot_commands_and_menu()
+            except Exception as e:
+                logger.warning(f"Не удалось установить команды бота: {e}")
+
+            # Устанавливаем webhook
+            if PUBLIC_URL:
+                webhook_url = PUBLIC_URL.rstrip("/") + WEBHOOK_PATH
+                try:
+                    await bot.set_webhook(url=webhook_url, drop_pending_updates=False)
+                    logger.info(f"✅ Webhook установлен: {webhook_url}")
+                except Exception as e:
+                    logger.error(f"❌ Ошибка установки webhook: {e}")
+            else:
+                logger.warning("⚠️ PUBLIC_URL не установлен - webhook не установлен")
+
+            # Запускаем фоновую задачу для периодического обновления команд
+            try:
+                from bot_enhanced_v3 import periodic_commands_update
+
+                asyncio.create_task(periodic_commands_update())
+                logger.info("✅ Фоновая задача обновления команд запущена")
+            except Exception as e:
+                logger.warning(f"Не удалось запустить периодическое обновление команд: {e}")
+
+            # Помечаем как готов
+            app.state.ready = True
+            logger.info("✅ Бот инициализирован и готов к работе")
+
+        except Exception as e:
+            logger.error(f"❌ Критическая ошибка инициализации бота: {e}")
+            import traceback
+
+            logger.error(f"❌ Детали ошибки: {traceback.format_exc()}")
+            # Не помечаем как ready если была ошибка
+            app.state.ready = False
+
+    async def setup_bot_commands_and_menu():
+        """Устанавливает команды бота и menu button"""
+        from aiogram import types
+        from aiogram.types import (
+            BotCommandScopeAllGroupChats,
+            BotCommandScopeAllPrivateChats,
+            BotCommandScopeChat,
+            BotCommandScopeDefault,
+            MenuButtonCommands,
+        )
+
+        # Импортируем функцию установки команд
+        from bot_enhanced_v3 import dump_commands_healthcheck, ensure_commands, setup_bot_commands
+        from group_router import setup_group_menu_button
+
+        # АГРЕССИВНАЯ очистка всех команд для всех scope и языков
+        await bot.delete_my_commands(scope=BotCommandScopeDefault())
+        await bot.delete_my_commands(scope=BotCommandScopeAllPrivateChats())
+        await bot.delete_my_commands(scope=BotCommandScopeAllGroupChats())
+
+        await bot.delete_my_commands(scope=BotCommandScopeDefault(), language_code="ru")
+        await bot.delete_my_commands(scope=BotCommandScopeAllPrivateChats(), language_code="ru")
+        await bot.delete_my_commands(scope=BotCommandScopeAllGroupChats(), language_code="ru")
+
+        # Ждем чтобы Telegram обработал удаление
+        await asyncio.sleep(2)
+
+        # Админские команды
+        admin_commands = [
+            types.BotCommand(command="admin_event", description="🔍 Диагностика события (админ)"),
+            types.BotCommand(command="diag_last", description="📊 Диагностика последнего запроса"),
+            types.BotCommand(command="diag_search", description="🔍 Диагностика поиска событий"),
+            types.BotCommand(command="diag_webhook", description="🔗 Диагностика webhook"),
+            types.BotCommand(command="diag_commands", description="🔧 Диагностика команд бота"),
+        ]
+
+        # Используем эталонную функцию установки команд
+        await setup_bot_commands()
+
+        # Устанавливаем админские команды для всех админов
+        admin_ids_str = os.getenv("ADMIN_IDS", "")
+        if admin_ids_str:
+            admin_ids = [int(id.strip()) for id in admin_ids_str.split(",") if id.strip()]
+            for admin_id in admin_ids:
+                await bot.set_my_commands(admin_commands, scope=BotCommandScopeChat(chat_id=admin_id))
+                logger.info(f"Админские команды установлены для админа {admin_id}")
+        else:
+            # Fallback на старый способ
+            admin_user_id = int(os.getenv("ADMIN_USER_ID", "123456789"))
+            if admin_user_id != 123456789:
+                await bot.set_my_commands(admin_commands, scope=BotCommandScopeChat(chat_id=admin_user_id))
+                logger.info(f"Админские команды установлены для админа {admin_user_id}")
+
+        # Небольшая задержка для применения команд
+        await asyncio.sleep(2)
+
+        # ДИАГНОСТИКА: проверяем, что команды установлены
+        try:
+            current_commands = await bot.get_my_commands(scope=BotCommandScopeAllGroupChats())
+            logger.info(f"🔍 Текущие команды для групп: {[cmd.command for cmd in current_commands]}")
+        except Exception as e:
+            logger.error(f"❌ Ошибка получения команд: {e}")
+
+        # RUNTIME HEALTHCHECK: проверяем команды по всем скоупам и языкам
+        try:
+            await dump_commands_healthcheck(bot)
+        except Exception as e:
+            logger.error(f"❌ Ошибка healthcheck команд: {e}")
+
+        # СТОРОЖ КОМАНД: проверяем и восстанавливаем команды при старте
+        try:
+            await ensure_commands(bot)
+        except Exception as e:
+            logger.error(f"❌ Ошибка сторожа команд при старте: {e}")
+
+        # Устанавливаем кнопку меню
+        try:
+            await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+            logger.info("✅ Menu Button установлен успешно")
+        except Exception as e:
+            logger.warning(f"⚠️ Menu Button не удалось установить: {e}")
+
+        # Еще одна задержка для применения Menu Button
+        await asyncio.sleep(2)
+
+        # Настраиваем Menu Button специально для групп
+        await setup_group_menu_button(bot)
+
+        logger.info("✅ Команды бота и Menu Button установлены")
+
+    @app.on_event("startup")
+    async def _startup():
+        """Запускается при старте FastAPI - инициализирует бота в фоне"""
+        asyncio.create_task(init_bot())
+
+    @app.on_event("shutdown")
+    async def _shutdown():
+        """Запускается при остановке FastAPI - закрывает соединения бота"""
+        try:
+            logger.info("🛑 Остановка бота...")
+            await bot.session.close()
+            logger.info("✅ Бот остановлен")
+        except Exception as e:
+            logger.error(f"❌ Ошибка при остановке бота: {e}")
+
+    logger.info("✅ Webhook и health check подключены к FastAPI приложению")

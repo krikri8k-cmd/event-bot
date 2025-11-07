@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 """
 Скрипт запуска продакшн версии с автоматизацией
-Запускает бота и планировщик автоматизации
+Запускает FastAPI сервер (с ботом) и планировщик автоматизации
 """
 
-import asyncio
 import logging
+import os
 import signal
 import sys
 from threading import Thread
 
+import uvicorn
+
 from modern_scheduler import start_modern_scheduler
 
-# Настройка логирования для продакшена
+# Настройка логирования для продакшна
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -39,29 +41,10 @@ def start_automation():
         raise
 
 
-def start_bot():
-    """Запуск телеграм бота"""
-    try:
-        logger.info("🤖 Запуск Telegram бота...")
-
-        # Импортируем и запускаем бота
-        logger.info("🔥 Импортируем bot_enhanced_v3.main...")
-        from bot_enhanced_v3 import main as bot_main
-
-        logger.info("✅ bot_enhanced_v3.main импортирован успешно")
-
-        logger.info("🔥 Запускаем bot_main()...")
-        asyncio.run(bot_main())
-
-    except Exception as e:
-        logger.error(f"❌ Ошибка бота: {e}")
-        raise
-
-
 def main():
-    """Главная функция - запускает и бота и автоматизацию"""
+    """Главная функция - запускает FastAPI сервер (с ботом) и автоматизацию"""
     logger.info("🎯 === ЗАПУСК ПРОДАКШН ВЕРСИИ ===")
-    logger.info("🤖 Telegram бот + 🚀 Автоматизация парсинга")
+    logger.info("🚀 FastAPI сервер (с Telegram ботом) + 🤖 Автоматизация парсинга")
 
     # Graceful shutdown handler
     def signal_handler(sig, frame):
@@ -73,32 +56,37 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
 
     try:
-        # Запускаем простой health check сервер СРАЗУ для Railway
-        # Это нужно, чтобы Railway мог проверить /health до того, как webhook сервер запустится
-        try:
-            logger.info("🏥 Запуск простого health check сервера для Railway...")
-            from bot_health import health_server
-
-            if health_server.start():
-                logger.info("✅ Health check сервер запущен и готов отвечать на /health")
-            else:
-                logger.warning("⚠️ Не удалось запустить health check сервер")
-        except Exception as e:
-            logger.error(f"❌ Ошибка запуска health check сервера: {e}")
-
         # Запускаем автоматизацию в отдельном потоке
         automation_thread = Thread(target=start_automation, daemon=True)
         automation_thread.start()
         logger.info("✅ Автоматизация запущена в фоне")
 
-        # Запускаем бота в основном потоке
-        # Webhook сервер также будет иметь /health endpoint, но health check сервер уже работает
-        start_bot()
+        # Запускаем FastAPI сервер с ботом
+        # FastAPI приложение уже включает webhook и health check через webhook_attach.py
+        port = int(os.getenv("PORT", "8000"))
+        host = os.getenv("HOST", "0.0.0.0")
+
+        logger.info(f"🚀 Запуск FastAPI сервера на {host}:{port}...")
+        logger.info("📡 Webhook: /webhook")
+        logger.info("🏥 Health check: /health")
+
+        # Запускаем uvicorn с нашим FastAPI приложением
+        uvicorn.run(
+            "api.app:app",
+            host=host,
+            port=port,
+            proxy_headers=True,
+            access_log=False,  # Отключаем access log для производительности
+            log_level="info",
+        )
 
     except KeyboardInterrupt:
         logger.info("⏹️ Остановка по Ctrl+C")
     except Exception as e:
         logger.error(f"❌ Критическая ошибка: {e}")
+        import traceback
+
+        logger.error(f"❌ Детали ошибки: {traceback.format_exc()}")
         sys.exit(1)
 
 

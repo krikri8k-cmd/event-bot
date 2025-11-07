@@ -101,10 +101,8 @@ def create_app() -> FastAPI:
         # Подключаем OAuth роутер
         app.include_router(oauth_router)
 
-    @app.get("/health")
-    def health():
-        logger.info("🏥 Health check requested")
-        return {"status": "ok"}
+    # Health check endpoint будет добавлен через attach_bot_to_app
+    # Не дублируем здесь, чтобы избежать конфликтов
 
     @app.get("/click")
     async def track_click(
@@ -286,6 +284,23 @@ def create_app() -> FastAPI:
                 return {"error": str(e), "inserted": 0}
 
     logger.info("✅ FastAPI application created successfully")
+
+    # === ИНТЕГРАЦИЯ TELEGRAM БОТА ===
+    # Подключаем webhook и health check от бота
+    # Это должно быть ПОСЛЕ создания всех других роутеров
+    try:
+        logger.info("🤖 Подключение Telegram бота к FastAPI...")
+        from webhook_attach import attach_bot_to_app
+
+        attach_bot_to_app(app)
+        logger.info("✅ Telegram бот подключен к FastAPI")
+    except Exception as e:
+        logger.error(f"❌ Ошибка подключения бота к FastAPI: {e}")
+        import traceback
+
+        logger.error(f"❌ Детали ошибки: {traceback.format_exc()}")
+        # Продолжаем работу даже если бот не подключился
+
     logger.info("🏥 Health endpoint mounted at /health")
     return app
 
@@ -293,11 +308,5 @@ def create_app() -> FastAPI:
 # для импортов типа "from api.app import app"
 app = create_app()
 
-# Запускаем планировщик при старте приложения
-try:
-    from scheduler import start_scheduler
-
-    start_scheduler()
-except Exception:
-    # в CI можно не стартовать; либо логируем
-    pass
+# НЕ запускаем планировщик здесь - он запускается через start_production.py
+# Планировщик должен работать в отдельном процессе/потоке
