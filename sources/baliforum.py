@@ -129,12 +129,15 @@ def _ru_date_to_dt(label: str, now: datetime, tz: ZoneInfo) -> tuple[datetime | 
 
         start_dt = end_dt = None
 
-        # Если день не найден, но есть время - считаем что событие сегодня
+        # Если день не найден, но есть время - НЕ предполагаем что событие сегодня
+        # Это может быть событие на завтра или другую дату, поэтому пропускаем
         if not day:
             # Проверяем, есть ли время в оригинальной строке
             if _parse_time(original_label):
-                day = now.date()
-                print(f"DEBUG: _ru_date_to_dt: no date found but time exists, using today: '{original_label}'")
+                # НЕ устанавливаем day = now.date() - это может быть событие на завтра
+                # Вместо этого возвращаем None, чтобы событие было пропущено
+                print(f"DEBUG: _ru_date_to_dt: no date found but time exists, skipping: '{original_label}'")
+                return None, None
 
         if day:
             if "весь день" in label or "весь день" in original_label:
@@ -248,31 +251,45 @@ def fetch_baliforum_events(limit: int = 100) -> list[dict]:
         import re
 
         date_patterns = [
-            # Точные паттерны с временем (высший приоритет)
-            r"Сегодня с \d{1,2}:\d{2}(?: до \d{1,2}:\d{2})?",
+            # Точные паттерны с временем (высший приоритет) - ПРИОРИТЕТ "ЗАВТРА" ПЕРЕД "СЕГОДНЯ"
             r"Завтра с \d{1,2}:\d{2}(?: до \d{1,2}:\d{2})?",
+            r"Завтра \d{1,2}:\d{2}",
+            r"Сегодня с \d{1,2}:\d{2}(?: до \d{1,2}:\d{2})?",
+            r"Сегодня \d{1,2}:\d{2}",
             r"\d{1,2} (?:янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|дек)[а-я]*,? "
             r"с \d{1,2}:\d{2}(?: до \d{1,2}:\d{2})?",
-            # Паттерны с временем без "с"
-            r"Сегодня \d{1,2}:\d{2}",
-            r"Завтра \d{1,2}:\d{2}",
             r"\d{1,2} (?:янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|дек)[а-я]* \d{1,2}:\d{2}",
-            # Диапазоны времени
+            # Диапазоны времени (только если есть контекст дня)
             r"\d{1,2}:\d{2}[–-]\d{1,2}:\d{2}",
-            # Только время (если есть контекст дня)
-            r"\d{1,2}:\d{2}",
         ]
 
         for pattern in date_patterns:
             match = re.search(pattern, all_text)
             if match:
                 date_text = match.group(0)
+                print(f"DEBUG: baliforum: found date pattern '{pattern}' -> '{date_text}' for '{title}'")
                 break
 
         # Парсим дату
         tz = ZoneInfo("Asia/Makassar")
         now = datetime.now(tz)
         start, end = _ru_date_to_dt(date_text, now, tz)
+
+        # Логируем результат парсинга даты
+        if start:
+            start_bali = start.astimezone(tz)
+            today_bali = now.date()
+            tomorrow_bali = (now + timedelta(days=1)).date()
+            event_date_bali = start_bali.date()
+            if event_date_bali == today_bali:
+                date_label = "сегодня"
+            elif event_date_bali == tomorrow_bali:
+                date_label = "завтра"
+            else:
+                date_label = f"{event_date_bali}"
+            print(f"DEBUG: baliforum: parsed date '{date_text}' -> {date_label} ({start_bali}) for '{title}'")
+        else:
+            print(f"DEBUG: baliforum: failed to parse date from '{date_text}' for '{title}'")
 
         # Конвертируем в UTC для хранения в БД
         if start:
