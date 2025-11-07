@@ -869,17 +869,12 @@ def build_maps_url(e: dict) -> str:
         and not any(pattern in name.lower() for pattern in time_patterns)
     )
 
-    # Используем формат маршрута (/dir/) вместо поиска (/search/) для лучшего UX
-    # Формат /dir/?api=1&destination=... автоматически построит маршрут от текущего местоположения
     if name_is_valid:
-        # Для названия места используем поиск, так как может быть несколько мест с таким названием
         return f"https://www.google.com/maps/search/?api=1&query={quote_plus(name)}"
     if addr and addr not in generic_venues:
-        # Для адреса тоже используем поиск
         return f"https://www.google.com/maps/search/?api=1&query={quote_plus(addr)}"
     if lat and lng:
-        # Для координат используем формат маршрута - это построит маршрут от текущего местоположения
-        return f"https://www.google.com/maps/dir/?api=1&destination={lat},{lng}"
+        return f"https://www.google.com/maps/search/?api=1&query={lat},{lng}"
     return "https://www.google.com/maps"
 
 
