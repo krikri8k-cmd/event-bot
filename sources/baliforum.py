@@ -222,13 +222,28 @@ def _fetch(url: str, timeout=15) -> str:
     return r.text
 
 
-def fetch_baliforum_events(limit: int = 100) -> list[dict]:
-    """Основная функция парсинга событий с baliforum.ru"""
+def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> list[dict]:
+    """
+    Основная функция парсинга событий с baliforum.ru
+
+    Args:
+        limit: Максимальное количество событий
+        date_filter: Фильтр по дате в формате "YYYY-MM-DD" (например, "2025-11-08")
+                    Если None, парсит главную страницу без фильтра
+    """
     import logging
 
     logging.getLogger(__name__)
 
-    html = _fetch(LIST_URL)
+    # Формируем URL с фильтром по дате если указан
+    if date_filter:
+        url = f"{LIST_URL}?dateStart={date_filter}"
+        logging.info(f"🌴 Парсим BaliForum с фильтром по дате: {date_filter}")
+    else:
+        url = LIST_URL
+        logging.info("🌴 Парсим BaliForum без фильтра (главная страница)")
+
+    html = _fetch(url)
     soup = BeautifulSoup(html, "html.parser")
 
     # Ищем карточки событий

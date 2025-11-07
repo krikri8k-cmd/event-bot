@@ -37,8 +37,40 @@ class ModernEventScheduler:
             logger.info("🌴 Запуск парсинга BaliForum...")
             start_time = time.time()
 
-            # Получаем события
+            # Получаем события на сегодня и завтра
+            # Сначала парсим главную страницу (события на сегодня)
             raw_events = fetch_baliforum(limit=50)
+
+            # Затем парсим страницу с фильтром по завтрашней дате
+            from datetime import datetime, timedelta
+            from zoneinfo import ZoneInfo
+
+            tz_bali = ZoneInfo("Asia/Makassar")
+            tomorrow_bali = (datetime.now(tz_bali) + timedelta(days=1)).date()
+            tomorrow_str = tomorrow_bali.strftime("%Y-%m-%d")
+
+            logger.info(f"🌴 Парсим события на завтра ({tomorrow_str})...")
+            from sources.baliforum import fetch_baliforum_events
+
+            tomorrow_events = fetch_baliforum_events(limit=50, date_filter=tomorrow_str)
+            # Конвертируем в RawEvent формат
+            from event_apis import RawEvent
+
+            for event in tomorrow_events:
+                external_id = event.get("external_id", event["url"].rstrip("/").split("/")[-1])
+                raw_event = RawEvent(
+                    title=event["title"],
+                    lat=event.get("lat") or 0.0,
+                    lng=event.get("lng") or 0.0,
+                    starts_at=event.get("start_time"),
+                    source="baliforum",
+                    external_id=external_id,
+                    url=event["url"],
+                    description=event.get("description"),
+                )
+                raw_events.append(raw_event)
+
+            logger.info(f"🌴 Всего найдено событий: {len(raw_events)} (сегодня + завтра)")
 
             saved_count = 0
             skipped_no_coords = 0
