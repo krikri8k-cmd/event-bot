@@ -4229,15 +4229,21 @@ async def on_my_tasks(message: types.Message):
         # Используем одно имя файла
         photo_path = Path(__file__).parent / "images" / "my_quests.png"
 
+        logger.info(f"🖼️ Проверяем наличие изображения: {photo_path}, exists={os.path.exists(photo_path)}")
+
         if os.path.exists(photo_path):
             try:
                 from aiogram.types import FSInputFile
 
                 photo = FSInputFile(photo_path)
+                logger.info(f"✅ Отправляем изображение для 'Мои квесты': {photo_path}")
                 await message.answer_photo(photo, caption=text, parse_mode="Markdown")
                 return
             except Exception as e:
-                logger.warning(f"⚠️ Не удалось отправить фото для 'Мои квесты': {e}, отправляем только текст")
+                logger.error(f"❌ Ошибка отправки фото для 'Мои квесты': {e}", exc_info=True)
+                # Продолжаем отправку текста
+        else:
+            logger.warning(f"⚠️ Изображение не найдено: {photo_path}")
 
         # Fallback: отправляем только текст
         await message.answer(text, parse_mode="Markdown")
@@ -4377,15 +4383,21 @@ async def cmd_mytasks(message: types.Message):
         # Используем одно имя файла
         photo_path = Path(__file__).parent / "images" / "my_quests.png"
 
+        logger.info(f"🖼️ Проверяем наличие изображения: {photo_path}, exists={os.path.exists(photo_path)}")
+
         if os.path.exists(photo_path):
             try:
                 from aiogram.types import FSInputFile
 
                 photo = FSInputFile(photo_path)
+                logger.info(f"✅ Отправляем изображение для 'Мои квесты': {photo_path}")
                 await message.answer_photo(photo, caption=text, parse_mode="Markdown")
                 return
             except Exception as e:
-                logger.warning(f"⚠️ Не удалось отправить фото для 'Мои квесты': {e}, отправляем только текст")
+                logger.error(f"❌ Ошибка отправки фото для 'Мои квесты': {e}", exc_info=True)
+                # Продолжаем отправку текста
+        else:
+            logger.warning(f"⚠️ Изображение не найдено: {photo_path}")
 
         # Fallback: отправляем только текст
         await message.answer(text, parse_mode="Markdown")
@@ -4558,18 +4570,24 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
         # Используем одно имя файла
         photo_path = Path(__file__).parent / "images" / "my_quests.png"
 
+        logger.info(f"🖼️ Проверяем наличие изображения (callback): {photo_path}, exists={os.path.exists(photo_path)}")
+
         if os.path.exists(photo_path):
             try:
                 from aiogram.types import FSInputFile
 
                 photo = FSInputFile(photo_path)
+                logger.info(f"✅ Отправляем изображение для 'Мои квесты' (callback): {photo_path}")
                 # Удаляем старое сообщение и отправляем новое с фото
                 await callback.message.delete()
                 await callback.message.answer_photo(photo, caption=text, parse_mode="Markdown")
                 await callback.answer()
                 return
             except Exception as e:
-                logger.warning(f"⚠️ Не удалось отправить фото для 'Мои квесты': {e}, используем edit_text")
+                logger.error(f"❌ Ошибка отправки фото для 'Мои квесты' (callback): {e}", exc_info=True)
+                # Продолжаем с edit_text
+        else:
+            logger.warning(f"⚠️ Изображение не найдено (callback): {photo_path}")
 
         # Fallback: редактируем текст
         await callback.message.edit_text(text, parse_mode="Markdown")
