@@ -4476,13 +4476,35 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
 
         rocket_balance = get_user_rockets(user_id)
 
-        await callback.message.edit_text(
+        text = (
             "🏆 **Мои квесты**\n\n"
             "У вас пока нет активных заданий.\n\n"
             f"**Баланс {rocket_balance} 🚀**\n\n"
-            "🎯 Нажмите 'Квесты на районе' чтобы получить новые задания!",
-            parse_mode="Markdown",
+            "🎯 Нажмите 'Квесты на районе' чтобы получить новые задания!"
         )
+
+        # Для callback используем edit_text, но можно отправить новое сообщение с фото
+        # Пытаемся отправить с изображением
+        import os
+        from pathlib import Path
+
+        photo_path = Path(__file__).parent / "images" / "quests_instruction.png"
+        if os.path.exists(photo_path):
+            try:
+                from aiogram.types import FSInputFile
+
+                photo = FSInputFile(photo_path)
+                # Удаляем старое сообщение и отправляем новое с фото
+                await callback.message.delete()
+                await callback.message.answer_photo(photo, caption=text, parse_mode="Markdown")
+                await callback.answer()
+                return
+            except Exception as e:
+                logger.warning(f"⚠️ Не удалось отправить фото для 'Мои квесты': {e}, используем edit_text")
+
+        # Fallback: редактируем текст
+        await callback.message.edit_text(text, parse_mode="Markdown")
+        await callback.answer()
         return
 
     # Получаем баланс ракет пользователя
