@@ -2020,8 +2020,8 @@ async def dump_commands_healthcheck(bot):
 
                     logger.info(f"HEALTHCHECK: {scope_name} {lang_name} => {cmd_list}")
 
-                    # Проверяем, что /start есть
-                    if "/start" not in cmd_list:
+                    # Проверяем, что start есть (без слэша, т.к. cmd_list содержит только имена команд)
+                    if "start" not in cmd_list:
                         logger.error(f"❌ КРИТИЧНО: /start отсутствует в {scope_name} {lang_name}!")
                     else:
                         logger.info(f"✅ /start найден в {scope_name} {lang_name}")
