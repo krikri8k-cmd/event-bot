@@ -4332,13 +4332,30 @@ async def cmd_mytasks(message: types.Message):
 
         rocket_balance = get_user_rockets(user_id)
 
-        await message.answer(
+        text = (
             "🏆 **Мои квесты**\n\n"
             "У вас пока нет активных заданий.\n\n"
             f"**Баланс {rocket_balance} 🚀**\n\n"
-            "🎯 Нажмите 'Квесты на районе' чтобы получить новые задания!",
-            parse_mode="Markdown",
+            "🎯 Нажмите 'Квесты на районе' чтобы получить новые задания!"
         )
+
+        # Пытаемся отправить с изображением
+        import os
+        from pathlib import Path
+
+        photo_path = Path(__file__).parent / "images" / "quests_instruction.png"
+        if os.path.exists(photo_path):
+            try:
+                from aiogram.types import FSInputFile
+
+                photo = FSInputFile(photo_path)
+                await message.answer_photo(photo, caption=text, parse_mode="Markdown")
+                return
+            except Exception as e:
+                logger.warning(f"⚠️ Не удалось отправить фото для 'Мои квесты': {e}, отправляем только текст")
+
+        # Fallback: отправляем только текст
+        await message.answer(text, parse_mode="Markdown")
         return
 
     # Получаем баланс ракет пользователя
