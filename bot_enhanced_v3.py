@@ -2747,12 +2747,22 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
         data = await state.get_data()
         logger.info(f"🔥 confirm_community_event_pm: данные события: {data}")
 
-        # Парсим дату и время
+        # Парсим дату и время с учетом города
         from datetime import datetime
+
+        import pytz
+
+        from utils.simple_timezone import get_city_timezone
 
         date_str = data["date"]
         time_str = data["time"]
-        starts_at = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
+
+        naive_local_dt = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
+        city = data.get("city")
+        tz_name = get_city_timezone(city)
+        local_tz = pytz.timezone(tz_name)
+        local_dt = local_tz.localize(naive_local_dt)
+        starts_at = local_dt.astimezone(pytz.UTC)
 
         # Импортируем сервис для событий сообществ
         from utils.community_events_service import CommunityEventsService
@@ -2799,7 +2809,11 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
             f"📅 {data['date']} в {data['time']}\n"
             f"🏙️ {data['city']}\n"
             f"📍 {data['location_name']}\n"
-            f"🔗 {data['location_url']}\n\n"
+        )
+        if data.get("location_url"):
+            event_text += f"🔗 {data['location_url']}\n"
+        event_text += (
+            "\n"
             f"📝 {data['description']}\n\n"
             f"*Создано пользователем @{callback.from_user.username or callback.from_user.first_name}*\n\n"
             f"💡 **Создавай через команду /start**"
@@ -2817,16 +2831,24 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
             group_link = f"https://t.me/c/{str(group_id)[4:]}/{group_message.message_id}"
 
             # Сообщение об успешном создании
-            success_text = (
-                f"🎉 **Событие создано и опубликовано!**\n\n"
-                f"**{data['title']}**\n"
-                f"📅 {data['date']} в {data['time']}\n"
-                f"🏙️ {data['city']}\n"
-                f"📍 {data['location_name']}\n\n"
-                f"✅ Событие опубликовано в группе!\n"
-                f"🔗 [Ссылка на сообщение]({group_link})\n\n"
-                f"🚀"
+            success_text_parts = [
+                "🎉 **Событие создано и опубликовано!**\n",
+                f"**{data['title']}**\n",
+                f"📅 {data['date']} в {data['time']}\n",
+                f"🏙️ {data['city']}\n",
+                f"📍 {data['location_name']}\n",
+            ]
+            if data.get("location_url"):
+                success_text_parts.append(f"🔗 {data['location_url']}\n")
+            success_text_parts.extend(
+                [
+                    "\n",
+                    "✅ Событие опубликовано в группе!\n",
+                    f"🔗 [Ссылка на сообщение]({group_link})\n\n",
+                    "🚀",
+                ]
             )
+            success_text = "".join(success_text_parts)
 
             # Отправляем новое сообщение с ReplyKeyboardMarkup вместо edit_text
             await callback.message.answer(success_text, parse_mode="Markdown", reply_markup=main_menu_kb())
@@ -6811,14 +6833,22 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
         data = await state.get_data()
         logger.info(f"🔥 confirm_community_event: данные события: {data}")
 
-        # Парсим дату и время
+        # Парсим дату и время с учетом указанного города
         from datetime import datetime
+
+        import pytz
+
+        from utils.simple_timezone import get_city_timezone
 
         date_str = data["date"]
         time_str = data["time"]
 
-        # Создаем datetime объект
-        starts_at = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
+        naive_local_dt = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
+        city = data.get("city")
+        tz_name = get_city_timezone(city)
+        local_tz = pytz.timezone(tz_name)
+        local_dt = local_tz.localize(naive_local_dt)
+        starts_at = local_dt.astimezone(pytz.UTC)
 
         # Импортируем сервис для событий сообществ
         from utils.community_events_service import CommunityEventsService
