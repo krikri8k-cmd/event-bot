@@ -4,7 +4,7 @@ import math
 import re
 from datetime import datetime
 from html import unescape
-from urllib.parse import urljoin
+from urllib.parse import parse_qs, unquote, urljoin, urlparse
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -303,6 +303,86 @@ def validate_coordinates(lat: float, lon: float) -> bool:
     return -90 <= lat <= 90 and -180 <= lon <= 180
 
 
+def _cleanup_link(link: str) -> str:
+    """Удаляет пробелы и нормализует ссылку."""
+    link = link.strip()
+    return re.sub(r"\s+", "", link)
+
+
+def _extract_place_id(url: str) -> str | None:
+    """Ищет place_id/cid/ftid внутри URL."""
+    parsed = urlparse(url)
+    query = parse_qs(parsed.query)
+
+    for key in ("place_id", "placeid", "ftid"):
+        values = query.get(key)
+        if values:
+            return values[0]
+
+    cid_values = query.get("cid")
+    if cid_values:
+        return cid_values[0]
+
+    data_matches = re.findall(r"!1s([^!]+)", url)
+    for candidate in data_matches:
+        if candidate and candidate not in {"0", "1"}:
+            return candidate
+
+    return None
+
+
+def _extract_place_name_from_data(url: str) -> str | None:
+    """Пытается вытащить название места из последовательностей вида !3m5!1s..."""
+    match = re.search(r"!3m5!1s([^!]+)", url)
+    if not match:
+        return None
+
+    candidate = match.group(1)
+
+    try:
+        import urllib.parse
+
+        decoded = urllib.parse.unquote(candidate)
+        return decoded.replace("+", " ")
+    except Exception:
+        return candidate
+
+
+def _extract_maps_url_from_html(html: str, base_url: str) -> str | None:
+    """Пытается найти полноценную Google Maps ссылку внутри HTML."""
+    if not html:
+        return None
+
+    html_unescaped = unescape(html)
+
+    direct_match = re.search(r"https://www\.google\.[^\"'<>]*maps[^\"'<>]*", html_unescaped)
+    if direct_match:
+        return direct_match.group(0)
+
+    es5_match = re.search(r"window\.ES5DGURL\s*=\s*['\"]([^'\"]+)['\"]", html)
+    if es5_match:
+        raw_candidate = es5_match.group(1)
+        try:
+            decoded = raw_candidate.encode("utf-8").decode("unicode_escape")
+        except Exception:
+            decoded = raw_candidate
+        candidate = unescape(decoded)
+        try:
+            import urllib.parse
+
+            candidate = urllib.parse.unquote(candidate)
+        except Exception:
+            pass
+        if candidate.startswith("//"):
+            candidate = f"https:{candidate}"
+        if candidate.startswith("/"):
+            candidate = urljoin(base_url, candidate)
+        if "google." in candidate and "maps" in candidate:
+            return candidate
+
+    return None
+
+
 async def parse_google_maps_link(link: str) -> dict | None:
     """
     Парсит Google Maps ссылку и извлекает координаты и название места.
@@ -320,10 +400,8 @@ async def parse_google_maps_link(link: str) -> dict | None:
     if not link or not isinstance(link, str):
         return None
 
-    # Очищаем ссылку
-    link = link.strip()
-    # Удаляем все пробельные символы внутри ссылки (часто встречаются при вставке из мобильных приложений)
-    link = re.sub(r"\s+", "", link)
+    # Очищаем ссылку от пробелов и скрытых символов
+    link = unquote(_cleanup_link(link))
 
     try:
         # Сначала проверяем, не короткая ли это ссылка
@@ -332,7 +410,7 @@ async def parse_google_maps_link(link: str) -> dict | None:
             expanded_link = await expand_short_url(link)
             if expanded_link:
                 print(f"🔗 Расширили короткую ссылку: {link} -> {expanded_link}")
-                link = expanded_link
+                link = unquote(expanded_link)
             else:
                 print(f"⚠️ Не удалось расширить короткую ссылку: {link}")
                 # Для коротких ссылок без координат возвращаем ссылку для геокодирования
@@ -397,16 +475,24 @@ async def parse_google_maps_link(link: str) -> dict | None:
 
         # Паттерн 6: ссылка на конкретное место (без координат в URL)
         if "/place/" in link:
-            name = extract_place_name_from_url(link)
+            name = extract_place_name_from_url(link) or _extract_place_name_from_data(link)
+            place_id = _extract_place_id(link)
             if name:
-                # Для мест без координат в URL возвращаем только название
-                # Координаты можно будет получить позже через геокодирование
-                return {"lat": None, "lng": None, "name": name, "raw_link": link}
+                result = {"lat": None, "lng": None, "name": name, "raw_link": link}
+                if place_id:
+                    result["place_id"] = place_id
+                return result
 
-        # Паттерн 7: короткие ссылки без координат - пытаемся извлечь название
-        if "goo.gl/maps" in link or "maps.app.goo.gl" in link:
-            # Для коротких ссылок без координат возвращаем ссылку для геокодирования
-            return {"lat": None, "lng": None, "name": None, "raw_link": link}
+        # Паттерн 7: если нашли place_id, возвращаем его (координаты можно получить позже)
+        place_id = _extract_place_id(link)
+        if place_id:
+            return {
+                "lat": None,
+                "lng": None,
+                "name": _extract_place_name_from_data(link),
+                "raw_link": link,
+                "place_id": place_id,
+            }
 
         return None
 
@@ -418,59 +504,39 @@ async def expand_short_url(short_url: str) -> str | None:
     """Расширяет короткую ссылку Google Maps до полной."""
     headers = {
         "User-Agent": (
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36"
+            "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/118.0.0.0 Mobile Safari/537.36"
         )
     }
 
     try:
-        # Делаем HEAD запрос, чтобы получить редирект (если сервис это поддерживает)
-        async with httpx.AsyncClient(follow_redirects=False, timeout=10, headers=headers) as client:
-            response = await client.head(short_url)
+        # Некоторые короткие ссылки (особенно maps.app.goo.gl) требуют полноценного GET.
+        # Сначала пробуем получить ответ без автоматического перехода по редиректу,
+        # чтобы вытащить Location из заголовков.
+        async with httpx.AsyncClient(follow_redirects=False, timeout=15, headers=headers) as client:
+            response = await client.get(short_url)
+
+        print(f"[expand_short_url] GET (no redirect) {response.status_code} {short_url}")
 
         if response.status_code in [301, 302, 303, 307, 308]:
             location = response.headers.get("location")
             if location:
                 return urljoin(short_url, location)
-    except Exception:
-        # Переходим к fallback ниже
-        pass
 
-    try:
-        # Некоторые короткие ссылки (особенно maps.app.goo.gl) требуют полноценного GET
+        candidate = _extract_maps_url_from_html(response.text, short_url)
+        if candidate:
+            return candidate
+
+        # Если явного редиректа нет, пробуем посмотреть, куда httpx дошел бы с follow_redirects=True
         async with httpx.AsyncClient(follow_redirects=True, timeout=15, headers=headers) as client:
-            response = await client.get(short_url)
-
-        final_url = str(response.url)
-        if final_url and final_url != short_url:
-            return final_url
-
-        # Если редиректа не произошло, пытаемся извлечь ссылку из HTML/JS ответа
-        if response.text:
-            html = unescape(response.text)
-            candidate_patterns = [
-                r'window\.location(?:\.href|\.assign)?\s*=\s*"([^"]+)"',
-                r"window\.location(?:\.href|\.assign)?\s*=\s*'([^']+)'",
-                r'<meta[^>]+content="0;url=([^"]+)"',
-                r'<a[^>]+href="([^"]+)"',
-                r'data-href="([^"]+)"',
-            ]
-
-            for pattern in candidate_patterns:
-                match = re.search(pattern, html, re.IGNORECASE)
-                if match:
-                    candidate = match.group(1).strip()
-                    if candidate.startswith("//"):
-                        candidate = f"https:{candidate}"
-                    if candidate.startswith("/"):
-                        candidate = urljoin(short_url, candidate)
-                    if "google." in candidate and "maps" in candidate:
-                        return candidate
-
-            # Последняя попытка: ищем любой Google Maps URL в тексте
-            generic_match = re.search(r"https://www\.google\.[^\"'<>]*maps[^\"'<>]*", html)
-            if generic_match:
-                return generic_match.group(0)
+            follow_response = await client.get(short_url)
+            final_url = str(follow_response.url)
+            print(f"[expand_short_url] GET (follow) final={final_url}")
+            if final_url and final_url != short_url:
+                return final_url
+            candidate = _extract_maps_url_from_html(follow_response.text, short_url)
+            if candidate:
+                return candidate
 
         return None
     except Exception:
