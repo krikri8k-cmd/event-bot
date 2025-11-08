@@ -18,6 +18,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (
+    BufferedInputFile,
     ChatMemberUpdated,
     ForceReply,
     InlineKeyboardButton,
@@ -328,7 +329,7 @@ def group_events_by_type(events: list) -> dict[str, list]:
         if event_type == "user":
             groups["users"].append(event)
         else:
-            # Все остальные считаем источниками
+            # Все остальное считаем источниками
             groups["sources"].append(event)
 
     return groups
@@ -1363,6 +1364,24 @@ RADIUS_OPTIONS = (5, 10, 15, 20)
 CB_RADIUS_PREFIX = "rx:"  # callback_data вроде "rx:10"
 RADIUS_KEY = "radius_km"
 
+TEST_LOCATIONS = {
+    "moscow_center": {
+        "lat": 55.751244,
+        "lng": 37.618423,
+        "label": "Москва · Красная площадь",
+    },
+    "spb_center": {
+        "lat": 59.93863,
+        "lng": 30.31413,
+        "label": "Санкт-Петербург · Невский проспект",
+    },
+    "bali_canggu": {
+        "lat": -8.647817,
+        "lng": 115.138519,
+        "label": "Бали · Чангу",
+    },
+}
+
 
 def build_radius_inline_buttons(current_radius: int) -> list[list[InlineKeyboardButton]]:
     """Формирует список кнопок для изменения радиуса поиска."""
@@ -1379,6 +1398,268 @@ def build_radius_inline_buttons(current_radius: int) -> list[list[InlineKeyboard
             ]
         )
     return buttons
+
+
+def build_test_locations_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура с предустановленными тестовыми локациями для админов."""
+    buttons = [
+        [
+            InlineKeyboardButton(
+                text="🇷🇺 Москва (тест)",
+                callback_data="test_location:moscow_center",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="🇷🇺 Санкт-Петербург (тест)",
+                callback_data="test_location:spb_center",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="🇮🇩 Бали (тест)",
+                callback_data="test_location:bali_canggu",
+            )
+        ],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+async def perform_nearby_search(
+    message: types.Message,
+    state: FSMContext,
+    lat: float,
+    lng: float,
+    source: str,
+) -> None:
+    """Универсальный обработчик поиска событий рядом по координатам."""
+    user_id = message.from_user.id
+    logger.info(f"📍 perform_nearby_search: user_id={user_id}, lat={lat}, lng={lng}, source={source}")
+
+    loading_message = await message.answer(
+        "🔍 Ищу события рядом...",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔍", callback_data="loading")]]),
+    )
+
+    try:
+        radius = get_user_radius(user_id, settings.default_radius_km)
+        with get_session() as session:
+            user_row = session.get(User, user_id)
+            if user_row:
+                user_row.last_lat = lat
+                user_row.last_lng = lng
+                user_row.last_geo_at_utc = datetime.now(UTC)
+                try:
+                    tz_name = await get_timezone(lat, lng)
+                    if tz_name:
+                        user_row.user_tz = tz_name
+                        logger.info(f"🕒 Timezone обновлен для пользователя {user_id}: {tz_name}")
+                    else:
+                        logger.warning(f"⚠️ Не удалось получить timezone для координат ({lat}, {lng})")
+                except Exception as e:
+                    logger.error(f"❌ Ошибка при получении timezone: {e}")
+                session.commit()
+
+        logger.info(f"🔎 Поиск с координатами=({lat}, {lng}) радиус={radius}км источник={source}")
+
+        try:
+            from database import get_engine
+            from utils.simple_timezone import get_city_from_coordinates
+
+            engine = get_engine()
+            events_service = UnifiedEventsService(engine)
+
+            city = get_city_from_coordinates(lat, lng)
+            if not city:
+                logger.info(f"ℹ️ Регион не определен по координатам ({lat}, {lng}), используем UTC для временных границ")
+
+            logger.info(
+                f"🌍 Поиск событий: координаты=({lat}, {lng}), радиус={radius}км, регион для временных границ={city}"
+            )
+
+            events = events_service.search_events_today(city=city, user_lat=lat, user_lng=lng, radius_km=int(radius))
+
+            formatted_events = []
+            logger.info(f"🕐 Получили {len(events)} событий из UnifiedEventsService")
+            for event in events:
+                formatted_event = {
+                    "id": event.get("id"),
+                    "title": event["title"],
+                    "description": event["description"],
+                    "time_local": event["starts_at"].strftime("%Y-%m-%d %H:%M") if event["starts_at"] else None,
+                    "starts_at": event["starts_at"],
+                    "city": event.get("city"),
+                    "location_name": event["location_name"],
+                    "location_url": event["location_url"],
+                    "lat": event["lat"],
+                    "lng": event["lng"],
+                    "source": event.get("source", ""),
+                    "source_type": event.get("source_type", ""),
+                    "url": event.get("event_url", ""),
+                    "community_name": "",
+                    "community_link": "",
+                    "organizer_id": event.get("organizer_id"),
+                    "organizer_username": event.get("organizer_username"),
+                }
+                formatted_events.append(formatted_event)
+
+            events = sort_events_by_time(formatted_events)
+            logger.info("📅 События отсортированы по времени")
+        except Exception:
+            logger.exception("❌ Ошибка при поиске событий")
+            try:
+                await loading_message.delete()
+            except Exception:
+                pass
+            fallback = render_fallback(lat, lng)
+            await message.answer(
+                fallback,
+                parse_mode="HTML",
+                disable_web_page_preview=True,
+                reply_markup=main_menu_kb(),
+            )
+            return
+
+        try:
+            prepared, diag = prepare_events_for_feed(
+                events, user_point=(lat, lng), radius_km=int(radius), with_diag=True
+            )
+
+            for event in prepared:
+                enrich_venue_name(event)
+
+            groups = group_by_type(prepared)
+            counts = make_counts(groups)
+
+            if not prepared:
+                logger.info("📭 События не найдены после фильтрации")
+                current_radius = int(radius)
+                keyboard_buttons = build_radius_inline_buttons(current_radius)
+                keyboard_buttons.append([InlineKeyboardButton(text="➕ Создать событие", callback_data="create_event")])
+                inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+
+                try:
+                    await loading_message.delete()
+                except Exception:
+                    pass
+
+                region = "bali"
+                if 55.0 <= lat <= 60.0 and 35.0 <= lng <= 40.0:
+                    region = "moscow"
+                elif 59.0 <= lat <= 60.5 and 29.0 <= lng <= 31.0:
+                    region = "spb"
+                elif -9.0 <= lat <= -8.0 and 114.0 <= lng <= 116.0:
+                    region = "bali"
+
+                user_state[message.chat.id] = {
+                    "prepared": [],
+                    "counts": {},
+                    "lat": lat,
+                    "lng": lng,
+                    "radius": current_radius,
+                    "page": 1,
+                    "date_filter": "today",
+                    "diag": diag,
+                    "region": region,
+                }
+
+                higher_options = [r for r in RADIUS_OPTIONS if r > current_radius]
+                suggested_radius = (
+                    higher_options[0]
+                    if higher_options
+                    else next((r for r in RADIUS_OPTIONS if r < current_radius), current_radius)
+                )
+                suggestion_line = (
+                    f"💡 Попробуй изменить радиус до {suggested_radius} км\n"
+                    if suggested_radius != current_radius
+                    else "💡 Попробуй изменить радиус и повторить поиск\n"
+                )
+
+                await message.answer(
+                    f"📅 В радиусе {current_radius} км событий на сегодня не найдено.\n\n"
+                    f"{suggestion_line}"
+                    f"➕ Или создай своё событие и собери свою компанию!",
+                    reply_markup=inline_kb,
+                )
+
+                await send_spinning_menu(message)
+                await state.clear()
+                return
+
+            user_state[message.chat.id] = {
+                "prepared": prepared,
+                "counts": counts,
+                "lat": lat,
+                "lng": lng,
+                "radius": int(radius),
+                "page": 1,
+                "date_filter": "today",
+                "diag": diag,
+            }
+
+            header_html = render_header(counts, radius_km=int(radius))
+            prepared = await enrich_events_with_reverse_geocoding(prepared)
+            page_html, _ = render_page(prepared, page=1, page_size=3, user_id=user_id)
+            short_caption = header_html + "\n\n" + page_html
+            if len(prepared) > 3:
+                short_caption += f"\n\n... и еще {len(prepared) - 3} событий"
+            short_caption += "\n\n💡 <b>Нажми кнопку ниже для Google Maps!</b>"
+
+            if counts["all"] < 5:
+                next_radius = next(iter([r for r in RADIUS_OPTIONS if r > int(radius) and r != 5]), 20)
+                short_caption += f"\n🔍 <i>Можно расширить поиск до {next_radius} км</i>"
+
+            points = []
+            for i, event in enumerate(prepared[:12], 1):
+                event_lat = event.get("lat")
+                event_lng = event.get("lng")
+                if event_lat is not None and event_lng is not None:
+                    if -90 <= event_lat <= 90 and -180 <= event_lng <= 180:
+                        points.append((str(i), event_lat, event_lng))
+
+            map_bytes = None
+            if settings.google_maps_api_key and points:
+                event_points = [(p[1], p[2]) for p in points]
+                map_bytes = await fetch_static_map(
+                    build_static_map_url(lat, lng, event_points, settings.google_maps_api_key)
+                )
+
+            try:
+                await loading_message.delete()
+            except Exception:
+                pass
+
+            engine = get_engine()
+            participation_analytics = UserParticipationAnalytics(engine)
+            participation_analytics.increment_list_view(user_id)
+
+            total_pages = max(1, ceil(len(prepared) / 5))
+            date_filter_state = user_state.get(message.chat.id, {}).get("date_filter", "today")
+            combined_keyboard = kb_pager(1, total_pages, int(radius), date_filter=date_filter_state)
+
+            if map_bytes:
+                map_file = BufferedInputFile(map_bytes, filename="map.jpg")
+                await message.answer_photo(
+                    map_file,
+                    caption=short_caption,
+                    parse_mode="HTML",
+                    reply_markup=combined_keyboard,
+                )
+            else:
+                await message.answer(
+                    short_caption,
+                    parse_mode="HTML",
+                    reply_markup=combined_keyboard,
+                )
+
+            await send_spinning_menu(message)
+        finally:
+            await state.clear()
+    finally:
+        try:
+            await loading_message.delete()
+        except Exception:
+            pass
 
 
 def get_user_radius(user_id: int, default_km: int) -> int:
@@ -3042,6 +3323,36 @@ async def on_nearby_events_callback(callback: types.CallbackQuery, state: FSMCon
         "Отправь свежую геопозицию, чтобы я нашла события рядом ✨", reply_markup=location_keyboard
     )
 
+    if callback.from_user.id in settings.admin_ids:
+        await callback.message.answer(
+            "Для теста можно выбрать готовую точку геолокации:",
+            reply_markup=build_test_locations_keyboard(),
+        )
+
+
+@main_router.callback_query(F.data.startswith("test_location:"))
+async def on_test_location(callback: types.CallbackQuery, state: FSMContext):
+    """Быстрый выбор тестовой локации (доступно только администраторам)."""
+    if callback.from_user.id not in settings.admin_ids:
+        await callback.answer("Доступ запрещён")
+        return
+
+    key = callback.data.split(":", maxsplit=1)[1]
+    location = TEST_LOCATIONS.get(key)
+    if not location:
+        await callback.answer("Локация не найдена")
+        return
+
+    await callback.answer(f"📍 {location['label']}")
+    await state.set_state(EventSearch.waiting_for_location)
+    await perform_nearby_search(
+        message=callback.message,
+        state=state,
+        lat=location["lat"],
+        lng=location["lng"],
+        source=f"admin_test:{key}",
+    )
+
 
 @main_router.message(Command("nearby"))
 @main_router.message(F.text == "📍 Что рядом")
@@ -3070,6 +3381,12 @@ async def on_what_nearby(message: types.Message, state: FSMContext):
         "Отправь свежую геопозицию, чтобы я нашла события рядом ✨",
         reply_markup=location_keyboard,
     )
+
+    if message.from_user.id in settings.admin_ids:
+        await message.answer(
+            "Для теста можно выбрать предустановленную локацию:",
+            reply_markup=build_test_locations_keyboard(),
+        )
 
 
 @main_router.message(F.location, TaskFlow.waiting_for_location)
