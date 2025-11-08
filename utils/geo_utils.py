@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import re
 from datetime import datetime
+from urllib.parse import urljoin
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -412,20 +413,31 @@ async def parse_google_maps_link(link: str) -> dict | None:
 
 async def expand_short_url(short_url: str) -> str | None:
     """Расширяет короткую ссылку Google Maps до полной."""
-    try:
-        import httpx
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36"
+        )
+    }
 
-        # Делаем HEAD запрос, чтобы получить редирект
-        async with httpx.AsyncClient(follow_redirects=False, timeout=10) as client:
+    try:
+        # Делаем HEAD запрос, чтобы получить редирект (если сервис это поддерживает)
+        async with httpx.AsyncClient(follow_redirects=False, timeout=10, headers=headers) as client:
             response = await client.head(short_url)
 
-            # Проверяем, есть ли Location заголовок
-            if response.status_code in [301, 302, 303, 307, 308]:
-                location = response.headers.get("location")
-                if location:
-                    return location
+        if response.status_code in [301, 302, 303, 307, 308]:
+            location = response.headers.get("location")
+            if location:
+                return urljoin(short_url, location)
+    except Exception:
+        # Переходим к fallback ниже
+        pass
 
-        return None
+    try:
+        # Некоторые короткие ссылки (особенно maps.app.goo.gl) требуют полноценного GET
+        async with httpx.AsyncClient(follow_redirects=True, timeout=15, headers=headers) as client:
+            response = await client.get(short_url)
+            return str(response.url)
     except Exception:
         return None
 
