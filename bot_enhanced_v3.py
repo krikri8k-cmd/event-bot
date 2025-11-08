@@ -111,6 +111,21 @@ def is_valid_url(url: str) -> bool:
         return False
 
 
+def build_message_link(chat_id: int, message_id: int) -> str:
+    """
+    Возвращает корректную ссылку на сообщение в приватном чате/супергруппе.
+    Для супергрупп Telegram использует внутренний идентификатор без префикса -100,
+    для обычных групп – абсолютное значение chat_id.
+    """
+    chat_id_str = str(chat_id)
+    if chat_id_str.startswith("-100"):
+        internal_id = chat_id_str[4:]
+    else:
+        internal_id = chat_id_str.lstrip("-")
+
+    return f"https://t.me/c/{internal_id}/{message_id}"
+
+
 def get_source_link(event: dict) -> str:
     """
     Генерирует ссылку на источник события
@@ -2828,7 +2843,7 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
             )
 
             # Показываем ссылку на опубликованное сообщение
-            group_link = f"https://t.me/c/{str(group_id)[4:]}/{group_message.message_id}"
+            group_link = build_message_link(group_id, group_message.message_id)
 
             # Сообщение об успешном создании
             success_text_parts = [
