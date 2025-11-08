@@ -2842,8 +2842,9 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
                 bot, session, chat_id=group_id, text=event_text, tag="notification", parse_mode="Markdown"
             )
 
-            # Показываем ссылку на опубликованное сообщение
-            group_link = build_message_link(group_id, group_message.message_id)
+            # Показываем ссылку на опубликованное сообщение (только для супергрупп с chat_id, начинающимся на -100)
+            is_supergroup = str(group_id).startswith("-100")
+            group_link = build_message_link(group_id, group_message.message_id) if is_supergroup else None
 
             # Сообщение об успешном создании
             success_text_parts = [
@@ -2855,14 +2856,15 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
             ]
             if data.get("location_url"):
                 success_text_parts.append(f"🔗 {data['location_url']}\n")
-            success_text_parts.extend(
-                [
-                    "\n",
-                    "✅ Событие опубликовано в группе!\n",
-                    f"🔗 [Ссылка на сообщение]({group_link})\n\n",
-                    "🚀",
-                ]
-            )
+            if group_link:
+                success_text_parts.extend(
+                    [
+                        "\n",
+                        "✅ Событие опубликовано в группе!\n",
+                        f"🔗 [Ссылка на сообщение]({group_link})\n\n",
+                    ]
+                )
+            success_text_parts.append("\n🚀")
             success_text = "".join(success_text_parts)
 
             # Отправляем новое сообщение с ReplyKeyboardMarkup вместо edit_text
