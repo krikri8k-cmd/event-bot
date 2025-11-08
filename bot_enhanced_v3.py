@@ -1315,7 +1315,7 @@ def kb_pager(page: int, total: int, current_radius: int = None, date_filter: str
             buttons.append(
                 [
                     InlineKeyboardButton(
-                        text=f"🔍 Расширить до {radius_option} км",
+                        text=f"🔍 Изменить радиус до {radius_option} км",
                         callback_data=f"rx:{radius_option}",
                     )
                 ]
