@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import re
 from datetime import datetime
+from html import unescape
 from urllib.parse import urljoin
 from zoneinfo import ZoneInfo
 
@@ -321,6 +322,8 @@ async def parse_google_maps_link(link: str) -> dict | None:
 
     # Очищаем ссылку
     link = link.strip()
+    # Удаляем все пробельные символы внутри ссылки (часто встречаются при вставке из мобильных приложений)
+    link = re.sub(r"\s+", "", link)
 
     try:
         # Сначала проверяем, не короткая ли это ссылка
@@ -437,7 +440,39 @@ async def expand_short_url(short_url: str) -> str | None:
         # Некоторые короткие ссылки (особенно maps.app.goo.gl) требуют полноценного GET
         async with httpx.AsyncClient(follow_redirects=True, timeout=15, headers=headers) as client:
             response = await client.get(short_url)
-            return str(response.url)
+
+        final_url = str(response.url)
+        if final_url and final_url != short_url:
+            return final_url
+
+        # Если редиректа не произошло, пытаемся извлечь ссылку из HTML/JS ответа
+        if response.text:
+            html = unescape(response.text)
+            candidate_patterns = [
+                r'window\.location(?:\.href|\.assign)?\s*=\s*"([^"]+)"',
+                r"window\.location(?:\.href|\.assign)?\s*=\s*'([^']+)'",
+                r'<meta[^>]+content="0;url=([^"]+)"',
+                r'<a[^>]+href="([^"]+)"',
+                r'data-href="([^"]+)"',
+            ]
+
+            for pattern in candidate_patterns:
+                match = re.search(pattern, html, re.IGNORECASE)
+                if match:
+                    candidate = match.group(1).strip()
+                    if candidate.startswith("//"):
+                        candidate = f"https:{candidate}"
+                    if candidate.startswith("/"):
+                        candidate = urljoin(short_url, candidate)
+                    if "google." in candidate and "maps" in candidate:
+                        return candidate
+
+            # Последняя попытка: ищем любой Google Maps URL в тексте
+            generic_match = re.search(r"https://www\.google\.[^\"'<>]*maps[^\"'<>]*", html)
+            if generic_match:
+                return generic_match.group(0)
+
+        return None
     except Exception:
         return None
 
