@@ -1305,21 +1305,8 @@ def kb_pager(page: int, total: int, current_radius: int = None, date_filter: str
     if current_radius is None:
         current_radius = int(settings.default_radius_km)
 
-    # Находим следующие доступные радиусы из RADIUS_OPTIONS
-    # Не предлагаем расширить до 5 км, если текущий радиус уже 5 км или больше
-    for radius_option in RADIUS_OPTIONS:
-        if radius_option > current_radius:
-            # Не показываем кнопку "расширить до 5 км" - это минимальный радиус
-            if radius_option == 5:
-                continue
-            buttons.append(
-                [
-                    InlineKeyboardButton(
-                        text=f"🔍 Изменить радиус до {radius_option} км",
-                        callback_data=f"rx:{radius_option}",
-                    )
-                ]
-            )
+    # Добавляем кнопки изменения радиуса
+    buttons.extend(build_radius_inline_buttons(current_radius))
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -1375,6 +1362,23 @@ user_state = {}
 RADIUS_OPTIONS = (5, 10, 15, 20)
 CB_RADIUS_PREFIX = "rx:"  # callback_data вроде "rx:10"
 RADIUS_KEY = "radius_km"
+
+
+def build_radius_inline_buttons(current_radius: int) -> list[list[InlineKeyboardButton]]:
+    """Формирует список кнопок для изменения радиуса поиска."""
+    buttons = []
+    for radius_option in RADIUS_OPTIONS:
+        if radius_option == current_radius:
+            continue
+        buttons.append(
+            [
+                InlineKeyboardButton(
+                    text=f"🔍 Изменить радиус до {radius_option} км",
+                    callback_data=f"{CB_RADIUS_PREFIX}{radius_option}",
+                )
+            ]
+        )
+    return buttons
 
 
 def get_user_radius(user_id: int, default_km: int) -> int:
@@ -3295,23 +3299,8 @@ async def on_location(message: types.Message, state: FSMContext):
                 logger.info("📭 События не найдены после фильтрации")
 
                 # Создаем кнопки расширения радиуса, используя фиксированные RADIUS_OPTIONS
-                keyboard_buttons = []
                 current_radius = int(radius)
-
-                # Находим следующие доступные радиусы из RADIUS_OPTIONS
-                for radius_option in RADIUS_OPTIONS:
-                    if radius_option > current_radius:
-                        # Не показываем кнопку "расширить до 5 км" - это минимальный радиус
-                        if radius_option == 5:
-                            continue
-                        keyboard_buttons.append(
-                            [
-                                InlineKeyboardButton(
-                                    text=f"🔍 Расширить поиск до {radius_option} км",
-                                    callback_data=f"rx:{radius_option}",
-                                )
-                            ]
-                        )
+                keyboard_buttons = build_radius_inline_buttons(current_radius)
 
                 # Добавляем кнопку создания события
                 keyboard_buttons.append(
@@ -3356,9 +3345,21 @@ async def on_location(message: types.Message, state: FSMContext):
                     f"💾 Состояние сохранено для пользователя {message.chat.id}: lat={lat}, lng={lng}, radius={current_radius}, region={region}"
                 )
 
+                higher_options = [r for r in RADIUS_OPTIONS if r > current_radius]
+                suggested_radius = (
+                    higher_options[0]
+                    if higher_options
+                    else next((r for r in RADIUS_OPTIONS if r < current_radius), current_radius)
+                )
+                suggestion_line = (
+                    f"💡 Попробуй изменить радиус до {suggested_radius} км\n"
+                    if suggested_radius != current_radius
+                    else "💡 Попробуй изменить радиус и повторить поиск\n"
+                )
+
                 await message.answer(
                     f"📅 В радиусе {current_radius} км событий на сегодня не найдено.\n\n"
-                    f"💡 Попробуй расширить поиск до {next(iter([r for r in RADIUS_OPTIONS if r > current_radius and r != 5]), '20')} км\n"
+                    f"{suggestion_line}"
                     f"➕ Или создай своё событие и собери свою компанию!",
                     reply_markup=inline_kb,
                 )
@@ -4929,24 +4930,8 @@ async def handle_expand_radius(callback: types.CallbackQuery):
 
     # Если не найдено событий
     if not prepared:
-        # Создаем кнопки расширения радиуса
-        keyboard_buttons = []
         current_radius = new_radius
-
-        # Находим следующие доступные радиусы из RADIUS_OPTIONS
-        for radius_option in RADIUS_OPTIONS:
-            if radius_option > current_radius:
-                # Не показываем кнопку "расширить до 5 км" - это минимальный радиус
-                if radius_option == 5:
-                    continue
-                keyboard_buttons.append(
-                    [
-                        InlineKeyboardButton(
-                            text=f"🔍 Расширить поиск до {radius_option} км",
-                            callback_data=f"rx:{radius_option}",
-                        )
-                    ]
-                )
+        keyboard_buttons = build_radius_inline_buttons(current_radius)
 
         # Добавляем кнопку создания события
         keyboard_buttons.append(
@@ -4960,9 +4945,21 @@ async def handle_expand_radius(callback: types.CallbackQuery):
 
         inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
+        higher_options = [r for r in RADIUS_OPTIONS if r > current_radius]
+        suggested_radius = (
+            higher_options[0]
+            if higher_options
+            else next((r for r in RADIUS_OPTIONS if r < current_radius), current_radius)
+        )
+        suggestion_line = (
+            f"💡 Попробуй изменить радиус до {suggested_radius} км\n"
+            if suggested_radius != current_radius
+            else "💡 Попробуй изменить радиус и повторить поиск\n"
+        )
+
         await callback.message.edit_text(
             f"📅 В радиусе {current_radius} км событий на сегодня не найдено.\n\n"
-            f"💡 Попробуй расширить поиск до {next(iter([r for r in RADIUS_OPTIONS if r > current_radius and r != 5]), '20')} км\n"
+            f"{suggestion_line}"
             f"➕ Или создай своё событие и собери свою компанию!",
             reply_markup=inline_kb,
         )
