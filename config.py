@@ -37,9 +37,7 @@ class Settings:
     admin_ids: set[int]
     google_application_credentials: str | None
     env_file: str | None
-    api_base_url: (
-        str | None
-    )  # Базовый URL API для редиректов (например, https://api.railway.app)
+    api_base_url: str | None  # Базовый URL API для редиректов (например, https://api.railway.app)
     # Moments settings
     moments_enable: bool
     moment_ttl_options: list[int]
@@ -121,46 +119,28 @@ def load_settings(require_bot: bool = False) -> Settings:
 
     # Парсим TTL опции
     ttl_options_str = os.getenv("MOMENT_TTL_OPTIONS", "30,60,120").strip()
-    moment_ttl_options = [
-        int(x.strip())
-        for x in ttl_options_str.split(",")
-        if x.strip().isdigit()
-    ]
+    moment_ttl_options = [int(x.strip()) for x in ttl_options_str.split(",") if x.strip().isdigit()]
     if not moment_ttl_options:
         moment_ttl_options = [30, 60, 120]  # дефолт
 
     moment_daily_limit = int(os.getenv("MOMENT_DAILY_LIMIT", "2").strip())
-    moment_max_radius_km = float(
-        os.getenv("MOMENT_MAX_RADIUS_KM", "15").strip()
-    )
+    moment_max_radius_km = float(os.getenv("MOMENT_MAX_RADIUS_KM", "15").strip())
 
     # AI settings
     ai_parse_enable = os.getenv("AI_PARSE_ENABLE", "0").strip() == "1"
-    ai_generate_synthetic = (
-        os.getenv("AI_GENERATE_SYNTHETIC", "0").strip() == "1"
-    )
+    ai_generate_synthetic = os.getenv("AI_GENERATE_SYNTHETIC", "0").strip() == "1"
     strict_source_only = os.getenv("STRICT_SOURCE_ONLY", "0").strip() == "1"
 
     # Event sources
     enable_meetup_api = os.getenv("ENABLE_MEETUP_API", "0").strip() == "1"
     enable_ics_feeds = os.getenv("ENABLE_ICS_FEEDS", "0").strip() == "1"
-    enable_eventbrite_api = (
-        os.getenv("ENABLE_EVENTBRITE_API", "0").strip() == "1"
-    )
+    enable_eventbrite_api = os.getenv("ENABLE_EVENTBRITE_API", "0").strip() == "1"
     enable_baliforum = os.getenv("ENABLE_BALIFORUM", "0").strip() == "1"
-    ics_feeds = [
-        url.strip()
-        for url in (os.getenv("ICS_FEEDS") or "").split(",")
-        if url.strip()
-    ]
+    ics_feeds = [url.strip() for url in (os.getenv("ICS_FEEDS") or "").split(",") if url.strip()]
 
     # Geo bounds settings (по умолчанию все выключено)
-    enable_geo_bounds = (
-        os.getenv("ENABLE_GEO_BOUNDS", "false").lower() == "true"
-    )
-    russia_bounds_enabled = (
-        os.getenv("RUSSIA_BOUNDS_ENABLED", "false").lower() == "true"
-    )
+    enable_geo_bounds = os.getenv("ENABLE_GEO_BOUNDS", "false").lower() == "true"
+    russia_bounds_enabled = os.getenv("RUSSIA_BOUNDS_ENABLED", "false").lower() == "true"
 
     # KudaGo source settings (по умолчанию все выключено)
     kudago_enabled = os.getenv("KUDAGO_ENABLED", "false").lower() == "true"
@@ -169,22 +149,12 @@ def load_settings(require_bot: bool = False) -> Settings:
     kudago_timeout_s = float(os.getenv("KUDAGO_TIMEOUT_S", "15"))
     kudago_page_size = int(os.getenv("KUDAGO_PAGE_SIZE", "50"))
     kudago_safe_mode = os.getenv("KUDAGO_SAFE_MODE", "false").lower() == "true"
-    kudago_strict_mode = (
-        os.getenv("KUDAGO_STRICT_MODE", "true").lower() == "true"
-    )
-    kudago_fallback_delay_s = float(
-        os.getenv("KUDAGO_FALLBACK_DELAY_S", "900")
-    )
+    kudago_strict_mode = os.getenv("KUDAGO_STRICT_MODE", "true").lower() == "true"
+    kudago_fallback_delay_s = float(os.getenv("KUDAGO_FALLBACK_DELAY_S", "900"))
     kudago_partial_page_size = int(os.getenv("KUDAGO_PARTIAL_PAGE_SIZE", "15"))
-    kudago_max_integrity_fails = int(
-        os.getenv("KUDAGO_MAX_INTEGRITY_FAILS", "3")
-    )
-    kudago_integrity_tolerance = float(
-        os.getenv("KUDAGO_INTEGRITY_TOLERANCE", "0.05")
-    )
-    kudago_page_recovery_rounds = int(
-        os.getenv("KUDAGO_PAGE_RECOVERY_ROUNDS", "3")
-    )
+    kudago_max_integrity_fails = int(os.getenv("KUDAGO_MAX_INTEGRITY_FAILS", "3"))
+    kudago_integrity_tolerance = float(os.getenv("KUDAGO_INTEGRITY_TOLERANCE", "0.05"))
+    kudago_page_recovery_rounds = int(os.getenv("KUDAGO_PAGE_RECOVERY_ROUNDS", "3"))
     today_max_events = int(os.getenv("TODAY_MAX_EVENTS", "60"))
     today_show_top = int(os.getenv("TODAY_SHOW_TOP", "12"))
     cache_ttl_s = int(os.getenv("CACHE_TTL_S", "300"))
@@ -208,9 +178,7 @@ def load_settings(require_bot: bool = False) -> Settings:
     if require_bot and not telegram_token:
         raise RuntimeError("TELEGRAM_TOKEN is required")
     if not database_url:
-        raise RuntimeError(
-            "DATABASE_URL is required (e.g. postgres://user:pass@host:port/db)"
-        )
+        raise RuntimeError("DATABASE_URL is required (e.g. postgres://user:pass@host:port/db)")
 
     gcp_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     if gcp_path:
