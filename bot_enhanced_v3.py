@@ -1631,7 +1631,26 @@ async def perform_nearby_search(
 
             engine = get_engine()
             participation_analytics = UserParticipationAnalytics(engine)
-            participation_analytics.increment_list_view(user_id)
+
+            group_chat_id = None
+            if message.chat.type != "private":
+                group_chat_id = message.chat.id
+
+            shown_events = prepared[:5]
+            for event in shown_events:
+                event_id = event.get("id")
+                if not event_id:
+                    logger.warning(f"⚠️ У события нет id для логирования: {event.get('title', 'Без названия')[:30]}")
+                    continue
+
+                logger.info(
+                    f"📊 Логируем list_view: user_id={user_id}, event_id={event_id}, group_chat_id={group_chat_id}"
+                )
+                participation_analytics.record_list_view(
+                    user_id=user_id,
+                    event_id=event_id,
+                    group_chat_id=group_chat_id,
+                )
 
             total_pages = max(1, ceil(len(prepared) / 5))
             date_filter_state = user_state.get(message.chat.id, {}).get("date_filter", "today")
