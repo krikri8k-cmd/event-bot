@@ -65,6 +65,13 @@ class Settings:
     kudago_rps: float
     kudago_timeout_s: float
     kudago_page_size: int
+    kudago_safe_mode: bool
+    kudago_strict_mode: bool
+    kudago_fallback_delay_s: float
+    kudago_partial_page_size: int
+    kudago_max_integrity_fails: int
+    kudago_integrity_tolerance: float
+    kudago_page_recovery_rounds: int
     today_max_events: int
     today_show_top: int
     cache_ttl_s: int
@@ -139,8 +146,15 @@ def load_settings(require_bot: bool = False) -> Settings:
     kudago_enabled = os.getenv("KUDAGO_ENABLED", "false").lower() == "true"
     kudago_dry_run = os.getenv("KUDAGO_DRY_RUN", "true").lower() == "true"
     kudago_rps = float(os.getenv("KUDAGO_RPS", "3"))
-    kudago_timeout_s = float(os.getenv("KUDAGO_TIMEOUT_S", "8"))
-    kudago_page_size = int(os.getenv("KUDAGO_PAGE_SIZE", "100"))
+    kudago_timeout_s = float(os.getenv("KUDAGO_TIMEOUT_S", "15"))
+    kudago_page_size = int(os.getenv("KUDAGO_PAGE_SIZE", "50"))
+    kudago_safe_mode = os.getenv("KUDAGO_SAFE_MODE", "false").lower() == "true"
+    kudago_strict_mode = os.getenv("KUDAGO_STRICT_MODE", "true").lower() == "true"
+    kudago_fallback_delay_s = float(os.getenv("KUDAGO_FALLBACK_DELAY_S", "900"))
+    kudago_partial_page_size = int(os.getenv("KUDAGO_PARTIAL_PAGE_SIZE", "15"))
+    kudago_max_integrity_fails = int(os.getenv("KUDAGO_MAX_INTEGRITY_FAILS", "3"))
+    kudago_integrity_tolerance = float(os.getenv("KUDAGO_INTEGRITY_TOLERANCE", "0.05"))
+    kudago_page_recovery_rounds = int(os.getenv("KUDAGO_PAGE_RECOVERY_ROUNDS", "3"))
     today_max_events = int(os.getenv("TODAY_MAX_EVENTS", "60"))
     today_show_top = int(os.getenv("TODAY_SHOW_TOP", "12"))
     cache_ttl_s = int(os.getenv("CACHE_TTL_S", "300"))
@@ -170,7 +184,8 @@ def load_settings(require_bot: bool = False) -> Settings:
     if gcp_path:
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gcp_path
 
-    # API base URL для редиректов кликов (например, https://your-app.up.railway.app)
+    # API base URL для редиректов кликов
+    # (например, https://your-app.up.railway.app)
     api_base_url = os.getenv("API_BASE_URL")
 
     return Settings(
@@ -211,6 +226,13 @@ def load_settings(require_bot: bool = False) -> Settings:
         kudago_rps=kudago_rps,
         kudago_timeout_s=kudago_timeout_s,
         kudago_page_size=kudago_page_size,
+        kudago_safe_mode=kudago_safe_mode,
+        kudago_strict_mode=kudago_strict_mode,
+        kudago_fallback_delay_s=kudago_fallback_delay_s,
+        kudago_partial_page_size=kudago_partial_page_size,
+        kudago_max_integrity_fails=kudago_max_integrity_fails,
+        kudago_integrity_tolerance=kudago_integrity_tolerance,
+        kudago_page_recovery_rounds=kudago_page_recovery_rounds,
         today_max_events=today_max_events,
         today_show_top=today_show_top,
         cache_ttl_s=cache_ttl_s,
