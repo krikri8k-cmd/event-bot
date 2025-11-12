@@ -3584,6 +3584,30 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
     text = message.text.strip()
     logger.info(f"📍 [TEXT_INPUT] Получен текст в состоянии waiting_for_location: user_id={user_id}, text={text[:100]}")
 
+    # Специальная обработка для MacBook: если пользователь нажал кнопку "📍 Что рядом" повторно
+    if text == "📍 Что рядом":
+        logger.info(f"📍 [TEXT_INPUT] Обнаружен повторный запрос '📍 Что рядом' от пользователя {user_id} (MacBook)")
+        # Создаем inline-кнопку для открытия Google Maps (для MacBook)
+        maps_keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+            ]
+        )
+        await message.answer(
+            "💻 На MacBook кнопка геолокации может не работать.\n\n"
+            "📋 **Как указать место:**\n"
+            "1. Нажми кнопку **🌍 Найти на карте** ниже\n"
+            "2. Найди нужное место на карте\n"
+            "3. Скопируй ссылку из адресной строки\n"
+            "4. Отправь ссылку мне\n\n"
+            "Или отправь координаты в формате:\n"
+            "`широта, долгота`\n"
+            "Например: `-8.4095, 115.1889`",
+            parse_mode="Markdown",
+            reply_markup=maps_keyboard,
+        )
+        return
+
     # Проверяем, является ли это ссылкой Google Maps
     if any(
         domain in text.lower() for domain in ["maps.google.com", "goo.gl/maps", "maps.app.goo.gl", "google.com/maps"]
@@ -3643,11 +3667,20 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
         pass
 
     # Если это не координаты и не ссылка, показываем подсказку
+    # Создаем inline-кнопку для открытия Google Maps (для MacBook)
+    maps_keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+        ]
+    )
     await message.answer(
         "💡 Отправьте:\n"
         "• Ссылку из Google Maps (скопируйте из адресной строки)\n"
         "• Или координаты в формате: широта, долгота\n"
-        "Например: -8.4095, 115.1889"
+        "Например: -8.4095, 115.1889\n\n"
+        "💻 На MacBook используйте кнопку **🌍 Найти на карте** ниже:",
+        parse_mode="Markdown",
+        reply_markup=maps_keyboard,
     )
 
 
