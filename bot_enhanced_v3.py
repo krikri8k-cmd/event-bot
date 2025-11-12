@@ -1603,7 +1603,6 @@ async def perform_nearby_search(
             short_caption = header_html + "\n\n" + page_html
             if len(prepared) > 3:
                 short_caption += f"\n\n... и еще {len(prepared) - 3} событий"
-            short_caption += "\n\n💡 <b>Нажми кнопку ниже для Google Maps!</b>"
 
             if counts["all"] < 5:
                 next_radius = next(iter([r for r in RADIUS_OPTIONS if r > int(radius) and r != 5]), 20)
@@ -3733,8 +3732,6 @@ async def on_location(message: types.Message, state: FSMContext):
 
             if len(prepared) > 3:
                 short_caption += f"\n\n... и еще {len(prepared) - 3} событий"
-
-            short_caption += "\n\n💡 <b>Нажми кнопку ниже для Google Maps!</b>"
 
             # Добавляем подсказку о расширении поиска, если событий мало
             if counts["all"] < 5:
