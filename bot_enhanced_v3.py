@@ -1907,26 +1907,61 @@ def update_event_field(event_id: int, field: str, value: str, user_id: int) -> b
                 event.title = value
                 logging.info(f"Обновлено название события {event_id}: '{value}'")
             elif field == "starts_at":
-                # Для даты/времени нужно парсить
+                # Для даты/времени нужно парсить и правильно конвертировать в UTC
                 try:
+                    import pytz
+
+                    from utils.simple_timezone import get_city_timezone
+
+                    # Получаем часовой пояс пользователя
+                    user = session.query(User).filter(User.id == user_id).first()
+                    user_tz_name = user.user_tz if user and user.user_tz else "Asia/Makassar"  # По умолчанию Бали
+
+                    # Если у события есть координаты, определяем часовой пояс по городу
+                    if event.lat and event.lng:
+                        from utils.simple_timezone import get_city_from_coordinates
+
+                        city = get_city_from_coordinates(event.lat, event.lng)
+                        if city:
+                            tz_name = get_city_timezone(city)
+                        else:
+                            tz_name = user_tz_name
+                    else:
+                        tz_name = user_tz_name
+
+                    tz = pytz.timezone(tz_name)
+
                     if " " in value:
-                        # Полная дата и время
-                        event.starts_at = datetime.strptime(value, "%d.%m.%Y %H:%M")
+                        # Полная дата и время - парсим как локальное время
+                        naive_dt = datetime.strptime(value, "%d.%m.%Y %H:%M")
+                        # Локализуем время и конвертируем в UTC
+                        local_dt = tz.localize(naive_dt)
+                        event.starts_at = local_dt.astimezone(pytz.UTC)
                     else:
                         # Только дата - сохраняем существующее время
                         new_date = datetime.strptime(value, "%d.%m.%Y")
                         if event.starts_at:
-                            # Сохраняем существующее время
-                            existing_time = event.starts_at.time()
-                            event.starts_at = new_date.replace(
+                            # Сохраняем существующее время, но конвертируем правильно
+                            existing_time = event.starts_at.astimezone(tz).time()
+                            naive_dt = new_date.replace(
                                 hour=existing_time.hour, minute=existing_time.minute, second=existing_time.second
                             )
+                            local_dt = tz.localize(naive_dt)
+                            event.starts_at = local_dt.astimezone(pytz.UTC)
                         else:
                             # Если времени не было, устанавливаем 00:00
-                            event.starts_at = new_date
-                    logging.info(f"Обновлена дата события {event_id}: '{value}'")
+                            naive_dt = new_date.replace(hour=0, minute=0, second=0)
+                            local_dt = tz.localize(naive_dt)
+                            event.starts_at = local_dt.astimezone(pytz.UTC)
+
+                    logging.info(
+                        f"Обновлена дата события {event_id}: '{value}' (локальное время {tz_name}) → {event.starts_at} UTC"
+                    )
                 except ValueError as ve:
                     logging.error(f"Ошибка парсинга даты '{value}': {ve}")
+                    return False
+                except Exception as e:
+                    logging.error(f"Ошибка конвертации времени для события {event_id}: {e}")
                     return False
             elif field == "location_name":
                 event.location_name = value
@@ -8598,17 +8633,86 @@ async def handle_edit_title_choice(callback: types.CallbackQuery, state: FSMCont
 @main_router.callback_query(F.data.startswith("edit_date_"))
 async def handle_edit_date_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор редактирования даты"""
+    event_id = int(callback.data.split("_")[-1])
+    await state.update_data(event_id=event_id)
     await state.set_state(EventEditing.waiting_for_date)
-    example_date = get_example_date()
-    await callback.message.answer(f"📅 Введите новую дату в формате ДД.ММ.ГГГГ (например: {example_date}):")
+
+    # Показываем текущую дату события для удобства
+    try:
+        import pytz
+
+        from database import User, get_session
+
+        events = get_user_events(callback.from_user.id)
+        current_event = next((event for event in events if event["id"] == event_id), None)
+
+        if current_event and current_event["starts_at"]:
+            # Получаем часовой пояс пользователя
+            user_tz = "Asia/Makassar"  # По умолчанию Бали
+            try:
+                with get_session() as session:
+                    user = session.get(User, callback.from_user.id)
+                    if user and user.user_tz:
+                        user_tz = user.user_tz
+            except Exception:
+                pass
+
+            # Конвертируем UTC время в локальное время пользователя
+            tz = pytz.timezone(user_tz)
+            local_time = current_event["starts_at"].astimezone(tz)
+            current_date_str = local_time.strftime("%d.%m.%Y")
+            await callback.message.answer(
+                f"📅 Введите новую дату в формате ДД.ММ.ГГГГ (текущая дата: {current_date_str}):"
+            )
+        else:
+            example_date = get_example_date()
+            await callback.message.answer(f"📅 Введите новую дату в формате ДД.ММ.ГГГГ (например: {example_date}):")
+    except Exception:
+        example_date = get_example_date()
+        await callback.message.answer(f"📅 Введите новую дату в формате ДД.ММ.ГГГГ (например: {example_date}):")
+
     await callback.answer()
 
 
 @main_router.callback_query(F.data.startswith("edit_time_"))
 async def handle_edit_time_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор редактирования времени"""
+    event_id = int(callback.data.split("_")[-1])
+    await state.update_data(event_id=event_id)
     await state.set_state(EventEditing.waiting_for_time)
-    await callback.message.answer("⏰ Введите новое время в формате ЧЧ:ММ (например: 18:30):")
+
+    # Показываем текущее время события для удобства
+    try:
+        import pytz
+
+        from database import User, get_session
+
+        events = get_user_events(callback.from_user.id)
+        current_event = next((event for event in events if event["id"] == event_id), None)
+
+        if current_event and current_event["starts_at"]:
+            # Получаем часовой пояс пользователя
+            user_tz = "Asia/Makassar"  # По умолчанию Бали
+            try:
+                with get_session() as session:
+                    user = session.get(User, callback.from_user.id)
+                    if user and user.user_tz:
+                        user_tz = user.user_tz
+            except Exception:
+                pass
+
+            # Конвертируем UTC время в локальное время пользователя
+            tz = pytz.timezone(user_tz)
+            local_time = current_event["starts_at"].astimezone(tz)
+            current_time_str = local_time.strftime("%H:%M")
+            await callback.message.answer(
+                f"⏰ Введите новое время в формате ЧЧ:ММ (текущее время: {current_time_str}):"
+            )
+        else:
+            await callback.message.answer("⏰ Введите новое время в формате ЧЧ:ММ (например: 18:30):")
+    except Exception:
+        await callback.message.answer("⏰ Введите новое время в формате ЧЧ:ММ (например: 18:30):")
+
     await callback.answer()
 
 
@@ -8773,17 +8877,36 @@ async def handle_time_input(message: types.Message, state: FSMContext):
         try:
             from datetime import datetime
 
+            import pytz
+
+            from database import User, get_session
+
+            # Получаем часовой пояс пользователя
+            user_tz = "Asia/Makassar"  # По умолчанию Бали
+            try:
+                with get_session() as session:
+                    user = session.get(User, message.from_user.id)
+                    if user and user.user_tz:
+                        user_tz = user.user_tz
+            except Exception:
+                pass
+
             # Получаем текущую дату события
             events = get_user_events(message.from_user.id)
             current_event = next((event for event in events if event["id"] == event_id), None)
 
             if current_event and current_event["starts_at"]:
-                current_date = current_event["starts_at"].strftime("%d.%m.%Y")
+                # Конвертируем UTC время в локальное время пользователя
+                tz = pytz.timezone(user_tz)
+                local_time = current_event["starts_at"].astimezone(tz)
+                current_date = local_time.strftime("%d.%m.%Y")
                 new_datetime = f"{current_date} {message.text.strip()}"
                 success = update_event_field(event_id, "starts_at", new_datetime, message.from_user.id)
             else:
-                # Если нет текущей даты, используем сегодняшнюю
-                today = datetime.now().strftime("%d.%m.%Y")
+                # Если нет текущей даты, используем сегодняшнюю в локальном времени
+                tz = pytz.timezone(user_tz)
+                today_local = datetime.now(tz)
+                today = today_local.strftime("%d.%m.%Y")
                 new_datetime = f"{today} {message.text.strip()}"
                 success = update_event_field(event_id, "starts_at", new_datetime, message.from_user.id)
 
