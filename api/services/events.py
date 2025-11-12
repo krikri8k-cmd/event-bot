@@ -60,6 +60,7 @@ def get_events_nearby(lat: float, lon: float, radius_km: float = None, limit: in
                 WHERE lat IS NOT NULL AND lng IS NOT NULL
                   AND lat BETWEEN :min_lat AND :max_lat
                   AND lng BETWEEN :min_lon AND :max_lon
+                  AND (starts_at >= NOW() OR (starts_at IS NULL AND time_utc >= NOW()))
                 ORDER BY created_at_utc DESC
                 LIMIT :lim
                 """),
@@ -160,6 +161,7 @@ def get_events_nearby_today(
                   AND lat BETWEEN :min_lat AND :max_lat
                   AND lng BETWEEN :min_lon AND :max_lon
                   AND time_utc >= :start_utc AND time_utc < :end_utc
+                  AND (starts_at >= NOW() OR (starts_at IS NULL AND time_utc >= NOW()))
                 ORDER BY time_utc ASC
                 LIMIT :lim
                 """),
@@ -250,6 +252,7 @@ def get_events_today_by_city(city: str, limit: int = 20, offset: int = 0) -> lis
                 WHERE lat IS NOT NULL AND lng IS NOT NULL
                   AND time_utc >= :start_utc AND time_utc < :end_utc
                   AND LOWER(city) = LOWER(:city)
+                  AND (starts_at >= NOW() OR (starts_at IS NULL AND time_utc >= NOW()))
                 ORDER BY time_utc ASC
                 LIMIT :lim OFFSET :offset
                 """),
