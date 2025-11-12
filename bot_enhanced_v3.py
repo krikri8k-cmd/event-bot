@@ -91,6 +91,27 @@ def _build_tracking_url(click_type: str, event: dict, target_url: str, user_id: 
     return tracking_url
 
 
+def escape_markdown_v2(text: str) -> str:
+    """Экранирует специальные символы Markdown V2 для безопасной вставки в текст"""
+    if not text:
+        return ""
+    # Специальные символы Markdown V2, которые нужно экранировать
+    # Обратный слэш экранируем первым, так как он используется для экранирования других символов
+    # _ * [ ] ( ) ~ ` > # + - = | { } . !
+    special_chars = r"\_*[]()~`>#+-=|{}.!"
+    # Экранируем каждый специальный символ
+    escaped = ""
+    for char in text:
+        if char == "\\":
+            # Обратный слэш экранируем двойным обратным слэшем
+            escaped += "\\\\"
+        elif char in special_chars:
+            escaped += "\\" + char
+        else:
+            escaped += char
+    return escaped
+
+
 def get_user_display_name(user: types.User) -> str:
     """Получает отображаемое имя пользователя: username или first_name"""
     if user.username:
@@ -3190,19 +3211,31 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
 
         # Публикуем событие в группу
         group_id = data["group_id"]
+        # Экранируем все поля для безопасной вставки в Markdown
+        safe_title = escape_markdown_v2(data.get("title", ""))
+        safe_date = escape_markdown_v2(data.get("date", ""))
+        safe_time = escape_markdown_v2(data.get("time", ""))
+        safe_city = escape_markdown_v2(data.get("city", ""))
+        safe_location_name = escape_markdown_v2(data.get("location_name", "Место по ссылке"))
+        safe_description = escape_markdown_v2(data.get("description", ""))
+        safe_username = escape_markdown_v2(
+            callback.from_user.username or callback.from_user.first_name or "Пользователь"
+        )
+
         event_text = (
             f"🎉 **Новое событие!**\n\n"
-            f"**{data['title']}**\n"
-            f"📅 {data['date']} в {data['time']}\n"
-            f"🏙️ {data['city']}\n"
-            f"📍 {data['location_name']}\n"
+            f"**{safe_title}**\n"
+            f"📅 {safe_date} в {safe_time}\n"
+            f"🏙️ {safe_city}\n"
+            f"📍 {safe_location_name}\n"
         )
         if data.get("location_url"):
+            # URL не экранируем, так как он должен быть кликабельным
             event_text += f"🔗 {data['location_url']}\n"
         event_text += (
             "\n"
-            f"📝 {data['description']}\n\n"
-            f"*Создано пользователем @{callback.from_user.username or callback.from_user.first_name}*\n\n"
+            f"📝 {safe_description}\n\n"
+            f"*Создано пользователем @{safe_username}*\n\n"
             f"💡 **Создавай через команду /start**"
         )
 
@@ -3218,13 +3251,13 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
             is_supergroup = str(group_id).startswith("-100")
             group_link = build_message_link(group_id, group_message.message_id) if is_supergroup else None
 
-            # Сообщение об успешном создании
+            # Сообщение об успешном создании (используем уже экранированные значения)
             success_text_parts = [
                 "🎉 **Событие создано и опубликовано!**\n",
-                f"**{data['title']}**\n",
-                f"📅 {data['date']} в {data['time']}\n",
-                f"🏙️ {data['city']}\n",
-                f"📍 {data['location_name']}\n",
+                f"**{safe_title}**\n",
+                f"📅 {safe_date} в {safe_time}\n",
+                f"🏙️ {safe_city}\n",
+                f"📍 {safe_location_name}\n",
             ]
             if data.get("location_url"):
                 success_text_parts.append(f"🔗 {data['location_url']}\n")
@@ -3247,12 +3280,13 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
 
         except Exception as e:
             logger.error(f"Ошибка публикации в группу: {e}")
+            # Используем экранированные значения для сообщения об ошибке
             await callback.message.edit_text(
                 f"✅ **Событие создано!**\n\n"
-                f"**{data['title']}**\n"
-                f"📅 {data['date']} в {data['time']}\n"
-                f"🏙️ {data['city']}\n"
-                f"📍 {data['location_name']}\n\n"
+                f"**{safe_title}**\n"
+                f"📅 {safe_date} в {safe_time}\n"
+                f"🏙️ {safe_city}\n"
+                f"📍 {safe_location_name}\n\n"
                 f"⚠️ Не удалось опубликовать в группу, но событие сохранено.",
                 parse_mode="Markdown",
             )
