@@ -3405,9 +3405,29 @@ async def on_nearby_events_callback(callback: types.CallbackQuery, state: FSMCon
         one_time_keyboard=False,
     )
 
+    # Создаем inline-кнопку для открытия Google Maps (для MacBook)
+    maps_keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+        ]
+    )
+
     # Отправляем новое сообщение с ReplyKeyboardMarkup
     await callback.message.answer(
-        "Отправь свежую геопозицию, чтобы я нашла события рядом ✨", reply_markup=location_keyboard
+        "Отправь свежую геопозицию, чтобы я нашла события рядом ✨\n\n"
+        "💡 <i>Если кнопка геолокации не работает (MacBook):\n"
+        "• Нажми кнопку ниже для открытия Google Maps\n"
+        "• Найди место на карте\n"
+        "• Скопируй ссылку из адресной строки и отправь сюда\n"
+        "• Или отправь координаты: широта, долгота (например: -8.4095, 115.1889)</i>",
+        reply_markup=location_keyboard,
+        parse_mode="HTML",
+    )
+
+    # Отправляем отдельное сообщение с кнопкой для открытия Google Maps
+    await callback.message.answer(
+        "🌍 Открой карту, найди место и вставь ссылку сюда 👇",
+        reply_markup=maps_keyboard,
     )
 
     if callback.from_user.id in settings.admin_ids:
@@ -3469,9 +3489,28 @@ async def on_what_nearby(message: types.Message, state: FSMContext):
         one_time_keyboard=False,  # Изменено на False, чтобы кнопка не исчезала на MacBook
     )
 
+    # Создаем inline-кнопку для открытия Google Maps (для MacBook)
+    maps_keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+        ]
+    )
+
     await message.answer(
-        "Отправь свежую геопозицию, чтобы я нашла события рядом ✨",
+        "Отправь свежую геопозицию, чтобы я нашла события рядом ✨\n\n"
+        "💡 <i>Если кнопка геолокации не работает (MacBook):\n"
+        "• Нажми кнопку ниже для открытия Google Maps\n"
+        "• Найди место на карте\n"
+        "• Скопируй ссылку из адресной строки и отправь сюда\n"
+        "• Или отправь координаты: широта, долгота (например: -8.4095, 115.1889)</i>",
         reply_markup=location_keyboard,
+        parse_mode="HTML",
+    )
+
+    # Отправляем отдельное сообщение с кнопкой для открытия Google Maps
+    await message.answer(
+        "🌍 Открой карту, найди место и вставь ссылку сюда 👇",
+        reply_markup=maps_keyboard,
     )
 
     if message.from_user.id in settings.admin_ids:
@@ -3535,6 +3574,81 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
     )
 
     logger.info(f"📍 [ЗАДАНИЯ] Показаны категории для пользователя {user_id}")
+
+
+# Обработчик для текстовых сообщений в состоянии ожидания геолокации (для MacBook)
+@main_router.message(EventSearch.waiting_for_location, F.text)
+async def on_location_text_input(message: types.Message, state: FSMContext):
+    """Обработчик текстового ввода координат или ссылки Google Maps для MacBook"""
+    user_id = message.from_user.id
+    text = message.text.strip()
+    logger.info(f"📍 [TEXT_INPUT] Получен текст в состоянии waiting_for_location: user_id={user_id}, text={text[:100]}")
+
+    # Проверяем, является ли это ссылкой Google Maps
+    if any(
+        domain in text.lower() for domain in ["maps.google.com", "goo.gl/maps", "maps.app.goo.gl", "google.com/maps"]
+    ):
+        logger.info("📍 [TEXT_INPUT] Обнаружена ссылка Google Maps, парсим...")
+        from utils.geo_utils import parse_google_maps_link
+
+        location_data = await parse_google_maps_link(text)
+        if location_data and location_data.get("lat") and location_data.get("lng"):
+            lat = location_data["lat"]
+            lng = location_data["lng"]
+            logger.info(f"📍 [TEXT_INPUT] Извлечены координаты из Google Maps: lat={lat}, lng={lng}")
+
+            # Создаем фейковый объект Location для использования существующего обработчика
+            from aiogram.types import Location
+
+            fake_location = Location(latitude=lat, longitude=lng)
+            message.location = fake_location
+            await on_location(message, state)
+            return
+        else:
+            await message.answer(
+                "❌ Не удалось извлечь координаты из ссылки Google Maps.\n\n"
+                "💡 Попробуйте:\n"
+                "• Открыть место на карте в Google Maps\n"
+                "• Скопировать ссылку из адресной строки\n"
+                "• Или отправьте координаты в формате: широта, долгота\n"
+                "Например: -8.4095, 115.1889"
+            )
+            return
+
+    # Пробуем распарсить координаты в формате "широта, долгота"
+    try:
+        text_clean = text.replace("(", "").replace(")", "").strip()
+        parts = [p.strip() for p in text_clean.split(",")]
+
+        if len(parts) == 2:
+            lat = float(parts[0])
+            lng = float(parts[1])
+
+            # Проверяем, что координаты в разумных пределах
+            if -90 <= lat <= 90 and -180 <= lng <= 180:
+                logger.info(f"📍 [TEXT_INPUT] Распарсены координаты: lat={lat}, lng={lng}")
+                # Создаем фейковый объект Location
+                from aiogram.types import Location
+
+                fake_location = Location(latitude=lat, longitude=lng)
+                message.location = fake_location
+                await on_location(message, state)
+                return
+            else:
+                await message.answer("❌ Координаты вне допустимого диапазона. Широта: -90 до 90, долгота: -180 до 180")
+                return
+    except ValueError:
+        # Не координаты, возможно это другой текст - пропускаем
+        logger.info("📍 [TEXT_INPUT] Текст не является координатами или ссылкой, пропускаем")
+        pass
+
+    # Если это не координаты и не ссылка, показываем подсказку
+    await message.answer(
+        "💡 Отправьте:\n"
+        "• Ссылку из Google Maps (скопируйте из адресной строки)\n"
+        "• Или координаты в формате: широта, долгота\n"
+        "Например: -8.4095, 115.1889"
+    )
 
 
 @main_router.message(F.location)
