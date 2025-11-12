@@ -405,17 +405,40 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                     return
                 raise
 
-        # ВАЖНО: Создаем ReplyKeyboard для MacBook и других устройств
-        # Это более надежный способ показать команды, чем Menu Button
+        # Отправляем сообщение с ReplyKeyboard для мобильных (только в группах, не в каналах)
+        # ВАЖНО: ReplyKeyboard нужен для работы сторожа команд в супергруппах
         if not is_channel:
             from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
-            ReplyKeyboardMarkup(
+            start_keyboard = ReplyKeyboardMarkup(
                 keyboard=[[KeyboardButton(text="/start@EventAroundBot 🎉")]],
                 resize_keyboard=True,
                 one_time_keyboard=False,
-                persistent=True,  # Клавиатура остается видимой постоянно
+                persistent=True,
             )
+
+            try:
+                # Для форумов передаем message_thread_id
+                answer_kwargs = {"reply_markup": start_keyboard}
+                if is_forum and thread_id:
+                    answer_kwargs["message_thread_id"] = thread_id
+                activation_msg = await message.answer("🤖 EventAroundBot активирован!", **answer_kwargs)
+            except Exception as e:
+                if "TOPIC_CLOSED" in str(e):
+                    logger.warning(
+                        f"⚠️ Тема форума закрыта в чате {message.chat.id}. "
+                        "Бот не может отправлять сообщения в закрытые темы."
+                    )
+                    return
+                raise
+
+            # Удаляем сообщение активации через 1 секунду (ReplyKeyboard остается)
+            try:
+                await asyncio.sleep(1)
+                await bot.delete_message(message.chat.id, activation_msg.message_id)
+                logger.info(f"✅ Сообщение активации удалено, ReplyKeyboard остался в чате {message.chat.id}")
+            except Exception as e:
+                logger.warning(f"⚠️ Не удалось удалить сообщение активации: {e}")
 
             # ПРИНУДИТЕЛЬНО для мобильных: устанавливаем команды и меню (только в группах)
             try:
