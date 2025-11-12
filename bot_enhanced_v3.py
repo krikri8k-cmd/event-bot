@@ -3621,12 +3621,14 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
             lng = location_data["lng"]
             logger.info(f"📍 [TEXT_INPUT] Извлечены координаты из Google Maps: lat={lat}, lng={lng}")
 
-            # Создаем фейковый объект Location для использования существующего обработчика
-            from aiogram.types import Location
-
-            fake_location = Location(latitude=lat, longitude=lng)
-            message.location = fake_location
-            await on_location(message, state)
+            # Вызываем функцию поиска напрямую с координатами
+            await perform_nearby_search(
+                message=message,
+                state=state,
+                lat=lat,
+                lng=lng,
+                source="google_maps_link",
+            )
             return
         else:
             await message.answer(
@@ -3651,12 +3653,14 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
             # Проверяем, что координаты в разумных пределах
             if -90 <= lat <= 90 and -180 <= lng <= 180:
                 logger.info(f"📍 [TEXT_INPUT] Распарсены координаты: lat={lat}, lng={lng}")
-                # Создаем фейковый объект Location
-                from aiogram.types import Location
-
-                fake_location = Location(latitude=lat, longitude=lng)
-                message.location = fake_location
-                await on_location(message, state)
+                # Вызываем функцию поиска напрямую с координатами
+                await perform_nearby_search(
+                    message=message,
+                    state=state,
+                    lat=lat,
+                    lng=lng,
+                    source="manual_coordinates",
+                )
                 return
             else:
                 await message.answer("❌ Координаты вне допустимого диапазона. Широта: -90 до 90, долгота: -180 до 180")
