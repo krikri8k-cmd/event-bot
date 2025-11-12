@@ -3411,6 +3411,9 @@ async def on_test_location(callback: types.CallbackQuery, state: FSMContext):
 @main_router.message(F.text == "📍 Что рядом")
 async def on_what_nearby(message: types.Message, state: FSMContext):
     """Обработчик кнопки 'Что рядом'"""
+    user_id = message.from_user.id
+    logger.info(f"📍 [DEBUG] Команда /nearby от пользователя {user_id}")
+
     # Инкрементируем сессию World (с проверкой времени)
     if message.chat.type == "private":
         from utils.user_analytics import UserAnalytics
@@ -3419,6 +3422,8 @@ async def on_what_nearby(message: types.Message, state: FSMContext):
 
     # Устанавливаем состояние для поиска событий
     await state.set_state(EventSearch.waiting_for_location)
+    current_state = await state.get_state()
+    logger.info(f"📍 [DEBUG] Состояние установлено: {current_state} для пользователя {user_id}")
 
     # Создаем клавиатуру с кнопкой геолокации и главным меню
     location_keyboard = ReplyKeyboardMarkup(
@@ -3427,7 +3432,7 @@ async def on_what_nearby(message: types.Message, state: FSMContext):
             [KeyboardButton(text="🏠 Главное меню")],
         ],
         resize_keyboard=True,
-        one_time_keyboard=True,  # Кнопка исчезнет после использования
+        one_time_keyboard=False,  # Изменено на False, чтобы кнопка не исчезала на MacBook
     )
 
     await message.answer(
@@ -3501,17 +3506,36 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
 @main_router.message(F.location)
 async def on_location(message: types.Message, state: FSMContext):
     """Обработчик получения геолокации"""
+    # Логируем все входящие геолокации для отладки
+    user_id = message.from_user.id
+    lat = message.location.latitude if message.location else None
+    lng = message.location.longitude if message.location else None
+    logger.info(f"📍 [DEBUG] Получена геолокация от пользователя {user_id}: lat={lat}, lng={lng}")
+
     # Проверяем состояние - если это для заданий, не обрабатываем здесь
     current_state = await state.get_state()
-    logger.info(f"📍 Обработчик событий: состояние={current_state}")
+    logger.info(f"📍 [DEBUG] Обработчик событий: состояние={current_state}, user_id={user_id}")
 
     if current_state == TaskFlow.waiting_for_location:
         logger.info("📍 Пропускаем - это для заданий")
         return  # Пропускаем - это для заданий
 
     # Проверяем, что это состояние для поиска событий
+    # Если состояние не установлено, но пользователь отправил геолокацию, устанавливаем состояние автоматически
+    # Это особенно важно для MacBook, где состояние может не сохраняться правильно
     if current_state != EventSearch.waiting_for_location:
-        logger.info(f"📍 Неизвестное состояние для геолокации: {current_state}")
+        logger.warning(
+            f"📍 [WARNING] Состояние не EventSearch.waiting_for_location: {current_state}, но обрабатываем геолокацию"
+        )
+        # Устанавливаем состояние автоматически для удобства пользователя
+        await state.set_state(EventSearch.waiting_for_location)
+        logger.info(
+            f"📍 [DEBUG] Состояние автоматически установлено в EventSearch.waiting_for_location для пользователя {user_id}"
+        )
+
+    if not message.location:
+        logger.error(f"📍 [ERROR] message.location is None для пользователя {user_id}")
+        await message.answer("❌ Ошибка: не удалось получить геолокацию. Попробуйте отправить геолокацию еще раз.")
         return
 
     lat = message.location.latitude
@@ -7624,6 +7648,11 @@ async def on_main_menu_button(message: types.Message, state: FSMContext):
 @main_router.message(~StateFilter(EventCreation, EventEditing, TaskFlow))
 async def echo_message(message: types.Message, state: FSMContext):
     """Обработчик всех остальных сообщений (кроме FSM состояний)"""
+    # Пропускаем геолокацию - она обрабатывается отдельным обработчиком
+    if message.location:
+        logger.info("📍 [DEBUG] echo_message: получена геолокация, пропускаем для отдельного обработчика")
+        return
+
     current_state = await state.get_state()
     logger.info(
         f"echo_message: получили сообщение '{message.text}' от пользователя {message.from_user.id}, состояние: {current_state}"
