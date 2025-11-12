@@ -1825,17 +1825,35 @@ from diagnostic_router import diag  # noqa: E402
 from group_router import group_router  # noqa: E402
 
 
-# Middleware для логирования всех обновлений с геолокацией (для отладки MacBook)
+# Middleware для логирования всех обновлений (для отладки MacBook)
 @dp.update.outer_middleware()
 async def log_location_updates_middleware(handler, event, data):
-    """Middleware для логирования всех обновлений с геолокацией"""
-    if hasattr(event, "message") and event.message and hasattr(event.message, "location") and event.message.location:
+    """Middleware для логирования всех обновлений с геолокацией и всех message обновлений"""
+    # Логируем все message обновления для отладки
+    if hasattr(event, "message") and event.message:
         user_id = event.message.from_user.id if event.message.from_user else None
-        lat = event.message.location.latitude
-        lng = event.message.location.longitude
-        logger.info(
-            f"📍 [MIDDLEWARE] Обнаружена геолокация в update: user_id={user_id}, lat={lat}, lng={lng}, message_id={event.message.message_id}"
-        )
+        message_type = "unknown"
+        if event.message.location:
+            message_type = "location"
+            lat = event.message.location.latitude
+            lng = event.message.location.longitude
+            logger.info(
+                f"📍 [MIDDLEWARE] Обнаружена геолокация в update: user_id={user_id}, lat={lat}, lng={lng}, message_id={event.message.message_id}"
+            )
+        elif event.message.text:
+            message_type = "text"
+            logger.info(
+                f"📍 [MIDDLEWARE] Обнаружено текстовое сообщение: user_id={user_id}, text={event.message.text[:50]}, message_id={event.message.message_id}"
+            )
+        elif event.message.photo:
+            message_type = "photo"
+            logger.info(f"📍 [MIDDLEWARE] Обнаружено фото: user_id={user_id}, message_id={event.message.message_id}")
+        else:
+            # Логируем все остальные типы сообщений
+            content_type = getattr(event.message, "content_type", "unknown")
+            logger.info(
+                f"📍 [MIDDLEWARE] Обнаружено сообщение типа {message_type}: user_id={user_id}, message_id={event.message.message_id}, content_type={content_type}"
+            )
 
     return await handler(event, data)
 
