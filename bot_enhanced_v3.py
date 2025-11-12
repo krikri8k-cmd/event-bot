@@ -5660,6 +5660,19 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         await callback.answer("❌ Геолокация не найдена. Отправьте геолокацию заново.")
         return
 
+    # Определяем city по координатам (как при первом запросе)
+    from utils.simple_timezone import get_city_from_coordinates
+
+    city = get_city_from_coordinates(lat, lng)
+    if not city:
+        # Если город не определен по координатам, используем region из состояния
+        city = region
+        logger.info(
+            f"ℹ️ Регион не определен по координатам ({lat}, {lng}), используем region={region} для временных границ"
+        )
+    else:
+        logger.info(f"🌍 Определен city={city} по координатам ({lat}, {lng}) для временных границ")
+
     # Показываем сообщение загрузки
     current_message = callback.message  # Сохраняем ссылку на текущее сообщение
     try:
@@ -5689,7 +5702,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     logger.info(f"🔍 РАСШИРЕНИЕ РАДИУСА: radius={new_radius} км, date_filter={date_filter}, date_offset={date_offset}")
 
     events = events_service.search_events_today(
-        city=region,
+        city=city,
         user_lat=lat,
         user_lng=lng,
         radius_km=new_radius,
