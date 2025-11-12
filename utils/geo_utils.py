@@ -194,8 +194,14 @@ def local_to_utc(time_local_str: str, tz_name: str) -> datetime | None:
 
 async def get_coordinates_from_place_id(place_id: str) -> tuple[float, float] | None:
     """
-    Получает координаты места по place_id через Google Places API Details
+    Получает координаты места по place_id через Google Places API Details.
+    Если place_id является ftid (начинается с 0x), возвращает None (ftid не поддерживается Places API).
     """
+    # Проверяем, является ли это ftid (формат 0x...:0x...)
+    if place_id.startswith("0x") and ":" in place_id:
+        # ftid не поддерживается Places API Details напрямую
+        return None
+
     settings = load_settings()
     if not settings.google_maps_api_key:
         return None
@@ -347,6 +353,7 @@ def _extract_place_id(url: str) -> str | None:
     parsed = urlparse(url)
     query = parse_qs(parsed.query)
 
+    # Ищем в query параметрах
     for key in ("place_id", "placeid", "ftid"):
         values = query.get(key)
         if values:
@@ -356,6 +363,18 @@ def _extract_place_id(url: str) -> str | None:
     if cid_values:
         return cid_values[0]
 
+    # Ищем в параметре data (новый формат Google Maps)
+    data_values = query.get("data")
+    if data_values:
+        data_param = data_values[0]
+        # Ищем !1s... в параметре data
+        data_match = re.search(r"!1s([^!]+)", data_param)
+        if data_match:
+            candidate = data_match.group(1)
+            if candidate and candidate not in {"0", "1"}:
+                return candidate
+
+    # Ищем !1s... напрямую в URL
     data_matches = re.findall(r"!1s([^!]+)", url)
     for candidate in data_matches:
         if candidate and candidate not in {"0", "1"}:
@@ -525,8 +544,45 @@ async def parse_google_maps_link(link: str) -> dict | None:
         if "/place/" in link:
             name = extract_place_name_from_url(link) or _extract_place_name_from_data(link)
             place_id = _extract_place_id(link)
+
+            # Проверяем, является ли place_id ftid (формат 0x...:0x...)
+            is_ftid = place_id and place_id.startswith("0x") and ":" in place_id
+
+            # Если это не ftid, пытаемся получить координаты через Places API
+            if place_id and not is_ftid:
+                coords = await get_coordinates_from_place_id(place_id)
+                if coords:
+                    lat, lng = coords
+                    return {
+                        "lat": lat,
+                        "lng": lng,
+                        "name": name or "Место на карте",
+                        "raw_link": link,
+                        "place_id": place_id,
+                    }
+
+            # Если ftid или не удалось получить координаты по place_id, пробуем геокодировать по названию
             if name:
-                result = {"lat": None, "lng": None, "name": name, "raw_link": link}
+                # Декодируем название и пробуем геокодировать
+                decoded_name = unquote(name.replace("+", " "))
+                # Убираем лишние части из названия (например, адрес после названия места)
+                # Берем только первую часть до запятой или до первого числа
+                clean_name = decoded_name.split(",")[0].strip()
+                if not clean_name:
+                    clean_name = decoded_name
+
+                coords = await geocode_address(clean_name)
+                if coords:
+                    lat, lng = coords
+                    return {
+                        "lat": lat,
+                        "lng": lng,
+                        "name": clean_name,
+                        "raw_link": link,
+                    }
+
+                # Если геокодирование не сработало, возвращаем без координат
+                result = {"lat": None, "lng": None, "name": clean_name, "raw_link": link}
                 if place_id:
                     result["place_id"] = place_id
                 return result
@@ -630,8 +686,9 @@ def extract_place_name_from_url(url: str) -> str | None:
     try:
         import urllib.parse
 
-        # Паттерн для /place/name/
-        place_pattern = r"/place/([^/@]+)"
+        # Паттерн для /place/name/ или /place/name/data=...
+        # Берем всё до /data= или до следующего /
+        place_pattern = r"/place/([^/@]+?)(?:/data=|/|$)"
         match = re.search(place_pattern, url)
         if match:
             name = match.group(1)
