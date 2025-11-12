@@ -345,6 +345,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                 [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_list")],
                 [InlineKeyboardButton(text='🚀 Расширенная версия "World"', url="https://t.me/EventAroundBot")],
                 [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_execute")],
+                [InlineKeyboardButton(text="⌨️ Команды бота", callback_data="group_show_commands")],
             ]
         )
 
@@ -358,7 +359,8 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                 "• Создавать события участников чата\n"
                 "• Показывать события этого чата\n"
                 '• Переводить в полный бот - версия "World"\n\n'
-                "💡 Выберите действие:"
+                "💡 Выберите действие:\n\n"
+                "💻 На MacBook: нажмите `/` в поле ввода для открытия команд"
             )
 
             # Передаем message_thread_id для форумов
@@ -601,7 +603,8 @@ PANEL_TEXT = (
     "• Создавать события участников чата\n"
     "• Показывать события этого чата\n"
     '• Переводить в полный бот - версия "World"\n\n'
-    "💡 Выберите действие:"
+    "💡 Выберите действие:\n\n"
+    "💻 На MacBook: нажмите `/` в поле ввода для открытия команд"
 )
 
 
@@ -1094,6 +1097,38 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                 await callback.message.answer(error_text, **answer_kwargs)
             except Exception as fallback_error:
                 logger.error(f"❌ Критическая ошибка отправки сообщения об ошибке: {fallback_error}")
+
+
+@group_router.callback_query(F.data == "group_show_commands")
+async def group_show_commands(callback: CallbackQuery, bot: Bot, session: AsyncSession):
+    """Показ инструкции по использованию команд бота"""
+    chat_id = callback.message.chat.id
+    logger.info(f"🔥 group_show_commands: пользователь {callback.from_user.id} запросил команды в чате {chat_id}")
+
+    await callback.answer()
+
+    commands_text = (
+        "⌨️ **Команды бота в группе:**\n\n"
+        "📋 **Доступные команды:**\n"
+        "• `/start` - Открыть панель Community\n\n"
+        "💻 **Как открыть команды на MacBook:**\n"
+        "1. Нажмите `/` в поле ввода сообщения\n"
+        "2. Или введите `/start@EventAroundBot`\n"
+        "3. Или нажмите на кнопку **⌨️ Команды бота** в панели\n\n"
+        "📱 **На мобильных устройствах:**\n"
+        "Нажмите на иконку меню (☰) рядом с полем ввода"
+    )
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ Назад к панели", callback_data="group_back_to_panel")],
+        ]
+    )
+
+    try:
+        await callback.message.edit_text(commands_text, reply_markup=keyboard, parse_mode="Markdown")
+    except Exception as e:
+        logger.error(f"❌ Ошибка редактирования сообщения: {e}")
 
 
 @group_router.callback_query(F.data == "group_back_to_panel")
