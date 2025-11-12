@@ -1824,6 +1824,22 @@ from debug_test_router import diag_router  # noqa: E402
 from diagnostic_router import diag  # noqa: E402
 from group_router import group_router  # noqa: E402
 
+
+# Middleware для логирования всех обновлений с геолокацией (для отладки MacBook)
+@dp.update.outer_middleware()
+async def log_location_updates_middleware(handler, event, data):
+    """Middleware для логирования всех обновлений с геолокацией"""
+    if hasattr(event, "message") and event.message and hasattr(event.message, "location") and event.message.location:
+        user_id = event.message.from_user.id if event.message.from_user else None
+        lat = event.message.location.latitude
+        lng = event.message.location.longitude
+        logger.info(
+            f"📍 [MIDDLEWARE] Обнаружена геолокация в update: user_id={user_id}, lat={lat}, lng={lng}, message_id={event.message.message_id}"
+        )
+
+    return await handler(event, data)
+
+
 dp.include_router(group_router)  # Групповой роутер (только группы) - ПЕРВЫМ!
 dp.include_router(diag_router)  # Временный роутер для диагностики
 dp.include_router(diag)  # Диагностические команды для трекинга
