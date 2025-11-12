@@ -67,6 +67,9 @@ class UnifiedEventsService:
         )
 
         with self.engine.connect() as conn:
+            # Важно: фильтруем только будущие события (starts_at >= NOW())
+            # и события в пределах запрошенного дня (starts_at >= start_utc AND starts_at < end_utc)
+            # Это гарантирует, что прошедшие события не показываются
             if user_lat and user_lng:
                 # Поиск с координатами и радиусом
                 query = text("""
@@ -81,6 +84,7 @@ class UnifiedEventsService:
                     FROM events
                     WHERE starts_at >= :start_utc
                     AND starts_at < :end_utc
+                    AND starts_at >= NOW()
                     AND lat IS NOT NULL AND lng IS NOT NULL
                     AND status NOT IN ('closed', 'canceled')
                     AND 6371 * acos(
@@ -117,6 +121,7 @@ class UnifiedEventsService:
                     FROM events
                     WHERE starts_at >= :start_utc
                     AND starts_at < :end_utc
+                    AND starts_at >= NOW()
                     AND status NOT IN ('closed', 'canceled')
                     ORDER BY starts_at
                 """)
@@ -198,6 +203,7 @@ class UnifiedEventsService:
                         FROM events
                         WHERE starts_at >= :start_utc
                         AND starts_at < :end_utc
+                        AND starts_at >= NOW()
                         AND status NOT IN ('closed', 'canceled')
                         ORDER BY starts_at
                         LIMIT 50

@@ -180,6 +180,8 @@ def create_app() -> FastAPI:
             delta = radius_km / 111  # примерное расстояние в градусах
 
             # Точный поиск по гаверсину с distance_km
+            # Важно: фильтруем только будущие события (starts_at >= NOW())
+            # чтобы прошедшие события не показывались
             rows = (
                 conn.execute(
                     text("""
@@ -195,6 +197,7 @@ def create_app() -> FastAPI:
                   FROM events
                   WHERE lat BETWEEN :lat - :d AND :lat + :d
                     AND lng BETWEEN :lng - :d AND :lng + :d
+                    AND starts_at >= NOW()
                     AND (
                       6371 * 2 * ASIN(
                         SQRT(
