@@ -8100,11 +8100,23 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
         lng = state.get("lng")
         radius = state.get("radius", 5)
         region = state.get("region", "bali")
-        city = region
 
         if not lat or not lng:
             await callback.answer("❌ Геолокация не найдена. Отправьте геолокацию заново.")
             return
+
+        # Определяем city по координатам (как при первом запросе)
+        from utils.simple_timezone import get_city_from_coordinates
+
+        city = get_city_from_coordinates(lat, lng)
+        if not city:
+            # Если город не определен по координатам, используем region из состояния
+            city = region
+            logger.info(
+                f"ℹ️ Регион не определен по координатам ({lat}, {lng}), используем region={region} для временных границ"
+            )
+        else:
+            logger.info(f"🌍 Определен city={city} по координатам ({lat}, {lng}) для временных границ")
 
         # Вычисляем date_offset
         date_offset = 0 if date_type == "today" else 1
