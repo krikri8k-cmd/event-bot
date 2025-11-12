@@ -456,12 +456,16 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                         scope=types.BotCommandScopeChat(chat_id=message.chat.id),
                     )
 
-                # Устанавливаем MenuButton для принудительного показа команд (только для не-форумов)
-                if not is_forum_check:
-                    try:
-                        await bot.set_chat_menu_button(chat_id=message.chat.id, menu_button=types.MenuButtonCommands())
-                    except Exception as menu_error:
-                        logger.warning(f"⚠️ Не удалось установить MenuButton для чата {message.chat.id}: {menu_error}")
+                # ВАЖНО: Устанавливаем MenuButton для ВСЕХ типов групп (включая форумы)
+                # Это нужно для отображения кнопки "Команды бота" на всех устройствах, включая MacBook
+                try:
+                    await bot.set_chat_menu_button(chat_id=message.chat.id, menu_button=types.MenuButtonCommands())
+                    logger.info(
+                        f"✅ MenuButton установлен для чата {message.chat.id} "
+                        f"(тип: {message.chat.type}, форум: {is_forum_check})"
+                    )
+                except Exception as menu_error:
+                    logger.warning(f"⚠️ Не удалось установить MenuButton для чата {message.chat.id}: {menu_error}")
 
                 logger.info(f"✅ Команды и меню принудительно установлены для мобильных в чате {message.chat.id}")
 
@@ -693,6 +697,28 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
 
             # Простое приветствие без выбора ветки (только в группах, не в каналах)
             if message.chat.type != "channel":
+                # ВАЖНО: Устанавливаем MenuButton при добавлении бота в группу
+                # Это нужно для отображения кнопки "Команды бота" на всех устройствах, включая MacBook
+                try:
+                    await bot.set_chat_menu_button(chat_id=message.chat.id, menu_button=types.MenuButtonCommands())
+                    logger.info(f"✅ MenuButton установлен при добавлении бота в группу {message.chat.id}")
+                except Exception as menu_error:
+                    logger.warning(
+                        f"⚠️ Не удалось установить MenuButton при добавлении в группу {message.chat.id}: {menu_error}"
+                    )
+
+                # Устанавливаем команды для конкретного чата
+                try:
+                    await bot.set_my_commands(
+                        [types.BotCommand(command="start", description="🎉 События чата")],
+                        scope=types.BotCommandScopeChat(chat_id=message.chat.id),
+                    )
+                    logger.info(f"✅ Команды установлены при добавлении бота в группу {message.chat.id}")
+                except Exception as cmd_error:
+                    logger.warning(
+                        f"⚠️ Не удалось установить команды при добавлении в группу {message.chat.id}: {cmd_error}"
+                    )
+
                 try:
                     await message.answer(
                         "🎉 **Бот добавлен в группу!**\n\n" "Используйте /start для начала работы",
