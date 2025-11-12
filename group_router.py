@@ -458,14 +458,30 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
 
                 # ВАЖНО: Устанавливаем MenuButton для ВСЕХ типов групп (включая форумы)
                 # Это нужно для отображения кнопки "Команды бота" на всех устройствах, включая MacBook
+                # Для супергрупп может не работать установка по chat_id, поэтому пробуем оба варианта
                 try:
+                    # Сначала пробуем установить для конкретного чата
                     await bot.set_chat_menu_button(chat_id=message.chat.id, menu_button=types.MenuButtonCommands())
                     logger.info(
                         f"✅ MenuButton установлен для чата {message.chat.id} "
                         f"(тип: {message.chat.type}, форум: {is_forum_check})"
                     )
                 except Exception as menu_error:
-                    logger.warning(f"⚠️ Не удалось установить MenuButton для чата {message.chat.id}: {menu_error}")
+                    error_str = str(menu_error).lower()
+                    # Если ошибка связана с chat_id, пробуем установить глобально
+                    if "chat_id" in error_str or "неверный" in error_str or "invalid" in error_str:
+                        logger.warning(
+                            f"⚠️ Не удалось установить MenuButton для конкретного чата {message.chat.id}, "
+                            f"пробуем глобально: {menu_error}"
+                        )
+                        try:
+                            # Пробуем установить глобально для всех групп
+                            await bot.set_chat_menu_button(menu_button=types.MenuButtonCommands())
+                            logger.info("✅ MenuButton установлен глобально для всех групп")
+                        except Exception as global_error:
+                            logger.warning(f"⚠️ Не удалось установить MenuButton глобально: {global_error}")
+                    else:
+                        logger.warning(f"⚠️ Не удалось установить MenuButton для чата {message.chat.id}: {menu_error}")
 
                 logger.info(f"✅ Команды и меню принудительно установлены для мобильных в чате {message.chat.id}")
 
@@ -699,13 +715,32 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
             if message.chat.type != "channel":
                 # ВАЖНО: Устанавливаем MenuButton при добавлении бота в группу
                 # Это нужно для отображения кнопки "Команды бота" на всех устройствах, включая MacBook
+                # Для супергрупп может не работать установка по chat_id, поэтому пробуем оба варианта
                 try:
+                    # Сначала пробуем установить для конкретного чата
                     await bot.set_chat_menu_button(chat_id=message.chat.id, menu_button=types.MenuButtonCommands())
                     logger.info(f"✅ MenuButton установлен при добавлении бота в группу {message.chat.id}")
                 except Exception as menu_error:
-                    logger.warning(
-                        f"⚠️ Не удалось установить MenuButton при добавлении в группу {message.chat.id}: {menu_error}"
-                    )
+                    error_str = str(menu_error).lower()
+                    # Если ошибка связана с chat_id, пробуем установить глобально
+                    if "chat_id" in error_str or "неверный" in error_str or "invalid" in error_str:
+                        logger.warning(
+                            f"⚠️ Не удалось установить MenuButton для конкретного чата {message.chat.id} "
+                            f"при добавлении, пробуем глобально: {menu_error}"
+                        )
+                        try:
+                            # Пробуем установить глобально для всех групп
+                            await bot.set_chat_menu_button(menu_button=types.MenuButtonCommands())
+                            logger.info("✅ MenuButton установлен глобально при добавлении бота")
+                        except Exception as global_error:
+                            logger.warning(
+                                f"⚠️ Не удалось установить MenuButton глобально при добавлении: {global_error}"
+                            )
+                    else:
+                        logger.warning(
+                            f"⚠️ Не удалось установить MenuButton при добавлении "
+                            f"в группу {message.chat.id}: {menu_error}"
+                        )
 
                 # Устанавливаем команды для конкретного чата
                 try:

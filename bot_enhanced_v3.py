@@ -91,14 +91,14 @@ def _build_tracking_url(click_type: str, event: dict, target_url: str, user_id: 
     return tracking_url
 
 
-def escape_markdown_v2(text: str) -> str:
-    """Экранирует специальные символы Markdown V2 для безопасной вставки в текст"""
+def escape_markdown(text: str) -> str:
+    """Экранирует специальные символы Markdown для безопасной вставки в текст"""
     if not text:
         return ""
-    # Специальные символы Markdown V2, которые нужно экранировать
+    # Специальные символы Markdown (не V2), которые нужно экранировать
+    # В обычном Markdown нужно экранировать: * _ ` [ и обратный слэш \
     # Обратный слэш экранируем первым, так как он используется для экранирования других символов
-    # _ * [ ] ( ) ~ ` > # + - = | { } . !
-    special_chars = r"\_*[]()~`>#+-=|{}.!"
+    special_chars = r"*_`["
     # Экранируем каждый специальный символ
     escaped = ""
     for char in text:
@@ -3212,15 +3212,13 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
         # Публикуем событие в группу
         group_id = data["group_id"]
         # Экранируем все поля для безопасной вставки в Markdown
-        safe_title = escape_markdown_v2(data.get("title", ""))
-        safe_date = escape_markdown_v2(data.get("date", ""))
-        safe_time = escape_markdown_v2(data.get("time", ""))
-        safe_city = escape_markdown_v2(data.get("city", ""))
-        safe_location_name = escape_markdown_v2(data.get("location_name", "Место по ссылке"))
-        safe_description = escape_markdown_v2(data.get("description", ""))
-        safe_username = escape_markdown_v2(
-            callback.from_user.username or callback.from_user.first_name or "Пользователь"
-        )
+        safe_title = escape_markdown(data.get("title", ""))
+        safe_date = escape_markdown(data.get("date", ""))
+        safe_time = escape_markdown(data.get("time", ""))
+        safe_city = escape_markdown(data.get("city", ""))
+        safe_location_name = escape_markdown(data.get("location_name", "Место по ссылке"))
+        safe_description = escape_markdown(data.get("description", ""))
+        safe_username = escape_markdown(callback.from_user.username or callback.from_user.first_name or "Пользователь")
 
         event_text = (
             f"🎉 **Новое событие!**\n\n"
