@@ -192,6 +192,39 @@ def local_to_utc(time_local_str: str, tz_name: str) -> datetime | None:
         return None
 
 
+async def get_coordinates_from_place_id(place_id: str) -> tuple[float, float] | None:
+    """
+    Получает координаты места по place_id через Google Places API Details
+    """
+    settings = load_settings()
+    if not settings.google_maps_api_key:
+        return None
+
+    params = {
+        "place_id": place_id,
+        "fields": "geometry,name",
+        "key": settings.google_maps_api_key,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get("https://maps.googleapis.com/maps/api/place/details/json", params=params)
+            r.raise_for_status()
+            data = r.json()
+
+            if data.get("status") == "OK" and data.get("result"):
+                geometry = data["result"].get("geometry", {})
+                location = geometry.get("location", {})
+                if location.get("lat") and location.get("lng"):
+                    lat = float(location["lat"])
+                    lng = float(location["lng"])
+                    return lat, lng
+    except Exception as e:
+        print(f"Ошибка при получении координат по place_id: {e}")
+
+    return None
+
+
 async def search_nearby_places(
     lat: float, lng: float, radius_meters: int = 5000, types: str = "establishment"
 ) -> list[dict]:
@@ -428,7 +461,7 @@ async def parse_google_maps_link(link: str) -> dict | None:
 
             return {"lat": lat, "lng": lng, "name": name, "raw_link": link}
 
-        # Паттерн 2: q=lat,lng
+        # Паттерн 2: q=lat,lng или q=адрес
         pattern2 = r"[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)"
         match2 = re.search(pattern2, link)
         if match2:
@@ -438,6 +471,21 @@ async def parse_google_maps_link(link: str) -> dict | None:
             name = extract_place_name_from_url(link)
 
             return {"lat": lat, "lng": lng, "name": name, "raw_link": link}
+
+        # Паттерн 2b: q=адрес (не координаты) - извлекаем адрес для геокодирования
+        pattern2b = r"[?&]q=([^&]+)"
+        match2b = re.search(pattern2b, link)
+        if match2b:
+            query = unquote(match2b.group(1))
+            # Проверяем, что это не координаты (должно быть что-то вроде адреса)
+            if not re.match(r"^-?\d+\.?\d*,-?\d+\.?\d*$", query):
+                # Это адрес, нужно геокодировать
+                coords = await geocode_address(query)
+                if coords:
+                    lat, lng = coords
+                    # Извлекаем название из адреса (первая часть до запятой)
+                    name = query.split(",")[0].strip() if "," in query else query
+                    return {"lat": lat, "lng": lng, "name": name, "raw_link": link}
 
         # Паттерн 3: ll=lat,lng
         pattern3 = r"[?&]ll=(-?\d+\.?\d*),(-?\d+\.?\d*)"
@@ -483,9 +531,22 @@ async def parse_google_maps_link(link: str) -> dict | None:
                     result["place_id"] = place_id
                 return result
 
-        # Паттерн 7: если нашли place_id, возвращаем его (координаты можно получить позже)
+        # Паттерн 7: если нашли place_id или ftid, пытаемся получить координаты через Places API
         place_id = _extract_place_id(link)
         if place_id:
+            # Если есть place_id, пытаемся получить координаты через Places API
+            coords = await get_coordinates_from_place_id(place_id)
+            if coords:
+                lat, lng = coords
+                name = _extract_place_name_from_data(link) or extract_place_name_from_url(link)
+                return {
+                    "lat": lat,
+                    "lng": lng,
+                    "name": name or "Место на карте",
+                    "raw_link": link,
+                    "place_id": place_id,
+                }
+            # Если не удалось получить координаты, возвращаем place_id для дальнейшей обработки
             return {
                 "lat": None,
                 "lng": None,
