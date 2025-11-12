@@ -3697,6 +3697,178 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
     )
 
 
+# Обработчик для текстовых сообщений в состоянии ожидания геолокации для заданий (для MacBook)
+@main_router.message(TaskFlow.waiting_for_location, F.text)
+async def on_location_text_input_tasks(message: types.Message, state: FSMContext):
+    """Обработчик текстового ввода координат или ссылки Google Maps для заданий (MacBook)"""
+    user_id = message.from_user.id
+    text = message.text.strip()
+    logger.info(
+        f"📍 [TEXT_INPUT_TASKS] Получен текст в состоянии TaskFlow.waiting_for_location: user_id={user_id}, text={text[:100]}"
+    )
+
+    # Если пользователь нажал "Главное меню", вызываем соответствующий обработчик
+    if text == "🏠 Главное меню":
+        logger.info(
+            f"📍 [TEXT_INPUT_TASKS] Обнаружена кнопка 'Главное меню', возвращаем в меню для пользователя {user_id}"
+        )
+        # Очищаем состояние FSM
+        await state.clear()
+        # Показываем анимацию ракеты с главным меню
+        await send_spinning_menu(message)
+        return
+
+    # Специальная обработка для MacBook: если пользователь нажал кнопку "🎯 Квесты на районе" повторно
+    if text == "🎯 Квесты на районе":
+        logger.info(
+            f"📍 [TEXT_INPUT_TASKS] Обнаружен повторный запрос '🎯 Квесты на районе' от пользователя {user_id} (MacBook)"
+        )
+        # Создаем inline-кнопку для открытия Google Maps (для MacBook)
+        maps_keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+            ]
+        )
+        await message.answer(
+            "💻 На MacBook кнопка геолокации может не работать.\n\n"
+            "📋 **Как указать место:**\n"
+            "1. Нажми кнопку **🌍 Найти на карте** ниже\n"
+            "2. Найди нужное место на карте\n"
+            "3. Скопируй ссылку из адресной строки\n"
+            "4. Отправь ссылку мне\n\n"
+            "Или отправь координаты в формате:\n"
+            "`широта, долгота`\n"
+            "Например: `-8.4095, 115.1889`",
+            parse_mode="Markdown",
+            reply_markup=maps_keyboard,
+        )
+        return
+
+    # Проверяем, является ли это ссылкой Google Maps
+    if any(
+        domain in text.lower() for domain in ["maps.google.com", "goo.gl/maps", "maps.app.goo.gl", "google.com/maps"]
+    ):
+        logger.info("📍 [TEXT_INPUT_TASKS] Обнаружена ссылка Google Maps, парсим...")
+        from utils.geo_utils import parse_google_maps_link
+
+        location_data = await parse_google_maps_link(text)
+        if location_data and location_data.get("lat") and location_data.get("lng"):
+            lat = location_data["lat"]
+            lng = location_data["lng"]
+            logger.info(f"📍 [TEXT_INPUT_TASKS] Извлечены координаты из Google Maps: lat={lat}, lng={lng}")
+
+            # Обрабатываем координаты для заданий (аналогично on_location_for_tasks)
+            await process_task_location(message, state, lat, lng)
+            return
+        else:
+            # Создаем inline-кнопку для открытия Google Maps (для MacBook)
+            maps_keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+                ]
+            )
+            await message.answer(
+                "❌ Не удалось извлечь координаты из ссылки Google Maps.\n\n"
+                "💡 Попробуйте:\n"
+                "• Открыть место на карте в Google Maps\n"
+                "• Скопировать ссылку из адресной строки\n"
+                "• Или отправьте координаты в формате: широта, долгота\n"
+                "Например: -8.4095, 115.1889",
+                reply_markup=maps_keyboard,
+            )
+            return
+
+    # Пробуем распарсить координаты в формате "широта, долгота"
+    try:
+        text_clean = text.replace("(", "").replace(")", "").strip()
+        parts = [p.strip() for p in text_clean.split(",")]
+
+        if len(parts) == 2:
+            lat = float(parts[0])
+            lng = float(parts[1])
+
+            # Проверяем, что координаты в разумных пределах
+            if -90 <= lat <= 90 and -180 <= lng <= 180:
+                logger.info(f"📍 [TEXT_INPUT_TASKS] Распарсены координаты: lat={lat}, lng={lng}")
+                # Обрабатываем координаты для заданий (аналогично on_location_for_tasks)
+                await process_task_location(message, state, lat, lng)
+                return
+            else:
+                await message.answer("❌ Координаты вне допустимого диапазона. Широта: -90 до 90, долгота: -180 до 180")
+                return
+    except ValueError:
+        # Не координаты, возможно это другой текст - пропускаем
+        logger.info("📍 [TEXT_INPUT_TASKS] Текст не является координатами или ссылкой, пропускаем")
+        pass
+
+    # Если это не координаты и не ссылка, показываем подсказку
+    # Создаем inline-кнопку для открытия Google Maps (для MacBook)
+    maps_keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+        ]
+    )
+    await message.answer(
+        "💡 Отправьте:\n"
+        "• Ссылку из Google Maps (скопируйте из адресной строки)\n"
+        "• Или координаты в формате: широта, долгота\n"
+        "Например: -8.4095, 115.1889\n\n"
+        "💻 На MacBook используйте кнопку **🌍 Найти на карте** ниже:",
+        parse_mode="Markdown",
+        reply_markup=maps_keyboard,
+    )
+
+
+async def process_task_location(message: types.Message, state: FSMContext, lat: float, lng: float):
+    """Вспомогательная функция для обработки координат для заданий"""
+    user_id = message.from_user.id
+    logger.info(f"📍 [TASKS] Обработка координат для заданий: user_id={user_id}, lat={lat}, lng={lng}")
+
+    # Сохраняем координаты пользователя и обновляем timezone (аналогично on_location_for_tasks)
+    with get_session() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        if user:
+            user.last_lat = lat
+            user.last_lng = lng
+            user.last_geo_at_utc = datetime.now(UTC)
+
+            # Получаем timezone по координатам и сохраняем
+            try:
+                tz_name = await get_timezone(lat, lng)
+                if tz_name:
+                    user.user_tz = tz_name
+                    logger.info(f"🕒 Timezone обновлен для пользователя {user_id}: {tz_name}")
+                else:
+                    logger.warning(f"⚠️ Не удалось получить timezone для координат ({lat}, {lng})")
+            except Exception as e:
+                logger.error(f"❌ Ошибка при получении timezone: {e}")
+
+            session.commit()
+            logger.info(f"📍 Координаты пользователя {user_id} обновлены")
+
+    # Переходим в состояние ожидания выбора категории
+    await state.set_state(TaskFlow.waiting_for_category)
+
+    # Показываем выбор категории после получения геолокации
+    keyboard = [
+        [InlineKeyboardButton(text="💪 Тело", callback_data="task_category:body")],
+        [InlineKeyboardButton(text="🧘 Дух", callback_data="task_category:spirit")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+    ]
+    reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+    await message.answer(
+        "✅ **Геолокация получена!**\n\n"
+        "Выберите категорию для получения персонализированных заданий:\n\n"
+        "💪 **Тело** - спорт, йога, прогулки\n"
+        "🧘 **Дух** - медитация, храмы, природа",
+        parse_mode="Markdown",
+        reply_markup=reply_markup,
+    )
+
+    logger.info(f"📍 [ЗАДАНИЯ] Показаны категории для пользователя {user_id}")
+
+
 @main_router.message(F.location)
 async def on_location(message: types.Message, state: FSMContext):
     """Обработчик получения геолокации"""
@@ -4804,17 +4976,33 @@ async def on_tasks_goal(message: types.Message, state: FSMContext):
     # Устанавливаем состояние для заданий
     await state.set_state(TaskFlow.waiting_for_location)
 
-    # Создаем клавиатуру с кнопкой геолокации (one_time_keyboard=True - кнопка исчезнет)
+    # Создаем клавиатуру с кнопкой геолокации (one_time_keyboard=False - кнопка не исчезнет на MacBook)
     location_keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="📍 Отправить геолокацию", request_location=True)],
             [KeyboardButton(text="🏠 Главное меню")],
         ],
         resize_keyboard=True,
-        one_time_keyboard=True,  # Кнопка исчезнет после использования
+        one_time_keyboard=False,  # Изменено на False, чтобы кнопка не исчезала на MacBook
     )
 
-    quest_text = "🎯 Квесты на районе\nНаграда 3 🚀\n\nСамое время развлечься и получить награды.\n\nНажмите кнопку **'📍 Отправить геолокацию'** чтобы начать!"
+    # Создаем inline-кнопку для открытия Google Maps (для MacBook)
+    maps_keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+        ]
+    )
+
+    quest_text = (
+        "🎯 Квесты на районе\nНаграда 3 🚀\n\n"
+        "Самое время развлечься и получить награды.\n\n"
+        "Нажмите кнопку **'📍 Отправить геолокацию'** чтобы начать!\n\n"
+        "💡 **Если кнопка геолокации не работает (MacBook):**\n"
+        "• Нажмите кнопку **🌍 Найти на карте** ниже\n"
+        "• Найдите место на карте\n"
+        "• Скопируйте ссылку из адресной строки и отправьте сюда\n"
+        "• Или отправьте координаты: широта, долгота (например: -8.4095, 115.1889)"
+    )
 
     # Пытаемся отправить фото, если оно есть (поддерживаем разные форматы)
     photo_paths = [
@@ -4833,6 +5021,11 @@ async def on_tasks_goal(message: types.Message, state: FSMContext):
                 await message.answer_photo(
                     photo, caption=quest_text, parse_mode="Markdown", reply_markup=location_keyboard
                 )
+                # Отправляем отдельное сообщение с кнопкой Google Maps
+                await message.answer(
+                    "Открой карту, найди место и вставь ссылку сюда 👇",
+                    reply_markup=maps_keyboard,
+                )
                 return
             except Exception as e:
                 logger.warning(f"⚠️ Не удалось отправить фото квестов: {e}, отправляем только текст")
@@ -4840,6 +5033,11 @@ async def on_tasks_goal(message: types.Message, state: FSMContext):
 
     # Если фото нет или произошла ошибка, отправляем только текст
     await message.answer(quest_text, parse_mode="Markdown", reply_markup=location_keyboard)
+    # Отправляем отдельное сообщение с кнопкой Google Maps
+    await message.answer(
+        "Открой карту, найди место и вставь ссылку сюда 👇",
+        reply_markup=maps_keyboard,
+    )
 
 
 @main_router.message(F.text == "🏆 Мои квесты")
