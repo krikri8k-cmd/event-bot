@@ -1553,7 +1553,32 @@ async def perform_nearby_search(
             if not prepared:
                 logger.info("📭 События не найдены после фильтрации")
                 current_radius = int(radius)
-                keyboard_buttons = build_radius_inline_buttons(current_radius)
+
+                # Получаем date_filter из состояния пользователя (по умолчанию "today")
+                date_filter_state = user_state.get(message.chat.id, {}).get("date_filter", "today")
+
+                keyboard_buttons = []
+
+                # Добавляем кнопки фильтрации даты (Сегодня/Завтра)
+                if date_filter_state == "today":
+                    keyboard_buttons.append(
+                        [
+                            InlineKeyboardButton(text="📅 Сегодня ✅", callback_data="date_filter:today"),
+                            InlineKeyboardButton(text="📅 Завтра", callback_data="date_filter:tomorrow"),
+                        ]
+                    )
+                else:
+                    keyboard_buttons.append(
+                        [
+                            InlineKeyboardButton(text="📅 Сегодня", callback_data="date_filter:today"),
+                            InlineKeyboardButton(text="📅 Завтра ✅", callback_data="date_filter:tomorrow"),
+                        ]
+                    )
+
+                # Добавляем кнопки радиуса
+                keyboard_buttons.extend(build_radius_inline_buttons(current_radius))
+
+                # Добавляем кнопку создания события
                 keyboard_buttons.append([InlineKeyboardButton(text="➕ Создать событие", callback_data="create_event")])
                 inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
@@ -1577,7 +1602,7 @@ async def perform_nearby_search(
                     "lng": lng,
                     "radius": current_radius,
                     "page": 1,
-                    "date_filter": "today",
+                    "date_filter": date_filter_state,
                     "diag": diag,
                     "region": region,
                 }
@@ -1594,8 +1619,11 @@ async def perform_nearby_search(
                     else "💡 Попробуй изменить радиус и повторить поиск\n"
                 )
 
+                # Формируем текст сообщения в зависимости от фильтра даты
+                date_text = "на сегодня" if date_filter_state == "today" else "на завтра"
+
                 await message.answer(
-                    f"📅 В радиусе {current_radius} км событий на сегодня не найдено.\n\n"
+                    f"📅 В радиусе {current_radius} км событий {date_text} не найдено.\n\n"
                     f"{suggestion_line}"
                     f"➕ Или создай своё событие и собери свою компанию!",
                     reply_markup=inline_kb,
@@ -4098,7 +4126,30 @@ async def on_location(message: types.Message, state: FSMContext):
 
                 # Создаем кнопки расширения радиуса, используя фиксированные RADIUS_OPTIONS
                 current_radius = int(radius)
-                keyboard_buttons = build_radius_inline_buttons(current_radius)
+
+                # Получаем date_filter из состояния пользователя (по умолчанию "today")
+                date_filter_state = user_state.get(message.chat.id, {}).get("date_filter", "today")
+
+                keyboard_buttons = []
+
+                # Добавляем кнопки фильтрации даты (Сегодня/Завтра)
+                if date_filter_state == "today":
+                    keyboard_buttons.append(
+                        [
+                            InlineKeyboardButton(text="📅 Сегодня ✅", callback_data="date_filter:today"),
+                            InlineKeyboardButton(text="📅 Завтра", callback_data="date_filter:tomorrow"),
+                        ]
+                    )
+                else:
+                    keyboard_buttons.append(
+                        [
+                            InlineKeyboardButton(text="📅 Сегодня", callback_data="date_filter:today"),
+                            InlineKeyboardButton(text="📅 Завтра ✅", callback_data="date_filter:tomorrow"),
+                        ]
+                    )
+
+                # Добавляем кнопки радиуса
+                keyboard_buttons.extend(build_radius_inline_buttons(current_radius))
 
                 # Добавляем кнопку создания события
                 keyboard_buttons.append(
@@ -4135,12 +4186,12 @@ async def on_location(message: types.Message, state: FSMContext):
                     "lng": lng,
                     "radius": int(current_radius),
                     "page": 1,
-                    "date_filter": "today",  # По умолчанию показываем события на сегодня
+                    "date_filter": date_filter_state,  # Используем date_filter из состояния
                     "diag": diag,
                     "region": region,
                 }
                 logger.info(
-                    f"💾 Состояние сохранено для пользователя {message.chat.id}: lat={lat}, lng={lng}, radius={current_radius}, region={region}"
+                    f"💾 Состояние сохранено для пользователя {message.chat.id}: lat={lat}, lng={lng}, radius={current_radius}, region={region}, date_filter={date_filter_state}"
                 )
 
                 higher_options = [r for r in RADIUS_OPTIONS if r > current_radius]
@@ -4155,8 +4206,11 @@ async def on_location(message: types.Message, state: FSMContext):
                     else "💡 Попробуй изменить радиус и повторить поиск\n"
                 )
 
+                # Формируем текст сообщения в зависимости от фильтра даты
+                date_text = "на сегодня" if date_filter_state == "today" else "на завтра"
+
                 await message.answer(
-                    f"📅 В радиусе {current_radius} км событий на сегодня не найдено.\n\n"
+                    f"📅 В радиусе {current_radius} км событий {date_text} не найдено.\n\n"
                     f"{suggestion_line}"
                     f"➕ Или создай своё событие и собери свою компанию!",
                     reply_markup=inline_kb,
@@ -5754,7 +5808,26 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     # Если не найдено событий
     if not prepared:
         current_radius = new_radius
-        keyboard_buttons = build_radius_inline_buttons(current_radius)
+        keyboard_buttons = []
+
+        # Добавляем кнопки фильтрации даты (Сегодня/Завтра)
+        if date_filter == "today":
+            keyboard_buttons.append(
+                [
+                    InlineKeyboardButton(text="📅 Сегодня ✅", callback_data="date_filter:today"),
+                    InlineKeyboardButton(text="📅 Завтра", callback_data="date_filter:tomorrow"),
+                ]
+            )
+        else:
+            keyboard_buttons.append(
+                [
+                    InlineKeyboardButton(text="📅 Сегодня", callback_data="date_filter:today"),
+                    InlineKeyboardButton(text="📅 Завтра ✅", callback_data="date_filter:tomorrow"),
+                ]
+            )
+
+        # Добавляем кнопки радиуса
+        keyboard_buttons.extend(build_radius_inline_buttons(current_radius))
 
         # Добавляем кнопку создания события
         keyboard_buttons.append(
@@ -5780,8 +5853,11 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             else "💡 Попробуй изменить радиус и повторить поиск\n"
         )
 
+        # Формируем текст сообщения в зависимости от фильтра даты
+        date_text = "на сегодня" if date_filter == "today" else "на завтра"
+
         await callback.message.edit_text(
-            f"📅 В радиусе {current_radius} км событий на сегодня не найдено.\n\n"
+            f"📅 В радиусе {current_radius} км событий {date_text} не найдено.\n\n"
             f"{suggestion_line}"
             f"➕ Или создай своё событие и собери свою компанию!",
             reply_markup=inline_kb,
