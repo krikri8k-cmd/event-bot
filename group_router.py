@@ -780,25 +780,18 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
                     )
 
                 try:
-                    # Пытаемся отправить фото с приветственным сообщением
-                    import os
-
-                    from aiogram.types import FSInputFile
-
-                    photo_path = "images/zastavka_community.png"
                     welcome_text = (
                         "🎉 Бот добавлен в группу!\n\n"
                         "Жми /start для создания и поиска событий\n\n"
                         "📌 Закрепи, что бы все знали"
                     )
-
-                    if os.path.exists(photo_path):
-                        photo = FSInputFile(photo_path)
-                        await message.answer_photo(photo, caption=welcome_text, parse_mode="Markdown")
-                    else:
-                        # Если фото нет, отправляем только текст
-                        await message.answer(welcome_text, parse_mode="Markdown")
+                    await message.answer(welcome_text, parse_mode="Markdown")
+                    logger.info(f"✅ Приветственное сообщение отправлено в чат {message.chat.id}")
                 except Exception as answer_error:
+                    logger.error(
+                        f"❌ Ошибка при отправке приветственного сообщения в чат {message.chat.id}: {answer_error}",
+                        exc_info=True,
+                    )
                     # Проверяем, не закрыта ли тема форума
                     if "TOPIC_CLOSED" in str(answer_error):
                         logger.warning(
