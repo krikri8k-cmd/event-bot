@@ -3744,6 +3744,21 @@ async def on_location_text_input_tasks(message: types.Message, state: FSMContext
         await send_spinning_menu(message)
         return
 
+    # Если пользователь нажал "🌍 Найти на карте", показываем inline-кнопку с картой
+    if text == "🌍 Найти на карте":
+        logger.info(f"📍 [TEXT_INPUT_TASKS] Обнаружена кнопка '🌍 Найти на карте' от пользователя {user_id}")
+        # Создаем inline-кнопку для открытия Google Maps
+        maps_keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+            ]
+        )
+        await message.answer(
+            "🌍 Открой карту, найди место и вставь ссылку сюда 👇",
+            reply_markup=maps_keyboard,
+        )
+        return
+
     # Специальная обработка для MacBook: если пользователь нажал кнопку "🎯 Квесты на районе" повторно
     if text == "🎯 Квесты на районе":
         logger.info(
@@ -4998,17 +5013,11 @@ async def on_tasks_goal(message: types.Message, state: FSMContext):
     location_keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="📍 Отправить геолокацию", request_location=True)],
+            [KeyboardButton(text="🌍 Найти на карте")],
             [KeyboardButton(text="🏠 Главное меню")],
         ],
         resize_keyboard=True,
         one_time_keyboard=False,  # Изменено на False, чтобы кнопка не исчезала на MacBook
-    )
-
-    # Создаем inline-кнопку для открытия Google Maps (для MacBook)
-    maps_keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
-        ]
     )
 
     quest_text = (
@@ -5037,11 +5046,6 @@ async def on_tasks_goal(message: types.Message, state: FSMContext):
                 await message.answer_photo(
                     photo, caption=quest_text, parse_mode="Markdown", reply_markup=location_keyboard
                 )
-                # Отправляем отдельное сообщение с кнопкой Google Maps
-                await message.answer(
-                    "Открой карту, найди место и вставь ссылку сюда 👇",
-                    reply_markup=maps_keyboard,
-                )
                 return
             except Exception as e:
                 logger.warning(f"⚠️ Не удалось отправить фото квестов: {e}, отправляем только текст")
@@ -5049,11 +5053,6 @@ async def on_tasks_goal(message: types.Message, state: FSMContext):
 
     # Если фото нет или произошла ошибка, отправляем только текст
     await message.answer(quest_text, parse_mode="Markdown", reply_markup=location_keyboard)
-    # Отправляем отдельное сообщение с кнопкой Google Maps
-    await message.answer(
-        "Открой карту, найди место и вставь ссылку сюда 👇",
-        reply_markup=maps_keyboard,
-    )
 
 
 @main_router.message(F.text == "🏆 Мои квесты")
