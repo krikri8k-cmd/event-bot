@@ -1406,19 +1406,17 @@ TEST_LOCATIONS = {
 
 def build_radius_inline_buttons(current_radius: int) -> list[list[InlineKeyboardButton]]:
     """Формирует список кнопок для изменения радиуса поиска."""
-    buttons = []
+    buttons_row = []
     for radius_option in RADIUS_OPTIONS:
         if radius_option == current_radius:
             continue
-        buttons.append(
-            [
-                InlineKeyboardButton(
-                    text=f"🔍 Изменить радиус до {radius_option} км",
-                    callback_data=f"{CB_RADIUS_PREFIX}{radius_option}",
-                )
-            ]
+        buttons_row.append(
+            InlineKeyboardButton(
+                text=f"{radius_option} км",
+                callback_data=f"{CB_RADIUS_PREFIX}{radius_option}",
+            )
         )
-    return buttons
+    return [buttons_row] if buttons_row else []
 
 
 def build_test_locations_keyboard() -> InlineKeyboardMarkup:
