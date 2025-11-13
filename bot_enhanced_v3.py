@@ -3431,17 +3431,11 @@ async def on_nearby_events_callback(callback: types.CallbackQuery, state: FSMCon
     location_keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="📍 Отправить геолокацию", request_location=True)],
+            [KeyboardButton(text="🌍 Найти на карте")],
             [KeyboardButton(text="🏠 Главное меню")],
         ],
         resize_keyboard=True,
         one_time_keyboard=False,
-    )
-
-    # Создаем inline-кнопку для открытия Google Maps (для MacBook)
-    maps_keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
-        ]
     )
 
     # Отправляем новое сообщение с ReplyKeyboardMarkup
@@ -3452,12 +3446,6 @@ async def on_nearby_events_callback(callback: types.CallbackQuery, state: FSMCon
         "• Или отправьте координаты: широта, долгота (например: -8.4095, 115.1889)",
         reply_markup=location_keyboard,
         parse_mode="Markdown",
-    )
-
-    # Отправляем отдельное сообщение с кнопкой для открытия Google Maps
-    await callback.message.answer(
-        "🌍 Открой карту, найди место и вставь ссылку сюда 👇",
-        reply_markup=maps_keyboard,
     )
 
     if callback.from_user.id in settings.admin_ids:
@@ -3513,17 +3501,11 @@ async def on_what_nearby(message: types.Message, state: FSMContext):
     location_keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="📍 Отправить геолокацию", request_location=True)],
+            [KeyboardButton(text="🌍 Найти на карте")],
             [KeyboardButton(text="🏠 Главное меню")],
         ],
         resize_keyboard=True,
         one_time_keyboard=False,  # Изменено на False, чтобы кнопка не исчезала на MacBook
-    )
-
-    # Создаем inline-кнопку для открытия Google Maps (для MacBook)
-    maps_keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
-        ]
     )
 
     await message.answer(
@@ -3533,12 +3515,6 @@ async def on_what_nearby(message: types.Message, state: FSMContext):
         "• Или отправьте координаты: широта, долгота (например: -8.4095, 115.1889)",
         reply_markup=location_keyboard,
         parse_mode="Markdown",
-    )
-
-    # Отправляем отдельное сообщение с кнопкой для открытия Google Maps
-    await message.answer(
-        "🌍 Открой карту, найди место и вставь ссылку сюда 👇",
-        reply_markup=maps_keyboard,
     )
 
     if message.from_user.id in settings.admin_ids:
@@ -3619,6 +3595,21 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
         await state.clear()
         # Показываем анимацию ракеты с главным меню
         await send_spinning_menu(message)
+        return
+
+    # Если пользователь нажал "🌍 Найти на карте", показываем inline-кнопку с картой
+    if text == "🌍 Найти на карте":
+        logger.info(f"📍 [TEXT_INPUT] Обнаружена кнопка '🌍 Найти на карте' от пользователя {user_id}")
+        # Создаем inline-кнопку для открытия Google Maps
+        maps_keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+            ]
+        )
+        await message.answer(
+            "🌍 Открой карту, найди место и вставь ссылку сюда 👇",
+            reply_markup=maps_keyboard,
+        )
         return
 
     # Специальная обработка для MacBook: если пользователь нажал кнопку "📍 Что рядом" повторно
@@ -5168,9 +5159,13 @@ async def cmd_tasks(message: types.Message, state: FSMContext):
 
     # Создаем клавиатуру с кнопкой геолокации
     location_keyboard = ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="📍 Отправить геолокацию")]],
+        keyboard=[
+            [KeyboardButton(text="📍 Отправить геолокацию", request_location=True)],
+            [KeyboardButton(text="🌍 Найти на карте")],
+            [KeyboardButton(text="🏠 Главное меню")],
+        ],
         resize_keyboard=True,
-        one_time_keyboard=True,
+        one_time_keyboard=False,
     )
 
     quest_text = "🎯 Квесты на районе\nНаграда 3 🚀\n\nСамое время развлечься и получить награды.\n\nНажмите кнопку **'📍 Отправить геолокацию'** чтобы начать!"
