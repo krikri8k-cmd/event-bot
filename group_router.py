@@ -781,7 +781,9 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
 
                 try:
                     await message.answer(
-                        "🎉 **Бот добавлен в группу!**\n\n" "Используйте /start для начала работы",
+                        "🎉 Бот добавлен в группу!\n\n\n"
+                        "Жми /start для создания и поиска событий\n\n\n"
+                        "📌 Закрепи, что бы все знали",
                         parse_mode="Markdown",
                     )
                 except Exception as answer_error:
