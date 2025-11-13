@@ -13,7 +13,7 @@ import asyncio
 import contextlib
 import logging
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from aiogram import Bot, F, Router, types
 from aiogram.filters import Command
@@ -862,9 +862,9 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
         from sqlalchemy import func, select
 
         # Важно: показываем ВСЕ будущие события (даже через неделю или год),
-        # но НЕ показываем прошедшие события (starts_at >= NOW())
-        # Это гарантирует, что события, у которых день уже прошел, не отображаются
-        now_utc = datetime.now(UTC)
+        # но НЕ показываем события, которые начались более часа назад (starts_at >= NOW() - 1 hour)
+        # Это позволяет видеть события в течение часа после начала (для долгих событий: вечеринки, выставки)
+        now_utc = datetime.now(UTC) - timedelta(hours=1)
 
         # Сначала получаем общее количество событий
         count_stmt = select(func.count(CommunityEvent.id)).where(
