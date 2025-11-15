@@ -339,6 +339,8 @@ class UnifiedEventsService:
         max_participants: int = None,
         chat_id: int = None,
         organizer_username: str = None,
+        source: str = "user",
+        external_id: str | None = None,
     ) -> int:
         """
         Создание пользовательского события в единую таблицу events
@@ -353,7 +355,7 @@ class UnifiedEventsService:
                     participants_ids, status, created_at_utc, updated_at_utc, is_generated_by_ai, chat_id
                 )
                 VALUES (
-                    'user', :external_id, :title, :description, :starts_at, NULL,
+                    :source, :external_id, :title, :description, :starts_at, NULL,
                     NULL, :location_name, :location_url, :lat, :lng, :country, :city,
                     :organizer_id, :organizer_username, :max_participants, 0,
                     NULL, 'open', NOW(), NOW(), false, :chat_id
@@ -361,21 +363,25 @@ class UnifiedEventsService:
                 RETURNING id
             """)
 
-            country = "ID" if city == "bali" else "RU"
+            country = "ID" if city and city.lower() == "bali" else "RU"
 
-            # Генерируем уникальный external_id для пользовательского события
-            import random
-            import time
+            if external_id is None:
+                # Генерируем уникальный external_id для пользовательского события
+                import random
+                import time
 
-            # Используем микросекунды + случайное число для уникальности
-            timestamp_ms = int(time.time() * 1000000)  # микросекунды
-            random_suffix = random.randint(1000, 9999)  # случайное число
-            external_id = f"user_{organizer_id}_{timestamp_ms}_{random_suffix}"
+                # Используем микросекунды + случайное число для уникальности
+                timestamp_ms = int(time.time() * 1000000)  # микросекунды
+                random_suffix = random.randint(1000, 9999)  # случайное число
+                external_id_value = f"user_{organizer_id}_{timestamp_ms}_{random_suffix}"
+            else:
+                external_id_value = external_id
 
             user_result = conn.execute(
                 user_event_query,
                 {
-                    "external_id": external_id,
+                    "source": source,
+                    "external_id": external_id_value,
                     "organizer_id": organizer_id,
                     "organizer_username": organizer_username,
                     "title": title,

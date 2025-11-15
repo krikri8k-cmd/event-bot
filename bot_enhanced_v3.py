@@ -2884,22 +2884,37 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
     location_url = message.text.strip()
     logger.info(f"🔥 process_community_location_url_pm: получили ссылку от пользователя {message.from_user.id}")
 
-    # Определяем название места по ссылке
+    # Определяем название места по ссылке и пробуем достать координаты
     location_name = "Место по ссылке"  # Базовое название
+    location_lat = None
+    location_lng = None
 
     try:
-        # Пытаемся извлечь название из Google Maps ссылки
-        if "maps.google.com" in location_url or "goo.gl" in location_url:
-            location_name = "Место на карте"
+        if "maps.google.com" in location_url or "goo.gl" in location_url or "maps.app.goo.gl" in location_url:
+            from utils.geo_utils import parse_google_maps_link
+
+            location_data = await parse_google_maps_link(location_url)
+            logger.info(f"🌍 parse_google_maps_link (community) ответ: {location_data}")
+            if location_data:
+                location_name = location_data.get("name") or "Место на карте"
+                location_lat = location_data.get("lat")
+                location_lng = location_data.get("lng")
+            else:
+                location_name = "Место на карте"
         elif "yandex.ru/maps" in location_url:
             location_name = "Место на Яндекс.Картах"
         else:
             location_name = "Место по ссылке"
     except Exception as e:
-        logger.warning(f"Не удалось определить название места: {e}")
+        logger.warning(f"Не удалось распарсить ссылку для community события: {e}")
         location_name = "Место по ссылке"
 
-    await state.update_data(location_url=location_url, location_name=location_name)
+    await state.update_data(
+        location_url=location_url,
+        location_name=location_name,
+        location_lat=location_lat,
+        location_lng=location_lng,
+    )
     await state.set_state(CommunityEventCreation.waiting_for_description)
 
     await message.answer(
@@ -2945,14 +2960,15 @@ async def process_community_description_pm(message: types.Message, state: FSMCon
         f"**Ссылка:** {data.get('location_url', 'НЕ УКАЗАНО')}\n"
         f"**Описание:** {data.get('description', 'НЕ УКАЗАНО')}\n\n"
         f"✅ **Все данные корректны?**\n"
-        f"Событие будет добавлено в группу, из которой вы перешли.",
+        f"Выберите, где опубликовать событие.",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton(text="✅ Создать событие", callback_data="community_event_confirm_pm"),
-                    InlineKeyboardButton(text="❌ Отменить", callback_data="community_event_cancel_pm"),
-                ]
+                    InlineKeyboardButton(text="✅ Только чат", callback_data="community_event_confirm_chat"),
+                    InlineKeyboardButton(text="🌍 Чат + World", callback_data="community_event_confirm_world"),
+                ],
+                [InlineKeyboardButton(text="❌ Отменить", callback_data="community_event_cancel_pm")],
             ]
         ),
     )
@@ -3152,12 +3168,13 @@ async def handle_delete_message(callback: types.CallbackQuery):
         await callback.answer("❌ Не удалось удалить сообщение")
 
 
-@main_router.callback_query(F.data == "community_event_confirm_pm")
+@main_router.callback_query(F.data.in_({"community_event_confirm_chat", "community_event_confirm_world"}))
 async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMContext, bot: Bot, session: AsyncSession):
     """Подтверждение создания события сообщества в ЛС"""
     logger.info(
         f"🔥 confirm_community_event_pm: пользователь {callback.from_user.id} подтверждает создание события в ЛС"
     )
+    publish_world = callback.data == "community_event_confirm_world"
 
     # Антидребезг: предотвращаем двойное создание события
     user_id = callback.from_user.id
@@ -3235,6 +3252,17 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
 
         logger.info(f"✅ Событие сообщества создано с ID: {event_id}")
 
+        world_publish_status = None
+        if publish_world:
+            world_publish_status = await publish_community_event_to_world(
+                event_data=data,
+                starts_at=starts_at,
+                organizer_id=callback.from_user.id,
+                organizer_username=callback.from_user.username or callback.from_user.first_name,
+                community_event_id=event_id,
+            )
+            logger.info(f"🌍 publish_community_event_to_world результат: {world_publish_status}")
+
         # Публикуем событие в группу
         group_id = data["group_id"]
         # Экранируем все поля для безопасной вставки в Markdown
@@ -3293,6 +3321,12 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
                         f"🔗 [Ссылка на сообщение]({group_link})\n\n",
                     ]
                 )
+            if publish_world:
+                if world_publish_status and world_publish_status.get("success"):
+                    success_text_parts.append("\n🌍 Событие также доступно в World-версии!\n")
+                else:
+                    success_text_parts.append("\n⚠️ Не смогли создать событие в World версии, создайте вручную.\n")
+
             success_text_parts.append("\n🚀")
             success_text = "".join(success_text_parts)
 
@@ -3332,6 +3366,72 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
             confirm_community_event_pm._processing.pop(user_id, None)
 
     await callback.answer()
+
+
+async def publish_community_event_to_world(
+    event_data: dict,
+    starts_at: datetime,
+    organizer_id: int,
+    organizer_username: str | None,
+    community_event_id: int,
+) -> dict:
+    """
+    Публикует событие из Community в основную таблицу events.
+
+    Returns:
+        dict: {"success": bool, "world_event_id": int | None, "reason": str | None}
+    """
+
+    lat = event_data.get("location_lat")
+    lng = event_data.get("location_lng")
+
+    try:
+        lat = float(lat)
+        lng = float(lng)
+    except (TypeError, ValueError):
+        logger.warning(
+            "⚠️ publish_community_event_to_world: отсутствуют координаты, World версия недоступна",
+        )
+        return {"success": False, "reason": "missing_coordinates"}
+
+    try:
+        from database import get_engine
+        from utils.unified_events_service import UnifiedEventsService
+
+        engine = get_engine()
+        events_service = UnifiedEventsService(engine)
+
+        location_name = event_data.get("location_name") or "Место на карте"
+        location_url = event_data.get("location_url")
+        city = event_data.get("city")
+        chat_id = event_data.get("group_id")
+
+        external_id = f"community:{chat_id}:{community_event_id}"
+
+        world_event_id = events_service.create_user_event(
+            organizer_id=organizer_id,
+            title=event_data["title"],
+            description=event_data["description"],
+            starts_at_utc=starts_at,
+            city=city,
+            lat=lat,
+            lng=lng,
+            location_name=location_name,
+            location_url=location_url,
+            max_participants=None,
+            chat_id=chat_id,
+            organizer_username=organizer_username,
+            source="community",
+            external_id=external_id,
+        )
+
+        return {"success": True, "world_event_id": world_event_id}
+    except Exception as e:
+        logger.error(
+            f"❌ publish_community_event_to_world: ошибка при сохранении события community_id={community_event_id}: {e}",
+            exc_info=True,
+        )
+        return {"success": False, "reason": "exception", "error": str(e)}
 
 
 @main_router.callback_query(F.data == "community_event_cancel_pm")
