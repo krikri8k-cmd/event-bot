@@ -8155,8 +8155,7 @@ async def cancel_event_creation(callback: types.CallbackQuery, state: FSMContext
 async def handle_manage_events(callback: types.CallbackQuery):
     """Обработчик кнопки Управление событиями"""
     user_id = callback.from_user.id
-    events = get_user_events(user_id)
-    active_events = [e for e in events if e.get("status") == "open"]
+    active_events = _get_active_user_events(user_id)
 
     if not active_events:
         # Проверяем, содержит ли сообщение фото
@@ -8196,65 +8195,79 @@ async def handle_manage_events(callback: types.CallbackQuery):
         await callback.answer()
         return
 
-    # Показываем первое событие с кнопками управления (старая логика)
-    first_event = active_events[0]
-    text = f"🔧 Управление событием:\n\n{format_event_for_display(first_event)}"
+    await _show_manage_event(callback, active_events, 0)
 
-    # Создаем кнопки управления
-    buttons = get_status_change_buttons(first_event["id"], first_event["status"])
+    await callback.answer()
+
+
+def _get_active_user_events(user_id: int) -> list[dict]:
+    """Возвращает только активные события пользователя"""
+    events = get_user_events(user_id)
+    return [e for e in events if e.get("status") == "open"]
+
+
+def _extract_index(callback_data: str, prefix: str) -> int | None:
+    """Извлекает индекс события из callback_data"""
+    try:
+        return int(callback_data.removeprefix(prefix))
+    except ValueError:
+        return None
+
+
+async def _show_manage_event(callback: types.CallbackQuery, events: list[dict], index: int):
+    """Показывает событие под нужным индексом с навигацией"""
+    if not events:
+        return
+
+    total = len(events)
+    if index < 0 or index >= total:
+        index = 0
+
+    event = events[index]
+    header = f"🔧 Управление событием ({index + 1}/{total}):\n\n"
+    text = f"{header}{format_event_for_display(event)}"
+
+    buttons = get_status_change_buttons(event["id"], event["status"])
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
         ]
     )
 
-    # Добавляем навигацию если есть еще события
-    if len(active_events) > 1:
-        keyboard.inline_keyboard.append(
-            [
-                InlineKeyboardButton(text="◀️ Предыдущее", callback_data="prev_event_0"),
-                InlineKeyboardButton(text="▶️ Следующее", callback_data="next_event_1"),
-            ]
-        )
+    nav_row = []
+    if index > 0:
+        nav_row.append(InlineKeyboardButton(text="◀️ Предыдущее", callback_data=f"prev_event_{index-1}"))
+    if index < total - 1:
+        nav_row.append(InlineKeyboardButton(text="▶️ Следующее", callback_data=f"next_event_{index+1}"))
+    if nav_row:
+        keyboard.inline_keyboard.append(nav_row)
 
-    # Проверяем, содержит ли сообщение фото (нельзя редактировать сообщения с фото)
+    await _send_or_edit_manage_message(callback, text, keyboard)
+
+
+async def _send_or_edit_manage_message(
+    callback: types.CallbackQuery, text: str, keyboard: InlineKeyboardMarkup
+) -> None:
+    """Отправляет или редактирует сообщение, учитывая наличие фото"""
     if callback.message.photo:
-        # Удаляем старое сообщение с фото и отправляем новое текстовое
         try:
             chat_id = callback.message.chat.id
             bot = callback.bot
             await callback.message.delete()
-            await bot.send_message(
-                chat_id=chat_id,
-                text=text,
-                reply_markup=keyboard,
-            )
+            await bot.send_message(chat_id=chat_id, text=text, reply_markup=keyboard, parse_mode="Markdown")
         except Exception as e:
-            logger.error(f"❌ Ошибка при удалении сообщения с фото и отправке нового: {e}", exc_info=True)
-            # Fallback: отправляем новое сообщение без удаления старого
+            logger.error(f"❌ Ошибка при отправке управления событиями (фото): {e}", exc_info=True)
             chat_id = callback.message.chat.id
             bot = callback.bot
-            await bot.send_message(
-                chat_id=chat_id,
-                text=text,
-                reply_markup=keyboard,
-            )
+            await bot.send_message(chat_id=chat_id, text=text, reply_markup=keyboard, parse_mode="Markdown")
     else:
-        # Обычное текстовое сообщение, можно редактировать
         try:
-            await callback.message.edit_text(text, reply_markup=keyboard)
+            await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
         except Exception as e:
-            logger.error(f"❌ Ошибка при редактировании сообщения: {e}", exc_info=True)
-            # Fallback: отправляем новое сообщение
+            logger.error(f"❌ Ошибка при редактировании управления событиями: {e}", exc_info=True)
             chat_id = callback.message.chat.id
             bot = callback.bot
-            await bot.send_message(
-                chat_id=chat_id,
-                text=text,
-                reply_markup=keyboard,
-            )
-
-    await callback.answer()
+            await bot.send_message(chat_id=chat_id, text=text, reply_markup=keyboard, parse_mode="Markdown")
 
 
 @main_router.message(F.text == "🏠 Главное меню")
@@ -9723,62 +9736,15 @@ async def handle_description_input(message: types.Message, state: FSMContext):
 async def handle_next_event(callback: types.CallbackQuery):
     """Переход к следующему событию"""
     user_id = callback.from_user.id
-    events = get_user_events(user_id)
+    target_index = _extract_index(callback.data, prefix="next_event_")
+    active_events = _get_active_user_events(user_id)
 
-    if len(events) > 1:
-        # Показываем второе событие
-        second_event = events[1]
-        text = f"📋 **Ваши события:**\n\n{format_event_for_display(second_event)}"
-        buttons = get_status_change_buttons(second_event["id"], second_event["status"])
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
-            ]
-        )
+    if target_index is None or target_index >= len(active_events):
+        await callback.answer("Больше событий нет")
+        return
 
-        # Добавляем кнопку "Предыдущее событие"
-        keyboard.inline_keyboard.append([InlineKeyboardButton(text="◀️ Предыдущее", callback_data="prev_event_0")])
-
-        # Проверяем, содержит ли сообщение фото (нельзя редактировать сообщения с фото)
-        if callback.message.photo:
-            try:
-                chat_id = callback.message.chat.id
-                bot = callback.bot
-                await callback.message.delete()
-                await bot.send_message(
-                    chat_id=chat_id,
-                    text=text,
-                    parse_mode="Markdown",
-                    reply_markup=keyboard,
-                )
-            except Exception as e:
-                logger.error(f"❌ Ошибка при удалении сообщения с фото и отправке нового: {e}", exc_info=True)
-                # Fallback: отправляем новое сообщение без удаления старого
-                chat_id = callback.message.chat.id
-                bot = callback.bot
-                await bot.send_message(
-                    chat_id=chat_id,
-                    text=text,
-                    parse_mode="Markdown",
-                    reply_markup=keyboard,
-                )
-        else:
-            try:
-                await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
-            except Exception as e:
-                logger.error(f"❌ Ошибка при редактировании сообщения: {e}", exc_info=True)
-                # Fallback: отправляем новое сообщение
-                chat_id = callback.message.chat.id
-                bot = callback.bot
-                await bot.send_message(
-                    chat_id=chat_id,
-                    text=text,
-                    parse_mode="Markdown",
-                    reply_markup=keyboard,
-                )
-        await callback.answer()
-    else:
-        await callback.answer("Это единственное событие")
+    await _show_manage_event(callback, active_events, target_index)
+    await callback.answer()
 
 
 @main_router.callback_query(F.data.startswith("back_to_main_"))
@@ -9793,61 +9759,15 @@ async def handle_back_to_main(callback: types.CallbackQuery):
 async def handle_prev_event(callback: types.CallbackQuery):
     """Возврат к предыдущему событию"""
     user_id = callback.from_user.id
-    events = get_user_events(user_id)
+    target_index = _extract_index(callback.data, prefix="prev_event_")
+    active_events = _get_active_user_events(user_id)
 
-    if events:
-        # Показываем первое событие
-        first_event = events[0]
-        text = f"📋 **Ваши события:**\n\n{format_event_for_display(first_event)}"
-        buttons = get_status_change_buttons(first_event["id"], first_event["status"])
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
-            ]
-        )
+    if target_index is None or target_index >= len(active_events):
+        await callback.answer("Это единственное событие")
+        return
 
-        # Добавляем кнопку "Следующее событие" если есть еще события
-        if len(events) > 1:
-            keyboard.inline_keyboard.append([InlineKeyboardButton(text="▶️ Следующее", callback_data="next_event_1")])
-
-        # Проверяем, содержит ли сообщение фото (нельзя редактировать сообщения с фото)
-        if callback.message.photo:
-            try:
-                chat_id = callback.message.chat.id
-                bot = callback.bot
-                await callback.message.delete()
-                await bot.send_message(
-                    chat_id=chat_id,
-                    text=text,
-                    parse_mode="Markdown",
-                    reply_markup=keyboard,
-                )
-            except Exception as e:
-                logger.error(f"❌ Ошибка при удалении сообщения с фото и отправке нового: {e}", exc_info=True)
-                # Fallback: отправляем новое сообщение без удаления старого
-                chat_id = callback.message.chat.id
-                bot = callback.bot
-                await bot.send_message(
-                    chat_id=chat_id,
-                    text=text,
-                    parse_mode="Markdown",
-                    reply_markup=keyboard,
-                )
-        else:
-            try:
-                await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
-            except Exception as e:
-                logger.error(f"❌ Ошибка при редактировании сообщения: {e}", exc_info=True)
-                # Fallback: отправляем новое сообщение
-                chat_id = callback.message.chat.id
-                bot = callback.bot
-                await bot.send_message(
-                    chat_id=chat_id,
-                    text=text,
-                    parse_mode="Markdown",
-                    reply_markup=keyboard,
-                )
-        await callback.answer()
+    await _show_manage_event(callback, active_events, target_index)
+    await callback.answer()
 
 
 # Обработчик изменения статуса бота в чате
