@@ -412,7 +412,7 @@ def prepare_events_for_feed(
         event_type = "source"  # по умолчанию
 
         # Проверяем, является ли это моментом пользователя
-        if input_type == "user" or source in ["user_created", "user"]:
+        if input_type == "user" or source in ["user_created", "user", "community"]:
             event_type = "user"
         # Проверяем, является ли это AI-парсингом
         elif input_type in ["ai", "ai_parsed", "ai_generated"] or e.get("ai_parsed") or source == "ai_parsed":
