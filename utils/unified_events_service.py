@@ -67,10 +67,10 @@ class UnifiedEventsService:
         )
 
         with self.engine.connect() as conn:
-            # Важно: фильтруем события, которые начались не более 2 часов назад
-            # (starts_at >= NOW() - INTERVAL '2 hours')
+            # Важно: фильтруем события, которые начались не более 3 часов назад
+            # (starts_at >= NOW() - INTERVAL '3 hours')
             # и события в пределах запрошенного дня (starts_at >= start_utc AND starts_at < end_utc)
-            # Это позволяет видеть события в течение 2 часов после начала
+            # Это позволяет видеть события в течение 3 часов после начала
             # (для долгих событий: вечеринки, выставки)
             if user_lat and user_lng:
                 # Поиск с координатами и радиусом
@@ -86,7 +86,7 @@ class UnifiedEventsService:
                     FROM events
                     WHERE starts_at >= :start_utc
                     AND starts_at < :end_utc
-                    AND starts_at >= NOW() - INTERVAL '2 hours'
+                    AND starts_at >= NOW() - INTERVAL '3 hours'
                     AND lat IS NOT NULL AND lng IS NOT NULL
                     AND status NOT IN ('closed', 'canceled')
                     AND 6371 * acos(
@@ -123,7 +123,7 @@ class UnifiedEventsService:
                     FROM events
                     WHERE starts_at >= :start_utc
                     AND starts_at < :end_utc
-                    AND starts_at >= NOW() - INTERVAL '2 hours'
+                    AND starts_at >= NOW() - INTERVAL '3 hours'
                     AND status NOT IN ('closed', 'canceled')
                     ORDER BY starts_at
                 """)
@@ -205,7 +205,7 @@ class UnifiedEventsService:
                         FROM events
                         WHERE starts_at >= :start_utc
                         AND starts_at < :end_utc
-                        AND starts_at >= NOW() - INTERVAL '2 hours'
+                        AND starts_at >= NOW() - INTERVAL '3 hours'
                         AND status NOT IN ('closed', 'canceled')
                         ORDER BY starts_at
                         LIMIT 50

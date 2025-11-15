@@ -862,9 +862,9 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
         from sqlalchemy import func, select
 
         # Важно: показываем ВСЕ будущие события (даже через неделю или год),
-        # но НЕ показываем события, которые начались более 2 часов назад (starts_at >= NOW() - 2 hours)
-        # Это позволяет видеть события в течение 2 часов после начала (для долгих событий: вечеринки, выставки)
-        now_utc = datetime.now(UTC) - timedelta(hours=2)
+        # но НЕ показываем события, которые начались более 3 часов назад (starts_at >= NOW() - 3 hours)
+        # Это позволяет видеть события в течение 3 часов после начала (для долгих событий: вечеринки, выставки)
+        now_utc = datetime.now(UTC) - timedelta(hours=3)
 
         # Сначала получаем общее количество событий
         count_stmt = select(func.count(CommunityEvent.id)).where(

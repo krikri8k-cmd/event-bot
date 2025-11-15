@@ -180,9 +180,9 @@ def create_app() -> FastAPI:
             delta = radius_km / 111  # примерное расстояние в градусах
 
             # Точный поиск по гаверсину с distance_km
-            # Важно: фильтруем события, которые начались не более 2 часов назад
-            # (starts_at >= NOW() - INTERVAL '2 hours')
-            # чтобы события оставались видимыми в течение 2 часов после начала
+            # Важно: фильтруем события, которые начались не более 3 часов назад
+            # (starts_at >= NOW() - INTERVAL '3 hours')
+            # чтобы события оставались видимыми в течение 3 часов после начала
             # (для долгих событий)
             rows = (
                 conn.execute(
@@ -199,7 +199,7 @@ def create_app() -> FastAPI:
                   FROM events
                   WHERE lat BETWEEN :lat - :d AND :lat + :d
                     AND lng BETWEEN :lng - :d AND :lng + :d
-                    AND starts_at >= NOW() - INTERVAL '2 hours'
+                    AND starts_at >= NOW() - INTERVAL '3 hours'
                     AND (
                       6371 * 2 * ASIN(
                         SQRT(

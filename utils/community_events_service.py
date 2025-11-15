@@ -165,7 +165,7 @@ class CommunityEventsService:
                     SELECT id, organizer_id, organizer_username, title, starts_at,
                            description, city, location_name, location_url, created_at
                     FROM events_community
-                    WHERE chat_id = :chat_id AND status = 'open' AND starts_at > NOW() - INTERVAL '2 hours'
+                    WHERE chat_id = :chat_id AND status = 'open' AND starts_at > NOW() - INTERVAL '3 hours'
                     ORDER BY starts_at ASC
                     LIMIT :limit
                 """)
