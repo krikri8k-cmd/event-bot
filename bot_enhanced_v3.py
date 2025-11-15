@@ -3203,14 +3203,27 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
 
         import pytz
 
-        from utils.simple_timezone import get_city_timezone
+        from utils.simple_timezone import get_city_from_coordinates, get_city_timezone
 
         date_str = data["date"]
         time_str = data["time"]
+        location_lat = data.get("location_lat")
+        location_lng = data.get("location_lng")
+
+        normalized_city = None
+        try:
+            if location_lat is not None and location_lng is not None:
+                normalized_city = get_city_from_coordinates(float(location_lat), float(location_lng))
+        except (TypeError, ValueError):
+            logger.warning(
+                f"⚠️ Не удалось преобразовать координаты community события: lat={location_lat}, lng={location_lng}"
+            )
+
+        # Используем нормализованный город (по координатам), иначе текст, который ввел пользователь
+        city_for_timezone = normalized_city or data.get("city")
 
         naive_local_dt = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
-        city = data.get("city")
-        tz_name = get_city_timezone(city)
+        tz_name = get_city_timezone(city_for_timezone)
         local_tz = pytz.timezone(tz_name)
         local_dt = local_tz.localize(naive_local_dt)
         starts_at = local_dt.astimezone(pytz.UTC)
@@ -3260,6 +3273,7 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
                 organizer_id=callback.from_user.id,
                 organizer_username=callback.from_user.username or callback.from_user.first_name,
                 community_event_id=event_id,
+                normalized_city=normalized_city or (data.get("city") or None),
             )
             logger.info(f"🌍 publish_community_event_to_world результат: {world_publish_status}")
 
@@ -3374,6 +3388,7 @@ async def publish_community_event_to_world(
     organizer_id: int,
     organizer_username: str | None,
     community_event_id: int,
+    normalized_city: str | None,
 ) -> dict:
     """
     Публикует событие из Community в основную таблицу events.
@@ -3403,7 +3418,7 @@ async def publish_community_event_to_world(
 
         location_name = event_data.get("location_name") or "Место на карте"
         location_url = event_data.get("location_url")
-        city = event_data.get("city")
+        city = normalized_city or event_data.get("city")
         chat_id = event_data.get("group_id")
 
         external_id = f"community:{chat_id}:{community_event_id}"
