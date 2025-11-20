@@ -6111,7 +6111,8 @@ async def handle_task_complete(callback: types.CallbackQuery, state: FSMContext)
         "• Как прошло выполнение?\n"
         "• Что вы почувствовали?\n"
         "• Как это помогло вам?\n\n"
-        "Напишите ваш отзыв:",
+        "📸 **Отправьте фото места** где вы были\n"
+        "или **напишите ваш отзыв** текстом:",
         parse_mode="Markdown",
     )
 
@@ -6511,8 +6512,7 @@ async def handle_task_manage(callback: types.CallbackQuery):
 
 @main_router.message(EventCreation.waiting_for_feedback)
 async def process_feedback(message: types.Message, state: FSMContext):
-    """Обработка фидбека для завершения задания"""
-    feedback = message.text.strip()
+    """Обработка фидбека для завершения задания (принимает фото или текст)"""
     user_id = message.from_user.id
 
     # Получаем ID задания из состояния
@@ -6524,6 +6524,35 @@ async def process_feedback(message: types.Message, state: FSMContext):
         await state.clear()
         return
 
+    # Проверяем, что пользователь отправил (фото или текст)
+    feedback_text = None
+    photo_file_id = None
+
+    # Если есть фото
+    if message.photo:
+        # Берём самое большое фото (последнее в списке)
+        photo_file_id = message.photo[-1].file_id
+        # Если есть подпись к фото, используем её как текст
+        if message.caption:
+            feedback_text = message.caption.strip()
+        else:
+            feedback_text = "📸 Фото места выполнения задания"
+
+        # Сохраняем file_id в формате "PHOTO:file_id|текст" или просто file_id
+        feedback = f"PHOTO:{photo_file_id}"
+        if feedback_text and feedback_text != "📸 Фото места выполнения задания":
+            feedback += f"|{feedback_text}"
+    elif message.text:
+        # Если только текст
+        feedback_text = message.text.strip()
+        feedback = feedback_text
+    else:
+        await message.answer(
+            "❌ Пожалуйста, отправьте **фото места** где вы были или **напишите отзыв** текстом.",
+            parse_mode="Markdown",
+        )
+        return
+
     # Завершаем задание с фидбеком
     success = complete_task(completing_task_id, feedback)
 
@@ -6531,13 +6560,23 @@ async def process_feedback(message: types.Message, state: FSMContext):
         # Награждаем ракетами
         rockets_awarded = award_rockets_for_activity(user_id, "task_complete")
 
-        await message.answer(
-            f"🎉 **Задание завершено!**\n\n"
-            f"📝 Спасибо за фидбек!\n"
-            f"🚀 Получено ракет: **{rockets_awarded}**\n\n"
-            f"Продолжайте в том же духе! 💪",
-            parse_mode="Markdown",
-        )
+        # Формируем сообщение в зависимости от типа фидбека
+        if photo_file_id:
+            success_message = (
+                f"🎉 **Задание завершено!**\n\n"
+                f"📸 Спасибо за фото места!\n"
+                f"🚀 Получено ракет: **{rockets_awarded}**\n\n"
+                f"Продолжайте в том же духе! 💪"
+            )
+        else:
+            success_message = (
+                f"🎉 **Задание завершено!**\n\n"
+                f"📝 Спасибо за фидбек!\n"
+                f"🚀 Получено ракет: **{rockets_awarded}**\n\n"
+                f"Продолжайте в том же духе! 💪"
+            )
+
+        await message.answer(success_message, parse_mode="Markdown")
 
         # Отправляем ракету
         await message.answer("🚀")
