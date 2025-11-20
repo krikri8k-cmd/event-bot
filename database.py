@@ -102,6 +102,8 @@ class Event(Base):
     starts_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))  # время начала события
     ends_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))  # время окончания события
     url: Mapped[str | None] = mapped_column(Text)  # ссылка на событие
+    referral_code: Mapped[str | None] = mapped_column(String(64))  # реферальный код для партнёров
+    referral_param: Mapped[str | None] = mapped_column(String(16), default="ref")  # название параметра
     location_name: Mapped[str | None] = mapped_column(String(255))
     location_url: Mapped[str | None] = mapped_column(Text)
     lat: Mapped[float | None] = mapped_column(Float)

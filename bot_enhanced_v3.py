@@ -937,6 +937,13 @@ def get_source_url(e: dict) -> str | None:
         if u:
             sanitized = sanitize_url(u)
             if sanitized:
+                # Если есть реферальный код, добавляем его к URL
+                referral_code = e.get("referral_code")
+                if referral_code:
+                    from utils.referral_url import add_referral_to_url
+
+                    referral_param = e.get("referral_param", "ref")
+                    return add_referral_to_url(sanitized, referral_code, referral_param)
                 return sanitized
     return None  # нет реального источника — лучше не показывать ссылку
 

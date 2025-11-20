@@ -78,53 +78,61 @@ https://example.com/event/123?utm_source=eventbot&utm_medium=partner
 
 #### 1. **Если у организатора есть ICS календарь:**
 
-Добавьте запись в таблицу `event_sources`:
+**Шаг 1:** Примените миграцию для создания таблицы реферальных кодов:
 
 ```sql
-INSERT INTO event_sources (
-    name, 
-    kind, 
-    url, 
-    is_active, 
-    fetch_interval_minutes,
-    referral_code,
-    referral_param
+-- Создать таблицу partner_referral_codes
+psql $DATABASE_URL -f sql/2025_partner_referral_codes.sql
+```
+
+**Шаг 2:** Добавьте реферальный код в таблицу `partner_referral_codes`:
+
+```sql
+INSERT INTO partner_referral_codes (
+    source_url,           -- URL ICS календаря
+    referral_code,        -- Реферальный код
+    referral_param,       -- Название параметра ('ref', 'affiliate', 'utm_source' и т.д.)
+    partner_name          -- Название партнёра
 ) VALUES (
-    'Название организатора',
-    'ics',
     'https://organizer.com/events.ics',
-    true,
-    60,  -- обновление каждый час
-    'REF123',  -- реферальный код
-    'ref'  -- название параметра (может быть 'ref', 'affiliate', 'utm_source' и т.д.)
+    'REF123',
+    'ref',
+    'Название организатора'
 );
+```
+
+**Шаг 3:** Добавьте URL календаря в переменную окружения `ICS_FEEDS`:
+
+```bash
+ICS_FEEDS=https://organizer.com/events.ics
+ENABLE_ICS_FEEDS=1
 ```
 
 #### 2. **Автоматическое добавление реферального кода:**
 
-Система автоматически добавит реферальный параметр к URL событий при сохранении.
+Система автоматически найдёт реферальный код в таблице и добавит его ко всем URL событий при парсинге.
 
 **Настройка реферального кода для источника:**
 
 Система автоматически добавляет реферальный код ко всем URL событий из источника.
 
-**Обновление существующего источника:**
+**Обновление существующего реферального кода:**
 
 ```sql
--- Обновить источник с реферальным кодом
-UPDATE event_sources 
+-- Обновить реферальный код для источника
+UPDATE partner_referral_codes 
 SET referral_code = 'REF123',
     referral_param = 'ref'  -- или 'affiliate', 'utm_source' и т.д.
-WHERE name = 'Название организатора';
+WHERE source_url = 'https://organizer.com/events.ics';
 ```
 
 **Применение миграции:**
 
-Сначала примените миграцию для добавления колонок:
+Сначала примените миграцию для создания таблицы:
 
 ```bash
 # Применить миграцию
-psql $DATABASE_URL -f sql/2025_add_referral_code.sql
+psql $DATABASE_URL -f sql/2025_partner_referral_codes.sql
 ```
 
 ---
@@ -138,18 +146,28 @@ psql $DATABASE_URL -f sql/2025_add_referral_code.sql
    - Реферальный код: `EVENTBOT2024`
 
 2. **Добавляем в систему:**
+
+   **a) Создайте таблицу (если ещё не создана):**
    ```sql
-   INSERT INTO event_sources (
-       name, kind, url, is_active, fetch_interval_minutes, referral_code, referral_param
+   psql $DATABASE_URL -f sql/2025_partner_referral_codes.sql
+   ```
+
+   **b) Добавьте реферальный код:**
+   ```sql
+   INSERT INTO partner_referral_codes (
+       source_url, referral_code, referral_param, partner_name
    ) VALUES (
-       'Организатор X',
-       'ics',
        'https://organizer.com/events.ics',
-       true,
-       60,
        'EVENTBOT2024',  -- реферальный код
-       'ref'  -- название параметра
+       'ref',           -- название параметра
+       'Организатор X'  -- название партнёра
    );
+   ```
+
+   **c) Добавьте URL в переменные окружения:**
+   ```bash
+   ICS_FEEDS=https://organizer.com/events.ics
+   ENABLE_ICS_FEEDS=1
    ```
 
 3. **Система автоматически:**
@@ -191,20 +209,21 @@ psql $DATABASE_URL -f sql/2025_add_referral_code.sql
 После добавления источника можно проверить:
 
 ```sql
--- Посмотреть все источники
-SELECT * FROM event_sources WHERE is_active = true;
+-- Посмотреть все партнёрские реферальные коды
+SELECT * FROM partner_referral_codes WHERE is_active = true;
 
 -- Посмотреть события от конкретного источника
 SELECT id, title, url, source, created_at_utc 
 FROM events 
-WHERE source LIKE 'ics.organizer%' 
+WHERE source LIKE 'ics.%' 
 ORDER BY created_at_utc DESC 
 LIMIT 10;
 
 -- Проверить, что реферальный код добавлен
 SELECT url FROM events 
-WHERE source LIKE 'ics.organizer%' 
-AND url LIKE '%ref=%';
+WHERE url LIKE '%ref=%' 
+ORDER BY created_at_utc DESC 
+LIMIT 10;
 ```
 
 ---

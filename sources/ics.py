@@ -30,26 +30,6 @@ def fetch_ics(url: str, *, etag: str | None = None, last_modified: str | None = 
     return resp
 
 
-def add_referral_to_url(url: str, referral_code: str | None, referral_param: str = "ref") -> str:
-    """Добавляет реферальный параметр к URL"""
-    if not url or not referral_code:
-        return url
-
-    from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
-
-    parsed = urlparse(url)
-    params = parse_qs(parsed.query)
-
-    # Добавляем реферальный код (не перезаписываем, если уже есть)
-    if referral_param not in params:
-        params[referral_param] = [referral_code]
-
-    new_query = urlencode(params, doseq=True)
-    new_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
-
-    return new_url
-
-
 def parse_ics(
     content: bytes,
     *,
@@ -57,7 +37,32 @@ def parse_ics(
     calendar_url: str,
     referral_code: str | None = None,
     referral_param: str = "ref",
+    auto_lookup_referral: bool = True,
 ) -> Iterable[dict[str, Any]]:
+    """
+    Парсит ICS календарь и добавляет реферальные коды к URL событий
+
+    Args:
+        content: Содержимое ICS файла
+        source_prefix: Префикс для source (например: 'ics.bali')
+        calendar_url: URL календаря
+        referral_code: Реферальный код (если не указан, ищется в БД)
+        referral_param: Название параметра (по умолчанию: 'ref')
+        auto_lookup_referral: Автоматически искать реферальный код в БД, если не указан
+    """
+    # Если referral_code не указан, пытаемся найти в БД
+    if not referral_code and auto_lookup_referral:
+        try:
+            from utils.referral_codes import get_referral_code_for_url
+
+            found_code, found_param = get_referral_code_for_url(calendar_url)
+            if found_code:
+                referral_code = found_code
+                referral_param = found_param
+        except Exception:
+            # Если таблицы нет или ошибка - игнорируем, работаем без реферального кода
+            pass
+
     cal = icalendar.Calendar.from_ical(content)
     for comp in cal.walk("vevent"):
         title = norm_text(str(comp.get("summary")))
@@ -66,10 +71,8 @@ def parse_ics(
         location = norm_text(str(comp.get("location")))
         url = str(comp.get("url") or calendar_url)
 
-        # Добавляем реферальный код к URL, если он указан
-        if referral_code:
-            url = add_referral_to_url(url, referral_code, referral_param)
-
+        # Сохраняем оригинальный URL (без реферального кода)
+        # Реферальный код сохраним отдельно в колонке referral_code
         starts_dt = _to_utc(starts.dt if starts else None)
         ends_dt = _to_utc(ends.dt if ends else None)
 
@@ -78,7 +81,9 @@ def parse_ics(
         yield {
             "source": source_prefix,
             "external_id": external_id,
-            "url": url,
+            "url": url,  # Оригинальный URL без реферального кода
+            "referral_code": referral_code,  # Реферальный код (сохраняется отдельно)
+            "referral_param": referral_param,  # Название параметра
             "title": title or None,
             "starts_at": starts_dt,
             "ends_at": ends_dt,
