@@ -71,6 +71,7 @@ logs/
 .env.production.local
 .env.local.template
 app.local.env
+railway.env
 
 # Coverage reports
 htmlcov/
@@ -123,3 +124,6 @@ dmypy.json
 
 # Temporary files
 tatus
+last_map_url.txt
+bot_output.txt
+bot_debug.txt

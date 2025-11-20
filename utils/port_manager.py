@@ -82,9 +82,7 @@ def setup_environment(port: int, mode: str = "bot") -> None:
         os.environ["ENABLE_BALIFORUM"] = "1"
         print(f"🤖 Bot mode: PORT={port}, WEBHOOK_URL={os.environ['WEBHOOK_URL']}")
     elif mode == "api":
-        os.environ["DATABASE_URL"] = (
-            "postgresql://postgres:GHeScaRnEXJEPRRXpFGJCdTPgcQOtzlw@interchange.proxy.rlwy.net:23764/railway?sslmode=require"
-        )
+        os.environ["DATABASE_URL"] = "postgresql://postgres:password@host:port/database?sslmode=require"
         os.environ["ENABLE_BALIFORUM"] = "1"
         print(f"🌐 API mode: PORT={port}, API_URL=http://127.0.0.1:{port}")
 

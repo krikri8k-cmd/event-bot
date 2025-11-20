@@ -52,10 +52,40 @@ def validate_config():
         value = os.getenv(var)
         if value:
             # Маскируем чувствительные данные
-            if "TOKEN" in var or "URL" in var:
-                if len(value) > 20:
-                    masked = value[:10] + "..." + value[-10:]
+            if "TOKEN" in var:
+                # Для токенов показываем только первые 4 символа
+                if len(value) > 4:
+                    masked = value[:4] + "***" + " (скрыто)"
                 else:
+                    masked = "***"
+                print(f"  ✅ {var}: {masked}")
+            elif "DATABASE_URL" in var:
+                # Маскируем пароль в DATABASE_URL
+                if "@" in value:
+                    parts = value.split("@")
+                    if len(parts) == 2:
+                        # Маскируем часть с паролем (между :// и @)
+                        scheme_part = parts[0].split("://")
+                        if len(scheme_part) == 2:
+                            masked = f"{scheme_part[0]}://***@{parts[1]}"
+                        else:
+                            masked = "***"
+                    else:
+                        masked = "***"
+                else:
+                    masked = "***"
+                print(f"  ✅ {var}: {masked}")
+            elif "URL" in var:
+                # Для других URL показываем только домен
+                try:
+                    from urllib.parse import urlparse
+
+                    parsed = urlparse(value)
+                    if parsed.netloc:
+                        masked = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+                    else:
+                        masked = "***"
+                except Exception:
                     masked = "***"
                 print(f"  ✅ {var}: {masked}")
             else:

@@ -40,7 +40,7 @@ Write-Host "🔍 Найден свободный порт: $FreePort" -Foregroun
 
 # 4. Устанавливаем переменные окружения
 $env:PORT = $FreePort.ToString()
-$env:DATABASE_URL = "postgresql://postgres:GHeScaRnEXJEPRRXpFGJCdTPgcQOtzlw@interchange.proxy.rlwy.net:23764/railway?sslmode=require"
+$env:DATABASE_URL = "postgresql://postgres:password@host:port/database?sslmode=require"
 $env:ENABLE_BALIFORUM = "1"
 
 Write-Host "📡 API URL: http://127.0.0.1:$FreePort" -ForegroundColor Cyan

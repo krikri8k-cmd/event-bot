@@ -82,9 +82,28 @@ def create_app() -> FastAPI:
                 mgr = MeetupOAuth()
                 bundle = await mgr.exchange_code(code)
 
-                # ⚠️ Осознанно логируем ПОЛНЫЕ значения в консоль (чтобы пользователь мог их скопировать).
-                logger.info("MEETUP_ACCESS_TOKEN=%s", bundle.access_token)
-                logger.info("MEETUP_REFRESH_TOKEN=%s", bundle.refresh_token)
+                # Безопасное логирование токенов
+                # В production маскируем, в локальной разработке можно показать полные (если явно разрешено)
+                is_production = os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("GITHUB_ACTIONS")
+                show_full_tokens = os.getenv("MEETUP_SHOW_FULL_TOKENS", "0") == "1" and not is_production
+
+                if show_full_tokens:
+                    # Только для локальной разработки с явным разрешением
+                    logger.info("MEETUP_ACCESS_TOKEN=%s", bundle.access_token)
+                    logger.info("MEETUP_REFRESH_TOKEN=%s", bundle.refresh_token)
+                else:
+                    # Маскируем токены для безопасности
+                    def mask_token(token: str) -> str:
+                        if not token or len(token) < 8:
+                            return "***"
+                        return f"{token[:4]}***{token[-4:]}"
+
+                    logger.info("MEETUP_ACCESS_TOKEN=%s", mask_token(bundle.access_token))
+                    logger.info("MEETUP_REFRESH_TOKEN=%s", mask_token(bundle.refresh_token))
+                    logger.info(
+                        "💡 Для полного вывода токенов установите "
+                        "MEETUP_SHOW_FULL_TOKENS=1 (только для локальной разработки)"
+                    )
 
                 return {
                     "ok": True,

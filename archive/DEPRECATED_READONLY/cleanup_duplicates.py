@@ -14,7 +14,7 @@ def main():
     # Инициализируем подключение
     database_url = os.getenv(
         "DATABASE_URL",
-        "postgresql://postgres:GHeScaRnEXJEPRRXpFGJCdTPgcQOtzlw@interchange.proxy.rlwy.net:23764/railway?sslmode=require",
+        "postgresql://postgres:password@host:port/database?sslmode=require",
     )
     init_engine(database_url)
 

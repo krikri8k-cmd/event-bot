@@ -21,7 +21,7 @@
 
 ```
 DEFAULT_RADIUS_KM=4
-GOOGLE_MAPS_API_KEY=AIzaSyBcfV2d1HCLtXXZMZ1QCbHpBfv_oysuWMs
+GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
 ```
 
 ### 2. Обновите существующие переменные:

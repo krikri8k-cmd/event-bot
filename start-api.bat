@@ -7,7 +7,7 @@ taskkill /F /IM python.exe >nul 2>&1
 
 REM Устанавливаем переменные окружения
 set PORT=8000
-set DATABASE_URL=postgresql://postgres:GHeScaRnEXJEPRRXpFGJCdTPgcQOtzlw@interchange.proxy.rlwy.net:23764/railway?sslmode=require
+set DATABASE_URL=postgresql://postgres:password@host:port/database?sslmode=require
 set ENABLE_BALIFORUM=1
 
 echo 📡 API URL: http://127.0.0.1:8000
