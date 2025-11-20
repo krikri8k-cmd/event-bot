@@ -45,11 +45,14 @@ def validate_config():
     }
 
     # WEBHOOK_URL опционален, если есть RAILWAY_PUBLIC_DOMAIN или PUBLIC_URL
+    # Также опционален в CI окружении (GitHub Actions), так как там не нужен webhook
     webhook_url = os.getenv("WEBHOOK_URL")
     railway_public_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN")
     public_url = os.getenv("PUBLIC_URL")
+    is_ci = os.getenv("GITHUB_ACTIONS") == "true" or os.getenv("CI") == "true"
 
-    if not webhook_url and not railway_public_domain and not public_url:
+    # В CI окружении WEBHOOK_URL не обязателен, так как мы только проверяем конфигурацию
+    if not is_ci and not webhook_url and not railway_public_domain and not public_url:
         required_vars["WEBHOOK_URL"] = "https://your-app.up.railway.app/webhook"
 
     missing_vars = []
@@ -103,7 +106,9 @@ def validate_config():
 
     # Проверяем опциональные переменные для webhook
     if not webhook_url:
-        if railway_public_domain:
+        if is_ci:
+            print("  ⚠️ WEBHOOK_URL: не установлен (нормально для CI окружения)")
+        elif railway_public_domain:
             print(f"  ⚠️ WEBHOOK_URL: не установлен, но используется RAILWAY_PUBLIC_DOMAIN={railway_public_domain}")
         elif public_url:
             print(f"  ⚠️ WEBHOOK_URL: не установлен, но используется PUBLIC_URL={public_url}")
