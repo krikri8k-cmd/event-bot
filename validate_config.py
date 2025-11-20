@@ -42,8 +42,15 @@ def validate_config():
     required_vars = {
         "DATABASE_URL": "postgresql://user:pass@host:port/db",
         "TELEGRAM_TOKEN": "bot_token_from_botfather",
-        "WEBHOOK_URL": "https://your-app.up.railway.app/webhook",
     }
+
+    # WEBHOOK_URL опционален, если есть RAILWAY_PUBLIC_DOMAIN или PUBLIC_URL
+    webhook_url = os.getenv("WEBHOOK_URL")
+    railway_public_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN")
+    public_url = os.getenv("PUBLIC_URL")
+
+    if not webhook_url and not railway_public_domain and not public_url:
+        required_vars["WEBHOOK_URL"] = "https://your-app.up.railway.app/webhook"
 
     missing_vars = []
 
@@ -94,11 +101,25 @@ def validate_config():
             print(f"  ❌ {var}: НЕ НАЙДЕНА")
             missing_vars.append(var)
 
+    # Проверяем опциональные переменные для webhook
+    if not webhook_url:
+        if railway_public_domain:
+            print(f"  ⚠️ WEBHOOK_URL: не установлен, но используется RAILWAY_PUBLIC_DOMAIN={railway_public_domain}")
+        elif public_url:
+            print(f"  ⚠️ WEBHOOK_URL: не установлен, но используется PUBLIC_URL={public_url}")
+        else:
+            # WEBHOOK_URL уже добавлен в missing_vars выше, если он обязателен
+            pass
+
     if missing_vars:
         print(f"\n❌ ОШИБКА: Отсутствуют обязательные переменные: {', '.join(missing_vars)}")
         print("\n🔧 Для Railway добавьте эти переменные в настройках проекта:")
         for var in missing_vars:
-            print(f"  {var}={required_vars[var]}")
+            if var in required_vars:
+                print(f"  {var}={required_vars[var]}")
+        print("\n💡 Альтернатива для WEBHOOK_URL:")
+        print("  Railway автоматически предоставляет RAILWAY_PUBLIC_DOMAIN")
+        print("  Или установите PUBLIC_URL=https://your-app.up.railway.app")
         return False
 
     # Проверяем загрузку конфигурации
