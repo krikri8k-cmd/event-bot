@@ -21,7 +21,7 @@ def get_engine():
 def _due_sources(engine):
     sql = text("""
       SELECT * FROM event_sources
-      WHERE enabled = TRUE
+      WHERE is_active = TRUE
         AND (last_fetch_at IS NULL OR NOW() - last_fetch_at >= (freq_minutes || ' minutes')::interval)
       ORDER BY COALESCE(last_fetch_at, to_timestamp(0))
       LIMIT 50
@@ -76,6 +76,8 @@ def ingest_once():
                     resp.content,
                     source_prefix=f"ics.{src.get('region') or 'id'}",
                     calendar_url=src["url"],
+                    referral_code=src.get("referral_code"),
+                    referral_param=src.get("referral_param", "ref"),
                 ):
                     upsert_event(eng, row)
                     count += 1
@@ -99,6 +101,8 @@ def ingest_once():
                         resp.content,
                         source_prefix=f"nexudus.{src.get('region') or 'id'}",
                         calendar_url=ics_url,
+                        referral_code=src.get("referral_code"),
+                        referral_param=src.get("referral_param", "ref"),
                     ):
                         upsert_event(eng, row)
                         count += 1

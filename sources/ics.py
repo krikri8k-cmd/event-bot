@@ -30,7 +30,34 @@ def fetch_ics(url: str, *, etag: str | None = None, last_modified: str | None = 
     return resp
 
 
-def parse_ics(content: bytes, *, source_prefix: str, calendar_url: str) -> Iterable[dict[str, Any]]:
+def add_referral_to_url(url: str, referral_code: str | None, referral_param: str = "ref") -> str:
+    """Добавляет реферальный параметр к URL"""
+    if not url or not referral_code:
+        return url
+
+    from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+
+    parsed = urlparse(url)
+    params = parse_qs(parsed.query)
+
+    # Добавляем реферальный код (не перезаписываем, если уже есть)
+    if referral_param not in params:
+        params[referral_param] = [referral_code]
+
+    new_query = urlencode(params, doseq=True)
+    new_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
+
+    return new_url
+
+
+def parse_ics(
+    content: bytes,
+    *,
+    source_prefix: str,
+    calendar_url: str,
+    referral_code: str | None = None,
+    referral_param: str = "ref",
+) -> Iterable[dict[str, Any]]:
     cal = icalendar.Calendar.from_ical(content)
     for comp in cal.walk("vevent"):
         title = norm_text(str(comp.get("summary")))
@@ -38,6 +65,10 @@ def parse_ics(content: bytes, *, source_prefix: str, calendar_url: str) -> Itera
         ends = comp.get("dtend")
         location = norm_text(str(comp.get("location")))
         url = str(comp.get("url") or calendar_url)
+
+        # Добавляем реферальный код к URL, если он указан
+        if referral_code:
+            url = add_referral_to_url(url, referral_code, referral_param)
 
         starts_dt = _to_utc(starts.dt if starts else None)
         ends_dt = _to_utc(ends.dt if ends else None)
