@@ -196,14 +196,14 @@ class ParserIntegration:
             logger.error(f"Ошибка при конвертации времени: {e}")
             return datetime.now(UTC)
 
-    async def run_parsers_and_save(self, lat: float, lng: float, radius_km: float = 15) -> dict[str, int]:
+    async def run_parsers_and_save(self, lat: float, lng: float, radius_km: float = 100) -> dict[str, int]:
         """
         Запускает все парсеры и сохраняет события в БД
 
         Args:
             lat: Широта
             lng: Долгота
-            radius_km: Радиус поиска
+            radius_km: Радиус поиска (по умолчанию 100км для парсинга максимального количества событий)
 
         Returns:
             Словарь с количеством сохраненных событий по источникам

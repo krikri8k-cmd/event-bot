@@ -38,8 +38,10 @@ class ModernEventScheduler:
             start_time = time.time()
 
             # Получаем события на сегодня и завтра
+            # ВАЖНО: НЕ фильтруем по радиусу - парсим ВСЕ события со всего Бали
             # Сначала парсим главную страницу (события на сегодня)
-            raw_events = fetch_baliforum(limit=50)
+            # Увеличиваем limit до 100 для парсинга большего количества событий
+            raw_events = fetch_baliforum(limit=100)
 
             # Затем парсим страницу с фильтром по завтрашней дате
             from datetime import datetime, timedelta
@@ -52,7 +54,8 @@ class ModernEventScheduler:
             logger.info(f"🌴 Парсим события на завтра ({tomorrow_str})...")
             from sources.baliforum import fetch_baliforum_events
 
-            tomorrow_events = fetch_baliforum_events(limit=50, date_filter=tomorrow_str)
+            # Увеличиваем limit до 100 для парсинга большего количества событий
+            tomorrow_events = fetch_baliforum_events(limit=100, date_filter=tomorrow_str)
             # Конвертируем в RawEvent формат
             from event_apis import RawEvent
 
@@ -167,7 +170,8 @@ class ModernEventScheduler:
                     logger.info(f"   🌍 Парсим {city}...")
 
                     # Получаем события через KudaGo источник
-                    events = await kudago_source.fetch_events(lat, lng, 50)  # 50км радиус для города
+                    # Увеличиваем радиус до 100км для парсинга большего количества событий в большом городе
+                    events = await kudago_source.fetch_events(lat, lng, 100)  # 100км радиус для города
 
                     saved_count = 0
                     error_count = 0

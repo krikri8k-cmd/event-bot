@@ -50,7 +50,6 @@ class BaliForumSource:
         parsed = 0
         skipped_no_time_count = 0
         skipped_no_coords = 0
-        skipped_radius = 0
         errors = 0
 
         try:
@@ -88,11 +87,11 @@ class BaliForumSource:
                         skipped_no_coords += 1
                         continue
 
-                    # Проверяем, что событие в радиусе
+                    # ВАЖНО: НЕ фильтруем по радиусу при парсинге!
+                    # Все события с координатами сохраняются в БД, фильтрация по радиусу
+                    # происходит при поиске пользователем. Это позволяет сохранять больше событий
+                    # и показывать их пользователям с разными радиусами поиска.
                     distance = self._calculate_distance(lat, lng, event.lat, event.lng)
-                    if distance > radius_km:
-                        skipped_radius += 1
-                        continue
 
                     events.append(
                         {
@@ -130,13 +129,12 @@ class BaliForumSource:
                 updated=0,
                 duration_ms=(time.time() - start_time) * 1000,
                 errors=errors,
-                skipped_radius=skipped_radius,
             )
 
             if events:
                 logger.info(f"   ✅ Найдено {len(events)} событий в {self.display_name}")
             else:
-                logger.info(f"   ⚠️ {self.display_name} не вернул событий в радиусе {radius_km}км")
+                logger.info(f"   ⚠️ {self.display_name} не вернул событий")
 
             return events
 
