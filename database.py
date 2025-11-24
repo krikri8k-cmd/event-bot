@@ -58,6 +58,7 @@ class User(Base):
     tasks_completed_total: Mapped[int] = mapped_column(Integer, default=0)
     events_created_world: Mapped[int] = mapped_column(Integer, default=0)
     events_created_community: Mapped[int] = mapped_column(Integer, default=0)
+    is_banned: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class Task(Base):

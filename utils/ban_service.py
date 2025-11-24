@@ -20,7 +20,7 @@ class BanService:
 
     def is_banned(self, user_id: int) -> bool:
         """
-        Проверяет, забанен ли пользователь
+        Проверяет, забанен ли пользователь (быстрая проверка через users.is_banned)
 
         Args:
             user_id: ID пользователя
@@ -30,21 +30,17 @@ class BanService:
         """
         with self.engine.connect() as conn:
             result = conn.execute(
-                text(
-                    """
-                    SELECT id FROM banned_users
-                    WHERE user_id = :user_id
-                    AND is_active = TRUE
-                    AND (expires_at IS NULL OR expires_at > NOW())
-                    """
-                ),
+                text("SELECT is_banned FROM users WHERE id = :user_id"),
                 {"user_id": user_id},
             )
-            return result.fetchone() is not None
+            row = result.fetchone()
+            if row:
+                return bool(row[0])
+            return False
 
     async def is_banned_async(self, session: AsyncSession, user_id: int) -> bool:
         """
-        Асинхронная проверка бана пользователя
+        Асинхронная проверка бана пользователя (быстрая проверка через users.is_banned)
 
         Args:
             session: AsyncSession
@@ -54,17 +50,13 @@ class BanService:
             True если пользователь забанен, False если нет
         """
         result = await session.execute(
-            text(
-                """
-                SELECT id FROM banned_users
-                WHERE user_id = :user_id
-                AND is_active = TRUE
-                AND (expires_at IS NULL OR expires_at > NOW())
-                """
-            ),
+            text("SELECT is_banned FROM users WHERE id = :user_id"),
             {"user_id": user_id},
         )
-        return result.fetchone() is not None
+        row = result.fetchone()
+        if row:
+            return bool(row[0])
+        return False
 
     def ban_user(
         self,
@@ -147,6 +139,12 @@ class BanService:
                     )
                     logger.info(f"🚫 Пользователь {user_id} забанен админом {banned_by}")
 
+                # Синхронизируем поле is_banned в таблице users
+                conn.execute(
+                    text("UPDATE users SET is_banned = TRUE WHERE id = :user_id"),
+                    {"user_id": user_id},
+                )
+
             return True
         except Exception as e:
             logger.error(f"❌ Ошибка при бане пользователя {user_id}: {e}")
@@ -175,6 +173,11 @@ class BanService:
                     {"user_id": user_id},
                 )
                 if result.rowcount > 0:
+                    # Синхронизируем поле is_banned в таблице users
+                    conn.execute(
+                        text("UPDATE users SET is_banned = FALSE WHERE id = :user_id"),
+                        {"user_id": user_id},
+                    )
                     logger.info(f"✅ Пользователь {user_id} разбанен")
                     return True
                 else:
