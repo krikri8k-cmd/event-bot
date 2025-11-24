@@ -230,6 +230,9 @@ def attach_bot_to_app(app: FastAPI) -> None:
 
         # Админские команды
         admin_commands = [
+            types.BotCommand(command="ban", description="🚫 Забанить пользователя (админ)"),
+            types.BotCommand(command="unban", description="✅ Разбанить пользователя (админ)"),
+            types.BotCommand(command="banlist", description="📋 Список забаненных (админ)"),
             types.BotCommand(command="admin_event", description="🔍 Диагностика события (админ)"),
             types.BotCommand(command="diag_last", description="📊 Диагностика последнего запроса"),
             types.BotCommand(command="diag_search", description="🔍 Диагностика поиска событий"),

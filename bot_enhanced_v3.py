@@ -1820,6 +1820,47 @@ from aiogram import BaseMiddleware  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker  # noqa: E402
 
 
+class BanCheckMiddleware(BaseMiddleware):
+    """Middleware для проверки бана пользователей"""
+
+    async def __call__(
+        self, handler: Callable[[Any, dict[str, Any]], Awaitable[Any]], event: Any, data: dict[str, Any]
+    ) -> Any:
+        # Получаем user_id из события
+        user_id = None
+        if hasattr(event, "from_user") and event.from_user:
+            user_id = event.from_user.id
+        elif hasattr(event, "message") and event.message and event.message.from_user:
+            user_id = event.message.from_user.id
+
+        # Проверяем бан только для обычных пользователей (не админов)
+        if user_id:
+            from config import load_settings
+
+            settings = load_settings()
+            # Админы не проверяются на бан
+            if user_id not in settings.admin_ids:
+                from database import get_engine
+                from utils.ban_service import BanService
+
+                engine = get_engine()
+                ban_service = BanService(engine)
+                if ban_service.is_banned(user_id):
+                    # Пользователь забанен - не обрабатываем сообщение
+                    logger.info(f"🚫 Забаненный пользователь {user_id} попытался использовать бота")
+                    # Пытаемся отправить сообщение (если это возможно)
+                    try:
+                        if hasattr(event, "answer"):
+                            await event.answer("🚫 Вы заблокированы в этом боте")
+                        elif hasattr(event, "message") and event.message:
+                            await event.message.answer("🚫 Вы заблокированы в этом боте")
+                    except Exception:
+                        pass  # Игнорируем ошибки отправки
+                    return  # Прерываем обработку
+
+        return await handler(event, data)
+
+
 class DbSessionMiddleware(BaseMiddleware):
     def __init__(self, session_maker: async_sessionmaker):
         self.session_maker = session_maker
@@ -1834,6 +1875,12 @@ class DbSessionMiddleware(BaseMiddleware):
 
 # Подключаем middleware для всех типов событий (если доступен async_session_maker)
 from database import async_session_maker  # noqa: E402
+
+# Подключаем middleware для проверки бана (должен быть первым)
+dp.update.middleware(BanCheckMiddleware())
+dp.message.middleware(BanCheckMiddleware())
+dp.callback_query.middleware(BanCheckMiddleware())
+logging.info("✅ Ban check middleware подключен")
 
 if async_session_maker is not None:
     dp.update.middleware(DbSessionMiddleware(async_session_maker))
@@ -4782,6 +4829,180 @@ async def on_share(message: types.Message):
 
     # Если фото нет или произошла ошибка, отправляем только текст
     await message.answer(text, reply_markup=main_menu_kb())
+
+
+def is_admin_user(user_id: int) -> bool:
+    """Проверяет, является ли пользователь админом"""
+    from config import load_settings
+
+    settings = load_settings()
+    return user_id in settings.admin_ids
+
+
+@main_router.message(Command("ban"))
+async def on_ban(message: types.Message):
+    """Команда для бана пользователя (только для админов)"""
+    if not is_admin_user(message.from_user.id):
+        await message.answer("❌ У вас нет прав для выполнения этой команды")
+        return
+
+    try:
+        command_parts = message.text.split(maxsplit=2)
+        if len(command_parts) < 2:
+            await message.answer(
+                "Использование: /ban <user_id> [дни] [причина]\n\n"
+                "Примеры:\n"
+                "/ban 123456789 - забанить навсегда\n"
+                "/ban 123456789 7 - забанить на 7 дней\n"
+                "/ban 123456789 30 Спам - забанить на 30 дней с причиной"
+            )
+            return
+
+        user_id_to_ban = int(command_parts[1])
+        days = None
+        reason = None
+
+        if len(command_parts) >= 3:
+            # Пытаемся распарсить дни
+            try:
+                days = int(command_parts[2])
+            except ValueError:
+                # Если не число, значит это причина
+                reason = command_parts[2]
+
+        if len(command_parts) >= 4:
+            reason = command_parts[3]
+
+        # Получаем информацию о пользователе (если есть в сообщении)
+        username = None
+        first_name = None
+        if message.reply_to_message:
+            replied_user = message.reply_to_message.from_user
+            username = replied_user.username
+            first_name = replied_user.first_name
+            user_id_to_ban = replied_user.id
+
+        from database import get_engine
+        from utils.ban_service import BanService
+
+        engine = get_engine()
+        ban_service = BanService(engine)
+
+        success = ban_service.ban_user(
+            user_id=user_id_to_ban,
+            banned_by=message.from_user.id,
+            reason=reason,
+            username=username,
+            first_name=first_name,
+            days=days,
+        )
+
+        if success:
+            ban_text = f"🚫 Пользователь {user_id_to_ban}"
+            if username:
+                ban_text += f" (@{username})"
+            if days:
+                ban_text += f" забанен на {days} дней"
+            else:
+                ban_text += " забанен навсегда"
+            if reason:
+                ban_text += f"\nПричина: {reason}"
+            await message.answer(ban_text)
+        else:
+            await message.answer("❌ Ошибка при бане пользователя")
+
+    except ValueError:
+        await message.answer("❌ ID пользователя должен быть числом")
+    except Exception as e:
+        logger.error(f"Ошибка в команде ban: {e}")
+        await message.answer(f"❌ Произошла ошибка: {e}")
+
+
+@main_router.message(Command("unban"))
+async def on_unban(message: types.Message):
+    """Команда для разбана пользователя (только для админов)"""
+    if not is_admin_user(message.from_user.id):
+        await message.answer("❌ У вас нет прав для выполнения этой команды")
+        return
+
+    try:
+        command_parts = message.text.split()
+        if len(command_parts) < 2:
+            await message.answer(
+                "Использование: /unban <user_id>\n\n" "Или ответьте на сообщение пользователя командой /unban"
+            )
+            return
+
+        user_id_to_unban = int(command_parts[1])
+
+        # Если это ответ на сообщение, берем ID из сообщения
+        if message.reply_to_message:
+            user_id_to_unban = message.reply_to_message.from_user.id
+
+        from database import get_engine
+        from utils.ban_service import BanService
+
+        engine = get_engine()
+        ban_service = BanService(engine)
+
+        success = ban_service.unban_user(user_id_to_unban)
+
+        if success:
+            await message.answer(f"✅ Пользователь {user_id_to_unban} разбанен")
+        else:
+            await message.answer(f"⚠️ Пользователь {user_id_to_unban} не найден в списке банов")
+
+    except ValueError:
+        await message.answer("❌ ID пользователя должен быть числом")
+    except Exception as e:
+        logger.error(f"Ошибка в команде unban: {e}")
+        await message.answer(f"❌ Произошла ошибка: {e}")
+
+
+@main_router.message(Command("banlist"))
+async def on_banlist(message: types.Message):
+    """Команда для просмотра списка забаненных пользователей (только для админов)"""
+    if not is_admin_user(message.from_user.id):
+        await message.answer("❌ У вас нет прав для выполнения этой команды")
+        return
+
+    try:
+        from database import get_engine
+        from utils.ban_service import BanService
+
+        engine = get_engine()
+        ban_service = BanService(engine)
+
+        banned_users = ban_service.get_banned_users(limit=20)
+
+        if not banned_users:
+            await message.answer("📋 Список забаненных пользователей пуст")
+            return
+
+        text_lines = ["🚫 <b>Забаненные пользователи:</b>\n"]
+        for ban in banned_users:
+            user_info = f"ID: {ban['user_id']}"
+            if ban["username"]:
+                user_info += f" (@{ban['username']})"
+            if ban["first_name"]:
+                user_info += f" - {ban['first_name']}"
+
+            text_lines.append(f"• {user_info}")
+            if ban["reason"]:
+                text_lines.append(f"  Причина: {ban['reason']}")
+            if ban["expires_at"]:
+                expires_str = ban["expires_at"].strftime("%d.%m.%Y %H:%M")
+                text_lines.append(f"  До: {expires_str}")
+            else:
+                text_lines.append("  Навсегда")
+            text_lines.append("")
+
+        text = "\n".join(text_lines)
+        await message.answer(text, parse_mode="HTML")
+
+    except Exception as e:
+        logger.error(f"Ошибка в команде banlist: {e}")
+        await message.answer(f"❌ Произошла ошибка: {e}")
 
 
 @main_router.message(Command("admin_event"))
@@ -8894,6 +9115,9 @@ async def main():
 
         # Админские команды - только для админа
         admin_commands = [
+            types.BotCommand(command="ban", description="🚫 Забанить пользователя (админ)"),
+            types.BotCommand(command="unban", description="✅ Разбанить пользователя (админ)"),
+            types.BotCommand(command="banlist", description="📋 Список забаненных (админ)"),
             types.BotCommand(command="admin_event", description="🔍 Диагностика события (админ)"),
             types.BotCommand(command="diag_last", description="📊 Диагностика последнего запроса"),
             types.BotCommand(command="diag_search", description="🔍 Диагностика поиска событий"),
