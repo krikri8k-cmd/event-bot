@@ -8608,13 +8608,30 @@ async def handle_pagination(callback: types.CallbackQuery):
                 )
                 logger.info(f"✅ Страница {page} отредактирована (text, длина: {len(new_text)})")
             else:
-                # Страница 2+ - отправляем новое текстовое сообщение (без карты)
-                await callback.message.answer(
-                    new_text,
-                    parse_mode="HTML",
-                    disable_web_page_preview=True,
-                    reply_markup=combined_keyboard,
-                )
+                # Страница 2+ - удаляем старое сообщение и отправляем новое текстовое (без карты)
+                # Сохраняем chat_id и message_thread_id перед удалением
+                chat_id = callback.message.chat.id
+                message_thread_id = getattr(callback.message, "message_thread_id", None)
+                bot = callback.message.bot
+
+                try:
+                    # Удаляем старое сообщение (с картой или текстовое)
+                    await callback.message.delete()
+                    logger.info(f"🗑️ Удалено старое сообщение перед отправкой страницы {page}")
+                except Exception as delete_error:
+                    logger.warning(f"⚠️ Не удалось удалить старое сообщение: {delete_error}")
+
+                # Отправляем новое текстовое сообщение через бота
+                send_kwargs = {
+                    "text": new_text,
+                    "parse_mode": "HTML",
+                    "disable_web_page_preview": True,
+                    "reply_markup": combined_keyboard,
+                }
+                if message_thread_id:
+                    send_kwargs["message_thread_id"] = message_thread_id
+
+                await bot.send_message(chat_id, **send_kwargs)
                 logger.info(f"✅ Страница {page} отправлена как новое текстовое сообщение (длина: {len(new_text)})")
         except Exception as e:
             logger.error(f"❌ Ошибка редактирования/отправки страницы {page}: {e}")
