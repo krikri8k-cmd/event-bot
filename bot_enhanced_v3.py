@@ -8457,11 +8457,25 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
         user_state[callback.message.chat.id] = state
 
         # Рендерим первую страницу
-        page_html, total_pages = render_page(prepared, page=1, page_size=8, user_id=callback.from_user.id)
+        # ВАЖНО: Карта показывается только на первой странице
+        # На последующих страницах отправляем текстовые сообщения без карты
+        is_photo_message = callback.message.photo is not None
+        is_first_page = True  # Всегда первая страница при переключении даты
+
+        # Для первой страницы с картой используем меньше событий (лимит caption 1024 символа)
+        if is_first_page and is_photo_message:
+            page_size = 5  # Первая страница с картой - 5 событий
+        else:
+            page_size = 8  # Текстовые сообщения - 8 событий
+
+        page_html, total_pages = render_page(prepared, page=1, page_size=page_size, user_id=callback.from_user.id)
 
         # Формируем заголовок
         header_html = render_header(counts, radius_km=int(radius))
         new_text = header_html + "\n\n" + page_html
+
+        # Telegram ограничивает длину caption для медиа до 1024 символов
+        MAX_CAPTION_LENGTH = 1024
 
         # Создаем клавиатуру с правильным фильтром даты
         combined_keyboard = kb_pager(1, total_pages, current_radius=int(radius), date_filter=date_type)
@@ -8469,6 +8483,13 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
         # Обновляем сообщение
         try:
             if callback.message.photo:
+                # Проверяем длину текста для caption
+                if len(new_text) > MAX_CAPTION_LENGTH:
+                    logger.warning(
+                        f"⚠️ Текст caption слишком длинный ({len(new_text)} символов), обрезаем до {MAX_CAPTION_LENGTH}"
+                    )
+                    new_text = new_text[: MAX_CAPTION_LENGTH - 10] + "..."
+
                 await callback.message.edit_caption(caption=new_text, parse_mode="HTML", reply_markup=combined_keyboard)
             else:
                 await callback.message.edit_text(
@@ -8515,8 +8536,20 @@ async def handle_pagination(callback: types.CallbackQuery):
         # Обогащаем события reverse geocoding для названий локаций
         prepared = await enrich_events_with_reverse_geocoding(prepared)
 
+        # ВАЖНО: Карта показывается только на первой странице
+        # На последующих страницах отправляем текстовые сообщения без карты
+        is_photo_message = callback.message.photo is not None
+        is_first_page = page == 1
+
+        # Для первой страницы с картой используем меньше событий (лимит caption 1024 символа)
+        # Для текстовых сообщений (страница 2+) можно больше событий
+        if is_first_page and is_photo_message:
+            page_size = 5  # Первая страница с картой - 5 событий
+        else:
+            page_size = 8  # Текстовые сообщения - 8 событий
+
         # Рендерим страницу
-        page_html, total_pages = render_page(prepared, page, page_size=8, user_id=callback.from_user.id)
+        page_html, total_pages = render_page(prepared, page, page_size=page_size, user_id=callback.from_user.id)
 
         # Логируем показ событий в списке при пагинации (list_view)
         from database import get_engine
@@ -8530,8 +8563,8 @@ async def handle_pagination(callback: types.CallbackQuery):
             group_chat_id = callback.message.chat.id
 
         # Логируем каждое показанное событие на текущей странице
-        start_idx = (page - 1) * 8
-        shown_events = prepared[start_idx : start_idx + 8]
+        start_idx = (page - 1) * page_size
+        shown_events = prepared[start_idx : start_idx + page_size]
         for event in shown_events:
             event_id = event.get("id")
             if event_id:
@@ -8548,25 +8581,43 @@ async def handle_pagination(callback: types.CallbackQuery):
         new_text = render_header(counts, radius_km=current_radius) + "\n\n" + page_html
 
         try:
-            # Если сообщение содержит фото (карту), редактируем caption
-            if callback.message.photo:
+            # ВАЖНО: Карта показывается только на первой странице
+            # На странице 2+ отправляем новое текстовое сообщение
+            if is_first_page and is_photo_message:
+                # Первая страница с картой - редактируем caption
+                MAX_CAPTION_LENGTH = 1024
+                if len(new_text) > MAX_CAPTION_LENGTH:
+                    logger.warning(
+                        f"⚠️ Текст caption слишком длинный ({len(new_text)} символов), обрезаем до {MAX_CAPTION_LENGTH}"
+                    )
+                    new_text = new_text[: MAX_CAPTION_LENGTH - 10] + "..."
+
                 await callback.message.edit_caption(
                     caption=new_text,
                     parse_mode="HTML",
                     reply_markup=combined_keyboard,
                 )
-                logger.info(f"✅ Страница {page} отредактирована (caption)")
-            else:
-                # Если текстовое сообщение, редактируем текст
+                logger.info(f"✅ Страница {page} отредактирована (caption, длина: {len(new_text)})")
+            elif is_first_page and not is_photo_message:
+                # Первая страница без карты - редактируем текст
                 await callback.message.edit_text(
                     new_text,
                     parse_mode="HTML",
                     disable_web_page_preview=True,
                     reply_markup=combined_keyboard,
                 )
-                logger.info(f"✅ Страница {page} отредактирована (text)")
+                logger.info(f"✅ Страница {page} отредактирована (text, длина: {len(new_text)})")
+            else:
+                # Страница 2+ - отправляем новое текстовое сообщение (без карты)
+                await callback.message.answer(
+                    new_text,
+                    parse_mode="HTML",
+                    disable_web_page_preview=True,
+                    reply_markup=combined_keyboard,
+                )
+                logger.info(f"✅ Страница {page} отправлена как новое текстовое сообщение (длина: {len(new_text)})")
         except Exception as e:
-            logger.error(f"❌ Ошибка редактирования страницы {page}: {e}")
+            logger.error(f"❌ Ошибка редактирования/отправки страницы {page}: {e}")
             await callback.answer("❌ Не удалось перелистнуть страницу", show_alert=True)
             return
 
