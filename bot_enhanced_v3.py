@@ -669,14 +669,14 @@ async def send_compact_events_list_prepared(
     # Обогащаем события reverse geocoding для названий локаций
     prepared_events = await enrich_events_with_reverse_geocoding(prepared_events)
 
-    events_text, total_pages = render_page(prepared_events, page + 1, page_size=5, user_id=message.from_user.id)
+    events_text, total_pages = render_page(prepared_events, page + 1, page_size=8, user_id=message.from_user.id)
 
     # Отладочная информация
 
     text = header_html + "\n\n" + events_text
 
     # Вычисляем total_pages для fallback
-    total_pages = max(1, ceil(len(prepared_events) / 5))
+    total_pages = max(1, ceil(len(prepared_events) / 8))
 
     # Создаем клавиатуру с кнопками пагинации и расширения радиуса
     keyboard = kb_pager(page + 1, total_pages, int(radius))
@@ -755,7 +755,7 @@ async def send_compact_events_list(
 
     # 6) Рендерим страницу
     header_html = render_header(counts, radius_km=int(radius))
-    page_html, total_pages = render_page(prepared, page=page + 1, page_size=5, user_id=message.from_user.id)
+    page_html, total_pages = render_page(prepared, page=page + 1, page_size=8, user_id=message.from_user.id)
     text = header_html + "\n\n" + page_html
 
     # 6) Создаем клавиатуру пагинации с кнопками расширения радиуса
@@ -802,7 +802,7 @@ async def edit_events_list_message(
     }
 
     # Настройки пагинации
-    events_per_page = 4
+    events_per_page = 8
     total_pages = (len(prepared) + events_per_page - 1) // events_per_page
     page = max(0, min(page, total_pages - 1))
 
@@ -1263,7 +1263,7 @@ async def enrich_events_with_reverse_geocoding(events: list[dict]) -> list[dict]
     return list(enriched_events)
 
 
-def render_page(events: list[dict], page: int, page_size: int = 5, user_id: int = None) -> tuple[str, int]:
+def render_page(events: list[dict], page: int, page_size: int = 8, user_id: int = None) -> tuple[str, int]:
     """
     Рендерит страницу событий
     events — уже отфильтрованные prepared (publishable) и отсортированные по distance/time
@@ -1705,7 +1705,7 @@ async def perform_nearby_search(
                     group_chat_id=group_chat_id,
                 )
 
-            total_pages = max(1, ceil(len(prepared) / 5))
+            total_pages = max(1, ceil(len(prepared) / 8))
             date_filter_state = user_state.get(message.chat.id, {}).get("date_filter", "today")
             combined_keyboard = kb_pager(1, total_pages, int(radius), date_filter=date_filter_state)
 
@@ -4445,7 +4445,7 @@ async def on_location(message: types.Message, state: FSMContext):
                 prepared = await enrich_events_with_reverse_geocoding(prepared)
 
                 # 5) Рендерим события (первая страница)
-                page_html, _ = render_page(prepared, page=0, page_size=5, user_id=message.from_user.id)
+                page_html, _ = render_page(prepared, page=0, page_size=8, user_id=message.from_user.id)
                 events_text = header_html + "\n\n" + page_html
 
                 # 4.5) Логируем показ событий в списке (list_view)
@@ -4476,7 +4476,7 @@ async def on_location(message: types.Message, state: FSMContext):
                         logger.warning(f"⚠️ У события нет id для логирования: {event.get('title', 'Без названия')[:30]}")
 
                 # 5) Добавляем навигацию если нужно
-                total_pages = max(1, ceil(len(prepared) / 5))
+                total_pages = max(1, ceil(len(prepared) / 8))
                 if total_pages > 1:
                     events_text += f"\n\n📄 Страница 1 из {total_pages}"
 
@@ -6015,7 +6015,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
 
     # Рендерим страницу
     header_html = render_header(counts, radius_km=new_radius)
-    events_text, total_pages = render_page(prepared, 1, page_size=5, user_id=user_id)
+    events_text, total_pages = render_page(prepared, 1, page_size=8, user_id=user_id)
 
     text = header_html + "\n\n" + events_text
 
@@ -8457,7 +8457,7 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
         user_state[callback.message.chat.id] = state
 
         # Рендерим первую страницу
-        page_html, total_pages = render_page(prepared, page=1, page_size=5, user_id=callback.from_user.id)
+        page_html, total_pages = render_page(prepared, page=1, page_size=8, user_id=callback.from_user.id)
 
         # Формируем заголовок
         header_html = render_header(counts, radius_km=int(radius))
@@ -8516,7 +8516,7 @@ async def handle_pagination(callback: types.CallbackQuery):
         prepared = await enrich_events_with_reverse_geocoding(prepared)
 
         # Рендерим страницу
-        page_html, total_pages = render_page(prepared, page, page_size=5, user_id=callback.from_user.id)
+        page_html, total_pages = render_page(prepared, page, page_size=8, user_id=callback.from_user.id)
 
         # Логируем показ событий в списке при пагинации (list_view)
         from database import get_engine
@@ -8530,8 +8530,8 @@ async def handle_pagination(callback: types.CallbackQuery):
             group_chat_id = callback.message.chat.id
 
         # Логируем каждое показанное событие на текущей странице
-        start_idx = (page - 1) * 5
-        shown_events = prepared[start_idx : start_idx + 5]
+        start_idx = (page - 1) * 8
+        shown_events = prepared[start_idx : start_idx + 8]
         for event in shown_events:
             event_id = event.get("id")
             if event_id:
