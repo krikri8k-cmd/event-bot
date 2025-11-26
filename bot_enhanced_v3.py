@@ -38,6 +38,7 @@ from simple_status_manager import (
     get_status_change_buttons,
     get_user_events,
 )
+from tasks_location_service import get_tasks_with_places
 from tasks_service import (
     accept_task,
     cancel_task,
@@ -6375,6 +6376,24 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
     category = callback.data.split(":")[1]
     user_id = callback.from_user.id
 
+    # Получаем координаты пользователя из БД
+    with get_session() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        user_lat = user.last_lat if user else None
+        user_lng = user.last_lng if user else None
+
+    # Если координаты отсутствуют, просим отправить геолокацию
+    if not user_lat or not user_lng:
+        await callback.message.edit_text(
+            "📍 **Требуется геолокация**\n\n"
+            "Для получения персонализированных заданий с локациями рядом с вами, "
+            "пожалуйста, отправьте вашу геолокацию.\n\n"
+            "Нажмите кнопку '📍 Отправить геолокацию' в меню.",
+            parse_mode="Markdown",
+        )
+        await callback.answer()
+        return
+
     # Получаем 3 задания на сегодня для выбранной категории
     tasks = get_daily_tasks(category)
 
@@ -6382,6 +6401,13 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
         await callback.message.edit_text("❌ Задания для этой категории пока не готовы.")
         await callback.answer()
         return
+
+    # Получаем локации для заданий (новая логика с ротацией)
+    try:
+        tasks_with_places = get_tasks_with_places(category, user_id, user_lat, user_lng)
+    except Exception as e:
+        logger.error(f"Ошибка получения локаций для заданий: {e}")
+        tasks_with_places = []
 
     # Получаем активные задания пользователя для фильтрации
     active_tasks = get_user_active_tasks(user_id)
@@ -6394,10 +6420,30 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
     excluded_task_ids = active_task_ids | completed_tasks_today
     available_tasks = [task for task in tasks if task.id not in excluded_task_ids]
 
+    # Сохраняем информацию о местах в состоянии для использования в task_detail
+    places_info = {}
+    for i, task in enumerate(available_tasks):
+        if i < len(tasks_with_places) and tasks_with_places[i].get("place"):
+            place = tasks_with_places[i]["place"]
+            places_info[task.id] = {
+                "name": place.name,
+                "url": place.google_maps_url,
+                "distance_km": getattr(place, "distance_km", None),
+            }
+
+    # Сохраняем в состоянии
+    await state.update_data(task_places_info=places_info)
+
     # Создаем клавиатуру с доступными заданиями
     keyboard = []
     for task in available_tasks:
-        keyboard.append([InlineKeyboardButton(text=f"📋 {task.title}", callback_data=f"task_detail:{task.id}")])
+        # Добавляем информацию о расстоянии, если есть
+        if task.id in places_info and places_info[task.id].get("distance_km"):
+            distance = places_info[task.id]["distance_km"]
+            title = f"📋 {task.title} ({distance:.1f} км)"
+        else:
+            title = f"📋 {task.title}"
+        keyboard.append([InlineKeyboardButton(text=title, callback_data=f"task_detail:{task.id}")])
 
     # Определяем названия категорий
     category_names = {"body": "💪 Тело", "spirit": "🧘 Дух"}
@@ -6460,18 +6506,42 @@ async def handle_task_detail(callback: types.CallbackQuery, state: FSMContext):
         active_tasks = get_user_active_tasks(user_id)
         user_has_task = any(active_task["task_id"] == task_id for active_task in active_tasks)
 
+        # Получаем информацию о месте из состояния (если есть)
+        data = await state.get_data()
+        places_info = data.get("task_places_info", {})
+        place_info = places_info.get(task_id)
+
         # Формируем сообщение с деталями задания
         message = f"📋 **{task.title}**\n\n"
         message += f"{task.description}\n\n"
 
-        if task.location_url:
+        # Показываем локацию из базы (если есть) или из задания
+        location_url = None
+        location_name = None
+
+        if place_info:
+            # Используем место из базы
+            location_name = place_info.get("name", "Место")
+            location_url = place_info.get("url")
+            distance = place_info.get("distance_km")
+
+            message += "📍 **Предлагаемое место:**\n"
+            if distance:
+                message += f"🏃 {location_name} ({distance:.1f} км)\n"
+            else:
+                message += f"🏃 {location_name}\n"
+            if location_url:
+                message += f"[🌍 Открыть на карте]({location_url})\n\n"
+        elif task.location_url:
+            # Используем место из задания (старая логика)
+            location_url = task.location_url
             message += "📍 **Предлагаемое место:**\n"
             message += f"[🌍 Открыть на карте]({task.location_url})\n\n"
 
         # Создаем клавиатуру
         keyboard = []
 
-        if task.location_url and not user_has_task:
+        if (location_url or place_info) and not user_has_task:
             keyboard.append(
                 [InlineKeyboardButton(text="📍 Вставить свою локацию", callback_data=f"task_custom_location:{task_id}")]
             )

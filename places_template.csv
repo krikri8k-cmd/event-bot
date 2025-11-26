@@ -1,0 +1,19 @@
+category,place_type,region,name,google_maps_url,description
+body,cafe,moscow,Кофейня на Арбате,ВСТАВЬ_СЮДА_GOOGLE_MAPS_ССЫЛКУ,Уютная кофейня
+body,park,moscow,Парк Горького,ВСТАВЬ_СЮДА_GOOGLE_MAPS_ССЫЛКУ,Красивый парк
+body,gym,moscow,Спортзал,ВСТАВЬ_СЮДА_GOOGLE_MAPS_ССЫЛКУ,Современный спортзал
+body,cafe,spb,Кофейня на Невском,ВСТАВЬ_СЮДА_GOOGLE_MAPS_ССЫЛКУ,Уютная кофейня
+body,park,spb,Летний сад,ВСТАВЬ_СЮДА_GOOGLE_MAPS_ССЫЛКУ,Исторический парк
+body,gym,spb,Фитнес клуб,ВСТАВЬ_СЮДА_GOOGLE_MAPS_ССЫЛКУ,Спортзал
+body,cafe,bali,Кофейня в Убуде,ВСТАВЬ_СЮДА_GOOGLE_MAPS_ССЫЛКУ,Кофейня с видом
+body,park,bali,Парк в Семиньяке,ВСТАВЬ_СЮДА_GOOGLE_MAPS_ССЫЛКУ,Тропический парк
+body,gym,bali,Йога студия,ВСТАВЬ_СЮДА_GOOGLE_MAPS_ССЫЛКУ,Студия йоги
+spirit,temple,moscow,Храм,ВСТАВЬ_СЮДА_GOOGLE_MAPS_ССЫЛКУ,Православный храм
+spirit,park,moscow,Парк для медитации,ВСТАВЬ_СЮДА_GOOGLE_MAPS_ССЫЛКУ,Тихий парк
+spirit,viewpoint,moscow,Смотровая площадка,ВСТАВЬ_СЮДА_GOOGLE_MAPS_ССЫЛКУ,Вид на город
+spirit,temple,spb,Собор,ВСТАВЬ_СЮДА_GOOGLE_MAPS_ССЫЛКУ,Исторический собор
+spirit,park,spb,Парк для прогулок,ВСТАВЬ_СЮДА_GOOGLE_MAPS_ССЫЛКУ,Спокойный парк
+spirit,viewpoint,spb,Смотровая площадка,ВСТАВЬ_СЮДА_GOOGLE_MAPS_ССЫЛКУ,Вид на Неву
+spirit,temple,bali,Храм,ВСТАВЬ_СЮДА_GOOGLE_MAPS_ССЫЛКУ,Балийский храм
+spirit,park,bali,Парк для медитации,ВСТАВЬ_СЮДА_GOOGLE_MAPS_ССЫЛКУ,Тропический парк
+spirit,viewpoint,bali,Смотровая площадка,ВСТАВЬ_СЮДА_GOOGLE_MAPS_ССЫЛКУ,Вид на океан
