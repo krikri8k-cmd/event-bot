@@ -1,0 +1,35 @@
+# Простой формат для добавления локаций
+# Формат: category:place_type:region
+# Затем просто список Google Maps ссылок (по одной на строку)
+
+# Категория: Тело, Тип: Кафе, Регион: Москва
+body:cafe:moscow
+https://maps.google.com/?q=55.7558,37.6176
+https://maps.google.com/?q=55.7520,37.6150
+https://maps.google.com/?q=55.7500,37.6100
+
+# Категория: Тело, Тип: Парк, Регион: Москва
+body:park:moscow
+https://maps.google.com/?q=55.7320,37.6010
+https://maps.google.com/?q=55.7300,37.6000
+
+# Категория: Тело, Тип: Спортзал, Регион: Москва
+body:gym:moscow
+https://maps.google.com/?q=55.7400,37.6200
+
+# Категория: Дух, Тип: Храм, Регион: Москва
+spirit:temple:moscow
+https://maps.google.com/?q=55.7450,37.6250
+
+# Категория: Дух, Тип: Парк, Регион: Москва
+spirit:park:moscow
+https://maps.google.com/?q=55.7350,37.6050
+
+# Категория: Тело, Тип: Кафе, Регион: СПб
+body:cafe:spb
+https://maps.google.com/?q=59.9343,30.3351
+
+# Категория: Тело, Тип: Кафе, Регион: Бали (автоопределение)
+body:cafe:auto
+https://maps.google.com/?q=-8.5069,115.2625
+
