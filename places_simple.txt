@@ -1,11 +1,12 @@
 # Простой формат для добавления локаций
-# Формат: category:place_type:region
+# Формат: category:place_type:region:promo_code (промокод опционален)
 # Затем просто список Google Maps ссылок (по одной на строку)
+# Можно указать промокод после ссылки через |: https://maps.google.com/ссылка|ПРОМОКОД
 
-# Категория: Тело, Тип: Кафе, Регион: Москва
-body:cafe:moscow
+# Категория: Тело, Тип: Кафе, Регион: Москва, Промокод: EVENT2024
+body:cafe:moscow:EVENT2024
 https://maps.google.com/?q=55.7558,37.6176
-https://maps.google.com/?q=55.7520,37.6150
+https://maps.google.com/?q=55.7520,37.6150|PROMO50
 https://maps.google.com/?q=55.7500,37.6100
 
 # Категория: Тело, Тип: Парк, Регион: Москва

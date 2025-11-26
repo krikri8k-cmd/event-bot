@@ -6429,6 +6429,7 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
                 "name": place.name,
                 "url": place.google_maps_url,
                 "distance_km": getattr(place, "distance_km", None),
+                "promo_code": place.promo_code,
             }
 
     # Сохраняем в состоянии
@@ -6524,6 +6525,7 @@ async def handle_task_detail(callback: types.CallbackQuery, state: FSMContext):
             location_name = place_info.get("name", "Место")
             location_url = place_info.get("url")
             distance = place_info.get("distance_km")
+            promo_code = place_info.get("promo_code")
 
             message += "📍 **Предлагаемое место:**\n"
             if distance:
@@ -6531,7 +6533,10 @@ async def handle_task_detail(callback: types.CallbackQuery, state: FSMContext):
             else:
                 message += f"🏃 {location_name}\n"
             if location_url:
-                message += f"[🌍 Открыть на карте]({location_url})\n\n"
+                message += f"[🌍 Открыть на карте]({location_url})\n"
+            if promo_code:
+                message += f"🎁 **Промокод:** `{promo_code}`\n"
+            message += "\n"
         elif task.location_url:
             # Используем место из задания (старая логика)
             location_url = task.location_url

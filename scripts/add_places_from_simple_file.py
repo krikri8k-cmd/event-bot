@@ -79,6 +79,7 @@ def add_place_from_url(
     place_type: str,
     region: str,
     google_maps_url: str,
+    promo_code: str | None = None,
 ) -> bool:
     """Добавляет место из Google Maps ссылки"""
     google_maps_url = google_maps_url.strip()
@@ -130,21 +131,23 @@ def add_place_from_url(
             lat=lat,
             lng=lng,
             google_maps_url=google_maps_url,
+            promo_code=promo_code,
             is_active=True,
         )
 
         session.add(place)
         session.commit()
 
-        print(f"✅ Добавлено: {name} ({region}, {place_type}) - {lat:.6f}, {lng:.6f}")
+        promo_info = f", Промокод: {promo_code}" if promo_code else ""
+        print(f"✅ Добавлено: {name} ({region}, {place_type}) - {lat:.6f}, {lng:.6f}{promo_info}")
         return True
 
 
 def parse_simple_file(file_path: str) -> list[dict]:
     """
     Парсит упрощенный файл формата:
-    category:place_type:region
-    url1
+    category:place_type:region:promo_code (промокод опционален)
+    url1|promo_code1 (промокод после ссылки через |, приоритетнее)
     url2
     url3
     """
@@ -152,6 +155,7 @@ def parse_simple_file(file_path: str) -> list[dict]:
     current_category = None
     current_place_type = None
     current_region = None
+    current_promo_code = None
 
     with open(file_path, encoding="utf-8") as f:
         for line_num, line in enumerate(f, start=1):
@@ -163,13 +167,19 @@ def parse_simple_file(file_path: str) -> list[dict]:
 
             # Проверяем, является ли строка заголовком категории
             if ":" in line and not line.startswith("http"):
-                # Формат: category:place_type:region
+                # Формат: category:place_type:region:promo_code (все опционально кроме первых двух)
                 parts = line.split(":")
                 if len(parts) >= 2:
                     current_category = parts[0].strip()
                     current_place_type = parts[1].strip()
                     current_region = parts[2].strip() if len(parts) > 2 else "auto"
-                    print(f"\n📋 Категория: {current_category}, Тип: {current_place_type}, Регион: {current_region}")
+                    current_promo_code = parts[3].strip() if len(parts) > 3 else None
+                    promo_info = f", Промокод: {current_promo_code}" if current_promo_code else ""
+                    print(
+                        f"\n📋 Категория: {current_category}, "
+                        f"Тип: {current_place_type}, "
+                        f"Регион: {current_region}{promo_info}"
+                    )
                 continue
 
             # Если это ссылка
@@ -178,12 +188,21 @@ def parse_simple_file(file_path: str) -> list[dict]:
                     print(f"⚠️ Строка {line_num}: пропущена (нет категории/типа)")
                     continue
 
+                # Проверяем, есть ли промокод после ссылки через |
+                url = line
+                promo_code = current_promo_code  # По умолчанию из заголовка
+                if "|" in line:
+                    parts = line.split("|", 1)
+                    url = parts[0].strip()
+                    promo_code = parts[1].strip() if parts[1].strip() else current_promo_code
+
                 result.append(
                     {
                         "category": current_category,
                         "place_type": current_place_type,
                         "region": current_region,
-                        "url": line,
+                        "url": url,
+                        "promo_code": promo_code,
                     }
                 )
 
@@ -197,8 +216,8 @@ def main():
         print("\nПример:")
         print("  python scripts/add_places_from_simple_file.py places_simple.txt")
         print("\nФормат файла:")
-        print("  category:place_type:region")
-        print("  https://maps.google.com/ссылка1")
+        print("  category:place_type:region:promo_code (промокод опционален)")
+        print("  https://maps.google.com/ссылка1|ПРОМОКОД (промокод после ссылки, приоритетнее)")
         print("  https://maps.google.com/ссылка2")
         sys.exit(1)
 
@@ -236,6 +255,7 @@ def main():
                 place_type=place_info["place_type"],
                 region=place_info["region"],
                 google_maps_url=place_info["url"],
+                promo_code=place_info.get("promo_code"),
             ):
                 added_count += 1
             else:

@@ -6,25 +6,31 @@
 
 ### 2. Укажи категорию и тип места один раз:
 ```txt
-body:cafe:moscow
+body:cafe:moscow:ПРОМОКОД123
 ```
 
 Где:
 - `body` - категория (body, spirit)
 - `cafe` - тип места (cafe, park, gym, temple, viewpoint)
 - `moscow` - регион (moscow, spb, bali, или `auto`)
+- `ПРОМОКОД123` - промокод (опционально, применяется ко всем ссылкам ниже)
 
 ### 3. Вставь ссылки подряд:
 ```txt
-body:cafe:moscow
+body:cafe:moscow:ПРОМОКОД123
 https://www.google.com/maps/place/Кофейня+1
-https://www.google.com/maps/place/Кофейня+2
+https://www.google.com/maps/place/Кофейня+2|ПРОМОКОД456
 https://www.google.com/maps/place/Кофейня+3
 
 body:park:moscow
 https://www.google.com/maps/place/Парк+1
 https://www.google.com/maps/place/Парк+2
 ```
+
+**Промокоды:**
+- Можно указать в заголовке (применяется ко всем ссылкам): `body:cafe:moscow:ПРОМОКОД123`
+- Можно указать после ссылки через `|` (приоритетнее): `https://maps.google.com/ссылка|ПРОМОКОД456`
+- Если промокод не указан, поле будет пустым
 
 ### 4. Запусти скрипт:
 ```bash

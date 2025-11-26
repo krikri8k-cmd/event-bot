@@ -159,6 +159,7 @@ class TaskPlace(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     region: Mapped[str | None] = mapped_column(String(50))  # 'moscow', 'spb', 'bali', 'jakarta', etc.
     place_type: Mapped[str | None] = mapped_column(String(50))  # 'cafe', 'park', 'gym', 'yoga_studio', etc.
+    promo_code: Mapped[str | None] = mapped_column(String(100))  # Промокод или реферальный код для партнеров
     created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
