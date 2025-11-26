@@ -395,7 +395,7 @@ def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> 
 
         # Если координаты не найдены на детальной странице, ищем в карточке
         if not lat or not lng:
-            for link in card.find_all("a", href=True):
+        for link in card.find_all("a", href=True):
             href = link["href"]
             if "google.com/maps" in href or "/maps" in href:
                 lat, lng = _extract_latlng_from_maps(href)
