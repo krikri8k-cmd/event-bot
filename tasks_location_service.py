@@ -151,7 +151,14 @@ def find_nearest_available_place(
         return places_with_priority[0] if places_with_priority else None
 
 
-def find_oldest_unshown_place_in_region(category: str, place_type: str, region: str, user_id: int) -> TaskPlace | None:
+def find_oldest_unshown_place_in_region(
+    category: str,
+    place_type: str,
+    region: str,
+    user_id: int,
+    user_lat: float | None = None,
+    user_lng: float | None = None,
+) -> TaskPlace | None:
     """
     Находит место в регионе, которое дольше всего не показывалось пользователю
     Гарантирует показ всех локаций в регионе
@@ -161,6 +168,8 @@ def find_oldest_unshown_place_in_region(category: str, place_type: str, region: 
         place_type: Тип места
         region: Регион
         user_id: ID пользователя
+        user_lat: Широта пользователя (для вычисления расстояния)
+        user_lng: Долгота пользователя (для вычисления расстояния)
 
     Returns:
         TaskPlace или None
@@ -183,7 +192,7 @@ def find_oldest_unshown_place_in_region(category: str, place_type: str, region: 
         if not places:
             return None
 
-        # Для каждого места находим дату последнего показа
+        # Для каждого места находим дату последнего показа и вычисляем расстояние
         places_with_dates = []
         for place in places:
             last_shown = (
@@ -203,6 +212,10 @@ def find_oldest_unshown_place_in_region(category: str, place_type: str, region: 
                 days_since = (datetime.now(UTC) - last_shown[0]).days
             else:
                 days_since = 999  # Никогда не показывалось
+
+            # Вычисляем расстояние, если есть координаты пользователя
+            if user_lat is not None and user_lng is not None:
+                place.distance_km = haversine_km(user_lat, user_lng, place.lat, place.lng)
 
             places_with_dates.append((place, days_since))
 
@@ -291,6 +304,8 @@ def get_tasks_with_places(category: str, user_id: int, user_lat: float, user_lng
                 place_type=place_type,
                 region=region,
                 user_id=user_id,
+                user_lat=user_lat,
+                user_lng=user_lng,
             )
 
         # Сохраняем факт показа
