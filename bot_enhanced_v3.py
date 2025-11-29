@@ -6421,16 +6421,23 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
     available_tasks = [task for task in tasks if task.id not in excluded_task_ids]
 
     # Сохраняем информацию о местах в состоянии для использования в task_detail
+    # Распределяем места по заданиям циклически, чтобы каждое задание получило место
     places_info = {}
+    available_places = [tp for tp in tasks_with_places if tp.get("place")]
+
     for i, task in enumerate(available_tasks):
-        if i < len(tasks_with_places) and tasks_with_places[i].get("place"):
-            place = tasks_with_places[i]["place"]
-            places_info[task.id] = {
-                "name": place.name,
-                "url": place.google_maps_url,
-                "distance_km": getattr(place, "distance_km", None),
-                "promo_code": place.promo_code,
-            }
+        # Циклически распределяем места по заданиям
+        if available_places:
+            place_data = available_places[i % len(available_places)]
+            place = place_data.get("place")
+            if place:
+                places_info[task.id] = {
+                    "name": place.name,
+                    "url": place.google_maps_url,
+                    "distance_km": getattr(place, "distance_km", None),
+                    "promo_code": place.promo_code,
+                    "place_type": place_data.get("place_type"),
+                }
 
     # Сохраняем в состоянии
     await state.update_data(task_places_info=places_info)
@@ -6538,10 +6545,16 @@ async def handle_task_detail(callback: types.CallbackQuery, state: FSMContext):
                 message += f"🎁 **Промокод:** `{promo_code}`\n"
             message += "\n"
         elif task.location_url:
-            # Используем место из задания (старая логика)
+            # Используем место из задания только если это конкретная ссылка на место
+            # Проверяем, что это не поисковый запрос (не содержит ?q= или похожее)
             location_url = task.location_url
-            message += "📍 **Предлагаемое место:**\n"
-            message += f"[🌍 Открыть на карте]({task.location_url})\n\n"
+            is_search_query = "?q=" in location_url or "/search/" in location_url or "/maps?q=" in location_url
+
+            if not is_search_query:
+                # Это конкретная ссылка на место - показываем
+                message += "📍 **Предлагаемое место:**\n"
+                message += f"[🌍 Открыть на карте]({location_url})\n\n"
+            # Если это поисковый запрос - не показываем, чтобы не было множества результатов
 
         # Создаем клавиатуру
         keyboard = []
