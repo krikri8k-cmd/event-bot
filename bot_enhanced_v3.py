@@ -1111,7 +1111,7 @@ def truncate_html_safely(html_text: str, max_length: int) -> str:
     return truncated
 
 
-def render_event_html(e: dict, idx: int, user_id: int = None) -> str:
+def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool = False) -> str:
     """Рендерит одну карточку события в HTML согласно ТЗ"""
     import logging
 
@@ -1287,9 +1287,15 @@ def render_event_html(e: dict, idx: int, user_id: int = None) -> str:
     if event_type == "user" and e.get("description"):
         description = e.get("description", "").strip()
         if description:
-            # Ограничиваем длину описания для красоты
-            if len(description) > 150:
-                description = description[:147] + "..."
+            # Для caption (первая страница с картой) обрезаем более агрессивно
+            if is_caption:
+                # На первой странице с картой обрезаем до 50 символов
+                if len(description) > 50:
+                    description = description[:47] + "..."
+            else:
+                # На обычных страницах обрезаем до 150 символов
+                if len(description) > 150:
+                    description = description[:147] + "..."
             description_part = f"\n📝 {html.escape(description)}"
             logger.info(f"🔍 DEBUG: Добавлено описание: '{description[:50]}...'")
 
@@ -1426,11 +1432,14 @@ async def enrich_events_with_reverse_geocoding(events: list[dict]) -> list[dict]
     return list(enriched_events)
 
 
-def render_page(events: list[dict], page: int, page_size: int = 8, user_id: int = None) -> tuple[str, int]:
+def render_page(
+    events: list[dict], page: int, page_size: int = 8, user_id: int = None, is_caption: bool = False
+) -> tuple[str, int]:
     """
     Рендерит страницу событий
     events — уже отфильтрованные prepared (publishable) и отсортированные по distance/time
     page    — 1..N
+    is_caption — если True, обрезаем описания более агрессивно (для caption с лимитом 1024 байта)
     return: (html_text, total_pages)
     """
     import logging
@@ -1449,7 +1458,8 @@ def render_page(events: list[dict], page: int, page_size: int = 8, user_id: int 
     for idx, e in enumerate(events[start:end], start=start + 1):
         logger.info(f"🕐 render_page: событие {idx} - starts_at={e.get('starts_at')}, title={e.get('title')}")
         try:
-            html = render_event_html(e, idx, user_id)
+            # Для caption (первая страница с картой) обрезаем описания более агрессивно
+            html = render_event_html(e, idx, user_id, is_caption=is_caption)
             parts.append(html)
         except Exception as e_render:
             logger.error(f"❌ Ошибка рендеринга события {idx}: {e_render}")
@@ -9058,7 +9068,14 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
         else:
             page_size = 8  # Текстовые сообщения - 8 событий
 
-        page_html, total_pages = render_page(prepared, page=1, page_size=page_size, user_id=callback.from_user.id)
+        # Для первой страницы с картой передаем is_caption=True для агрессивной обрезки описаний
+        page_html, total_pages = render_page(
+            prepared,
+            page=1,
+            page_size=page_size,
+            user_id=callback.from_user.id,
+            is_caption=(is_first_page and is_photo_message),
+        )
 
         # Формируем заголовок
         header_html = render_header(counts, radius_km=int(radius))
@@ -9139,7 +9156,14 @@ async def handle_pagination(callback: types.CallbackQuery):
             page_size = 8  # Текстовые сообщения - 8 событий
 
         # Рендерим страницу
-        page_html, total_pages = render_page(prepared, page, page_size=page_size, user_id=callback.from_user.id)
+        # Для первой страницы с картой передаем is_caption=True для агрессивной обрезки описаний
+        page_html, total_pages = render_page(
+            prepared,
+            page,
+            page_size=page_size,
+            user_id=callback.from_user.id,
+            is_caption=(is_first_page and is_photo_message),
+        )
 
         # Логируем показ событий в списке при пагинации (list_view)
         from database import get_engine
