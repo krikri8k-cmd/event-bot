@@ -949,6 +949,55 @@ def get_source_url(e: dict) -> str | None:
     return None  # нет реального источника — лучше не показывать ссылку
 
 
+def truncate_html_safely(html_text: str, max_length: int) -> str:
+    """
+    Безопасно обрезает HTML-текст, закрывая все открытые теги
+
+    Args:
+        html_text: HTML-текст для обрезки
+        max_length: Максимальная длина (включая "...")
+
+    Returns:
+        Обрезанный HTML-текст с закрытыми тегами
+    """
+    if len(html_text) <= max_length:
+        return html_text
+
+    # Находим все открытые теги до точки обрезки
+    truncate_pos = max_length - 10  # Оставляем место для "..."
+
+    # Ищем все открытые теги до точки обрезки
+    open_tags = []
+    tag_pattern = re.compile(r"<(\w+)(?:\s[^>]*)?>|</(\w+)>")
+
+    pos = 0
+    while pos < truncate_pos:
+        match = tag_pattern.search(html_text, pos)
+        if not match:
+            break
+
+        if match.group(1):  # Открывающий тег
+            tag_name = match.group(1)
+            # Пропускаем самозакрывающиеся теги
+            if tag_name.lower() not in ["br", "hr", "img", "input", "meta", "link"]:
+                open_tags.append(tag_name.lower())
+        elif match.group(2):  # Закрывающий тег
+            tag_name = match.group(2).lower()
+            if tag_name in open_tags:
+                open_tags.remove(tag_name)
+
+        pos = match.end()
+
+    # Обрезаем текст
+    truncated = html_text[:truncate_pos] + "..."
+
+    # Закрываем все открытые теги в обратном порядке
+    for tag in reversed(open_tags):
+        truncated += f"</{tag}>"
+
+    return truncated
+
+
 def render_event_html(e: dict, idx: int, user_id: int = None) -> str:
     """Рендерит одну карточку события в HTML согласно ТЗ"""
     import logging
@@ -8915,7 +8964,7 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
                     logger.warning(
                         f"⚠️ Текст caption слишком длинный ({len(new_text)} символов), обрезаем до {MAX_CAPTION_LENGTH}"
                     )
-                    new_text = new_text[: MAX_CAPTION_LENGTH - 10] + "..."
+                    new_text = truncate_html_safely(new_text, MAX_CAPTION_LENGTH)
 
                 await callback.message.edit_caption(caption=new_text, parse_mode="HTML", reply_markup=combined_keyboard)
             else:
@@ -9017,7 +9066,7 @@ async def handle_pagination(callback: types.CallbackQuery):
                     logger.warning(
                         f"⚠️ Текст caption слишком длинный ({len(new_text)} символов), обрезаем до {MAX_CAPTION_LENGTH}"
                     )
-                    new_text = new_text[: MAX_CAPTION_LENGTH - 10] + "..."
+                    new_text = truncate_html_safely(new_text, MAX_CAPTION_LENGTH)
 
                 await callback.message.edit_caption(
                     caption=new_text,
