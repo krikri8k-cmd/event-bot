@@ -136,7 +136,10 @@ def find_nearest_available_place(
         )
 
         if not places:
-            logger.warning(f"Места не найдены: category={category}, place_type={place_type}, region={region}")
+            logger.warning(
+                f"Места не найдены: category={category}, place_type={place_type}, "
+                f"region={region}, task_type={task_type}"
+            )
             return None
 
         # 2. Вычисляем расстояние и время последнего показа для каждого места

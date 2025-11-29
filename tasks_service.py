@@ -257,24 +257,51 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                 try:
                     from tasks_location_service import (
                         find_nearest_available_place,
-                        get_task_type_for_region,
-                        get_user_region_type,
                     )
 
-                    region_type = get_user_region_type(user.last_lat, user.last_lng)
-                    get_task_type_for_region(region_type)
+                    # Используем task_type из задания
+                    task_type = task.task_type or "urban"  # По умолчанию urban
 
                     # Пытаемся найти место для этого задания
                     # Используем category и task_type из задания
-                    place = find_nearest_available_place(
-                        category=task.category,
-                        place_type=None,  # Не фильтруем по типу места
-                        task_type=task.task_type,
-                        user_lat=user.last_lat,
-                        user_lng=user.last_lng,
-                        user_id=user_id,
-                        exclude_days=0,  # Не исключаем места, которые уже показывались
-                    )
+                    # Пробуем разные типы мест для категории
+                    place = None
+                    category_place_types = {
+                        "body": ["cafe", "park", "gym"],
+                        "spirit": ["temple", "park", "viewpoint"],
+                    }
+                    place_types = category_place_types.get(task.category, ["park"])
+
+                    for place_type in place_types:
+                        place = find_nearest_available_place(
+                            category=task.category,
+                            place_type=place_type,
+                            task_type=task_type,
+                            user_lat=user.last_lat,
+                            user_lng=user.last_lng,
+                            user_id=user_id,
+                            exclude_days=0,  # Не исключаем места, которые уже показывались
+                        )
+                        if place:
+                            break
+
+                    # Если не нашли по типу места, пробуем без фильтра по типу
+                    if not place:
+                        from tasks_location_service import find_oldest_unshown_place_in_region, get_user_region
+
+                        region = get_user_region(user.last_lat, user.last_lng)
+                        for place_type in place_types:
+                            place = find_oldest_unshown_place_in_region(
+                                category=task.category,
+                                place_type=place_type,
+                                region=region,
+                                user_id=user_id,
+                                task_type=task_type,
+                                user_lat=user.last_lat,
+                                user_lng=user.last_lng,
+                            )
+                            if place:
+                                break
 
                     if place:
                         task_dict["place_name"] = place.name
