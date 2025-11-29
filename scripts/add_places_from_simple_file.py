@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Упрощенный скрипт для добавления локаций из простого текстового файла
+Упрощенный скрипт для добавления и обновления локаций из простого текстового файла
 
 Формат файла:
     # Комментарии начинаются с #
-    category:place_type:region
-    https://maps.google.com/ссылка1
+    category:place_type:region:promo_code (промокод опционален)
+    https://maps.google.com/ссылка1|ПРОМОКОД (промокод после ссылки, приоритетнее)
     https://maps.google.com/ссылка2
     https://maps.google.com/ссылка3
 
@@ -14,7 +14,17 @@
     ...
 
 Использование:
+    # Добавить новые места (существующие пропускаются)
     python scripts/add_places_from_simple_file.py places_simple.txt
+
+    # Добавить и обновить существующие места
+    python scripts/add_places_from_simple_file.py places_simple.txt --update
+
+Особенности:
+    - Если место с такой ссылкой уже есть - обновляет координаты и другие поля
+    - Если место с такими координатами уже есть - обновляет ссылку
+    - Если места нет - создает новое
+    - Автоматически извлекает координаты из любых Google Maps ссылок (включая короткие)
 """
 
 import os
@@ -84,18 +94,34 @@ def add_place_from_url(
     region: str,
     google_maps_url: str,
     promo_code: str | None = None,
-) -> bool:
-    """Добавляет место из Google Maps ссылки"""
+    update_existing: bool = True,
+) -> tuple[bool, str]:
+    """
+    Добавляет или обновляет место из Google Maps ссылки
+
+    Args:
+        category: Категория места
+        place_type: Тип места
+        region: Регион
+        google_maps_url: Ссылка на Google Maps
+        promo_code: Промокод (опционально)
+        update_existing: Обновлять ли существующие места (по умолчанию True)
+
+    Returns:
+        Кортеж (успех, тип_операции) где:
+        - успех: True если успешно, False если ошибка
+        - тип_операции: "added", "updated", "skipped"
+    """
     google_maps_url = google_maps_url.strip()
 
     if not google_maps_url or not google_maps_url.startswith(("http", "https")):
-        return False
+        return False, "skipped"
 
     # Извлекаем координаты
     coords = extract_coordinates(google_maps_url)
     if not coords:
         print(f"❌ Не удалось извлечь координаты из: {google_maps_url[:50]}...")
-        return False
+        return False, "skipped"
 
     lat, lng = coords
 
@@ -107,8 +133,41 @@ def add_place_from_url(
     name = extract_place_name_from_url(google_maps_url)
 
     with get_session() as session:
-        # Проверяем, не существует ли уже такое место (по координатам)
-        existing = (
+        # Сначала проверяем, есть ли место с такой же ссылкой
+        existing_by_url = session.query(TaskPlace).filter(TaskPlace.google_maps_url == google_maps_url).first()
+
+        if existing_by_url:
+            if update_existing:
+                # Обновляем существующее место
+                old_lat = existing_by_url.lat
+                old_lng = existing_by_url.lng
+                existing_by_url.lat = lat
+                existing_by_url.lng = lng
+                existing_by_url.category = category
+                existing_by_url.place_type = place_type
+                existing_by_url.region = region
+                if promo_code:
+                    existing_by_url.promo_code = promo_code
+                # Обновляем название, если удалось извлечь из URL
+                if name and name != "Место на карте":
+                    existing_by_url.name = name
+                existing_by_url.is_active = True
+
+                session.commit()
+
+                promo_info = f", Промокод: {promo_code}" if promo_code else ""
+                print(
+                    f"🔄 Обновлено: {existing_by_url.name} (ID: {existing_by_url.id}) "
+                    f"({region}, {place_type}) - "
+                    f"{old_lat:.6f}, {old_lng:.6f} -> {lat:.6f}, {lng:.6f}{promo_info}"
+                )
+                return True, "updated"
+            else:
+                print(f"⚠️ Место с такой ссылкой уже существует: {existing_by_url.name} (ID: {existing_by_url.id})")
+                return False, "skipped"
+
+        # Проверяем, не существует ли уже такое место по координатам
+        existing_by_coords = (
             session.query(TaskPlace)
             .filter(
                 TaskPlace.category == category,
@@ -121,9 +180,27 @@ def add_place_from_url(
             .first()
         )
 
-        if existing:
-            print(f"⚠️ Место уже существует: {existing.name} (ID: {existing.id})")
-            return False
+        if existing_by_coords:
+            if update_existing:
+                # Обновляем ссылку и другие поля
+                existing_by_coords.google_maps_url = google_maps_url
+                if promo_code:
+                    existing_by_coords.promo_code = promo_code
+                if name and name != "Место на карте":
+                    existing_by_coords.name = name
+                existing_by_coords.is_active = True
+
+                session.commit()
+
+                promo_info = f", Промокод: {promo_code}" if promo_code else ""
+                print(
+                    f"🔄 Обновлено: {existing_by_coords.name} (ID: {existing_by_coords.id}) "
+                    f"({region}, {place_type}) - обновлена ссылка{promo_info}"
+                )
+                return True, "updated"
+            else:
+                print(f"⚠️ Место уже существует: {existing_by_coords.name} (ID: {existing_by_coords.id})")
+                return False, "skipped"
 
         # Создаем новое место
         place = TaskPlace(
@@ -144,7 +221,7 @@ def add_place_from_url(
 
         promo_info = f", Промокод: {promo_code}" if promo_code else ""
         print(f"✅ Добавлено: {name} ({region}, {place_type}) - {lat:.6f}, {lng:.6f}{promo_info}")
-        return True
+        return True, "added"
 
 
 def parse_simple_file(file_path: str) -> list[dict]:
@@ -216,16 +293,21 @@ def parse_simple_file(file_path: str) -> list[dict]:
 def main():
     """Основная функция"""
     if len(sys.argv) < 2:
-        print("Использование: python scripts/add_places_from_simple_file.py <txt_file>")
+        print("Использование: python scripts/add_places_from_simple_file.py <txt_file> [--update]")
         print("\nПример:")
         print("  python scripts/add_places_from_simple_file.py places_simple.txt")
+        print("  python scripts/add_places_from_simple_file.py places_simple.txt --update")
         print("\nФормат файла:")
         print("  category:place_type:region:promo_code (промокод опционален)")
         print("  https://maps.google.com/ссылка1|ПРОМОКОД (промокод после ссылки, приоритетнее)")
         print("  https://maps.google.com/ссылка2")
+        print("\nРежимы:")
+        print("  Без --update: добавляет только новые места (существующие пропускаются)")
+        print("  С --update: добавляет новые и обновляет существующие места")
         sys.exit(1)
 
     txt_file = sys.argv[1]
+    update_existing = "--update" in sys.argv
 
     if not os.path.exists(txt_file):
         print(f"❌ Файл не найден: {txt_file}")
@@ -241,27 +323,34 @@ def main():
     init_engine(db_url)
 
     # Парсим файл
-    print(f"📄 Загружаю места из файла: {txt_file}\n")
+    mode = "обновление" if update_existing else "добавление"
+    print(f"📄 Загружаю места из файла: {txt_file} (режим: {mode})\n")
     places = parse_simple_file(txt_file)
 
     if not places:
         print("❌ Не найдено мест для добавления")
         sys.exit(1)
 
-    # Добавляем места
+    # Добавляем/обновляем места
     added_count = 0
+    updated_count = 0
     skipped_count = 0
 
     for place_info in places:
         try:
-            if add_place_from_url(
+            success, operation_type = add_place_from_url(
                 category=place_info["category"],
                 place_type=place_info["place_type"],
                 region=place_info["region"],
                 google_maps_url=place_info["url"],
                 promo_code=place_info.get("promo_code"),
-            ):
-                added_count += 1
+                update_existing=update_existing,
+            )
+            if success:
+                if operation_type == "added":
+                    added_count += 1
+                elif operation_type == "updated":
+                    updated_count += 1
             else:
                 skipped_count += 1
         except Exception as e:
@@ -269,8 +358,13 @@ def main():
             skipped_count += 1
 
     print("\n✅ Готово!")
-    print(f"   Добавлено: {added_count}")
-    print(f"   Пропущено: {skipped_count}")
+    if update_existing:
+        print(f"   Добавлено новых: {added_count}")
+        print(f"   Обновлено существующих: {updated_count}")
+        print(f"   Пропущено: {skipped_count}")
+    else:
+        print(f"   Добавлено: {added_count}")
+        print(f"   Пропущено: {skipped_count}")
 
 
 if __name__ == "__main__":

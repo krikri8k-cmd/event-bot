@@ -31,7 +31,40 @@ https://maps.app.goo.gl/rGYd8biht51DFFB79
 body:cafe:spb
 https://maps.app.goo.gl/mjULEtEucQfm4FAW6
 
-# Категория: Тело, Тип: Кафе, Регион: Бали (автоопределение)
-body:cafe:auto
+# Категория: Тело, Тип: Парк, Регион: СПб
+body:park:spb
+
+# Категория: Тело, Тип: Спортзал, Регион: СПб
+body:gym:spb
+
+# Категория: Тело, Тип: Йога-студия, Регион: СПб
+body:yoga_studio:spb
+
+# Категория: Дух, Тип: Храм, Регион: СПб
+spirit:temple:spb
+
+# Категория: Дух, Тип: Парк, Регион: СПб
+spirit:park:spb
+
+# Категория: Тело, Тип: Кафе, Регион: Бали
+body:cafe:bali
 https://maps.app.goo.gl/T8s9tj1njmG226ydA
+
+# Категория: Тело, Тип: Пляж, Регион: Бали
+body:beach:bali
+
+# Категория: Тело, Тип: Йога-студия, Регион: Бали
+body:yoga_studio:bali
+
+# Категория: Дух, Тип: Храм, Регион: Бали
+spirit:temple:bali
+
+# Категория: Дух, Тип: Смотровая площадка, Регион: Бали
+spirit:viewpoint:bali
+
+# Категория: Дух, Тип: Утес, Регион: Бали
+spirit:cliff:bali
+
+# Категория: Дух, Тип: Пляж, Регион: Бали
+spirit:beach:bali
 

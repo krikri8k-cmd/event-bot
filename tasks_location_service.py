@@ -93,6 +93,59 @@ def get_task_type_for_region(region_type: str) -> str:
     return mapping.get(region_type, "urban")
 
 
+def generate_search_query_url(place_type: str, user_lat: float, user_lng: float, region_type: str = "city") -> str:
+    """
+    Генерирует поисковый запрос в Google Maps для unknown региона
+
+    Args:
+        place_type: Тип места ('cafe', 'gym', 'beach', 'surf_school', etc.)
+        user_lat: Широта пользователя
+        user_lng: Долгота пользователя
+        region_type: Тип региона ('city' или 'island')
+
+    Returns:
+        URL поискового запроса в Google Maps
+    """
+    # Маппинг типов мест на поисковые запросы
+    place_queries = {
+        # Городские (urban)
+        "cafe": "кафе",
+        "park": "парк",
+        "gym": "спортзал",
+        "yoga_studio": "йога студия",
+        "temple": "храм",
+        "viewpoint": "смотровая площадка",
+        "library": "библиотека",
+        "coworking": "коворкинг",
+        "bar": "бар",
+        # Островные (island)
+        "beach": "пляж",
+        "surf_school": "серфшкола",
+        "cliff": "утес",
+    }
+
+    # Для островных регионов используем английские запросы (лучше работает для Бали и т.д.)
+    if region_type == "island":
+        island_queries = {
+            "cafe": "cafe",
+            "beach": "beach",
+            "surf_school": "surf school",
+            "yoga_studio": "yoga studio",
+            "temple": "temple",
+            "viewpoint": "viewpoint",
+            "cliff": "cliff",
+        }
+        query = island_queries.get(place_type, place_queries.get(place_type, "place"))
+    else:
+        query = place_queries.get(place_type, "место")
+
+    # Генерируем поисковый запрос с координатами
+    # Формат: https://www.google.com/maps/search/?api=1&query=кафе+@lat,lng
+    # Или: https://www.google.com/maps/search/?api=1&query=кафе&query_place_id=lat,lng
+    # Используем формат с @ для лучшей работы поиска
+    return f"https://www.google.com/maps/search/?api=1&query={query}@{user_lat:.6f},{user_lng:.6f}"
+
+
 def find_nearest_available_place(
     category: str,
     place_type: str,
@@ -118,6 +171,11 @@ def find_nearest_available_place(
         TaskPlace или None если места не найдены
     """
     region = get_user_region(user_lat, user_lng)
+
+    # Для unknown региона не ищем места в БД - используем поисковые запросы
+    if region == "unknown":
+        logger.info(f"Регион unknown: не ищем места в БД для {category}/{place_type}")
+        return None
 
     with get_session() as session:
         # 1. Получаем все места категории и типа в регионе, с учетом типа задания
@@ -223,6 +281,11 @@ def find_oldest_unshown_place_in_region(
     Returns:
         TaskPlace или None
     """
+    # Для unknown региона не ищем места в БД - используем поисковые запросы
+    if region == "unknown":
+        logger.info(f"Регион unknown: не ищем места в БД для {category}/{place_type}")
+        return None
+
     with get_session() as session:
         # Получаем все места региона с учетом типа задания
         places = (
@@ -328,6 +391,10 @@ def get_tasks_with_places(
     Returns:
         Список словарей с заданиями и местами
     """
+    # Определяем регион и тип региона
+    region = get_user_region(user_lat, user_lng)
+    region_type = get_user_region_type(user_lat, user_lng)
+
     # Определяем типы мест для категории
     category_place_types = {
         "body": ["cafe", "park", "gym"],
@@ -339,33 +406,50 @@ def get_tasks_with_places(
     tasks_with_places = []
 
     for place_type in place_types:
-        # Находим место с приоритетом
-        place = find_nearest_available_place(
-            category=category,
-            place_type=place_type,
-            user_lat=user_lat,
-            user_lng=user_lng,
-            user_id=user_id,
-            task_type=task_type,  # Передаем тип задания
-            exclude_days=EXCLUDE_PLACE_DAYS,
-        )
+        place = None
 
-        # Если нет места в радиусе, но есть в регионе - берем самое давно не показывавшееся
-        if not place:
-            region = get_user_region(user_lat, user_lng)
-            place = find_oldest_unshown_place_in_region(
+        # Для unknown региона используем поисковые запросы вместо конкретных мест
+        if region == "unknown":
+            logger.info(f"Регион unknown: генерируем поисковый запрос для {place_type}")
+
+            # Создаем объект-заглушку с поисковым запросом
+            class SearchPlace:
+                def __init__(self, place_type, user_lat, user_lng, region_type):
+                    self.id = None  # Нет ID для поисковых запросов
+                    self.name = "Ближайшее место"
+                    self.google_maps_url = generate_search_query_url(place_type, user_lat, user_lng, region_type)
+                    self.promo_code = None
+                    self.distance_km = None  # Не вычисляем расстояние для поисковых запросов
+
+            place = SearchPlace(place_type, user_lat, user_lng, region_type)
+        else:
+            # Для известных регионов ищем конкретные места в БД
+            # Находим место с приоритетом
+            place = find_nearest_available_place(
                 category=category,
                 place_type=place_type,
-                region=region,
-                user_id=user_id,
-                task_type=task_type,  # Передаем тип задания
                 user_lat=user_lat,
                 user_lng=user_lng,
+                user_id=user_id,
+                task_type=task_type,  # Передаем тип задания
+                exclude_days=EXCLUDE_PLACE_DAYS,
             )
 
-        # Сохраняем факт показа
-        if place:
-            mark_place_as_shown(user_id, place.id)
+            # Если нет места в радиусе, но есть в регионе - берем самое давно не показывавшееся
+            if not place:
+                place = find_oldest_unshown_place_in_region(
+                    category=category,
+                    place_type=place_type,
+                    region=region,
+                    user_id=user_id,
+                    task_type=task_type,  # Передаем тип задания
+                    user_lat=user_lat,
+                    user_lng=user_lng,
+                )
+
+            # Сохраняем факт показа только для реальных мест (не для поисковых запросов)
+            if place and place.id is not None:
+                mark_place_as_shown(user_id, place.id)
 
         tasks_with_places.append(
             {

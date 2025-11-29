@@ -6188,7 +6188,7 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
 
         message_text += "\n"
 
-        # Добавляем кнопку управления заданиями
+    # Добавляем кнопку управления заданиями
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="🔧 Управление заданиями", callback_data="manage_tasks")],
