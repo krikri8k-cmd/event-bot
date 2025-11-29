@@ -239,19 +239,53 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                 accepted_at = accepted_at.astimezone(user_tz)
                 expires_at = expires_at.astimezone(user_tz)
 
-            result.append(
-                {
-                    "id": user_task.id,
-                    "task_id": task.id,
-                    "title": task.title,
-                    "description": task.description,
-                    "category": task.category,
-                    "location_url": task.location_url,
-                    "accepted_at": accepted_at,
-                    "expires_at": expires_at,
-                    "status": user_task.status,
-                }
-            )
+            task_dict = {
+                "id": user_task.id,
+                "task_id": task.id,
+                "title": task.title,
+                "description": task.description,
+                "category": task.category,
+                "location_url": task.location_url,
+                "accepted_at": accepted_at,
+                "expires_at": expires_at,
+                "status": user_task.status,
+                "task_type": task.task_type,
+            }
+
+            # Получаем информацию о месте и промокоде, если есть координаты пользователя
+            if user and user.last_lat is not None and user.last_lng is not None:
+                try:
+                    from tasks_location_service import (
+                        find_nearest_available_place,
+                        get_task_type_for_region,
+                        get_user_region_type,
+                    )
+
+                    region_type = get_user_region_type(user.last_lat, user.last_lng)
+                    get_task_type_for_region(region_type)
+
+                    # Пытаемся найти место для этого задания
+                    # Используем category и task_type из задания
+                    place = find_nearest_available_place(
+                        category=task.category,
+                        place_type=None,  # Не фильтруем по типу места
+                        task_type=task.task_type,
+                        user_lat=user.last_lat,
+                        user_lng=user.last_lng,
+                        user_id=user_id,
+                        exclude_days=0,  # Не исключаем места, которые уже показывались
+                    )
+
+                    if place:
+                        task_dict["place_name"] = place.name
+                        task_dict["place_url"] = place.google_maps_url
+                        task_dict["promo_code"] = place.promo_code
+                        if hasattr(place, "distance_km"):
+                            task_dict["distance_km"] = place.distance_km
+                except Exception as e:
+                    logger.warning(f"Не удалось получить информацию о месте для задания {task.id}: {e}")
+
+            result.append(task_dict)
 
         return result
 

@@ -5515,7 +5515,30 @@ async def on_my_tasks(message: types.Message):
             time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')}"
 
             message_text += f"{i}) {category_emoji} **{task['title']}**\n"
-            message_text += f"⏰ **Время на выполнение:** {time_period}\n\n"
+            message_text += f"⏰ **Время на выполнение:** {time_period}\n"
+
+            # Показываем локацию, если есть
+            if task.get("place_name") or task.get("place_url"):
+                place_name = task.get("place_name", "Место на карте")
+                place_url = task.get("place_url")
+                distance = task.get("distance_km")
+
+                if place_url:
+                    if distance:
+                        message_text += f"📍 **Место:** [{place_name} ({distance:.1f} км)]({place_url})\n"
+                    else:
+                        message_text += f"📍 **Место:** [{place_name}]({place_url})\n"
+                else:
+                    if distance:
+                        message_text += f"📍 **Место:** {place_name} ({distance:.1f} км)\n"
+                    else:
+                        message_text += f"📍 **Место:** {place_name}\n"
+
+            # Показываем промокод, если есть
+            if task.get("promo_code"):
+                message_text += f"🎁 **Промокод:** `{task['promo_code']}`\n"
+
+            message_text += "\n"
 
         # Добавляем кнопку управления заданиями
         keyboard = InlineKeyboardMarkup(
@@ -5671,7 +5694,30 @@ async def cmd_mytasks(message: types.Message):
             time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')}"
 
             message_text += f"{i}) {category_emoji} **{task['title']}**\n"
-            message_text += f"⏰ **Время на выполнение:** {time_period}\n\n"
+            message_text += f"⏰ **Время на выполнение:** {time_period}\n"
+
+            # Показываем локацию, если есть
+            if task.get("place_name") or task.get("place_url"):
+                place_name = task.get("place_name", "Место на карте")
+                place_url = task.get("place_url")
+                distance = task.get("distance_km")
+
+                if place_url:
+                    if distance:
+                        message_text += f"📍 **Место:** [{place_name} ({distance:.1f} км)]({place_url})\n"
+                    else:
+                        message_text += f"📍 **Место:** [{place_name}]({place_url})\n"
+                else:
+                    if distance:
+                        message_text += f"📍 **Место:** {place_name} ({distance:.1f} км)\n"
+                    else:
+                        message_text += f"📍 **Место:** {place_name}\n"
+
+            # Показываем промокод, если есть
+            if task.get("promo_code"):
+                message_text += f"🎁 **Промокод:** `{task['promo_code']}`\n"
+
+            message_text += "\n"
 
         # Добавляем кнопку управления заданиями
         keyboard = InlineKeyboardMarkup(
@@ -5799,8 +5845,28 @@ async def show_task_detail(callback_or_message, tasks: list, task_index: int, us
         f"⏰ **Время на выполнение:** {start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')}\n"
     )
 
-    if task.get("location_url"):
+    # Показываем локацию, если есть
+    if task.get("place_name") or task.get("place_url"):
+        place_name = task.get("place_name", "Место на карте")
+        place_url = task.get("place_url")
+        distance = task.get("distance_km")
+
+        if place_url:
+            if distance:
+                message_text += f"📍 **Место:** [{place_name} ({distance:.1f} км)]({place_url})\n"
+            else:
+                message_text += f"📍 **Место:** [{place_name}]({place_url})\n"
+        else:
+            if distance:
+                message_text += f"📍 **Место:** {place_name} ({distance:.1f} км)\n"
+            else:
+                message_text += f"📍 **Место:** {place_name}\n"
+    elif task.get("location_url"):
         message_text += f"📍 **Место:** [Открыть на карте]({task['location_url']})\n"
+
+    # Показываем промокод, если есть
+    if task.get("promo_code"):
+        message_text += f"🎁 **Промокод:** `{task['promo_code']}`\n"
 
     # Создаем клавиатуру для навигации
     keyboard = []
@@ -5991,9 +6057,32 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
         time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')}"
 
         message_text += f"{i}) {category_emoji} **{task['title']}**\n"
-        message_text += f"⏰ **Время на выполнение:** {time_period}\n\n"
+        message_text += f"⏰ **Время на выполнение:** {time_period}\n"
 
-    # Добавляем кнопку управления заданиями
+        # Показываем локацию, если есть
+        if task.get("place_name") or task.get("place_url"):
+            place_name = task.get("place_name", "Место на карте")
+            place_url = task.get("place_url")
+            distance = task.get("distance_km")
+
+            if place_url:
+                if distance:
+                    message_text += f"📍 **Место:** [{place_name} ({distance:.1f} км)]({place_url})\n"
+                else:
+                    message_text += f"📍 **Место:** [{place_name}]({place_url})\n"
+            else:
+                if distance:
+                    message_text += f"📍 **Место:** {place_name} ({distance:.1f} км)\n"
+                else:
+                    message_text += f"📍 **Место:** {place_name}\n"
+
+        # Показываем промокод, если есть
+        if task.get("promo_code"):
+            message_text += f"🎁 **Промокод:** `{task['promo_code']}`\n"
+
+        message_text += "\n"
+
+        # Добавляем кнопку управления заданиями
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="🔧 Управление заданиями", callback_data="manage_tasks")],
@@ -6816,8 +6905,29 @@ async def handle_task_manage(callback: types.CallbackQuery):
     message += f"{task_info['description']}\n\n"
     message += f"{time_text}\n\n"
 
-    if task_info["location_url"]:
+    # Показываем локацию, если есть
+    if task_info.get("place_name") or task_info.get("place_url"):
+        place_name = task_info.get("place_name", "Место на карте")
+        place_url = task_info.get("place_url")
+        distance = task_info.get("distance_km")
+
+        if place_url:
+            if distance:
+                message += f"📍 **Место:** [{place_name} ({distance:.1f} км)]({place_url})\n"
+            else:
+                message += f"📍 **Место:** [{place_name}]({place_url})\n"
+        else:
+            if distance:
+                message += f"📍 **Место:** {place_name} ({distance:.1f} км)\n"
+            else:
+                message += f"📍 **Место:** {place_name}\n"
+        message += "\n"
+    elif task_info.get("location_url"):
         message += f"📍 [🌍 Открыть на карте]({task_info['location_url']})\n\n"
+
+    # Показываем промокод, если есть
+    if task_info.get("promo_code"):
+        message += f"🎁 **Промокод:** `{task_info['promo_code']}`\n\n"
 
     # Создаем клавиатуру
     keyboard = [
