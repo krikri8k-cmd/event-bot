@@ -69,6 +69,7 @@ class Task(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     location_url: Mapped[str | None] = mapped_column(String(500))
+    task_type: Mapped[str] = mapped_column(String(20), default="urban")  # 'urban' или 'island'
     order_index: Mapped[int] = mapped_column(Integer, nullable=False)  # порядок показа (1-15)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -159,6 +160,7 @@ class TaskPlace(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     region: Mapped[str | None] = mapped_column(String(50))  # 'moscow', 'spb', 'bali', 'jakarta', etc.
     place_type: Mapped[str | None] = mapped_column(String(50))  # 'cafe', 'park', 'gym', 'yoga_studio', etc.
+    task_type: Mapped[str] = mapped_column(String(20), default="urban")  # 'urban' или 'island'
     promo_code: Mapped[str | None] = mapped_column(String(100))  # Промокод или реферальный код для партнеров
     created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

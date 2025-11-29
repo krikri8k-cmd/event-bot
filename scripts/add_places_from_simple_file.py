@@ -22,6 +22,10 @@ import re
 import sys
 from pathlib import Path
 
+# Добавляем корень проекта в путь для импортов
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 from dotenv import load_dotenv
 
 from database import TaskPlace, get_session, init_engine
@@ -29,7 +33,7 @@ from tasks_location_service import get_user_region
 from utils.geo_utils import parse_google_maps_link
 
 # Загружаем переменные окружения
-env_path = Path(__file__).parent.parent / "app.local.env"
+env_path = project_root / "app.local.env"
 if env_path.exists():
     load_dotenv(env_path)
 

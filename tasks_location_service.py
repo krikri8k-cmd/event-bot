@@ -52,12 +52,54 @@ def get_user_region(lat: float, lng: float) -> str:
     return "unknown"
 
 
+def get_user_region_type(lat: float, lng: float) -> str:
+    """
+    Определяет тип региона пользователя: город (city) или остров (island)
+
+    Args:
+        lat: Широта
+        lng: Долгота
+
+    Returns:
+        Тип региона: 'city' или 'island'
+    """
+    region = get_user_region(lat, lng)
+
+    # Маппинг регионов на типы
+    region_types = {
+        "moscow": "city",
+        "spb": "city",
+        "jakarta": "city",
+        "bali": "island",
+    }
+
+    return region_types.get(region, "city")  # По умолчанию город
+
+
+def get_task_type_for_region(region_type: str) -> str:
+    """
+    Преобразует тип региона в тип задания
+
+    Args:
+        region_type: 'city' или 'island'
+
+    Returns:
+        Тип задания: 'urban' или 'island'
+    """
+    mapping = {
+        "city": "urban",
+        "island": "island",
+    }
+    return mapping.get(region_type, "urban")
+
+
 def find_nearest_available_place(
     category: str,
     place_type: str,
     user_lat: float,
     user_lng: float,
     user_id: int,
+    task_type: str = "urban",
     exclude_days: int = EXCLUDE_PLACE_DAYS,
 ) -> TaskPlace | None:
     """
@@ -69,6 +111,7 @@ def find_nearest_available_place(
         user_lat: Широта пользователя
         user_lng: Долгота пользователя
         user_id: ID пользователя
+        task_type: Тип задания ('urban' или 'island')
         exclude_days: Количество дней для исключения (по умолчанию 3)
 
     Returns:
@@ -77,13 +120,14 @@ def find_nearest_available_place(
     region = get_user_region(user_lat, user_lng)
 
     with get_session() as session:
-        # 1. Получаем все места категории и типа в регионе
+        # 1. Получаем все места категории и типа в регионе, с учетом типа задания
         places = (
             session.query(TaskPlace)
             .filter(
                 and_(
                     TaskPlace.category == category,
                     TaskPlace.place_type == place_type,
+                    TaskPlace.task_type == task_type,  # Фильтр по типу задания
                     TaskPlace.is_active == True,  # noqa: E712
                     TaskPlace.region == region,
                 )
@@ -156,6 +200,7 @@ def find_oldest_unshown_place_in_region(
     place_type: str,
     region: str,
     user_id: int,
+    task_type: str = "urban",
     user_lat: float | None = None,
     user_lng: float | None = None,
 ) -> TaskPlace | None:
@@ -168,6 +213,7 @@ def find_oldest_unshown_place_in_region(
         place_type: Тип места
         region: Регион
         user_id: ID пользователя
+        task_type: Тип задания ('urban' или 'island')
         user_lat: Широта пользователя (для вычисления расстояния)
         user_lng: Долгота пользователя (для вычисления расстояния)
 
@@ -175,13 +221,14 @@ def find_oldest_unshown_place_in_region(
         TaskPlace или None
     """
     with get_session() as session:
-        # Получаем все места региона
+        # Получаем все места региона с учетом типа задания
         places = (
             session.query(TaskPlace)
             .filter(
                 and_(
                     TaskPlace.category == category,
                     TaskPlace.place_type == place_type,
+                    TaskPlace.task_type == task_type,  # Фильтр по типу задания
                     TaskPlace.region == region,
                     TaskPlace.is_active == True,  # noqa: E712
                 )
@@ -262,15 +309,18 @@ def mark_place_as_shown(user_id: int, place_id: int) -> None:
             logger.info(f"Место {place_id} отмечено как показанное пользователю {user_id}")
 
 
-def get_tasks_with_places(category: str, user_id: int, user_lat: float, user_lng: float) -> list[dict]:
+def get_tasks_with_places(
+    category: str, user_id: int, user_lat: float, user_lng: float, task_type: str = "urban"
+) -> list[dict]:
     """
-    Получает задания с локациями для категории
+    Получает задания с локациями для категории и типа задания
 
     Args:
         category: Категория заданий ('body', 'spirit')
         user_id: ID пользователя
         user_lat: Широта пользователя
         user_lng: Долгота пользователя
+        task_type: Тип задания ('urban' или 'island')
 
     Returns:
         Список словарей с заданиями и местами
@@ -293,6 +343,7 @@ def get_tasks_with_places(category: str, user_id: int, user_lat: float, user_lng
             user_lat=user_lat,
             user_lng=user_lng,
             user_id=user_id,
+            task_type=task_type,  # Передаем тип задания
             exclude_days=EXCLUDE_PLACE_DAYS,
         )
 
@@ -304,6 +355,7 @@ def get_tasks_with_places(category: str, user_id: int, user_lat: float, user_lng
                 place_type=place_type,
                 region=region,
                 user_id=user_id,
+                task_type=task_type,  # Передаем тип задания
                 user_lat=user_lat,
                 user_lng=user_lng,
             )

@@ -16,12 +16,13 @@ logger = logging.getLogger(__name__)
 START_DATE = datetime(2025, 10, 3, 0, 0, 0, tzinfo=UTC)  # 3 октября 2025
 
 
-def get_daily_tasks(category: str, date: datetime | None = None) -> list[Task]:
+def get_daily_tasks(category: str, task_type: str = "urban", date: datetime | None = None) -> list[Task]:
     """
-    Получает 3 задания на день для указанной категории
+    Получает 3 задания на день для указанной категории и типа задания
 
     Args:
         category: 'body' или 'spirit'
+        task_type: 'urban' (городские) или 'island' (островные)
         date: дата для получения заданий (по умолчанию сегодня)
 
     Returns:
@@ -44,6 +45,7 @@ def get_daily_tasks(category: str, date: datetime | None = None) -> list[Task]:
             .filter(
                 and_(
                     Task.category == category,
+                    Task.task_type == task_type,  # Фильтр по типу задания
                     Task.is_active == True,  # noqa: E712
                     Task.order_index >= start_index,
                     Task.order_index <= end_index,
@@ -54,20 +56,22 @@ def get_daily_tasks(category: str, date: datetime | None = None) -> list[Task]:
         )
 
         logger.info(
-            f"Получены задания для {category}, день {day_number}: {len(tasks)} заданий "
+            f"Получены задания для {category}, тип {task_type}, день {day_number}: {len(tasks)} заданий "
             f"(индексы {start_index}-{end_index})"
         )
 
-        # Если не найдено заданий, попробуем получить любые 3 активных задания
+        # Если не найдено заданий, попробуем получить любые 3 активных задания нужного типа
         if not tasks:
             logger.warning(
-                f"Задания не найдены для {category} с индексами {start_index}-{end_index}, пробуем любые активные"
+                f"Задания не найдены для {category}, тип {task_type} "
+                f"с индексами {start_index}-{end_index}, пробуем любые активные"
             )
             tasks = (
                 session.query(Task)
                 .filter(
                     and_(
                         Task.category == category,
+                        Task.task_type == task_type,  # Фильтр по типу задания
                         Task.is_active == True,  # noqa: E712
                     )
                 )
@@ -75,7 +79,7 @@ def get_daily_tasks(category: str, date: datetime | None = None) -> list[Task]:
                 .limit(3)
                 .all()
             )
-            logger.info(f"Получены альтернативные задания для {category}: {len(tasks)} заданий")
+            logger.info(f"Получены альтернативные задания для {category}, тип {task_type}: {len(tasks)} заданий")
 
         return tasks
 

@@ -5,32 +5,33 @@
 
 # Категория: Тело, Тип: Кафе, Регион: Москва, Промокод: EVENT2024
 body:cafe:moscow:EVENT2024
-https://maps.google.com/?q=55.7558,37.6176
-https://maps.google.com/?q=55.7520,37.6150|PROMO50
-https://maps.google.com/?q=55.7500,37.6100
+https://maps.app.goo.gl/KLwv9g88ejSNWzB3A
+https://maps.app.goo.gl/BNhAeY8TX41RNASD7
 
 # Категория: Тело, Тип: Парк, Регион: Москва
 body:park:moscow
-https://maps.google.com/?q=55.7320,37.6010
-https://maps.google.com/?q=55.7300,37.6000
+https://maps.app.goo.gl/RspER1TcfmU2sqxX8
 
 # Категория: Тело, Тип: Спортзал, Регион: Москва
 body:gym:moscow
-https://maps.google.com/?q=55.7400,37.6200
+https://maps.app.goo.gl/G2yoFVyPrKFGfpCB6
+https://maps.app.goo.gl/npqrnoFf4iu1PGW96
+https://maps.app.goo.gl/LhqMn2waGrcCwg9K8
 
 # Категория: Дух, Тип: Храм, Регион: Москва
 spirit:temple:moscow
-https://maps.google.com/?q=55.7450,37.6250
+https://maps.app.goo.gl/faoUJd5JESRAbRAR7
+https://maps.app.goo.gl/smBkmt2Zpd4jxeQT9
 
 # Категория: Дух, Тип: Парк, Регион: Москва
 spirit:park:moscow
-https://maps.google.com/?q=55.7350,37.6050
+https://maps.app.goo.gl/rGYd8biht51DFFB79
 
 # Категория: Тело, Тип: Кафе, Регион: СПб
 body:cafe:spb
-https://maps.google.com/?q=59.9343,30.3351
+https://maps.app.goo.gl/mjULEtEucQfm4FAW6
 
 # Категория: Тело, Тип: Кафе, Регион: Бали (автоопределение)
 body:cafe:auto
-https://maps.google.com/?q=-8.5069,115.2625
+https://maps.app.goo.gl/T8s9tj1njmG226ydA
 

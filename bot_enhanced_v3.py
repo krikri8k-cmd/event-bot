@@ -6394,17 +6394,25 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
         await callback.answer()
         return
 
-    # Получаем 3 задания на сегодня для выбранной категории
-    tasks = get_daily_tasks(category)
+    # Определяем тип региона пользователя и соответствующий тип задания
+    from tasks_location_service import get_task_type_for_region, get_user_region_type
+
+    region_type = get_user_region_type(user_lat, user_lng)
+    task_type = get_task_type_for_region(region_type)
+
+    logger.info(f"Регион пользователя: {region_type}, тип задания: {task_type}")
+
+    # Получаем 3 задания на сегодня для выбранной категории и типа задания
+    tasks = get_daily_tasks(category, task_type=task_type)
 
     if not tasks:
         await callback.message.edit_text("❌ Задания для этой категории пока не готовы.")
         await callback.answer()
         return
 
-    # Получаем локации для заданий (новая логика с ротацией)
+    # Получаем локации для заданий (новая логика с ротацией и учетом типа задания)
     try:
-        tasks_with_places = get_tasks_with_places(category, user_id, user_lat, user_lng)
+        tasks_with_places = get_tasks_with_places(category, user_id, user_lat, user_lng, task_type=task_type)
     except Exception as e:
         logger.error(f"Ошибка получения локаций для заданий: {e}")
         tasks_with_places = []
