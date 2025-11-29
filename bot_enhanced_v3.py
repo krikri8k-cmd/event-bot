@@ -991,20 +991,46 @@ def truncate_html_safely(html_text: str, max_length: int) -> str:
             html_partial = html_bytes[: target_bytes - 50].decode("utf-8", errors="ignore")
             safe_pos = target_bytes - 50
 
-    # Находим последний закрывающий тег `>` в html_partial
-    last_tag_end = html_partial.rfind(">")
-    if last_tag_end > 0:
-        # Обрезаем после последнего закрывающего тега
-        safe_pos = len(html_partial[: last_tag_end + 1].encode("utf-8"))
+    # Находим последний ПОЛНЫЙ тег (от < до >) в html_partial
+    # Ищем все теги и находим последний, который полностью помещается
+    last_safe_pos = 0
+    tag_start = -1
+
+    # Ищем все теги в обратном порядке
+    i = len(html_partial) - 1
+    while i >= 0:
+        if html_partial[i] == ">":
+            # Нашли закрывающий символ тега, проверяем что это полный тег
+            # Ищем начало тега
+            tag_start = html_partial.rfind("<", 0, i + 1)
+            if tag_start >= 0:
+                # Проверяем, что между < и > нет других < (значит тег полный)
+                if "<" not in html_partial[tag_start + 1 : i]:
+                    # Это полный тег, обрезаем после него
+                    last_safe_pos = i + 1
+                    break
+        i -= 1
+
+    if last_safe_pos > 0:
+        # Обрезаем после последнего полного тега
+        safe_pos = len(html_partial[:last_safe_pos].encode("utf-8"))
         html_partial = html_text[:safe_pos]
     else:
-        # Если нет закрывающих тегов, ищем последний пробел или перенос строки
+        # Если не нашли полный тег, ищем последний пробел или перенос строки
         last_break = max(html_partial.rfind("\n"), html_partial.rfind(" "))
-        if last_break > safe_pos - 200:  # Если пробел не слишком далеко
+        if last_break > len(html_partial) - 200:  # Если пробел не слишком далеко
             safe_pos = len(html_partial[: last_break + 1].encode("utf-8"))
             html_partial = html_text[:safe_pos]
         else:
-            # В крайнем случае обрезаем на текущей позиции
+            # В крайнем случае обрезаем на текущей позиции, но удаляем незакрытые теги
+            # Удаляем все незакрытые теги из конца
+            while html_partial and html_partial[-1] != ">" and "<" in html_partial:
+                last_open = html_partial.rfind("<")
+                if last_open >= 0:
+                    html_partial = html_partial[:last_open]
+                else:
+                    break
+            safe_pos = len(html_partial.encode("utf-8"))
             html_partial = html_text[:safe_pos]
 
     # Ищем все открытые теги в обрезанном тексте
