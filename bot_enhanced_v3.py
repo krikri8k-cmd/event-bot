@@ -952,35 +952,89 @@ def get_source_url(e: dict) -> str | None:
 def truncate_html_safely(html_text: str, max_length: int) -> str:
     """
     Безопасно обрезает HTML-текст, закрывая все открытые теги
+    Учитывает байты (Telegram считает по байтам, а не по символам)
 
     Args:
         html_text: HTML-текст для обрезки
-        max_length: Максимальная длина (включая "...")
+        max_length: Максимальная длина в байтах (включая "...")
 
     Returns:
         Обрезанный HTML-текст с закрытыми тегами
     """
-    if len(html_text) <= max_length:
+    # Проверяем длину в байтах
+    html_bytes = html_text.encode("utf-8")
+    if len(html_bytes) <= max_length:
         return html_text
 
-    # Находим все открытые теги до точки обрезки
-    truncate_pos = max_length - 10  # Оставляем место для "..."
+    # Оставляем место для "..." и закрывающих тегов (примерно 50 байт)
+    truncate_bytes = max_length - 50
+
+    # Находим безопасную точку обрезки (не внутри тега)
+    safe_pos = truncate_bytes
+    html_bytes_truncated = html_bytes[:safe_pos]
+
+    # Пытаемся декодировать, если не получается - уменьшаем позицию
+    while safe_pos > 0:
+        try:
+            html_partial = html_bytes_truncated.decode("utf-8")
+            break
+        except UnicodeDecodeError:
+            safe_pos -= 1
+            html_bytes_truncated = html_bytes[:safe_pos]
+    else:
+        # Если не удалось декодировать, обрезаем более агрессивно
+        safe_pos = truncate_bytes - 100
+        html_partial = html_bytes[:safe_pos].decode("utf-8", errors="ignore")
+
+    # Находим последнюю безопасную позицию (не внутри тега)
+    # Ищем последний закрывающий тег или пробел перед открывающим тегом
+    last_tag_end = html_partial.rfind(">")
+    last_space = html_partial.rfind(" ", 0, safe_pos - 20)  # Ищем пробел не слишком близко к концу
+
+    # Выбираем позицию обрезки: после закрывающего тега или после пробела
+    if last_tag_end > safe_pos - 100:  # Если тег недавно закрылся
+        safe_pos = last_tag_end + 1
+        html_partial = html_text[:safe_pos]
+    elif last_space > safe_pos - 50:  # Если есть пробел недалеко
+        safe_pos = last_space + 1
+        html_partial = html_text[:safe_pos]
+    else:
+        html_partial = html_text[:safe_pos]
 
     # Ищем все открытые теги до точки обрезки
     open_tags = []
-    tag_pattern = re.compile(r"<(\w+)(?:\s[^>]*)?>|</(\w+)>")
+    # Улучшенный паттерн для тегов с атрибутами
+    tag_pattern = re.compile(r"<(\w+)(?:\s[^>]*)?/?>|</(\w+)>")
 
     pos = 0
-    while pos < truncate_pos:
-        match = tag_pattern.search(html_text, pos)
+    while pos < len(html_partial):
+        match = tag_pattern.search(html_partial, pos)
         if not match:
             break
 
-        if match.group(1):  # Открывающий тег
-            tag_name = match.group(1)
+        # Проверяем, самозакрывающийся ли тег (например, <br/> или <img ... />)
+        tag_full = match.group(0)
+        is_self_closing = tag_full.endswith("/>") or tag_full.rstrip().endswith("/>")
+
+        if match.group(1) and not is_self_closing:  # Открывающий тег
+            tag_name = match.group(1).lower()
             # Пропускаем самозакрывающиеся теги
-            if tag_name.lower() not in ["br", "hr", "img", "input", "meta", "link"]:
-                open_tags.append(tag_name.lower())
+            if tag_name not in [
+                "br",
+                "hr",
+                "img",
+                "input",
+                "meta",
+                "link",
+                "area",
+                "base",
+                "col",
+                "embed",
+                "source",
+                "track",
+                "wbr",
+            ]:
+                open_tags.append(tag_name)
         elif match.group(2):  # Закрывающий тег
             tag_name = match.group(2).lower()
             if tag_name in open_tags:
@@ -989,11 +1043,21 @@ def truncate_html_safely(html_text: str, max_length: int) -> str:
         pos = match.end()
 
     # Обрезаем текст
-    truncated = html_text[:truncate_pos] + "..."
+    truncated = html_partial + "..."
 
     # Закрываем все открытые теги в обратном порядке
     for tag in reversed(open_tags):
         truncated += f"</{tag}>"
+
+    # Проверяем финальную длину в байтах
+    final_bytes = truncated.encode("utf-8")
+    if len(final_bytes) > max_length:
+        # Если все еще слишком длинно, обрезаем еще больше
+        excess = len(final_bytes) - max_length
+        truncated = truncated[: len(truncated) - excess - 10] + "..."
+        # Закрываем теги снова
+        for tag in reversed(open_tags):
+            truncated += f"</{tag}>"
 
     return truncated
 
