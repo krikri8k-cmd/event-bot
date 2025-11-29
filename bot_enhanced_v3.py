@@ -972,107 +972,83 @@ def truncate_html_safely(html_text: str, max_length: int) -> str:
     if len(html_bytes) <= max_length:
         return html_text
 
+    # Оставляем место для "..." (примерно 10 байт)
+    target_bytes = max_length - 10
+
+    # Простой и надежный подход: находим последний полный тег в байтовой строке
+    html_bytes_trunc = html_bytes[:target_bytes]
+
+    # Пытаемся декодировать
     try:
-        # Парсим HTML через BeautifulSoup
-        soup = BeautifulSoup(html_text, "html.parser")
-
-        # Оставляем место для "..." (примерно 10 байт)
-        target_bytes = max_length - 10
-
-        # Итеративно обрезаем, удаляя элементы с конца, пока не поместимся
-        while len(str(soup).encode("utf-8")) > target_bytes:
-            # Находим последний элемент (не тег, а текстовый узел или элемент)
-            all_elements = list(soup.descendants)
-            if not all_elements:
-                break
-
-            # Удаляем элементы с конца
-            removed = False
-            for element in reversed(all_elements):
-                if hasattr(element, "extract"):
-                    # Сохраняем родителя
-                    element.extract()
-                    removed = True
-
-                    # Проверяем длину
-                    current_html = str(soup)
-                    if len(current_html.encode("utf-8")) <= target_bytes:
-                        break
-                    if not removed:
-                        break
-
-            if not removed:
-                # Если не удалось удалить элементы, обрезаем текст в последних элементах
-                for element in reversed(all_elements):
-                    if hasattr(element, "string") and element.string:
-                        text = str(element.string)
-                        if len(text) > 20:  # Обрезаем только длинный текст
-                            # Обрезаем текст
-                            new_text = text[: len(text) - 20]
-                            last_space = new_text.rfind(" ")
-                            if last_space > 0:
-                                new_text = new_text[:last_space]
-                            element.string.replace_with(new_text + "...")
-                            break
-
-            # Проверяем длину
-            current_html = str(soup)
-            if len(current_html.encode("utf-8")) <= target_bytes:
-                break
-
-            # Защита от бесконечного цикла
-            if len(str(soup).encode("utf-8")) >= html_bytes:
-                break
-
-        # Получаем обрезанный HTML
-        truncated_html = str(soup)
-
-        # Добавляем "..." если текст был обрезан
-        if len(truncated_html.encode("utf-8")) < len(html_bytes):
-            # Проверяем, что "..." не добавит проблем
-            truncated_html += "..."
-
-        # Финальная проверка длины
-        final_bytes = truncated_html.encode("utf-8")
-        if len(final_bytes) > max_length:
-            # Если все еще слишком длинно, используем простой fallback
-            html_bytes_trunc = html_bytes[: max_length - 10]
+        html_partial = html_bytes_trunc.decode("utf-8")
+    except UnicodeDecodeError:
+        # Уменьшаем позицию до последнего полного символа
+        for i in range(target_bytes, max(0, target_bytes - 10), -1):
             try:
-                html_partial = html_bytes_trunc.decode("utf-8")
-                # Находим последний полный тег
-                last_tag_end = html_partial.rfind(">")
-                if last_tag_end > 0:
-                    truncated_html = html_text[: len(html_partial[: last_tag_end + 1].encode("utf-8"))] + "..."
-                else:
-                    truncated_html = html_partial + "..."
+                html_partial = html_bytes[:i].decode("utf-8")
+                break
             except UnicodeDecodeError:
-                truncated_html = html_text[: max_length - 10] + "..."
+                continue
+        else:
+            html_partial = html_bytes[: target_bytes - 50].decode("utf-8", errors="ignore")
 
-        return truncated_html
+    # Находим последний полный тег (от < до > без других < между ними)
+    last_tag_end = -1
+    i = len(html_partial) - 1
+    while i >= 0:
+        if html_partial[i] == ">":
+            # Нашли закрывающий символ тега
+            tag_start = html_partial.rfind("<", 0, i + 1)
+            if tag_start >= 0:
+                # Проверяем, что между < и > нет других < (значит тег полный)
+                if "<" not in html_partial[tag_start + 1 : i]:
+                    last_tag_end = i + 1
+                    break
+        i -= 1
+
+    if last_tag_end > 0:
+        # Обрезаем после последнего полного тега
+        safe_pos = len(html_partial[:last_tag_end].encode("utf-8"))
+        truncated_html = html_text[:safe_pos] + "..."
+    else:
+        # Если не нашли полный тег, обрезаем и удаляем незакрытые теги
+        truncated_html = html_partial
+        # Удаляем незакрытые теги с конца
+        while truncated_html and "<" in truncated_html:
+            last_open = truncated_html.rfind("<")
+            if last_open >= 0:
+                # Проверяем, есть ли закрывающий > после этого <
+                if ">" not in truncated_html[last_open:]:
+                    # Незакрытый тег, удаляем его
+                    truncated_html = truncated_html[:last_open]
+                else:
+                    break
+            else:
+                break
+        truncated_html += "..."
+
+    # Валидируем через BeautifulSoup и исправляем если нужно
+    try:
+        soup = BeautifulSoup(truncated_html, "html.parser")
+        # BeautifulSoup автоматически закроет незакрытые теги
+        validated_html = str(soup)
+
+        # Проверяем длину после валидации
+        validated_bytes = validated_html.encode("utf-8")
+        if len(validated_bytes) <= max_length:
+            return validated_html
+        else:
+            # Если после валидации стало длиннее, обрезаем еще раз рекурсивно
+            return truncate_html_safely(validated_html, max_length)
 
     except Exception as e:
-        # Если BeautifulSoup не справился, используем простой fallback
-        logger.warning(f"Ошибка при обрезке HTML через BeautifulSoup: {e}, используем простой метод")
-        # Простой fallback - находим последний полный тег
-        html_bytes_trunc = html_bytes[: max_length - 10]
-        try:
-            html_partial = html_bytes_trunc.decode("utf-8")
-            # Находим последний полный тег (от < до > без других < между ними)
-            last_tag_end = -1
-            i = len(html_partial) - 1
-            while i >= 0:
-                if html_partial[i] == ">":
-                    tag_start = html_partial.rfind("<", 0, i + 1)
-                    if tag_start >= 0 and "<" not in html_partial[tag_start + 1 : i]:
-                        last_tag_end = i + 1
-                        break
-                i -= 1
-
-            if last_tag_end > 0:
-                return html_text[: len(html_partial[:last_tag_end].encode("utf-8"))] + "..."
-            return html_partial + "..."
-        except UnicodeDecodeError:
+        logger.warning(f"Ошибка валидации HTML через BeautifulSoup: {e}, возвращаем как есть")
+        # Возвращаем обрезанный HTML без валидации
+        final_bytes = truncated_html.encode("utf-8")
+        if len(final_bytes) > max_length:
+            # Если все еще слишком длинно, обрезаем еще больше
             return html_text[: max_length - 10] + "..."
+        return truncated_html
 
 
 def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool = False) -> str:
