@@ -261,6 +261,10 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
 
                     # Используем task_type из задания
                     task_type = task.task_type or "urban"  # По умолчанию urban
+                    logger.info(
+                        f"Поиск места для задания {task.id}: category={task.category}, "
+                        f"task_type={task_type}, user_id={user_id}"
+                    )
 
                     # Пытаемся найти место для этого задания
                     # Используем category и task_type из задания
@@ -273,6 +277,10 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                     place_types = category_place_types.get(task.category, ["park"])
 
                     for place_type in place_types:
+                        logger.info(
+                            f"Попытка найти место: category={task.category}, "
+                            f"place_type={place_type}, task_type={task_type}"
+                        )
                         place = find_nearest_available_place(
                             category=task.category,
                             place_type=place_type,
@@ -283,6 +291,7 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                             exclude_days=0,  # Не исключаем места, которые уже показывались
                         )
                         if place:
+                            logger.info(f"✅ Найдено место: {place.name} (ID: {place.id})")
                             break
 
                     # Если не нашли по типу места, пробуем без фильтра по типу
@@ -309,8 +318,16 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                         task_dict["promo_code"] = place.promo_code
                         if hasattr(place, "distance_km"):
                             task_dict["distance_km"] = place.distance_km
+                        logger.info(
+                            f"✅ Место добавлено к заданию {task.id}: {place.name}, " f"промокод={place.promo_code}"
+                        )
+                    else:
+                        logger.warning(
+                            f"⚠️ Место не найдено для задания {task.id}: "
+                            f"category={task.category}, task_type={task_type}"
+                        )
                 except Exception as e:
-                    logger.warning(f"Не удалось получить информацию о месте для задания {task.id}: {e}")
+                    logger.error(f"❌ Ошибка получения информации о месте для задания {task.id}: {e}", exc_info=True)
 
             result.append(task_dict)
 
