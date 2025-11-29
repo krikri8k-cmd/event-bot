@@ -9051,9 +9051,10 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
         is_photo_message = callback.message.photo is not None
         is_first_page = True  # Всегда первая страница при переключении даты
 
-        # Для первой страницы с картой используем меньше событий (лимит caption 1024 символа)
+        # Для первой страницы с картой используем меньше событий (лимит caption 1024 байта)
+        # Tracking URL очень длинные, поэтому уменьшаем до 3 событий
         if is_first_page and is_photo_message:
-            page_size = 5  # Первая страница с картой - 5 событий
+            page_size = 3  # Первая страница с картой - 3 события (из-за длинных tracking URL)
         else:
             page_size = 8  # Текстовые сообщения - 8 событий
 
