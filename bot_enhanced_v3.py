@@ -1287,15 +1287,9 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     if event_type == "user" and e.get("description"):
         description = e.get("description", "").strip()
         if description:
-            # Для caption (первая страница с картой) обрезаем более агрессивно
-            if is_caption:
-                # На первой странице с картой обрезаем до 50 символов
-                if len(description) > 50:
-                    description = description[:47] + "..."
-            else:
-                # На обычных страницах обрезаем до 150 символов
-                if len(description) > 150:
-                    description = description[:147] + "..."
+            # Ограничиваем длину описания для красоты
+            if len(description) > 150:
+                description = description[:147] + "..."
             description_part = f"\n📝 {html.escape(description)}"
             logger.info(f"🔍 DEBUG: Добавлено описание: '{description[:50]}...'")
 
