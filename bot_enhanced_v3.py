@@ -4846,8 +4846,7 @@ async def on_my_events(message: types.Message):
         text_parts = [
             "📋 **Мои события:**\n",
             "У вас пока нет событий.\n",
-            f"**Баланс {rocket_balance} 🚀**\n",
-            "ℹ️ События в версии Community и World удаляются отдельно",
+            f"**Баланс {rocket_balance} 🚀**",
         ]
 
     text = "\n".join(text_parts)
