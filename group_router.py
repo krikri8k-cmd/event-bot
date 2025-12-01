@@ -730,17 +730,17 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
 
                         from database import User
 
-                        # Начисляем 500 ракет напрямую через асинхронную сессию
+                        # Начисляем 150 ракет напрямую через асинхронную сессию
                         user_result = await session.execute(select(User).where(User.id == adder_user_id))
                         user = user_result.scalar_one_or_none()
 
                         if user:
-                            user.rockets_balance = (user.rockets_balance or 0) + 500
+                            user.rockets_balance = (user.rockets_balance or 0) + 150
                             settings.added_by_user_id = adder_user_id
                             settings.rockets_awarded_at = datetime.now(UTC)
                             await session.commit()
                             logger.info(
-                                f"🎉 Начислено 500 ракет пользователю {adder_user_id} "
+                                f"🎉 Начислено 150 ракет пользователю {adder_user_id} "
                                 f"за добавление бота в чат {message.chat.id}"
                             )
                         else:
@@ -775,17 +775,17 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
 
                             from database import User
 
-                            # Начисляем 500 ракет напрямую через асинхронную сессию
+                            # Начисляем 150 ракет напрямую через асинхронную сессию
                             user_result = await session.execute(select(User).where(User.id == adder_user_id))
                             user = user_result.scalar_one_or_none()
 
                             if user:
-                                user.rockets_balance = (user.rockets_balance or 0) + 500
+                                user.rockets_balance = (user.rockets_balance or 0) + 150
                                 settings.added_by_user_id = adder_user_id
                                 settings.rockets_awarded_at = datetime.now(UTC)
                                 await session.commit()
                                 logger.info(
-                                    f"🎉 Начислено 500 ракет пользователю {adder_user_id} "
+                                    f"🎉 Начислено 150 ракет пользователю {adder_user_id} "
                                     f"за добавление бота в чат {message.chat.id}"
                                 )
                             else:
@@ -807,17 +807,17 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
 
                             from database import User
 
-                            # Начисляем 500 ракет напрямую через асинхронную сессию
+                            # Начисляем 150 ракет напрямую через асинхронную сессию
                             user_result = await session.execute(select(User).where(User.id == adder_user_id))
                             user = user_result.scalar_one_or_none()
 
                             if user:
-                                user.rockets_balance = (user.rockets_balance or 0) + 500
+                                user.rockets_balance = (user.rockets_balance or 0) + 150
                                 settings.added_by_user_id = adder_user_id
                                 settings.rockets_awarded_at = datetime.now(UTC)
                                 await session.commit()
                                 logger.info(
-                                    f"🎉 Начислено 500 ракет пользователю {adder_user_id} "
+                                    f"🎉 Начислено 150 ракет пользователю {adder_user_id} "
                                     f"за добавление бота в чат {message.chat.id}"
                                 )
                             else:
