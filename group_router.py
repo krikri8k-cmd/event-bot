@@ -661,6 +661,70 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
         chat_type_name = "канал" if message.chat.type == "channel" else "группу"
         logger.info(f"✅ Наш бот добавлен в {chat_type_name} {message.chat.id} (тип: {message.chat.type})")
 
+        # Определяем, кто добавил бота (для начисления награды)
+        # Пробуем использовать message.from_user, если доступен
+        adder_user_id = None
+        if message.from_user and not message.from_user.is_bot:
+            adder_user_id = message.from_user.id
+            logger.info(f"🎯 Определен пользователь, добавивший бота: {adder_user_id} (из message.from_user)")
+        else:
+            # Если from_user недоступен или это бот, пробуем получить первого админа
+            try:
+                from utils.community_events_service import CommunityEventsService
+
+                community_service = CommunityEventsService()
+                admin_ids = await community_service.get_cached_admin_ids(bot, message.chat.id)
+                if admin_ids:
+                    adder_user_id = admin_ids[0]  # Берем первого админа
+                    logger.info(f"🎯 Определен пользователь, добавивший бота: {adder_user_id} (первый админ)")
+            except Exception as e:
+                logger.warning(f"⚠️ Не удалось определить, кто добавил бота: {e}")
+
+        # Начисляем награду за добавление бота в чат (только для групп, не каналов)
+        if adder_user_id and message.chat.type != "channel":
+            try:
+                from sqlalchemy import select
+
+                from database import BotGroupAddition, User
+
+                # Проверяем, была ли уже награда за этот чат для этого пользователя
+                result = await session.execute(
+                    select(BotGroupAddition).where(
+                        BotGroupAddition.user_id == adder_user_id,
+                        BotGroupAddition.chat_id == message.chat.id,
+                    )
+                )
+                existing_addition = result.scalar_one_or_none()
+
+                if not existing_addition:
+                    # Начисляем 500 ракет напрямую через асинхронную сессию
+                    user_result = await session.execute(select(User).where(User.id == adder_user_id))
+                    user = user_result.scalar_one_or_none()
+
+                    if user:
+                        user.rockets_balance = (user.rockets_balance or 0) + 500
+
+                        # Записываем факт начисления
+                        addition = BotGroupAddition(
+                            user_id=adder_user_id,
+                            chat_id=message.chat.id,
+                            rockets_awarded=500,
+                        )
+                        session.add(addition)
+                        await session.commit()
+                        logger.info(
+                            f"🎉 Начислено 500 ракет пользователю {adder_user_id} "
+                            f"за добавление бота в чат {message.chat.id}"
+                        )
+                    else:
+                        logger.warning(f"⚠️ Пользователь {adder_user_id} не найден в БД")
+                else:
+                    logger.info(
+                        f"ℹ️ Пользователь {adder_user_id} уже получал награду за добавление бота в чат {message.chat.id}"
+                    )
+            except Exception as e:
+                logger.error(f"❌ Ошибка при начислении награды за добавление бота: {e}", exc_info=True)
+
         # Создаем или обновляем запись в chat_settings сразу
         import json
 

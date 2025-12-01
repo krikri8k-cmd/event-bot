@@ -13,6 +13,7 @@ from sqlalchemy import (
     MetaData,
     String,
     Text,
+    UniqueConstraint,
     create_engine,
     func,
     text,
@@ -247,9 +248,21 @@ class ChatSettings(Base):
     admin_count: Mapped[int | None] = mapped_column(Integer)  # Количество админов в группе
     total_events: Mapped[int] = mapped_column(Integer, default=0)  # Общее количество событий, созданных в этом чате
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
+
+
+class BotGroupAddition(Base):
+    """Отслеживание добавлений бота в группы для начисления наград"""
+
+    __tablename__ = "bot_group_additions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)  # Кто добавил бота
+    chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)  # В какой чат
+    rockets_awarded: Mapped[int] = mapped_column(Integer, default=500)  # Сколько ракет начислено
+    added_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Уникальный индекс: один пользователь может получить награду только один раз за один чат
+    __table_args__ = (UniqueConstraint("user_id", "chat_id", name="uq_bot_group_additions_user_chat"),)
 
 
 engine: Engine | None = None
