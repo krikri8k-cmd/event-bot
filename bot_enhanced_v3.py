@@ -4832,6 +4832,10 @@ async def on_my_events(message: types.Message):
         if len(all_participations) > 3:
             text_parts.append(f"... и еще {len(all_participations) - 3} событий")
 
+    # Добавляем информацию о раздельном удалении событий в конце
+    if events or all_participations:
+        text_parts.append("\nℹ️ События в версии Community и World удаляются отдельно")
+
     # Если нет событий вообще
     if not events and not all_participations:
         # Получаем баланс ракет пользователя
@@ -4842,7 +4846,8 @@ async def on_my_events(message: types.Message):
         text_parts = [
             "📋 **Мои события:**\n",
             "У вас пока нет событий.\n",
-            f"**Баланс {rocket_balance} 🚀**",
+            f"**Баланс {rocket_balance} 🚀**\n",
+            "ℹ️ События в версии Community и World удаляются отдельно",
         ]
 
     text = "\n".join(text_parts)
