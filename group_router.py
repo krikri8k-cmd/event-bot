@@ -680,51 +680,6 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
             except Exception as e:
                 logger.warning(f"⚠️ Не удалось определить, кто добавил бота: {e}")
 
-        # Начисляем награду за добавление бота в чат (только для групп, не каналов)
-        if adder_user_id and message.chat.type != "channel":
-            try:
-                from sqlalchemy import select
-
-                from database import BotGroupAddition, User
-
-                # Проверяем, была ли уже награда за этот чат для этого пользователя
-                result = await session.execute(
-                    select(BotGroupAddition).where(
-                        BotGroupAddition.user_id == adder_user_id,
-                        BotGroupAddition.chat_id == message.chat.id,
-                    )
-                )
-                existing_addition = result.scalar_one_or_none()
-
-                if not existing_addition:
-                    # Начисляем 500 ракет напрямую через асинхронную сессию
-                    user_result = await session.execute(select(User).where(User.id == adder_user_id))
-                    user = user_result.scalar_one_or_none()
-
-                    if user:
-                        user.rockets_balance = (user.rockets_balance or 0) + 500
-
-                        # Записываем факт начисления
-                        addition = BotGroupAddition(
-                            user_id=adder_user_id,
-                            chat_id=message.chat.id,
-                            rockets_awarded=500,
-                        )
-                        session.add(addition)
-                        await session.commit()
-                        logger.info(
-                            f"🎉 Начислено 500 ракет пользователю {adder_user_id} "
-                            f"за добавление бота в чат {message.chat.id}"
-                        )
-                    else:
-                        logger.warning(f"⚠️ Пользователь {adder_user_id} не найден в БД")
-                else:
-                    logger.info(
-                        f"ℹ️ Пользователь {adder_user_id} уже получал награду за добавление бота в чат {message.chat.id}"
-                    )
-            except Exception as e:
-                logger.error(f"❌ Ошибка при начислении награды за добавление бота: {e}", exc_info=True)
-
         # Создаем или обновляем запись в chat_settings сразу
         import json
 
@@ -767,6 +722,31 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
                 session.add(settings)
                 await session.commit()
                 logger.info(f"✅ Запись chat_settings создана для чата {message.chat.id}, chat_number={chat_number}")
+
+                # Начисляем награду за добавление бота в чат (только для групп, не каналов)
+                if adder_user_id and message.chat.type != "channel":
+                    try:
+                        from sqlalchemy import select
+
+                        from database import User
+
+                        # Начисляем 500 ракет напрямую через асинхронную сессию
+                        user_result = await session.execute(select(User).where(User.id == adder_user_id))
+                        user = user_result.scalar_one_or_none()
+
+                        if user:
+                            user.rockets_balance = (user.rockets_balance or 0) + 500
+                            settings.added_by_user_id = adder_user_id
+                            settings.rockets_awarded_at = datetime.now(UTC)
+                            await session.commit()
+                            logger.info(
+                                f"🎉 Начислено 500 ракет пользователю {adder_user_id} "
+                                f"за добавление бота в чат {message.chat.id}"
+                            )
+                        else:
+                            logger.warning(f"⚠️ Пользователь {adder_user_id} не найден в БД")
+                    except Exception as e:
+                        logger.error(f"❌ Ошибка при начислении награды за добавление бота: {e}", exc_info=True)
             else:
                 logger.info(f"🔥 Запись chat_settings уже существует для чата {message.chat.id}, обновляем статус")
                 # Обновляем статус и админов при повторном добавлении
@@ -785,6 +765,70 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
                     logger.info(f"✅ Обновлены админы для чата {message.chat.id}: count={admin_count}")
                 except Exception as e:
                     logger.warning(f"⚠️ Не удалось обновить админов для чата {message.chat.id}: {e}")
+
+                # Проверяем, нужно ли начислить награду (только для групп, не каналов)
+                if adder_user_id and message.chat.type != "channel":
+                    # Проверяем, была ли уже награда за этот чат
+                    if settings.added_by_user_id != adder_user_id or settings.rockets_awarded_at is None:
+                        try:
+                            from sqlalchemy import select
+
+                            from database import User
+
+                            # Начисляем 500 ракет напрямую через асинхронную сессию
+                            user_result = await session.execute(select(User).where(User.id == adder_user_id))
+                            user = user_result.scalar_one_or_none()
+
+                            if user:
+                                user.rockets_balance = (user.rockets_balance or 0) + 500
+                                settings.added_by_user_id = adder_user_id
+                                settings.rockets_awarded_at = datetime.now(UTC)
+                                await session.commit()
+                                logger.info(
+                                    f"🎉 Начислено 500 ракет пользователю {adder_user_id} "
+                                    f"за добавление бота в чат {message.chat.id}"
+                                )
+                            else:
+                                logger.warning(f"⚠️ Пользователь {adder_user_id} не найден в БД")
+                        except Exception as e:
+                            logger.error(f"❌ Ошибка при начислении награды за добавление бота: {e}", exc_info=True)
+                    else:
+                        logger.info(
+                            f"ℹ️ Пользователь {adder_user_id} уже получал награду "
+                            f"за добавление бота в чат {message.chat.id}"
+                        )
+
+                # Проверяем, нужно ли начислить награду (только для групп, не каналов)
+                if adder_user_id and message.chat.type != "channel":
+                    # Проверяем, была ли уже награда за этот чат
+                    if settings.added_by_user_id != adder_user_id or settings.rockets_awarded_at is None:
+                        try:
+                            from sqlalchemy import select
+
+                            from database import User
+
+                            # Начисляем 500 ракет напрямую через асинхронную сессию
+                            user_result = await session.execute(select(User).where(User.id == adder_user_id))
+                            user = user_result.scalar_one_or_none()
+
+                            if user:
+                                user.rockets_balance = (user.rockets_balance or 0) + 500
+                                settings.added_by_user_id = adder_user_id
+                                settings.rockets_awarded_at = datetime.now(UTC)
+                                await session.commit()
+                                logger.info(
+                                    f"🎉 Начислено 500 ракет пользователю {adder_user_id} "
+                                    f"за добавление бота в чат {message.chat.id}"
+                                )
+                            else:
+                                logger.warning(f"⚠️ Пользователь {adder_user_id} не найден в БД")
+                        except Exception as e:
+                            logger.error(f"❌ Ошибка при начислении награды за добавление бота: {e}", exc_info=True)
+                    else:
+                        logger.info(
+                            f"ℹ️ Пользователь {adder_user_id} уже получал награду "
+                            f"за добавление бота в чат {message.chat.id}"
+                        )
 
                 await session.commit()
                 logger.info(f"✅ Запись chat_settings обновлена для чата {message.chat.id}")
