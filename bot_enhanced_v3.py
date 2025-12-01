@@ -43,7 +43,7 @@ from tasks_service import (
     accept_task,
     cancel_task,
     complete_task,
-    get_daily_tasks,
+    get_all_available_tasks,
     get_user_active_tasks,
     get_user_completed_tasks_today,
 )
@@ -6565,6 +6565,133 @@ async def handle_task_cancel(callback: types.CallbackQuery):
     await callback.answer()
 
 
+async def show_tasks_for_category(
+    message_or_callback, category: str, user_id: int, user_lat: float, user_lng: float, state: FSMContext
+):
+    """
+    Показывает доступные задания для категории (всегда 3, если есть)
+
+    Args:
+        message_or_callback: Сообщение или callback для редактирования
+        category: Категория заданий ('body' или 'spirit')
+        user_id: ID пользователя
+        user_lat: Широта пользователя
+        user_lng: Долгота пользователя
+        state: FSM состояние
+    """
+    # Определяем тип региона пользователя и соответствующий тип задания
+    from tasks_location_service import get_task_type_for_region, get_user_region_type
+
+    region_type = get_user_region_type(user_lat, user_lng)
+    task_type = get_task_type_for_region(region_type)
+
+    logger.info(f"Показ заданий для категории {category}, регион: {region_type}, тип задания: {task_type}")
+
+    # Получаем все доступные задания для категории и типа
+    all_tasks = get_all_available_tasks(category, task_type=task_type)
+
+    if not all_tasks:
+        text = "❌ Задания для этой категории пока не готовы."
+        if hasattr(message_or_callback, "edit_text"):
+            await message_or_callback.edit_text(text)
+        else:
+            await message_or_callback.answer(text)
+        return
+
+    # Получаем локации для заданий
+    try:
+        tasks_with_places = get_tasks_with_places(category, user_id, user_lat, user_lng, task_type=task_type)
+    except Exception as e:
+        logger.error(f"Ошибка получения локаций для заданий: {e}")
+        tasks_with_places = []
+
+    # Получаем активные задания пользователя для фильтрации
+    active_tasks = get_user_active_tasks(user_id)
+    active_task_ids = {active_task["task_id"] for active_task in active_tasks}
+
+    # Получаем выполненные задания за сегодня для фильтрации
+    completed_tasks_today = set(get_user_completed_tasks_today(user_id))
+
+    # Фильтруем уже взятые И выполненные сегодня задания
+    excluded_task_ids = active_task_ids | completed_tasks_today
+    available_tasks = [task for task in all_tasks if task.id not in excluded_task_ids]
+
+    # Берем первые 3 доступных задания
+    tasks_to_show = available_tasks[:3]
+
+    # Сохраняем информацию о местах в состоянии для использования в task_detail
+    places_info = {}
+    available_places = [tp for tp in tasks_with_places if tp.get("place")]
+
+    for i, task in enumerate(tasks_to_show):
+        # Циклически распределяем места по заданиям
+        if available_places:
+            place_data = available_places[i % len(available_places)]
+            place = place_data.get("place")
+            if place:
+                places_info[task.id] = {
+                    "name": place.name,
+                    "url": place.google_maps_url,
+                    "distance_km": getattr(place, "distance_km", None),
+                    "promo_code": place.promo_code,
+                    "place_type": place_data.get("place_type"),
+                }
+
+    # Сохраняем в состоянии
+    await state.update_data(task_places_info=places_info)
+
+    # Определяем названия категорий
+    category_names = {"body": "💪 Тело", "spirit": "🧘 Дух"}
+    category_name = category_names.get(category, category)
+
+    # Если все задания взяты, показываем сообщение
+    if not tasks_to_show:
+        text = (
+            f"🎯 **{category_name}**\n\n"
+            "✅ Все задания этой категории уже взяты, завтра будут новые!\n\n"
+            "📋 Перейдите в 'Мои квесты' чтобы посмотреть ваши активные задания."
+        )
+        reply_markup = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="📋 Мои квесты", callback_data="my_tasks")],
+                [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_tasks")],
+                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+            ]
+        )
+        if hasattr(message_or_callback, "edit_text"):
+            await message_or_callback.edit_text(text, parse_mode="Markdown", reply_markup=reply_markup)
+        else:
+            await message_or_callback.answer(text, parse_mode="Markdown", reply_markup=reply_markup)
+        return
+
+    # Создаем клавиатуру с доступными заданиями
+    keyboard = []
+    for task in tasks_to_show:
+        # Добавляем информацию о расстоянии, если есть
+        if task.id in places_info and places_info[task.id].get("distance_km"):
+            distance = places_info[task.id]["distance_km"]
+            title = f"📋 {task.title} ({distance:.1f} км)"
+        else:
+            title = f"📋 {task.title}"
+        keyboard.append([InlineKeyboardButton(text=title, callback_data=f"task_detail:{task.id}")])
+
+    # Добавляем кнопки управления
+    keyboard.append(
+        [
+            InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_tasks"),
+            InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
+        ]
+    )
+
+    reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
+    text = f"🎯 **{category_name}**\n\n" "Выберите задание для получения подробной информации:"
+
+    if hasattr(message_or_callback, "edit_text"):
+        await message_or_callback.edit_text(text, parse_mode="Markdown", reply_markup=reply_markup)
+    else:
+        await message_or_callback.answer(text, parse_mode="Markdown", reply_markup=reply_markup)
+
+
 @main_router.callback_query(F.data.startswith("task_category:"))
 async def handle_task_category_selection(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик выбора категории задания"""
@@ -6589,111 +6716,8 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
         await callback.answer()
         return
 
-    # Определяем тип региона пользователя и соответствующий тип задания
-    from tasks_location_service import get_task_type_for_region, get_user_region_type
-
-    region_type = get_user_region_type(user_lat, user_lng)
-    task_type = get_task_type_for_region(region_type)
-
-    logger.info(f"Регион пользователя: {region_type}, тип задания: {task_type}")
-
-    # Получаем 3 задания на сегодня для выбранной категории и типа задания
-    tasks = get_daily_tasks(category, task_type=task_type)
-
-    if not tasks:
-        await callback.message.edit_text("❌ Задания для этой категории пока не готовы.")
-        await callback.answer()
-        return
-
-    # Получаем локации для заданий (новая логика с ротацией и учетом типа задания)
-    try:
-        tasks_with_places = get_tasks_with_places(category, user_id, user_lat, user_lng, task_type=task_type)
-    except Exception as e:
-        logger.error(f"Ошибка получения локаций для заданий: {e}")
-        tasks_with_places = []
-
-    # Получаем активные задания пользователя для фильтрации
-    active_tasks = get_user_active_tasks(user_id)
-    active_task_ids = {active_task["task_id"] for active_task in active_tasks}
-
-    # Получаем выполненные задания за сегодня для фильтрации
-    completed_tasks_today = set(get_user_completed_tasks_today(user_id))
-
-    # Фильтруем уже взятые И выполненные сегодня задания
-    excluded_task_ids = active_task_ids | completed_tasks_today
-    available_tasks = [task for task in tasks if task.id not in excluded_task_ids]
-
-    # Сохраняем информацию о местах в состоянии для использования в task_detail
-    # Распределяем места по заданиям циклически, чтобы каждое задание получило место
-    places_info = {}
-    available_places = [tp for tp in tasks_with_places if tp.get("place")]
-
-    for i, task in enumerate(available_tasks):
-        # Циклически распределяем места по заданиям
-        if available_places:
-            place_data = available_places[i % len(available_places)]
-            place = place_data.get("place")
-            if place:
-                places_info[task.id] = {
-                    "name": place.name,
-                    "url": place.google_maps_url,
-                    "distance_km": getattr(place, "distance_km", None),
-                    "promo_code": place.promo_code,
-                    "place_type": place_data.get("place_type"),
-                }
-
-    # Сохраняем в состоянии
-    await state.update_data(task_places_info=places_info)
-
-    # Создаем клавиатуру с доступными заданиями
-    keyboard = []
-    for task in available_tasks:
-        # Добавляем информацию о расстоянии, если есть
-        if task.id in places_info and places_info[task.id].get("distance_km"):
-            distance = places_info[task.id]["distance_km"]
-            title = f"📋 {task.title} ({distance:.1f} км)"
-        else:
-            title = f"📋 {task.title}"
-        keyboard.append([InlineKeyboardButton(text=title, callback_data=f"task_detail:{task.id}")])
-
-    # Определяем названия категорий
-    category_names = {"body": "💪 Тело", "spirit": "🧘 Дух"}
-    category_name = category_names.get(category, category)
-
-    # Если все задания взяты, показываем сообщение
-    if not available_tasks:
-        await callback.message.edit_text(
-            f"🎯 **{category_name}**\n\n"
-            "✅ Все задания этой категории уже взяты, завтра будут новые!\n\n"
-            "📋 Перейдите в 'Мои квесты' чтобы посмотреть ваши активные задания.",
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text="📋 Мои квесты", callback_data="my_tasks")],
-                    [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_tasks")],
-                    [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
-                ]
-            ),
-        )
-        await callback.answer()
-        return
-
-    # Добавляем кнопки управления
-    keyboard.append(
-        [
-            InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_tasks"),
-            InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
-        ]
-    )
-
-    reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-    await callback.message.edit_text(
-        f"🎯 **{category_name}**\n\n" "Выберите задание для получения подробной информации:",
-        parse_mode="Markdown",
-        reply_markup=reply_markup,
-    )
-
+    # Используем общую функцию для показа заданий
+    await show_tasks_for_category(callback.message, category, user_id, user_lat, user_lng, state)
     await callback.answer()
 
 
@@ -6815,25 +6839,38 @@ async def handle_task_accept(callback: types.CallbackQuery, state: FSMContext):
     task_id = int(callback.data.split(":")[1])
     user_id = callback.from_user.id
 
-    # Получаем координаты пользователя из БД
+    # Получаем координаты пользователя и категорию задания из БД
     with get_session() as session:
+        from database import Task
+
         user = session.get(User, user_id)
         user_lat = user.last_lat if user else None
         user_lng = user.last_lng if user else None
+
+        # Получаем категорию задания для показа обновленного списка
+        task = session.query(Task).filter(Task.id == task_id).first()
+        category = task.category if task else None
 
     # Принимаем задание с учетом часового пояса пользователя
     success = accept_task(user_id, task_id, user_lat, user_lng)
 
     if success:
-        await callback.message.edit_text(
-            "✅ **Задание принято!**\n\n"
-            "⏰ У вас есть **24 часа** на выполнение.\n"
-            "🏆 Задание добавлено в 'Мои квесты'.\n\n"
-            "Удачи! 🚀",
-            parse_mode="Markdown",
-        )
-        # Показываем главное меню
-        await callback.message.answer("🚀", reply_markup=main_menu_kb())
+        # Показываем краткое сообщение об успехе
+        await callback.answer("✅ Задание принято!", show_alert=False)
+
+        # Если есть категория и координаты, показываем обновленный список заданий
+        if category and user_lat and user_lng:
+            await show_tasks_for_category(callback.message, category, user_id, user_lat, user_lng, state)
+        else:
+            # Если нет категории или координат, показываем обычное сообщение
+            await callback.message.edit_text(
+                "✅ **Задание принято!**\n\n"
+                "⏰ У вас есть **24 часа** на выполнение.\n"
+                "🏆 Задание добавлено в 'Мои квесты'.\n\n"
+                "Удачи! 🚀",
+                parse_mode="Markdown",
+            )
+            await callback.message.answer("🚀", reply_markup=main_menu_kb())
     else:
         await callback.message.edit_text(
             "❌ **Не удалось принять задание**\n\n" "Возможно, у вас уже есть активное задание этого типа.",

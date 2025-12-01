@@ -16,6 +16,34 @@ logger = logging.getLogger(__name__)
 START_DATE = datetime(2025, 10, 3, 0, 0, 0, tzinfo=UTC)  # 3 октября 2025
 
 
+def get_all_available_tasks(category: str, task_type: str = "urban") -> list[Task]:
+    """
+    Получает все доступные задания для указанной категории и типа задания
+
+    Args:
+        category: 'body' или 'spirit'
+        task_type: 'urban' (городские) или 'island' (островные)
+
+    Returns:
+        Список всех активных заданий, отсортированных по order_index
+    """
+    with get_session() as session:
+        tasks = (
+            session.query(Task)
+            .filter(
+                and_(
+                    Task.category == category,
+                    Task.task_type == task_type,
+                    Task.is_active == True,  # noqa: E712
+                )
+            )
+            .order_by(Task.order_index)
+            .all()
+        )
+        logger.info(f"Получены все доступные задания для {category}, тип {task_type}: {len(tasks)} заданий")
+        return tasks
+
+
 def get_daily_tasks(category: str, task_type: str = "urban", date: datetime | None = None) -> list[Task]:
     """
     Получает 3 задания на день для указанной категории и типа задания
