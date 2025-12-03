@@ -5972,8 +5972,6 @@ async def show_task_detail(callback_or_message, tasks: list, task_index: int, us
                 message_text += f"📍 **Место:** {place_name} ({distance:.1f} км)\n"
             else:
                 message_text += f"📍 **Место:** {place_name}\n"
-    elif task.get("location_url"):
-        message_text += f"📍 **Место:** [Открыть на карте]({task['location_url']})\n"
 
     # Показываем промокод, если есть
     if task.get("promo_code"):
@@ -6751,11 +6749,78 @@ async def handle_task_detail(callback: types.CallbackQuery, state: FSMContext):
         places_info = data.get("task_places_info", {})
         place_info = places_info.get(task_id)
 
+        # Если нет места в состоянии, пытаемся найти его в базе (для известных регионов)
+        if not place_info:
+            from database import User
+            from tasks_location_service import (
+                find_nearest_available_place,
+                generate_search_query_url,
+                get_user_region,
+                get_user_region_type,
+            )
+
+            user = session.query(User).filter(User.id == user_id).first()
+            if user and user.last_lat is not None and user.last_lng is not None:
+                region = get_user_region(user.last_lat, user.last_lng)
+                region_type = get_user_region_type(user.last_lat, user.last_lng)
+                task_type = task.task_type or "urban"
+
+                # Для известных регионов ищем место в базе
+                if region != "unknown":
+                    category_place_types = {
+                        "body": ["cafe", "park", "gym"],
+                        "spirit": ["temple", "park", "viewpoint"],
+                    }
+                    place_types = category_place_types.get(task.category, ["park"])
+
+                    place = None
+                    for place_type in place_types:
+                        place = find_nearest_available_place(
+                            category=task.category,
+                            place_type=place_type,
+                            task_type=task_type,
+                            user_lat=user.last_lat,
+                            user_lng=user.last_lng,
+                            user_id=user_id,
+                            exclude_days=0,  # Не исключаем места для просмотра деталей
+                        )
+                        if place:
+                            break
+
+                    if place:
+                        place_info = {
+                            "name": place.name,
+                            "url": place.google_maps_url,
+                            "distance_km": getattr(place, "distance_km", None),
+                            "promo_code": place.promo_code,
+                        }
+                else:
+                    # Для unknown регионов генерируем поисковый запрос
+                    category_place_types = {
+                        "body": ["cafe", "park", "gym"],
+                        "spirit": ["temple", "park", "viewpoint"],
+                    }
+                    place_types = category_place_types.get(task.category, ["park"])
+                    place_type = place_types[0]
+
+                    search_url = generate_search_query_url(
+                        place_type=place_type,
+                        user_lat=user.last_lat,
+                        user_lng=user.last_lng,
+                        region_type=region_type,
+                    )
+                    place_info = {
+                        "name": "Ближайшее место",
+                        "url": search_url,
+                        "distance_km": None,
+                        "promo_code": None,
+                    }
+
         # Формируем сообщение с деталями задания
         message = f"📋 **{task.title}**\n\n"
         message += f"{task.description}\n\n"
 
-        # Показываем локацию из базы (если есть) или из задания
+        # Показываем локацию из базы (если есть)
         location_url = None
         location_name = None
 
@@ -6776,17 +6841,6 @@ async def handle_task_detail(callback: types.CallbackQuery, state: FSMContext):
             if promo_code:
                 message += f"🎁 **Промокод:** `{promo_code}`\n"
             message += "\n"
-        elif task.location_url:
-            # Используем место из задания только если это конкретная ссылка на место
-            # Проверяем, что это не поисковый запрос (не содержит ?q= или похожее)
-            location_url = task.location_url
-            is_search_query = "?q=" in location_url or "/search/" in location_url or "/maps?q=" in location_url
-
-            if not is_search_query:
-                # Это конкретная ссылка на место - показываем
-                message += "📍 **Предлагаемое место:**\n"
-                message += f"[🌍 Открыть на карте]({location_url})\n\n"
-            # Если это поисковый запрос - не показываем, чтобы не было множества результатов
 
         # Создаем клавиатуру
         keyboard = []
@@ -7070,8 +7124,6 @@ async def handle_task_manage(callback: types.CallbackQuery):
             else:
                 message += f"📍 **Место:** {place_name}\n"
         message += "\n"
-    elif task_info.get("location_url"):
-        message += f"📍 [🌍 Открыть на карте]({task_info['location_url']})\n\n"
 
     # Показываем промокод, если есть
     if task_info.get("promo_code"):
