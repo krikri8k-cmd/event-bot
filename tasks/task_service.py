@@ -19,8 +19,13 @@ class TaskService:
 
     def __init__(self):
         self.category_place_types = {
-            "body": ["park", "beach", "gym", "yoga_studio", "outdoor_space"],
-            "spirit": ["temple", "viewpoint", "park", "beach", "cliff"],
+            # Новые категории
+            "food": ["cafe", "restaurant", "street_food", "market", "bakery"],
+            "health": ["gym", "spa", "lab", "clinic", "nature", "park", "beach", "yoga_studio", "outdoor_space"],
+            "places": ["park", "exhibition", "temple", "trail", "viewpoint", "beach", "cliff"],
+            # Старые категории (для обратной совместимости)
+            "body": ["park", "beach", "gym", "yoga_studio", "outdoor_space"],  # → health
+            "spirit": ["temple", "viewpoint", "park", "beach", "cliff"],  # → places
             "career": ["exhibition", "library", "coworking", "work_space"],
             "social": ["dance_studio", "cafe", "tourist_attraction", "bar", "billiard"],
         }
@@ -149,6 +154,23 @@ class TaskService:
     def _get_fallback_tasks(self, category: str) -> list[dict]:
         """Универсальные задания если нет подходящих мест"""
         fallback_tasks = {
+            # Новые категории
+            "food": {
+                "title": "Приготовь что-то дома",
+                "description": "Приготовь простое блюдо дома, попробуй новый рецепт.",
+                "place_type": "home",
+            },
+            "health": {
+                "title": "Домашняя тренировка",
+                "description": "Сделай 20 приседаний, 10 отжиманий и 1 минуту планки дома.",
+                "place_type": "home",
+            },
+            "places": {
+                "title": "Медитация дома",
+                "description": "Найди тихое место дома, сядь удобно и медитируй 5 минут.",
+                "place_type": "home",
+            },
+            # Старые категории (для обратной совместимости)
             "body": {
                 "title": "Домашняя тренировка",
                 "description": "Сделай 20 приседаний, 10 отжиманий и 1 минуту планки дома.",
@@ -171,7 +193,7 @@ class TaskService:
             },
         }
 
-        task = fallback_tasks.get(category, fallback_tasks["body"])
+        task = fallback_tasks.get(category, fallback_tasks["health"])
         return [
             {
                 "id": 0,  # Специальный ID для fallback

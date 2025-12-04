@@ -21,7 +21,7 @@ def get_all_available_tasks(category: str, task_type: str = "urban") -> list[Tas
     Получает все доступные задания для указанной категории и типа задания
 
     Args:
-        category: 'body' или 'spirit'
+        category: 'food', 'health' или 'places'
         task_type: 'urban' (городские) или 'island' (островные)
 
     Returns:
@@ -49,7 +49,7 @@ def get_daily_tasks(category: str, task_type: str = "urban", date: datetime | No
     Получает 3 задания на день для указанной категории и типа задания
 
     Args:
-        category: 'body' или 'spirit'
+        category: 'food', 'health' или 'places'
         task_type: 'urban' (городские) или 'island' (островные)
         date: дата для получения заданий (по умолчанию сегодня)
 
@@ -195,6 +195,120 @@ def accept_task(user_id: int, task_id: int, user_lat: float = None, user_lng: fl
         return False
 
 
+def create_task_from_place(user_id: int, place_id: int, user_lat: float = None, user_lng: float = None) -> bool:
+    """
+    Создает задание на основе места (добавляет место в квесты)
+
+    Args:
+        user_id: ID пользователя
+        place_id: ID места из task_places
+        user_lat: Широта пользователя (для определения часового пояса)
+        user_lng: Долгота пользователя (для определения часового пояса)
+
+    Returns:
+        True если задание создано успешно
+    """
+    try:
+        from database import TaskPlace
+
+        with get_session() as session:
+            # Получаем место
+            place = session.query(TaskPlace).filter(TaskPlace.id == place_id).first()
+
+            if not place:
+                logger.error(f"Место {place_id} не найдено")
+                return False
+
+            # Проверяем, что у пользователя нет активного задания для этого места
+            # Проверяем через Task.location_url, если он содержит ссылку на это место
+            existing_task = (
+                session.query(UserTask)
+                .join(Task)
+                .filter(
+                    and_(
+                        UserTask.user_id == user_id,
+                        Task.location_url == place.google_maps_url,
+                        UserTask.status == "active",
+                    )
+                )
+                .first()
+            )
+
+            if existing_task:
+                logger.warning(f"Пользователь {user_id} уже имеет активное задание для места {place_id}")
+                return False
+
+            # Находим подходящее задание для категории места
+            task = (
+                session.query(Task)
+                .filter(
+                    and_(
+                        Task.category == place.category,
+                        Task.task_type == place.task_type,
+                        Task.is_active == True,  # noqa: E712
+                    )
+                )
+                .order_by(Task.order_index)
+                .first()
+            )
+
+            # Если нет задания, создаем универсальное
+            if not task:
+                # Создаем универсальное задание для места
+                pass
+            else:
+                pass
+
+            # Определяем часовой пояс пользователя
+            if user_lat is not None and user_lng is not None:
+                from zoneinfo import ZoneInfo
+
+                from utils.simple_timezone import get_city_from_coordinates, get_city_timezone
+
+                city = get_city_from_coordinates(user_lat, user_lng)
+                if city:
+                    tz_name = get_city_timezone(city)
+                    user_tz = ZoneInfo(tz_name)
+                else:
+                    user_tz = ZoneInfo("UTC")
+
+                accepted_at_local = datetime.now(user_tz)
+                accepted_at = accepted_at_local.astimezone(UTC)
+            else:
+                accepted_at = datetime.now(UTC)
+
+            expires_at = accepted_at + timedelta(hours=24)
+
+            # Создаем UserTask
+            user_task = UserTask(
+                user_id=user_id,
+                task_id=task.id,
+                status="active",
+                accepted_at=accepted_at,
+                expires_at=expires_at,
+            )
+
+            # Сохраняем информацию о месте в Task.location_url (если еще не сохранена)
+            if not task.location_url and place.google_maps_url:
+                task.location_url = place.google_maps_url
+
+            session.add(user_task)
+
+            # Обновляем счетчик принятых заданий
+            user = session.get(User, user_id)
+            if user:
+                user.tasks_accepted_total = (user.tasks_accepted_total or 0) + 1
+
+            session.commit()
+
+            logger.info(f"Пользователь {user_id} добавил место {place_id} ({place.name}) в квесты")
+            return True
+
+    except Exception as e:
+        logger.error(f"Ошибка создания задания из места {place_id} для пользователя {user_id}: {e}")
+        return False
+
+
 def get_user_active_tasks(user_id: int) -> list[dict]:
     """
     Получает активные задания пользователя с конвертацией времени в местный часовой пояс
@@ -322,8 +436,9 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                         else:
                             # Генерируем поисковый запрос на основе типа места
                             category_place_types = {
-                                "body": ["cafe", "park", "gym"],
-                                "spirit": ["temple", "park", "viewpoint"],
+                                "food": ["cafe", "restaurant", "street_food", "market", "bakery"],
+                                "health": ["gym", "spa", "lab", "clinic", "nature"],
+                                "places": ["park", "exhibition", "temple", "trail"],
                             }
                             place_types = category_place_types.get(task.category, ["park"])
                             place_type = place_types[0]  # Берем первый тип места
@@ -341,8 +456,9 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                         # Пробуем разные типы мест для категории
                         place = None
                         category_place_types = {
-                            "body": ["cafe", "park", "gym"],
-                            "spirit": ["temple", "park", "viewpoint"],
+                            "food": ["cafe", "restaurant", "street_food", "market", "bakery"],
+                            "health": ["gym", "spa", "lab", "clinic", "nature"],
+                            "places": ["park", "exhibition", "temple", "trail"],
                         }
                         place_types = category_place_types.get(task.category, ["park"])
 

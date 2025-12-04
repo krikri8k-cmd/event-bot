@@ -159,7 +159,7 @@ def find_nearest_available_place(
     Находит ближайшее доступное место с учетом ротации
 
     Args:
-        category: Категория задания ('body', 'spirit', etc.)
+        category: Категория задания ('food', 'health', 'places')
         place_type: Тип места ('cafe', 'park', 'gym', etc.)
         user_lat: Широта пользователя
         user_lng: Долгота пользователя
@@ -382,7 +382,7 @@ def get_tasks_with_places(
     Получает задания с локациями для категории и типа задания
 
     Args:
-        category: Категория заданий ('body', 'spirit')
+        category: Категория заданий ('food', 'health', 'places')
         user_id: ID пользователя
         user_lat: Широта пользователя
         user_lng: Долгота пользователя
@@ -397,8 +397,9 @@ def get_tasks_with_places(
 
     # Определяем типы мест для категории
     category_place_types = {
-        "body": ["cafe", "park", "gym"],
-        "spirit": ["temple", "park", "viewpoint"],
+        "food": ["cafe", "restaurant", "street_food", "market", "bakery"],
+        "health": ["gym", "spa", "lab", "clinic", "nature"],
+        "places": ["park", "exhibition", "temple", "trail"],
     }
 
     place_types = category_place_types.get(category, ["park"])
@@ -459,3 +460,89 @@ def get_tasks_with_places(
         )
 
     return tasks_with_places
+
+
+def get_all_places_for_category(
+    category: str, user_id: int, user_lat: float, user_lng: float, task_type: str = "urban", limit: int = 50
+) -> list[TaskPlace]:
+    """
+    Получает все доступные места для категории с учетом ротации
+
+    Args:
+        category: Категория заданий ('food', 'health', 'places')
+        user_id: ID пользователя
+        user_lat: Широта пользователя
+        user_lng: Долгота пользователя
+        task_type: Тип задания ('urban' или 'island')
+        limit: Максимальное количество мест
+
+    Returns:
+        Список TaskPlace объектов
+    """
+    region = get_user_region(user_lat, user_lng)
+
+    # Для unknown региона возвращаем пустой список
+    if region == "unknown":
+        logger.info(f"Регион unknown: не ищем места в БД для {category}")
+        return []
+
+    with get_session() as session:
+        # Получаем все места категории в регионе
+        places = (
+            session.query(TaskPlace)
+            .filter(
+                and_(
+                    TaskPlace.category == category,
+                    TaskPlace.task_type == task_type,
+                    TaskPlace.is_active == True,  # noqa: E712
+                    TaskPlace.region == region,
+                )
+            )
+            .all()
+        )
+
+        if not places:
+            return []
+
+        # Вычисляем расстояние и время последнего показа для каждого места
+        places_with_priority = []
+        for place in places:
+            place.distance_km = haversine_km(user_lat, user_lng, place.lat, place.lng)
+
+            # Получаем дату последнего показа
+            last_shown = (
+                session.query(DailyViewTasks.view_date)
+                .filter(
+                    and_(
+                        DailyViewTasks.user_id == user_id,
+                        DailyViewTasks.view_type == "place",
+                        DailyViewTasks.view_key == str(place.id),
+                    )
+                )
+                .order_by(DailyViewTasks.view_date.desc())
+                .first()
+            )
+
+            if last_shown:
+                days_since_shown = (datetime.now(UTC) - last_shown[0]).days
+                place.days_since_shown = days_since_shown
+            else:
+                place.days_since_shown = 999  # Никогда не показывалось
+
+            places_with_priority.append(place)
+
+        # Сортируем по приоритету (как в find_nearest_available_place)
+        def get_priority(place):
+            days = place.days_since_shown
+
+            if days > PRIORITY_DAYS:
+                return (0, place.distance_km)
+            elif days >= EXCLUDE_PLACE_DAYS:
+                return (1, place.distance_km)
+            else:
+                return (2, place.distance_km)
+
+        places_with_priority.sort(key=get_priority)
+
+        # Возвращаем ограниченное количество
+        return places_with_priority[:limit]

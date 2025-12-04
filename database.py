@@ -65,7 +65,7 @@ class Task(Base):
     __tablename__ = "tasks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    category: Mapped[str] = mapped_column(String(20), nullable=False)  # 'body' или 'spirit'
+    category: Mapped[str] = mapped_column(String(20), nullable=False)  # 'food', 'health', 'places'
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     location_url: Mapped[str | None] = mapped_column(String(500))
@@ -151,7 +151,7 @@ class TaskPlace(Base):
     __tablename__ = "task_places"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    category: Mapped[str] = mapped_column(String(20), nullable=False)  # 'body', 'spirit', 'career', 'social'
+    category: Mapped[str] = mapped_column(String(20), nullable=False)  # 'food', 'health', 'places'
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     lat: Mapped[float] = mapped_column(Float, nullable=False)
@@ -162,6 +162,7 @@ class TaskPlace(Base):
     place_type: Mapped[str | None] = mapped_column(String(50))  # 'cafe', 'park', 'gym', 'yoga_studio', etc.
     task_type: Mapped[str] = mapped_column(String(20), default="urban")  # 'urban' или 'island'
     promo_code: Mapped[str | None] = mapped_column(String(100))  # Промокод или реферальный код для партнеров
+    task_hint: Mapped[str | None] = mapped_column(String(200))  # Короткое задание/подсказка (1 предложение)
     created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -169,7 +170,7 @@ class TaskTemplate(Base):
     __tablename__ = "task_templates"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    category: Mapped[str] = mapped_column(String(20), nullable=False)  # 'body', 'spirit', 'career', 'social'
+    category: Mapped[str] = mapped_column(String(20), nullable=False)  # 'food', 'health', 'places'
     place_type: Mapped[str] = mapped_column(String(50), nullable=False)  # 'park', 'cafe', 'library', etc.
     title: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)

@@ -38,14 +38,12 @@ from simple_status_manager import (
     get_status_change_buttons,
     get_user_events,
 )
-from tasks_location_service import get_tasks_with_places
 from tasks_service import (
     accept_task,
     cancel_task,
     complete_task,
-    get_all_available_tasks,
+    create_task_from_place,
     get_user_active_tasks,
-    get_user_completed_tasks_today,
 )
 from utils.geo_utils import get_timezone, haversine_km
 from utils.static_map import build_static_map_url, fetch_static_map
@@ -3868,8 +3866,9 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
 
     # Показываем выбор категории после получения геолокации
     keyboard = [
-        [InlineKeyboardButton(text="💪 Тело", callback_data="task_category:body")],
-        [InlineKeyboardButton(text="🧘 Дух", callback_data="task_category:spirit")],
+        [InlineKeyboardButton(text="🍔 Еда", callback_data="task_category:food")],
+        [InlineKeyboardButton(text="💪 Здоровье", callback_data="task_category:health")],
+        [InlineKeyboardButton(text="🌟 Интересные места", callback_data="task_category:places")],
         [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
     ]
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -3877,8 +3876,9 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
     await message.answer(
         "✅ **Геолокация получена!**\n\n"
         "Выберите категорию для получения персонализированных заданий:\n\n"
-        "💪 **Тело** - спорт, йога, прогулки\n"
-        "🧘 **Дух** - медитация, храмы, природа",
+        "🍔 **Еда** - кафе, рестораны, уличная еда\n"
+        "💪 **Здоровье** - спорт, йога, спа, клиники\n"
+        "🌟 **Интересные места** - парки, выставки, храмы",
         parse_mode="Markdown",
         reply_markup=reply_markup,
     )
@@ -4193,8 +4193,9 @@ async def process_task_location(message: types.Message, state: FSMContext, lat: 
 
     # Показываем выбор категории после получения геолокации
     keyboard = [
-        [InlineKeyboardButton(text="💪 Тело", callback_data="task_category:body")],
-        [InlineKeyboardButton(text="🧘 Дух", callback_data="task_category:spirit")],
+        [InlineKeyboardButton(text="🍔 Еда", callback_data="task_category:food")],
+        [InlineKeyboardButton(text="💪 Здоровье", callback_data="task_category:health")],
+        [InlineKeyboardButton(text="🌟 Интересные места", callback_data="task_category:places")],
         [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
     ]
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -4202,8 +4203,9 @@ async def process_task_location(message: types.Message, state: FSMContext, lat: 
     await message.answer(
         "✅ **Геолокация получена!**\n\n"
         "Выберите категорию для получения персонализированных заданий:\n\n"
-        "💪 **Тело** - спорт, йога, прогулки\n"
-        "🧘 **Дух** - медитация, храмы, природа",
+        "🍔 **Еда** - кафе, рестораны, уличная еда\n"
+        "💪 **Здоровье** - спорт, йога, спа, клиники\n"
+        "🌟 **Интересные места** - парки, выставки, храмы",
         parse_mode="Markdown",
         reply_markup=reply_markup,
     )
@@ -5619,7 +5621,8 @@ async def on_my_tasks(message: types.Message):
             time_left = expires_at - datetime.now(UTC)
             int(time_left.total_seconds() / 3600)
 
-            category_emoji = "💪" if task["category"] == "body" else "🧘"
+            category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
+            category_emoji = category_emojis.get(task["category"], "📋")
             # Форматируем время выполнения в компактном виде
             start_time = task["accepted_at"]
             end_time = expires_at
@@ -5798,7 +5801,8 @@ async def cmd_mytasks(message: types.Message):
             time_left = expires_at - datetime.now(UTC)
             int(time_left.total_seconds() / 3600)
 
-            category_emoji = "💪" if task["category"] == "body" else "🧘"
+            category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
+            category_emoji = category_emojis.get(task["category"], "📋")
             # Форматируем время выполнения в компактном виде
             start_time = task["accepted_at"]
             end_time = expires_at
@@ -5942,8 +5946,10 @@ async def show_task_detail(callback_or_message, tasks: list, task_index: int, us
     time_left = expires_at - datetime.now(UTC)
     int(time_left.total_seconds() / 3600)
 
-    category_emoji = "💪" if task["category"] == "body" else "🧘"
-    category_name = "Тело" if task["category"] == "body" else "Дух"
+    category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
+    category_emoji = category_emojis.get(task["category"], "📋")
+    category_names = {"food": "Еда", "health": "Здоровье", "places": "Интересные места"}
+    category_name = category_names.get(task["category"], task["category"])
 
     message_text = f"📋 **{task['title']}**\n\n"
     message_text += f"{category_emoji} **Категория:** {category_name}\n"
@@ -6159,7 +6165,8 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
         time_left = expires_at - datetime.now(UTC)
         int(time_left.total_seconds() / 3600)
 
-        category_emoji = "💪" if task["category"] == "body" else "🧘"
+        category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
+        category_emoji = category_emojis.get(task["category"], "📋")
         # Форматируем время выполнения в компактном виде
         start_time = task["accepted_at"]
         end_time = expires_at
@@ -6569,94 +6576,46 @@ async def handle_task_cancel(callback: types.CallbackQuery):
 
 
 async def show_tasks_for_category(
-    message_or_callback, category: str, user_id: int, user_lat: float, user_lng: float, state: FSMContext
+    message_or_callback, category: str, user_id: int, user_lat: float, user_lng: float, state: FSMContext, page: int = 1
 ):
     """
-    Показывает доступные задания для категории (всегда 3, если есть)
+    Показывает места для категории списком (8 на страницу)
 
     Args:
         message_or_callback: Сообщение или callback для редактирования
-        category: Категория заданий ('body' или 'spirit')
+        category: Категория заданий ('food', 'health' или 'places')
         user_id: ID пользователя
         user_lat: Широта пользователя
         user_lng: Долгота пользователя
         state: FSM состояние
+        page: Номер страницы (начинается с 1)
     """
     # Определяем тип региона пользователя и соответствующий тип задания
-    from tasks_location_service import get_task_type_for_region, get_user_region_type
+    from tasks_location_service import get_all_places_for_category, get_task_type_for_region, get_user_region_type
 
     region_type = get_user_region_type(user_lat, user_lng)
     task_type = get_task_type_for_region(region_type)
 
-    logger.info(f"Показ заданий для категории {category}, регион: {region_type}, тип задания: {task_type}")
+    logger.info(
+        f"Показ мест для категории {category}, регион: {region_type}, тип задания: {task_type}, страница {page}"
+    )
 
-    # Получаем все доступные задания для категории и типа
-    all_tasks = get_all_available_tasks(category, task_type=task_type)
-
-    if not all_tasks:
-        text = "❌ Задания для этой категории пока не готовы."
-        if hasattr(message_or_callback, "edit_text"):
-            await message_or_callback.edit_text(text)
-        else:
-            await message_or_callback.answer(text)
-        return
-
-    # Получаем локации для заданий
+    # Получаем все доступные места для категории
     try:
-        tasks_with_places = get_tasks_with_places(category, user_id, user_lat, user_lng, task_type=task_type)
+        all_places = get_all_places_for_category(category, user_id, user_lat, user_lng, task_type=task_type, limit=100)
     except Exception as e:
-        logger.error(f"Ошибка получения локаций для заданий: {e}")
-        tasks_with_places = []
-
-    # Получаем активные задания пользователя для фильтрации
-    active_tasks = get_user_active_tasks(user_id)
-    active_task_ids = {active_task["task_id"] for active_task in active_tasks}
-
-    # Получаем выполненные задания за сегодня для фильтрации
-    completed_tasks_today = set(get_user_completed_tasks_today(user_id))
-
-    # Фильтруем уже взятые И выполненные сегодня задания
-    excluded_task_ids = active_task_ids | completed_tasks_today
-    available_tasks = [task for task in all_tasks if task.id not in excluded_task_ids]
-
-    # Берем первые 3 доступных задания
-    tasks_to_show = available_tasks[:3]
-
-    # Сохраняем информацию о местах в состоянии для использования в task_detail
-    places_info = {}
-    available_places = [tp for tp in tasks_with_places if tp.get("place")]
-
-    for i, task in enumerate(tasks_to_show):
-        # Циклически распределяем места по заданиям
-        if available_places:
-            place_data = available_places[i % len(available_places)]
-            place = place_data.get("place")
-            if place:
-                places_info[task.id] = {
-                    "name": place.name,
-                    "url": place.google_maps_url,
-                    "distance_km": getattr(place, "distance_km", None),
-                    "promo_code": place.promo_code,
-                    "place_type": place_data.get("place_type"),
-                }
-
-    # Сохраняем в состоянии
-    await state.update_data(task_places_info=places_info)
+        logger.error(f"Ошибка получения мест: {e}")
+        all_places = []
 
     # Определяем названия категорий
-    category_names = {"body": "💪 Тело", "spirit": "🧘 Дух"}
+    category_names = {"food": "🍔 Еда", "health": "💪 Здоровье", "places": "🌟 Интересные места"}
     category_name = category_names.get(category, category)
 
-    # Если все задания взяты, показываем сообщение
-    if not tasks_to_show:
-        text = (
-            f"🎯 **{category_name}**\n\n"
-            "✅ Все задания этой категории уже взяты, завтра будут новые!\n\n"
-            "📋 Перейдите в 'Мои квесты' чтобы посмотреть ваши активные задания."
-        )
+    # Если мест нет
+    if not all_places:
+        text = f"🎯 **{category_name}**\n\n" "❌ Места для этой категории пока не добавлены."
         reply_markup = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="📋 Мои квесты", callback_data="my_tasks")],
                 [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_tasks")],
                 [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
             ]
@@ -6667,18 +6626,64 @@ async def show_tasks_for_category(
             await message_or_callback.answer(text, parse_mode="Markdown", reply_markup=reply_markup)
         return
 
-    # Создаем клавиатуру с доступными заданиями
-    keyboard = []
-    for task in tasks_to_show:
-        # Добавляем информацию о расстоянии, если есть
-        if task.id in places_info and places_info[task.id].get("distance_km"):
-            distance = places_info[task.id]["distance_km"]
-            title = f"📋 {task.title} ({distance:.1f} км)"
-        else:
-            title = f"📋 {task.title}"
-        keyboard.append([InlineKeyboardButton(text=title, callback_data=f"task_detail:{task.id}")])
+    # Пагинация: 8 мест на страницу
+    places_per_page = 8
+    total_pages = (len(all_places) + places_per_page - 1) // places_per_page
+    page = max(1, min(page, total_pages))
 
-    # Добавляем кнопки управления
+    # Получаем места для текущей страницы
+    start_idx = (page - 1) * places_per_page
+    end_idx = min(start_idx + places_per_page, len(all_places))
+    page_places = all_places[start_idx:end_idx]
+
+    # Формируем текст сообщения
+    text = f"🎯 **{category_name}**\n\n"
+    text += f"📍 Найдено мест: {len(all_places)}\n\n"
+
+    # Добавляем каждое место
+    for idx, place in enumerate(page_places, start=start_idx + 1):
+        # Название места
+        text += f"**{idx}. {place.name}**\n"
+
+        # Расстояние
+        if hasattr(place, "distance_km") and place.distance_km:
+            text += f"📍 {place.distance_km:.1f} км от вас\n"
+
+        # Промокод
+        if place.promo_code:
+            text += f"🎁 Промокод: `{place.promo_code}`\n"
+
+        # Короткое задание (task_hint)
+        if place.task_hint:
+            text += f"💡 {place.task_hint}\n"
+
+        text += "\n"
+
+    # Создаем клавиатуру
+    keyboard = []
+
+    # Кнопки для каждого места: "➕ Добавить в квесты"
+    for place in page_places:
+        button_text = f"➕ {place.name[:30]}"
+        if len(place.name) > 30:
+            button_text = button_text[:27] + "..."
+        keyboard.append([InlineKeyboardButton(text=button_text, callback_data=f"add_place_to_quests:{place.id}")])
+
+    # Кнопки пагинации
+    nav_buttons = []
+    if page > 1:
+        nav_buttons.append(InlineKeyboardButton(text="◀️ Назад", callback_data=f"places_page:{category}:{page-1}"))
+    if page < total_pages:
+        nav_buttons.append(InlineKeyboardButton(text="Вперёд ▶️", callback_data=f"places_page:{category}:{page+1}"))
+
+    if nav_buttons:
+        keyboard.append(nav_buttons)
+
+    # Информация о странице
+    if total_pages > 1:
+        keyboard.append([InlineKeyboardButton(text=f"Стр. {page}/{total_pages}", callback_data="places_page:noop")])
+
+    # Кнопки управления
     keyboard.append(
         [
             InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_tasks"),
@@ -6687,7 +6692,6 @@ async def show_tasks_for_category(
     )
 
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
-    text = f"🎯 **{category_name}**\n\n" "Выберите задание для получения подробной информации:"
 
     if hasattr(message_or_callback, "edit_text"):
         await message_or_callback.edit_text(text, parse_mode="Markdown", reply_markup=reply_markup)
@@ -6719,8 +6723,8 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
         await callback.answer()
         return
 
-    # Используем общую функцию для показа заданий
-    await show_tasks_for_category(callback.message, category, user_id, user_lat, user_lng, state)
+    # Используем общую функцию для показа мест (страница 1)
+    await show_tasks_for_category(callback.message, category, user_id, user_lat, user_lng, state, page=1)
     await callback.answer()
 
 
@@ -6768,8 +6772,9 @@ async def handle_task_detail(callback: types.CallbackQuery, state: FSMContext):
                 # Для известных регионов ищем место в базе
                 if region != "unknown":
                     category_place_types = {
-                        "body": ["cafe", "park", "gym"],
-                        "spirit": ["temple", "park", "viewpoint"],
+                        "food": ["cafe", "restaurant", "street_food", "market", "bakery"],
+                        "health": ["gym", "spa", "lab", "clinic", "nature"],
+                        "places": ["park", "exhibition", "temple", "trail"],
                     }
                     place_types = category_place_types.get(task.category, ["park"])
 
@@ -6797,8 +6802,9 @@ async def handle_task_detail(callback: types.CallbackQuery, state: FSMContext):
                 else:
                     # Для unknown регионов генерируем поисковый запрос
                     category_place_types = {
-                        "body": ["cafe", "park", "gym"],
-                        "spirit": ["temple", "park", "viewpoint"],
+                        "food": ["cafe", "restaurant", "street_food", "market", "bakery"],
+                        "health": ["gym", "spa", "lab", "clinic", "nature"],
+                        "places": ["park", "exhibition", "temple", "trail"],
                     }
                     place_types = category_place_types.get(task.category, ["park"])
                     place_type = place_types[0]
@@ -6917,9 +6923,9 @@ async def handle_task_accept(callback: types.CallbackQuery, state: FSMContext):
         # Показываем краткое сообщение об успехе
         await callback.answer("✅ Задание принято!", show_alert=False)
 
-        # Если есть категория и координаты, показываем обновленный список заданий
+        # Если есть категория и координаты, показываем обновленный список мест
         if category and user_lat and user_lng:
-            await show_tasks_for_category(callback.message, category, user_id, user_lat, user_lng, state)
+            await show_tasks_for_category(callback.message, category, user_id, user_lat, user_lng, state, page=1)
         else:
             # Если нет категории или координат, показываем обычное сообщение
             await callback.message.edit_text(
@@ -7045,18 +7051,83 @@ async def handle_back_to_tasks(callback: types.CallbackQuery):
     """Обработчик возврата к выбору категории заданий"""
     # Показываем выбор категории
     keyboard = [
-        [InlineKeyboardButton(text="💪 Тело", callback_data="task_category:body")],
-        [InlineKeyboardButton(text="🧘 Дух", callback_data="task_category:spirit")],
+        [InlineKeyboardButton(text="🍔 Еда", callback_data="task_category:food")],
+        [InlineKeyboardButton(text="💪 Здоровье", callback_data="task_category:health")],
+        [InlineKeyboardButton(text="🌟 Интересные места", callback_data="task_category:places")],
         [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
     ]
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
     await callback.message.edit_text(
-        "🎯 **Чем заняться**\n\n" "Выберите категорию заданий:",
+        "🎯 **Чем заняться**\n\n"
+        "Выберите категорию заданий:\n\n"
+        "🍔 **Еда** - кафе, рестораны, уличная еда\n"
+        "💪 **Здоровье** - спорт, йога, спа, клиники\n"
+        "🌟 **Интересные места** - парки, выставки, храмы",
         parse_mode="Markdown",
         reply_markup=reply_markup,
     )
     await callback.answer()
+
+
+@main_router.callback_query(F.data.startswith("places_page:"))
+async def handle_places_page(callback: types.CallbackQuery, state: FSMContext):
+    """Обработчик пагинации мест"""
+    parts = callback.data.split(":")
+    if len(parts) < 3 or parts[2] == "noop":
+        await callback.answer("Это крайняя страница")
+        return
+
+    category = parts[1]
+    page = int(parts[2])
+    user_id = callback.from_user.id
+
+    # Получаем координаты пользователя из БД
+    with get_session() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        user_lat = user.last_lat if user else None
+        user_lng = user.last_lng if user else None
+
+    if not user_lat or not user_lng:
+        await callback.answer("📍 Требуется геолокация")
+        return
+
+    # Показываем страницу мест
+    await show_tasks_for_category(callback.message, category, user_id, user_lat, user_lng, state, page=page)
+    await callback.answer()
+
+
+@main_router.callback_query(F.data.startswith("add_place_to_quests:"))
+async def handle_add_place_to_quests(callback: types.CallbackQuery, state: FSMContext):
+    """Обработчик добавления места в квесты"""
+    place_id = int(callback.data.split(":")[1])
+    user_id = callback.from_user.id
+
+    # Получаем координаты пользователя из БД
+    with get_session() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        user_lat = user.last_lat if user else None
+        user_lng = user.last_lng if user else None
+
+    # Создаем задание из места
+    success = create_task_from_place(user_id, place_id, user_lat, user_lng)
+
+    if success:
+        await callback.answer("✅ Место добавлено в квесты!", show_alert=False)
+
+        # Получаем категорию места для возврата к списку
+        from database import TaskPlace
+
+        with get_session() as session:
+            place = session.query(TaskPlace).filter(TaskPlace.id == place_id).first()
+            if place and user_lat and user_lng:
+                # Получаем текущую страницу из состояния или callback
+                # Пока просто возвращаемся на первую страницу
+                await show_tasks_for_category(
+                    callback.message, place.category, user_id, user_lat, user_lng, state, page=1
+                )
+    else:
+        await callback.answer("❌ Не удалось добавить место. Возможно, оно уже в квестах.", show_alert=True)
 
 
 @main_router.callback_query(F.data.startswith("task_manage:"))
@@ -7101,7 +7172,8 @@ async def handle_task_manage(callback: types.CallbackQuery):
     else:
         time_text = f"⏰ До: {minutes_left}м"
 
-    category_emoji = "💪" if task_info["category"] == "body" else "🧘"
+    category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
+    category_emoji = category_emojis.get(task_info["category"], "📋")
 
     message = f"{category_emoji} **{task_info['title']}**\n\n"
     message += f"{task_info['description']}\n\n"
