@@ -92,15 +92,20 @@ if __name__ == "__main__":
 
     for place_info in places:
         try:
-            if add_place_from_url(
+            success, operation_type = add_place_from_url(
                 category=place_info["category"],
                 place_type=place_info["place_type"],
                 region=place_info["region"],
                 google_maps_url=place_info["url"],
                 promo_code=place_info.get("promo_code"),
                 custom_name=place_info.get("name"),  # Используем название из файла
-            ):
-                added_count += 1
+                update_existing=True,  # Явно указываем, что нужно обновлять существующие места
+            )
+            if success:
+                if operation_type == "added":
+                    added_count += 1
+                elif operation_type in ("updated", "skipped"):
+                    skipped_count += 1
             else:
                 skipped_count += 1
         except Exception as e:
