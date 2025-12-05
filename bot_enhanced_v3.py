@@ -6603,8 +6603,9 @@ async def show_tasks_for_category(
     # Получаем все доступные места для категории
     try:
         all_places = get_all_places_for_category(category, user_id, user_lat, user_lng, task_type=task_type, limit=100)
+        logger.info(f"show_tasks_for_category: Получено {len(all_places)} мест для категории {category}")
     except Exception as e:
-        logger.error(f"Ошибка получения мест: {e}")
+        logger.error(f"Ошибка получения мест: {e}", exc_info=True)
         all_places = []
 
     # Определяем названия категорий

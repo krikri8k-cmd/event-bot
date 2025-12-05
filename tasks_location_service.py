@@ -501,7 +501,16 @@ def get_all_places_for_category(
             .all()
         )
 
+        logger.info(
+            f"get_all_places_for_category: category={category}, region={region}, "
+            f"task_type={task_type}, found={len(places)} places"
+        )
+
         if not places:
+            logger.warning(
+                f"get_all_places_for_category: No places found for category={category}, "
+                f"region={region}, task_type={task_type}"
+            )
             return []
 
         # Вычисляем расстояние и время последнего показа для каждого места
