@@ -47,22 +47,22 @@ def check_places():
                 if len(places) > 5:
                     print(f"   ... и еще {len(places) - 5} мест")
 
-        # Проверяем места для Москвы с категорией body и типом urban
-        print("\n🔍 Проверка мест для Москвы (body, urban):")
-        moscow_body_places = (
+        # Проверяем места для Москвы с категорией health и типом urban
+        print("\n🔍 Проверка мест для Москвы (health, urban):")
+        moscow_health_places = (
             session.query(TaskPlace)
             .filter(
                 TaskPlace.region == "moscow",
-                TaskPlace.category == "body",
+                TaskPlace.category == "health",
                 TaskPlace.task_type == "urban",
                 TaskPlace.is_active == True,  # noqa: E712
             )
             .all()
         )
-        print(f"   Найдено: {len(moscow_body_places)} мест")
-        if moscow_body_places:
+        print(f"   Найдено: {len(moscow_health_places)} мест")
+        if moscow_health_places:
             print("   Места:")
-            for place in moscow_body_places:
+            for place in moscow_health_places:
                 promo = f", промокод: {place.promo_code}" if place.promo_code else ""
                 print(f"   - {place.name} ({place.place_type}){promo}")
         else:
@@ -95,15 +95,15 @@ def check_places():
         else:
             print("   ✅ Все места Москвы имеют task_type=urban")
 
-        # Проверяем места по типам мест для body в Москве
-        print("\n🔍 Места по типам для body в Москве:")
+        # Проверяем места по типам мест для health в Москве
+        print("\n🔍 Места по типам для health в Москве:")
         place_types = ["cafe", "park", "gym"]
         for place_type in place_types:
             places = (
                 session.query(TaskPlace)
                 .filter(
                     TaskPlace.region == "moscow",
-                    TaskPlace.category == "body",
+                    TaskPlace.category == "health",
                     TaskPlace.place_type == place_type,
                     TaskPlace.task_type == "urban",
                     TaskPlace.is_active == True,  # noqa: E712

@@ -111,6 +111,17 @@ def add_place_from_row(row: dict) -> bool:
         )
 
         session.add(place)
+        session.flush()  # Получаем ID места для генерации подсказки
+
+        # Генерируем подсказку с помощью AI
+        try:
+            from tasks.ai_hints_generator import generate_hint_for_place
+
+            if generate_hint_for_place(place):
+                print(f"   🤖 Сгенерирована подсказка: {place.task_hint[:50]}...")
+        except Exception as e:
+            print(f"   ⚠️ Не удалось сгенерировать подсказку: {e}")
+
         session.commit()
 
         print(f"✅ Добавлено: {name} ({region}, {place_type}) - {lat:.6f}, {lng:.6f}")

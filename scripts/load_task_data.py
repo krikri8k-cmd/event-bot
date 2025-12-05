@@ -60,6 +60,8 @@ def load_task_places():
         # Очищаем существующие места
         session.query(TaskPlace).delete()
 
+        from tasks.ai_hints_generator import generate_hint_for_place
+
         for place_data in places_data:
             place = TaskPlace(
                 category=place_data["category"],
@@ -71,6 +73,14 @@ def load_task_places():
                 is_active=True,
             )
             session.add(place)
+            session.flush()  # Получаем ID места для генерации подсказки
+
+            # Генерируем подсказку с помощью AI
+            try:
+                if generate_hint_for_place(place):
+                    print(f"   🤖 {place.name}: {place.task_hint[:50]}...")
+            except Exception as e:
+                print(f"   ⚠️ Ошибка генерации для {place.name}: {e}")
 
         session.commit()
         print(f"✅ Загружено {len(places_data)} мест")
