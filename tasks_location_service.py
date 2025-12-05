@@ -397,7 +397,7 @@ def get_tasks_with_places(
 
     # Определяем типы мест для категории
     category_place_types = {
-        "food": ["cafe", "restaurant", "street_food", "market", "bakery"],
+        "food": ["cafe", "restaurant", "street_food", "market", "bakery", "coworking"],
         "health": ["gym", "spa", "lab", "clinic", "nature"],
         "places": ["park", "exhibition", "temple", "trail"],
     }

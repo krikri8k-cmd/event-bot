@@ -27,6 +27,18 @@
     - Автоматически извлекает координаты из любых Google Maps ссылок (включая короткие)
 """
 
+import sys
+
+# Устанавливаем UTF-8 для stdout
+if sys.stdout.encoding != "utf-8":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except AttributeError:
+        # Для старых версий Python
+        import codecs
+
+        sys.stdout = codecs.getwriter("utf-8")(sys.stdout.buffer, "strict")
+
 import os
 import re
 import sys
@@ -56,14 +68,28 @@ async def extract_coordinates_async(google_maps_url: str) -> tuple[float, float]
     return None
 
 
-def extract_coordinates(google_maps_url: str) -> tuple[float, float] | None:
-    """Извлекает координаты из Google Maps ссылки"""
+def extract_coordinates(google_maps_url: str, fallback_name: str | None = None) -> tuple[float, float] | None:
+    """Извлекает координаты из Google Maps ссылки
+
+    Args:
+        google_maps_url: Ссылка на Google Maps
+        fallback_name: Название места для геокодирования, если координаты не найдены в URL
+    """
     import asyncio
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        return loop.run_until_complete(extract_coordinates_async(google_maps_url))
+        result = loop.run_until_complete(extract_coordinates_async(google_maps_url))
+        # Если координаты не найдены, но есть fallback_name, пробуем геокодировать по нему
+        if not result and fallback_name:
+            from utils.geo_utils import geocode_address
+
+            coords = loop.run_until_complete(geocode_address(fallback_name))
+            if coords:
+                print(f"✅ Геокодирование по названию '{fallback_name}' успешно: {coords[0]}, {coords[1]}")
+                return coords
+        return result
     finally:
         loop.close()
 
@@ -95,6 +121,7 @@ def add_place_from_url(
     google_maps_url: str,
     promo_code: str | None = None,
     update_existing: bool = True,
+    custom_name: str | None = None,
 ) -> tuple[bool, str]:
     """
     Добавляет или обновляет место из Google Maps ссылки
@@ -117,10 +144,12 @@ def add_place_from_url(
     if not google_maps_url or not google_maps_url.startswith(("http", "https")):
         return False, "skipped"
 
-    # Извлекаем координаты
-    coords = extract_coordinates(google_maps_url)
+    # Извлекаем координаты (используем custom_name как fallback для геокодирования)
+    coords = extract_coordinates(google_maps_url, fallback_name=custom_name)
     if not coords:
-        print(f"❌ Не удалось извлечь координаты из: {google_maps_url[:50]}...")
+        print(f"ERROR: Не удалось извлечь координаты из: {google_maps_url[:50]}...")
+        if custom_name:
+            print(f"   (пробовали геокодировать по названию '{custom_name}', но не получилось)")
         return False, "skipped"
 
     lat, lng = coords
@@ -129,8 +158,11 @@ def add_place_from_url(
     if not region or region.lower() == "auto":
         region = get_user_region(lat, lng)
 
-    # Пытаемся извлечь название из URL
-    name = extract_place_name_from_url(google_maps_url)
+    # Используем указанное название или извлекаем из URL
+    if custom_name:
+        name = custom_name.strip()
+    else:
+        name = extract_place_name_from_url(google_maps_url)
 
     with get_session() as session:
         # Сначала проверяем, есть ли место с такой же ссылкой
@@ -148,8 +180,10 @@ def add_place_from_url(
                 existing_by_url.region = region
                 if promo_code:
                     existing_by_url.promo_code = promo_code
-                # Обновляем название, если удалось извлечь из URL
-                if name and name != "Место на карте":
+                # Обновляем название, если указано или удалось извлечь из URL
+                if custom_name:
+                    existing_by_url.name = custom_name
+                elif name and name != "Место на карте":
                     existing_by_url.name = name
                 existing_by_url.is_active = True
 
@@ -163,7 +197,7 @@ def add_place_from_url(
                 )
                 return True, "updated"
             else:
-                print(f"⚠️ Место с такой ссылкой уже существует: {existing_by_url.name} (ID: {existing_by_url.id})")
+                print(f"WARN: Место с такой ссылкой уже существует: {existing_by_url.name} (ID: {existing_by_url.id})")
                 return False, "skipped"
 
         # Проверяем, не существует ли уже такое место по координатам
@@ -186,7 +220,9 @@ def add_place_from_url(
                 existing_by_coords.google_maps_url = google_maps_url
                 if promo_code:
                     existing_by_coords.promo_code = promo_code
-                if name and name != "Место на карте":
+                if custom_name:
+                    existing_by_coords.name = custom_name
+                elif name and name != "Место на карте":
                     existing_by_coords.name = name
                 existing_by_coords.is_active = True
 
@@ -199,7 +235,7 @@ def add_place_from_url(
                 )
                 return True, "updated"
             else:
-                print(f"⚠️ Место уже существует: {existing_by_coords.name} (ID: {existing_by_coords.id})")
+                print(f"WARN: Место уже существует: {existing_by_coords.name} (ID: {existing_by_coords.id})")
                 return False, "skipped"
 
         # Создаем новое место
@@ -217,10 +253,21 @@ def add_place_from_url(
         )
 
         session.add(place)
+        session.flush()  # Получаем ID места для генерации подсказки
+
+        # Генерируем подсказку с помощью AI
+        try:
+            from tasks.ai_hints_generator import generate_hint_for_place
+
+            if generate_hint_for_place(place):
+                print(f"   AI: Сгенерирована подсказка: {place.task_hint[:50]}...")
+        except Exception as e:
+            print(f"   WARN: Не удалось сгенерировать подсказку: {e}")
+
         session.commit()
 
         promo_info = f", Промокод: {promo_code}" if promo_code else ""
-        print(f"✅ Добавлено: {name} ({region}, {place_type}) - {lat:.6f}, {lng:.6f}{promo_info}")
+        print(f"OK: Добавлено: {name} ({region}, {place_type}) - {lat:.6f}, {lng:.6f}{promo_info}")
         return True, "added"
 
 
@@ -231,12 +278,17 @@ def parse_simple_file(file_path: str) -> list[dict]:
     url1|promo_code1 (промокод после ссылки через |, приоритетнее)
     url2
     url3
+
+    Также поддерживает формат с названиями:
+    Название места
+    https://maps.app.goo.gl/...
     """
     result = []
     current_category = None
     current_place_type = None
     current_region = None
     current_promo_code = None
+    pending_name = None  # Название места, ожидающее ссылку
 
     with open(file_path, encoding="utf-8") as f:
         for line_num, line in enumerate(f, start=1):
@@ -257,16 +309,17 @@ def parse_simple_file(file_path: str) -> list[dict]:
                     current_promo_code = parts[3].strip() if len(parts) > 3 else None
                     promo_info = f", Промокод: {current_promo_code}" if current_promo_code else ""
                     print(
-                        f"\n📋 Категория: {current_category}, "
-                        f"Тип: {current_place_type}, "
-                        f"Регион: {current_region}{promo_info}"
+                        f"\nCategory: {current_category}, "
+                        f"Type: {current_place_type}, "
+                        f"Region: {current_region}{promo_info}"
                     )
+                    pending_name = None  # Сбрасываем название при смене категории
                 continue
 
             # Если это ссылка
             if line.startswith(("http://", "https://")):
                 if not current_category or not current_place_type:
-                    print(f"⚠️ Строка {line_num}: пропущена (нет категории/типа)")
+                    print(f"WARN: Строка {line_num}: пропущена (нет категории/типа)")
                     continue
 
                 # Проверяем, есть ли промокод после ссылки через |
@@ -284,8 +337,14 @@ def parse_simple_file(file_path: str) -> list[dict]:
                         "region": current_region,
                         "url": url,
                         "promo_code": promo_code,
+                        "name": pending_name,  # Используем сохраненное название, если есть
                     }
                 )
+                pending_name = None  # Сбрасываем после использования
+            else:
+                # Если это не ссылка и не заголовок - это может быть название места
+                # Сохраняем его для следующей ссылки
+                pending_name = line
 
     return result
 
@@ -310,13 +369,13 @@ def main():
     update_existing = "--update" in sys.argv
 
     if not os.path.exists(txt_file):
-        print(f"❌ Файл не найден: {txt_file}")
+        print(f"ERROR: Файл не найден: {txt_file}")
         sys.exit(1)
 
     # Инициализируем БД
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
-        print("❌ DATABASE_URL не найден в переменных окружения")
+        print("ERROR: DATABASE_URL не найден в переменных окружения")
         print("   Убедитесь, что файл app.local.env существует и содержит DATABASE_URL")
         sys.exit(1)
 
@@ -324,11 +383,11 @@ def main():
 
     # Парсим файл
     mode = "обновление" if update_existing else "добавление"
-    print(f"📄 Загружаю места из файла: {txt_file} (режим: {mode})\n")
+    print(f"Loading places from file: {txt_file} (mode: {mode})\n")
     places = parse_simple_file(txt_file)
 
     if not places:
-        print("❌ Не найдено мест для добавления")
+        print("ERROR: Не найдено мест для добавления")
         sys.exit(1)
 
     # Добавляем/обновляем места
@@ -345,6 +404,7 @@ def main():
                 google_maps_url=place_info["url"],
                 promo_code=place_info.get("promo_code"),
                 update_existing=update_existing,
+                custom_name=place_info.get("name"),
             )
             if success:
                 if operation_type == "added":
@@ -354,10 +414,10 @@ def main():
             else:
                 skipped_count += 1
         except Exception as e:
-            print(f"❌ Ошибка: {e}")
+            print(f"ERROR: Ошибка: {e}")
             skipped_count += 1
 
-    print("\n✅ Готово!")
+    print("\nDone!")
     if update_existing:
         print(f"   Добавлено новых: {added_count}")
         print(f"   Обновлено существующих: {updated_count}")
