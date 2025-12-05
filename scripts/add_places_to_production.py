@@ -88,6 +88,7 @@ if __name__ == "__main__":
 
     # Добавляем места
     added_count = 0
+    updated_count = 0
     skipped_count = 0
 
     for place_info in places:
@@ -104,7 +105,9 @@ if __name__ == "__main__":
             if success:
                 if operation_type == "added":
                     added_count += 1
-                elif operation_type in ("updated", "skipped"):
+                elif operation_type == "updated":
+                    updated_count += 1
+                elif operation_type == "skipped":
                     skipped_count += 1
             else:
                 skipped_count += 1
@@ -114,4 +117,6 @@ if __name__ == "__main__":
 
     print("\n✅ Готово!")
     print(f"   ✅ Добавлено: {added_count}")
-    print(f"   ⏭️  Пропущено (уже существуют): {skipped_count}")
+    if updated_count > 0:
+        print(f"   🔄 Обновлено: {updated_count}")
+    print(f"   ⏭️  Пропущено: {skipped_count}")
