@@ -96,19 +96,46 @@ def extract_coordinates(google_maps_url: str, fallback_name: str | None = None) 
 
 def extract_place_name_from_url(url: str) -> str:
     """Пытается извлечь название места из URL"""
-    # Пробуем найти название в URL
-    # Например: /place/Название+Места/...
-    match = re.search(r"/place/([^/@]+)", url)
+    if not url:
+        return "Место на карте"
+
+    # Паттерн 1: /place/Название+Места/... (самый частый)
+    # Берем всё до /data= или до следующего /
+    place_pattern = r"/place/([^/@]+?)(?:/data=|/|$)"
+    match = re.search(place_pattern, url)
     if match:
-        name = match.group(1).replace("+", " ").replace("%20", " ")
+        name = match.group(1)
         # Декодируем URL-кодированные символы
         try:
             from urllib.parse import unquote
 
             name = unquote(name)
+            # Заменяем + и %20 на пробелы
+            name = name.replace("+", " ").replace("%20", " ")
+            # Убираем лишние пробелы
+            name = " ".join(name.split())
+            # Убираем адрес после названия (всё после запятой)
+            if "," in name:
+                name = name.split(",")[0].strip()
+            if name:
+                return name
         except Exception:
             pass
-        return name
+
+    # Паттерн 2: Старый формат /place/Название+Места/...
+    match = re.search(r"/place/([^/@]+)", url)
+    if match:
+        name = match.group(1).replace("+", " ").replace("%20", " ")
+        try:
+            from urllib.parse import unquote
+
+            name = unquote(name)
+            if "," in name:
+                name = name.split(",")[0].strip()
+            if name:
+                return name
+        except Exception:
+            pass
 
     # Если не нашли, возвращаем общее название
     return "Место на карте"
@@ -150,6 +177,17 @@ def add_place_from_url(
         print(f"ERROR: Не удалось извлечь координаты из: {google_maps_url[:50]}...")
         if custom_name:
             print(f"   (пробовали геокодировать по названию '{custom_name}', но не получилось)")
+
+        # Если есть custom_name и место уже существует, попробуем обновить только название
+        if custom_name and update_existing:
+            with get_session() as session:
+                existing_by_url = session.query(TaskPlace).filter(TaskPlace.google_maps_url == google_maps_url).first()
+                if existing_by_url:
+                    existing_by_url.name = custom_name
+                    session.commit()
+                    print(f"📝 Обновлено только название (без координат): {custom_name}")
+                    return True, "updated"
+
         return False, "skipped"
 
     lat, lng = coords
@@ -159,10 +197,39 @@ def add_place_from_url(
         region = get_user_region(lat, lng)
 
     # Используем указанное название или извлекаем из URL
+    # Сначала пробуем извлечь из расширенной ссылки (если она была расширена)
+    name = None
     if custom_name:
         name = custom_name.strip()
     else:
+        # Пытаемся извлечь название из URL
         name = extract_place_name_from_url(google_maps_url)
+        if name and name != "Место на карте":
+            print(f"📝 Название извлечено из URL: {name}")
+
+        # Если не удалось извлечь и есть координаты, пробуем reverse geocoding
+        if not name or name == "Место на карте":
+            try:
+                import asyncio
+
+                from utils.geo_utils import reverse_geocode
+
+                # Запускаем асинхронную функцию для получения названия по координатам
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    reverse_name = loop.run_until_complete(reverse_geocode(lat, lng))
+                    if reverse_name:
+                        name = reverse_name
+                        print(f"📍 Название получено через reverse geocoding: {name}")
+                finally:
+                    loop.close()
+            except Exception as e:
+                print(f"⚠️ Не удалось получить название через reverse geocoding: {e}")
+
+    # Если всё ещё не нашли название, используем fallback
+    if not name or name == "Место на карте":
+        name = "Место на карте"
 
     with get_session() as session:
         # Сначала проверяем, есть ли место с такой же ссылкой
@@ -181,10 +248,17 @@ def add_place_from_url(
                 if promo_code:
                     existing_by_url.promo_code = promo_code
                 # Обновляем название, если указано или удалось извлечь из URL
+                # Всегда обновляем название, если оно найдено (даже если старое было "Место на карте")
                 if custom_name:
                     existing_by_url.name = custom_name
+                    print(f"📝 Использовано название из файла: {custom_name}")
                 elif name and name != "Место на карте":
                     existing_by_url.name = name
+                    print(f"📝 Обновлено название из URL: {name}")
+                # Если название всё ещё "Место на карте", пробуем reverse geocoding
+                elif existing_by_url.name == "Место на карте":
+                    # Название уже было обновлено выше через reverse geocoding, если получилось
+                    pass
                 existing_by_url.is_active = True
 
                 session.commit()

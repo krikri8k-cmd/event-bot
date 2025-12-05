@@ -17,22 +17,28 @@ from scripts.add_places_from_simple_file import add_place_from_url, parse_simple
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Использование: python scripts/add_places_to_production.py <txt_file> [DATABASE_URL]")
+        print("Использование: python scripts/add_places_to_production.py <txt_file> [DATABASE_URL] [--yes]")
         print("\nПримеры:")
         print("  1. С DATABASE_URL из переменной окружения:")
         print("     python scripts/add_places_to_production.py places_simple.txt")
         print("  2. С DATABASE_URL из Railway (скопируй из Railway → Database → Connect):")
         print("     python scripts/add_places_to_production.py places_simple.txt 'postgresql://...'")
+        print("  3. С автоподтверждением:")
+        print("     python scripts/add_places_to_production.py places_simple.txt --yes")
         print("\n⚠️  ВАЖНО: Убедись, что это продакшн-база!")
         sys.exit(1)
 
     txt_file = sys.argv[1]
+    auto_confirm = "--yes" in sys.argv
 
-    # Получаем DATABASE_URL
-    if len(sys.argv) > 2:
-        db_url = sys.argv[2]
-        print("🔗 Используется DATABASE_URL из аргумента")
-    else:
+    # Получаем DATABASE_URL (пропускаем --yes если есть)
+    db_url = None
+    for arg in sys.argv[2:]:
+        if arg != "--yes" and arg.startswith("postgresql"):
+            db_url = arg
+            break
+
+    if not db_url:
         db_url = os.getenv("DATABASE_URL")
         if not db_url:
             print("❌ DATABASE_URL не найден!")
@@ -43,17 +49,22 @@ if __name__ == "__main__":
             print("     python scripts/add_places_to_production.py places_simple.txt 'postgresql://...'")
             sys.exit(1)
         print("🔗 Используется DATABASE_URL из переменной окружения")
+    else:
+        print("🔗 Используется DATABASE_URL из аргумента")
 
     # Показываем урезанный URL для безопасности
     db_url_short = db_url[:50] + "..." if len(db_url) > 50 else db_url
     print(f"📊 Подключение: {db_url_short}")
 
-    # Подтверждение
-    print("\n⚠️  ВНИМАНИЕ: Ты добавляешь места в ПРОДАКШН-БАЗУ!")
-    response = input("Продолжить? (yes/no): ")
-    if response.lower() != "yes":
-        print("❌ Отменено")
-        sys.exit(0)
+    # Подтверждение (можно пропустить с флагом --yes)
+    if not auto_confirm:
+        print("\n⚠️  ВНИМАНИЕ: Ты добавляешь места в ПРОДАКШН-БАЗУ!")
+        response = input("Продолжить? (yes/no): ")
+        if response.lower() != "yes":
+            print("❌ Отменено")
+            sys.exit(0)
+    else:
+        print("\n⚠️  ВНИМАНИЕ: Добавление мест в ПРОДАКШН-БАЗУ (автоподтверждение)")
 
     # Инициализируем БД
     try:
@@ -87,6 +98,7 @@ if __name__ == "__main__":
                 region=place_info["region"],
                 google_maps_url=place_info["url"],
                 promo_code=place_info.get("promo_code"),
+                custom_name=place_info.get("name"),  # Используем название из файла
             ):
                 added_count += 1
             else:
