@@ -6643,8 +6643,14 @@ async def show_tasks_for_category(
 
     # Добавляем каждое место
     for idx, place in enumerate(page_places, start=start_idx + 1):
-        # Название места
-        text += f"**{idx}. {place.name}**\n"
+        # Название места (кликабельная ссылка на Google Maps, если есть)
+        if place.google_maps_url:
+            # В Markdown ссылки: [текст](url)
+            # Экранируем специальные символы в названии для Markdown
+            escaped_name = place.name.replace("[", "\\[").replace("]", "\\]").replace("(", "\\(").replace(")", "\\)")
+            text += f"**{idx}. [{escaped_name}]({place.google_maps_url})**\n"
+        else:
+            text += f"**{idx}. {place.name}**\n"
 
         # Расстояние
         if hasattr(place, "distance_km") and place.distance_km:
