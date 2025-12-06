@@ -6637,96 +6637,72 @@ async def show_tasks_for_category(
     end_idx = min(start_idx + places_per_page, len(all_places))
     page_places = all_places[start_idx:end_idx]
 
-    # Отправляем заголовок первым сообщением
-    header_text = f"🎯 **{category_name}**\n\n"
-    header_text += f"📍 Найдено мест: {len(all_places)}\n\n"
-    header_text += f"📄 Страница {page}/{total_pages}\n\n"
+    # Формируем текст сообщения
+    text = f"🎯 **{category_name}**\n\n"
+    text += f"📍 Найдено мест: {len(all_places)}\n\n"
 
-    # Кнопки пагинации для заголовка
+    # Создаем клавиатуру
+    keyboard = []
+
+    # Добавляем каждое место с кнопкой в том же порядке
+    for idx, place in enumerate(page_places, start=start_idx + 1):
+        # Название места (кликабельная ссылка на Google Maps, если есть)
+        if place.google_maps_url:
+            # В Markdown ссылки: [текст](url)
+            # Экранируем специальные символы в названии для Markdown
+            escaped_name = place.name.replace("[", "\\[").replace("]", "\\]").replace("(", "\\(").replace(")", "\\)")
+            text += f"**{idx}. [{escaped_name}]({place.google_maps_url})**\n"
+        else:
+            text += f"**{idx}. {place.name}**\n"
+
+        # Расстояние
+        if hasattr(place, "distance_km") and place.distance_km:
+            text += f"📍 {place.distance_km:.1f} км от вас\n"
+
+        # Промокод
+        if place.promo_code:
+            text += f"🎁 Промокод: `{place.promo_code}`\n"
+
+        # Короткое задание (task_hint)
+        if place.task_hint:
+            text += f"💡 {place.task_hint}\n"
+
+        text += "\n"
+
+        # Кнопка "➕ Добавить в квесты" сразу после каждого места (в том же порядке)
+        button_text = f"➕ {place.name[:30]}"
+        if len(place.name) > 30:
+            button_text = button_text[:27] + "..."
+        keyboard.append([InlineKeyboardButton(text=button_text, callback_data=f"add_place_to_quests:{place.id}")])
+
+    # Кнопки пагинации
     nav_buttons = []
     if page > 1:
         nav_buttons.append(InlineKeyboardButton(text="◀️ Назад", callback_data=f"places_page:{category}:{page-1}"))
     if page < total_pages:
         nav_buttons.append(InlineKeyboardButton(text="Вперёд ▶️", callback_data=f"places_page:{category}:{page+1}"))
 
-    header_keyboard = []
     if nav_buttons:
-        header_keyboard.append(nav_buttons)
+        keyboard.append(nav_buttons)
+
+    # Информация о странице
     if total_pages > 1:
-        header_keyboard.append(
-            [InlineKeyboardButton(text=f"Стр. {page}/{total_pages}", callback_data="places_page:noop")]
-        )
-    header_keyboard.append(
+        keyboard.append([InlineKeyboardButton(text=f"Стр. {page}/{total_pages}", callback_data="places_page:noop")])
+
+    # Кнопки управления
+    keyboard.append(
         [
             InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_tasks"),
             InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
         ]
     )
 
-    # Отправляем или редактируем заголовок
+    reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
+
     if hasattr(message_or_callback, "edit_text"):
-        await message_or_callback.edit_text(
-            header_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(inline_keyboard=header_keyboard)
-        )
+        await message_or_callback.edit_text(text, parse_mode="Markdown", reply_markup=reply_markup)
     else:
-        await message_or_callback.answer(
-            header_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(inline_keyboard=header_keyboard)
-        )
-
-    # Отправляем каждое место отдельным сообщением с его кнопкой
-    # Получаем bot и chat_id из контекста
-    if hasattr(message_or_callback, "message"):
-        chat_id = message_or_callback.message.chat.id
-        bot = message_or_callback.message.bot
-    elif hasattr(message_or_callback, "chat"):
-        chat_id = message_or_callback.chat.id
-        bot = message_or_callback.bot if hasattr(message_or_callback, "bot") else None
-    else:
-        chat_id = message_or_callback.from_user.id
-        bot = message_or_callback.bot if hasattr(message_or_callback, "bot") else None
-
-    # Если bot не найден, используем глобальный экземпляр
-    if not bot:
-        from config import load_settings
-
-        settings = load_settings()
-        from aiogram import Bot
-
-        bot = Bot(token=settings.telegram_bot_token)
-
-    for idx, place in enumerate(page_places, start=start_idx + 1):
-        # Формируем текст для места
-        place_text = ""
-
-        # Название места (кликабельная ссылка на Google Maps, если есть)
-        if place.google_maps_url:
-            # В Markdown ссылки: [текст](url)
-            # Экранируем специальные символы в названии для Markdown
-            escaped_name = place.name.replace("[", "\\[").replace("]", "\\]").replace("(", "\\(").replace(")", "\\)")
-            place_text += f"**{idx}. [{escaped_name}]({place.google_maps_url})**\n"
-        else:
-            place_text += f"**{idx}. {place.name}**\n"
-
-        # Расстояние
-        if hasattr(place, "distance_km") and place.distance_km:
-            place_text += f"📍 {place.distance_km:.1f} км от вас\n"
-
-        # Промокод
-        if place.promo_code:
-            place_text += f"🎁 Промокод: `{place.promo_code}`\n"
-
-        # Короткое задание (task_hint)
-        if place.task_hint:
-            place_text += f"💡 {place.task_hint}\n"
-
-        # Кнопка "➕ Добавить в квесты" для этого места
-        button_text = "➕ Добавить в квесты"
-        place_keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text=button_text, callback_data=f"add_place_to_quests:{place.id}")]]
-        )
-
-        # Отправляем место как отдельное сообщение
-        await bot.send_message(chat_id=chat_id, text=place_text, parse_mode="Markdown", reply_markup=place_keyboard)
+        await message_or_callback.answer(text, parse_mode="Markdown", reply_markup=reply_markup)
 
 
 @main_router.callback_query(F.data.startswith("task_category:"))
