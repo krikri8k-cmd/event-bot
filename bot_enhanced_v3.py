@@ -6641,7 +6641,10 @@ async def show_tasks_for_category(
     text = f"🎯 **{category_name}**\n\n"
     text += f"📍 Найдено мест: {len(all_places)}\n\n"
 
-    # Добавляем каждое место
+    # Создаем клавиатуру
+    keyboard = []
+
+    # Добавляем каждое место с кнопкой сразу под ним
     for idx, place in enumerate(page_places, start=start_idx + 1):
         # Название места (кликабельная ссылка на Google Maps, если есть)
         if place.google_maps_url:
@@ -6666,11 +6669,7 @@ async def show_tasks_for_category(
 
         text += "\n"
 
-    # Создаем клавиатуру
-    keyboard = []
-
-    # Кнопки для каждого места: "➕ Добавить в квесты"
-    for place in page_places:
+        # Кнопка "➕ Добавить в квесты" сразу под каждым местом
         button_text = f"➕ {place.name[:30]}"
         if len(place.name) > 30:
             button_text = button_text[:27] + "..."
