@@ -6642,7 +6642,7 @@ async def show_tasks_for_category(
     text += f"📍 Найдено мест: {len(all_places)}\n\n"
 
     # Создаем клавиатуру
-    keyboard = []
+    place_buttons = []  # Кнопки для мест (будут сгруппированы)
 
     # Добавляем каждое место с кнопкой в том же порядке
     for idx, place in enumerate(page_places, start=start_idx + 1):
@@ -6669,11 +6669,23 @@ async def show_tasks_for_category(
 
         text += "\n"
 
-        # Кнопка "➕ Добавить в квесты" сразу после каждого места (в том же порядке)
-        button_text = f"➕ {place.name[:30]}"
-        if len(place.name) > 30:
-            button_text = button_text[:27] + "..."
-        keyboard.append([InlineKeyboardButton(text=button_text, callback_data=f"add_place_to_quests:{place.id}")])
+        # Кнопка с номером и названием места (обрезаем название, чтобы влезло в кнопку)
+        # Формат: "➕ 1. Название" - для 2 кнопок в ряд нужна компактная длина
+        name_part = place.name[:18]  # Оставляем место для "➕ N. " (~5 символов), итого ~23 символа на кнопку
+        if len(place.name) > 18:
+            name_part = name_part[:15] + "..."
+        button_text = f"➕ {idx}. {name_part}"
+        place_buttons.append(InlineKeyboardButton(text=button_text, callback_data=f"add_place_to_quests:{place.id}"))
+
+    # Группируем кнопки мест по 2 в ряд для компактности
+    keyboard = []
+    for i in range(0, len(place_buttons), 2):
+        if i + 1 < len(place_buttons):
+            # Две кнопки в ряд
+            keyboard.append([place_buttons[i], place_buttons[i + 1]])
+        else:
+            # Последняя нечетная кнопка
+            keyboard.append([place_buttons[i]])
 
     # Кнопки пагинации
     nav_buttons = []
