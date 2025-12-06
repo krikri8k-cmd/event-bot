@@ -252,12 +252,31 @@ def create_task_from_place(user_id: int, place_id: int, user_lat: float = None, 
                 .first()
             )
 
-            # Если нет задания, создаем универсальное
+            # Если нет задания для нужного типа, пробуем найти любое задание для категории (fallback)
             if not task:
-                # Создаем универсальное задание для места
-                pass
-            else:
-                pass
+                logger.warning(
+                    f"Задание не найдено для места {place_id} с типом {place.task_type}, "
+                    f"ищем любое задание для категории {place.category}"
+                )
+                task = (
+                    session.query(Task)
+                    .filter(
+                        and_(
+                            Task.category == place.category,
+                            Task.is_active == True,  # noqa: E712
+                        )
+                    )
+                    .order_by(Task.order_index)
+                    .first()
+                )
+
+            # Если все еще нет задания, возвращаем ошибку
+            if not task:
+                logger.error(
+                    f"Задание не найдено для места {place_id}: "
+                    f"category={place.category}, task_type={place.task_type}"
+                )
+                return False
 
             # Определяем часовой пояс пользователя
             if user_lat is not None and user_lng is not None:
