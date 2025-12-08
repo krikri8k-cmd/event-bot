@@ -237,6 +237,9 @@ def add_place_from_url(
 
         if existing_by_url:
             if update_existing:
+                # Определяем task_type на основе региона (Bali = island, остальное = urban)
+                task_type = "island" if region == "bali" else "urban"
+
                 # Обновляем существующее место
                 old_lat = existing_by_url.lat
                 old_lng = existing_by_url.lng
@@ -245,6 +248,7 @@ def add_place_from_url(
                 existing_by_url.category = category
                 existing_by_url.place_type = place_type
                 existing_by_url.region = region
+                existing_by_url.task_type = task_type
                 if promo_code:
                     existing_by_url.promo_code = promo_code
                 # Обновляем название, если указано или удалось извлечь из URL
@@ -290,8 +294,12 @@ def add_place_from_url(
 
         if existing_by_coords:
             if update_existing:
+                # Определяем task_type на основе региона (Bali = island, остальное = urban)
+                task_type = "island" if region == "bali" else "urban"
+
                 # Обновляем ссылку и другие поля
                 existing_by_coords.google_maps_url = google_maps_url
+                existing_by_coords.task_type = task_type
                 if promo_code:
                     existing_by_coords.promo_code = promo_code
                 if custom_name:
@@ -312,11 +320,15 @@ def add_place_from_url(
                 print(f"WARN: Место уже существует: {existing_by_coords.name} (ID: {existing_by_coords.id})")
                 return False, "skipped"
 
+        # Определяем task_type на основе региона (Bali = island, остальное = urban)
+        task_type = "island" if region == "bali" else "urban"
+
         # Создаем новое место
         place = TaskPlace(
             category=category,
             place_type=place_type,
             region=region,
+            task_type=task_type,
             name=name,
             description=None,
             lat=lat,
