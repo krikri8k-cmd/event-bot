@@ -1,0 +1,184 @@
+# Файл для добавления health мест
+# Формат: health:place_type:region:promo_code
+# Затем ссылки на Google Maps (по одной на строку)
+# Промокод можно указать после ссылки через | (приоритетнее)
+#
+# Подкатегории для health:
+# - gym (тренажерный зал)
+# - spa (спа)
+# - lab (лаборатория)
+# - clinic (клиника)
+# - nature (природа)
+# - park (парк)
+# - beach (пляж)
+# - yoga_studio (йога студия)
+# - outdoor_space (открытое пространство)
+
+# ============================================
+# БАЛИ
+# ============================================
+
+# Тренажерные залы
+health:gym:bali:
+
+Спортзалы Убуд
+
+Raw Gym & Café Ubud
+https://maps.app.goo.gl/p7zT3uKenYpVvywo9
+
+Ubud.Fitness
+https://maps.app.goo.gl/d6mN2tX2J5vGzaRk9
+
+The Collective Club Pilates Studio Bali
+https://maps.app.goo.gl/BrPSyN7Gg3tA45pi6
+
+NOVA wellness club
+https://maps.app.goo.gl/EMLTtL359DduXi3R7
+
+Bali Swasthya Yoga Centre
+https://maps.app.goo.gl/gvpHWPrxRCwpZxLi9
+
+Ubud Fitness Center
+https://maps.app.goo.gl/VJgjqoXWHAE7ChQc7
+
+FitCircle Ubud
+https://maps.app.goo.gl/HHaZoEAZXcePdMkP7
+
+Rendezvous Fitness Bali
+https://maps.app.goo.gl/WJMkxvomM1AomcmA8
+
+Спортзалы Чангу 
+
+De Gym Kerobokan
+https://maps.app.goo.gl/KiQHSLe2uqCwAjhj8
+
+WEFITNESS BALI
+https://maps.app.goo.gl/7NZ7ZYQ3KFiX3m9o6
+
+Infinitus Gym Bali
+https://maps.app.goo.gl/4LqW84FffecCGmom8
+
+Alpha Gym - Bali (The Muscle Factory)
+https://maps.app.goo.gl/ETUpapiVMkESwAXYA
+
+LEVEL UP GYM
+https://maps.app.goo.gl/ypJgofdQTtHSf3jf6
+
+CrossFit Canggu | Canggu Fitness Studio & Open Gym in Bali
+https://maps.app.goo.gl/Y2pT7iDxr5jqjmty5
+
+POWER + REVIVE STUDIO
+https://maps.app.goo.gl/FaSwA3sE8GbFjwy97
+
+Canggu GYM (CANGGU 9YM)
+https://maps.app.goo.gl/vHpjcbhRV8YhMvw4A
+
+TOPGYM Batu Bolong
+https://maps.app.goo.gl/ufPJYmGHeJzEwbF38
+
+Avenue Fitness
+https://maps.app.goo.gl/eKnDDKoDxgiNXUXE8
+
+Wellness Gym Canggu
+https://maps.app.goo.gl/UaDGxjjPh66uPsTB6
+
+OBSIDIAN HYROX
+https://maps.app.goo.gl/mVDvDiX33CPowh6XA
+
+Surya Gym Bali
+https://maps.app.goo.gl/H5SJ9XuNLRg7eFqW8
+
+Elite Fit Bali
+https://maps.app.goo.gl/G3JpMn33dNbBrvT96
+
+Victory Fitness Club
+https://maps.app.goo.gl/dzKKk24gEAhTNywZ9
+
+Wrong Gym
+https://maps.app.goo.gl/kTbyxieTd38JyvLn6
+
+BYND Fitness Club Bali - Gym
+https://maps.app.goo.gl/H43VWphFew1PcTAT8
+
+# Спа и wellness
+health:spa:bali:
+
+# Йога студии
+health:yoga_studio:bali:
+
+# Клиники и лаборатории
+health:clinic:bali:
+health:lab:bali:
+
+# Природа и парки
+health:nature:bali:
+health:park:bali:
+health:beach:bali:
+health:outdoor_space:bali:
+
+# ============================================
+# МОСКВА
+# ============================================
+
+# Тренажерные залы
+health:gym:moscow:
+
+# Спа и wellness
+health:spa:moscow:
+
+# Йога студии
+health:yoga_studio:moscow:
+
+# Клиники и лаборатории
+health:clinic:moscow:
+health:lab:moscow:
+
+# Природа и парки
+health:nature:moscow:
+health:park:moscow:
+health:outdoor_space:moscow:
+
+# ============================================
+# САНКТ-ПЕТЕРБУРГ
+# ============================================
+
+# Тренажерные залы
+health:gym:spb:
+
+# Спа и wellness
+health:spa:spb:
+
+# Йога студии
+health:yoga_studio:spb:
+
+# Клиники и лаборатории
+health:clinic:spb:
+health:lab:spb:
+
+# Природа и парки
+health:nature:spb:
+health:park:spb:
+health:outdoor_space:spb:
+
+# ============================================
+# ДЖАКАРТА
+# ============================================
+
+# Тренажерные залы
+health:gym:jakarta:
+
+# Спа и wellness
+health:spa:jakarta:
+
+# Йога студии
+health:yoga_studio:jakarta:
+
+# Клиники и лаборатории
+health:clinic:jakarta:
+health:lab:jakarta:
+
+# Природа и парки
+health:nature:jakarta:
+health:park:jakarta:
+health:outdoor_space:jakarta:
+
