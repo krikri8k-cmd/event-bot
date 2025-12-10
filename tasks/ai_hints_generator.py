@@ -56,6 +56,8 @@ def generate_task_hint(place_name: str, category: str, place_type: str, descript
         "yoga_studio": "йога-студия",
         "viewpoint": "смотровая площадка",
         "cliff": "утес",
+        "beach_club": "пляжный клуб",
+        "culture": "культура",
     }
 
     category_hint = category_names.get(category, category)

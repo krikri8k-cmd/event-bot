@@ -399,7 +399,7 @@ def get_tasks_with_places(
     category_place_types = {
         "food": ["cafe", "restaurant", "street_food", "market", "bakery", "coworking"],
         "health": ["gym", "spa", "lab", "clinic", "nature"],
-        "places": ["park", "exhibition", "temple", "trail"],
+        "places": ["park", "exhibition", "temple", "trail", "viewpoint", "beach", "cliff", "beach_club", "culture"],
     }
 
     place_types = category_place_types.get(category, ["park"])

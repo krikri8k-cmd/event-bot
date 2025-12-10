@@ -1,0 +1,141 @@
+# Файл для добавления интересных мест (places)
+# Формат: places:place_type:region:promo_code
+# Затем ссылки на Google Maps (по одной на строку)
+# Промокод можно указать после ссылки через | (приоритетнее)
+#
+# Подкатегории для places:
+# - park (парк)
+# - exhibition (выставка)
+# - temple (храм)
+# - trail (тропа/маршрут)
+# - viewpoint (смотровая площадка)
+# - beach (пляж)
+# - cliff (скала/утес)
+# - beach_club (пляжный клуб)
+# - culture (культура - лавки, музеи)
+
+# ============================================
+# БАЛИ
+# ============================================
+
+Чангу
+
+# Парки
+places:park:bali:
+
+Догвилл - Каба-Каба
+https://maps.app.goo.gl/PZEtbK5bDNhorqZBA
+
+Nuanu Ganesha
+https://maps.app.goo.gl/39HKCtVxrkRYC8nr7
+
+Мэджик Гарден
+https://maps.app.goo.gl/wumBjyGxDKHRn37x7
+
+# Выставки
+places:exhibition:bali:
+
+# Храмы
+places:temple:bali:
+
+Пура Танах Лот
+https://maps.app.goo.gl/oSMQd6ZfLzuBTPux6
+
+Храм Таман Аюн
+https://maps.app.goo.gl/2YZ239QKvdcDcpv58
+
+# Тропы/маршруты
+places:trail:bali:
+
+# Смотровые площадки
+places:viewpoint:bali:
+
+# Пляжи
+places:beach:bali:
+
+# Скалы/утесы
+places:cliff:bali:
+
+# Пляжные клубы
+places:beach_club:bali:
+
+FINNS Beach Club
+https://maps.app.goo.gl/Pgs6DsgQGEazoSd38
+
+Atlas Beach Club
+https://maps.app.goo.gl/wwMctA5VBoiqLhVz8
+
+La Brisa Bali | Beach Club
+https://maps.app.goo.gl/bKc3oPtazepLKqpcA
+
+The Lawn Canggu Beach Club
+https://maps.app.goo.gl/XWwg85eQK9HoNwqS7
+
+Beach House at Regent Bali Canggu
+https://maps.app.goo.gl/FfNND2eS24QQkM9M7
+
+Sol Rooftop Bali
+https://maps.app.goo.gl/PJzDcYu9L1uMM5xMA
+
+Lyma Beach
+https://maps.app.goo.gl/Jmi89CLnasDbm5d58
+
+# Культура (лавки, музеи)
+places:culture:bali:
+
+Nyaman Art Gallery
+https://maps.app.goo.gl/hphMXVPAUNWrh9jE8
+
+Ikat Gallery
+https://maps.app.goo.gl/Crh9xmwnENuee5yA6
+
+ADA Studio Paint Art
+https://maps.app.goo.gl/sqVL4UBhxAiP1Eqn7
+
+Purpa Fine Art Gallery Seminyak
+https://maps.app.goo.gl/PSgL7j7TmTGA7APa9
+
+# ============================================
+# МОСКВА
+# ============================================
+
+# Парки
+places:park:moscow:
+
+# Выставки
+places:exhibition:moscow:
+
+# Храмы
+places:temple:moscow:
+
+# Тропы/маршруты
+places:trail:moscow:
+
+# Смотровые площадки
+places:viewpoint:moscow:
+
+# Культура (лавки, музеи)
+places:culture:moscow:
+
+# ============================================
+# САНКТ-ПЕТЕРБУРГ
+# ============================================
+
+# Парки
+places:park:spb:
+
+# Выставки
+places:exhibition:spb:
+
+# Храмы
+places:temple:spb:
+
+# Тропы/маршруты
+places:trail:spb:
+
+# Смотровые площадки
+places:viewpoint:spb:
+
+# Культура (лавки, музеи)
+places:culture:spb:
+

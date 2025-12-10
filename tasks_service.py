@@ -457,7 +457,17 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                             category_place_types = {
                                 "food": ["cafe", "restaurant", "street_food", "market", "bakery"],
                                 "health": ["gym", "spa", "lab", "clinic", "nature"],
-                                "places": ["park", "exhibition", "temple", "trail"],
+                                "places": [
+                                    "park",
+                                    "exhibition",
+                                    "temple",
+                                    "trail",
+                                    "viewpoint",
+                                    "beach",
+                                    "cliff",
+                                    "beach_club",
+                                    "culture",
+                                ],
                             }
                             place_types = category_place_types.get(task.category, ["park"])
                             place_type = place_types[0]  # Берем первый тип места
@@ -477,7 +487,17 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                         category_place_types = {
                             "food": ["cafe", "restaurant", "street_food", "market", "bakery"],
                             "health": ["gym", "spa", "lab", "clinic", "nature"],
-                            "places": ["park", "exhibition", "temple", "trail"],
+                            "places": [
+                                "park",
+                                "exhibition",
+                                "temple",
+                                "trail",
+                                "viewpoint",
+                                "beach",
+                                "cliff",
+                                "beach_club",
+                                "culture",
+                            ],
                         }
                         place_types = category_place_types.get(task.category, ["park"])
 

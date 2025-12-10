@@ -6792,7 +6792,17 @@ async def handle_task_detail(callback: types.CallbackQuery, state: FSMContext):
                     category_place_types = {
                         "food": ["cafe", "restaurant", "street_food", "market", "bakery"],
                         "health": ["gym", "spa", "lab", "clinic", "nature"],
-                        "places": ["park", "exhibition", "temple", "trail"],
+                        "places": [
+                            "park",
+                            "exhibition",
+                            "temple",
+                            "trail",
+                            "viewpoint",
+                            "beach",
+                            "cliff",
+                            "beach_club",
+                            "culture",
+                        ],
                     }
                     place_types = category_place_types.get(task.category, ["park"])
 
@@ -6822,7 +6832,17 @@ async def handle_task_detail(callback: types.CallbackQuery, state: FSMContext):
                     category_place_types = {
                         "food": ["cafe", "restaurant", "street_food", "market", "bakery"],
                         "health": ["gym", "spa", "lab", "clinic", "nature"],
-                        "places": ["park", "exhibition", "temple", "trail"],
+                        "places": [
+                            "park",
+                            "exhibition",
+                            "temple",
+                            "trail",
+                            "viewpoint",
+                            "beach",
+                            "cliff",
+                            "beach_club",
+                            "culture",
+                        ],
                     }
                     place_types = category_place_types.get(task.category, ["park"])
                     place_type = place_types[0]
