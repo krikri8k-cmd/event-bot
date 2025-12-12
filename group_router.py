@@ -1625,7 +1625,84 @@ async def community_show_members(callback: CallbackQuery, bot: Bot, session: Asy
 
 @group_router.callback_query(F.data.startswith("community_join_"))
 async def community_join_event(callback: CallbackQuery, bot: Bot, session: AsyncSession):
-    """Записаться на событие"""
+    """Показ подтверждения записи на событие"""
+    chat_id = callback.message.chat.id
+    user_id = callback.from_user.id
+
+    # Извлекаем ID события
+    try:
+        event_id = int(callback.data.split("_")[-1])
+    except ValueError:
+        await callback.answer("❌ Неверный ID события", show_alert=True)
+        return
+
+    logger.info(
+        f"🔥 community_join_event: пользователь {user_id} запрашивает подтверждение записи на событие {event_id}"
+    )
+
+    await callback.answer()
+
+    try:
+        # Проверяем, что событие существует
+        from sqlalchemy import select
+
+        stmt = select(CommunityEvent).where(CommunityEvent.id == event_id, CommunityEvent.chat_id == chat_id)
+        result = await session.execute(stmt)
+        event = result.scalar_one_or_none()
+
+        if not event:
+            await callback.message.answer("❌ Событие не найдено")
+            return
+
+        # Проверяем, не записан ли уже пользователь
+        from utils.community_participants_service import is_participant_async
+
+        is_participant = await is_participant_async(session, event_id, user_id)
+        if is_participant:
+            await callback.message.answer("ℹ️ Вы уже записаны на это событие")
+            return
+
+        # Формируем текст подтверждения
+        safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
+        date_str = event.starts_at.strftime("%d.%m.%Y %H:%M") if event.starts_at else "Дата не указана"
+
+        confirmation_text = (
+            f"✅ **Записаться на событие?**\n\n"
+            f"**{safe_title}**\n"
+            f"📅 {date_str}\n\n"
+            f"Вы будете добавлены в список участников этого события."
+        )
+
+        # Создаем клавиатуру с подтверждением
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="✅ Да, записаться", callback_data=f"community_join_confirm_{event_id}")],
+                [InlineKeyboardButton(text="❌ Отмена", callback_data="group_list")],
+            ]
+        )
+
+        # Отправляем сообщение с подтверждением
+        is_forum = getattr(callback.message.chat, "is_forum", False)
+        thread_id = getattr(callback.message, "message_thread_id", None)
+
+        send_kwargs = {
+            "text": confirmation_text,
+            "parse_mode": "Markdown",
+            "reply_markup": keyboard,
+        }
+        if is_forum and thread_id:
+            send_kwargs["message_thread_id"] = thread_id
+
+        await callback.message.answer(**send_kwargs)
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка показа подтверждения: {e}")
+        await callback.message.answer("❌ Ошибка при загрузке события")
+
+
+@group_router.callback_query(F.data.startswith("community_join_confirm_"))
+async def community_join_confirm(callback: CallbackQuery, bot: Bot, session: AsyncSession):
+    """Подтверждение и выполнение записи на событие"""
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id
     username = callback.from_user.username
@@ -1637,7 +1714,7 @@ async def community_join_event(callback: CallbackQuery, bot: Bot, session: Async
         await callback.answer("❌ Неверный ID события", show_alert=True)
         return
 
-    logger.info(f"🔥 community_join_event: пользователь {user_id} записывается на событие {event_id}")
+    logger.info(f"🔥 community_join_confirm: пользователь {user_id} подтверждает запись на событие {event_id}")
 
     try:
         # Проверяем, что событие существует
@@ -1658,31 +1735,39 @@ async def community_join_event(callback: CallbackQuery, bot: Bot, session: Async
 
         if added:
             await callback.answer("✅ Вы записались на событие!")
-        else:
-            await callback.answer("ℹ️ Вы уже записаны на это событие")
-
-        # Обновляем список событий (чтобы обновился счетчик участников)
-        try:
-            # Пытаемся обновить список событий
-            # Определяем страницу по содержимому сообщения или используем первую
-            page = 1
-            # Пытаемся найти номер страницы в тексте сообщения
-            message_text = callback.message.text or ""
-            if "стр." in message_text:
-                import re
-
-                match = re.search(r"стр\.\s*(\d+)", message_text)
-                if match:
-                    page = int(match.group(1))
-
-            await group_list_events_page(callback, bot, session, page=page)
-        except Exception as e:
-            logger.warning(f"⚠️ Не удалось обновить список событий: {e}")
-            # Если не получилось, просто показываем сообщение с участниками (если это оно)
+            # Удаляем сообщение с подтверждением
             try:
-                await community_show_members(callback, bot, session)
+                await callback.message.delete()
             except Exception:
                 pass
+        else:
+            await callback.answer("ℹ️ Вы уже записаны на это событие", show_alert=True)
+            return
+
+        # Показываем успешное сообщение с кнопкой возврата к списку
+        safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
+        success_text = (
+            f"✅ **Вы записались на событие!**\n\n"
+            f"**{safe_title}**\n\n"
+            f"Теперь вы в списке участников. Нажмите 'Вернуться к списку' чтобы увидеть обновленный счетчик."
+        )
+
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="🔙 Вернуться к списку", callback_data="group_list")]]
+        )
+
+        is_forum = getattr(callback.message.chat, "is_forum", False)
+        thread_id = getattr(callback.message, "message_thread_id", None)
+
+        send_kwargs = {
+            "text": success_text,
+            "parse_mode": "Markdown",
+            "reply_markup": keyboard,
+        }
+        if is_forum and thread_id:
+            send_kwargs["message_thread_id"] = thread_id
+
+        await callback.message.answer(**send_kwargs)
 
     except Exception as e:
         logger.error(f"❌ Ошибка записи на событие: {e}")
