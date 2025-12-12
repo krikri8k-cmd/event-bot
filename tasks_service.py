@@ -172,7 +172,8 @@ def accept_task(user_id: int, task_id: int, user_lat: float = None, user_lng: fl
                 accepted_at = datetime.now(UTC)
                 logger.info(f"Пользователь {user_id} без координат, используется UTC время")
 
-            expires_at = accepted_at + timedelta(hours=24)
+            # Устанавливаем очень большое время истечения (10 лет) - ограничение по времени отключено
+            expires_at = accepted_at + timedelta(days=3650)
 
             user_task = UserTask(
                 user_id=user_id, task_id=task_id, status="active", accepted_at=accepted_at, expires_at=expires_at
@@ -296,7 +297,8 @@ def create_task_from_place(user_id: int, place_id: int, user_lat: float = None, 
             else:
                 accepted_at = datetime.now(UTC)
 
-            expires_at = accepted_at + timedelta(hours=24)
+            # Устанавливаем очень большое время истечения (10 лет) - ограничение по времени отключено
+            expires_at = accepted_at + timedelta(days=3650)
 
             # Создаем UserTask
             user_task = UserTask(
@@ -374,17 +376,7 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
 
         result = []
         for user_task, task in user_tasks:
-            # Дополнительная проверка на просроченность (на всякий случай)
-            expires_at_check = user_task.expires_at
-            if expires_at_check.tzinfo is None:
-                expires_at_check = expires_at_check.replace(tzinfo=UTC)
-            else:
-                expires_at_check = expires_at_check.astimezone(UTC)
-
-            # Если задание просрочено, пропускаем его
-            if datetime.now(UTC) > expires_at_check:
-                logger.info(f"Пропускаем просроченное задание {user_task.id} для пользователя {user_id}")
-                continue
+            # Проверка на просрочку отключена - показываем все активные задания
 
             # Конвертируем время в местный часовой пояс
             accepted_at = user_task.accepted_at
@@ -607,15 +599,7 @@ def complete_task(user_task_id: int, feedback: str) -> bool:
                 logger.error(f"Активное задание {user_task_id} не найдено")
                 return False
 
-            # Проверяем, что задание не просрочено
-            expires_at = user_task.expires_at
-            if expires_at.tzinfo is None:
-                # Если нет информации о часовом поясе, считаем что это UTC
-                expires_at = expires_at.replace(tzinfo=UTC)
-
-            if datetime.now(UTC) > expires_at:
-                logger.warning(f"Задание {user_task_id} просрочено")
-                return False
+            # Проверка на просрочку отключена - задания можно завершать в любое время
 
             # Обновляем статус и фидбек
             user_task.status = "completed"
@@ -698,35 +682,15 @@ def mark_tasks_as_expired() -> int:
     """
     Помечает просроченные задания как истекшие
 
+    ОТКЛЮЧЕНО: Ограничение по времени на выполнение заданий отключено.
+    Задания больше не помечаются как истекшие.
+
     Returns:
-        Количество помеченных заданий
+        Количество помеченных заданий (всегда 0)
     """
-    try:
-        with get_session() as session:
-            now = datetime.now(UTC)
-            active_tasks = session.query(UserTask).filter(UserTask.status == "active").all()
-
-            expired_count = 0
-            for task in active_tasks:
-                # Если нет timezone, считаем что это UTC
-                expires_at = task.expires_at
-                if expires_at.tzinfo is None:
-                    expires_at = expires_at.replace(tzinfo=UTC)
-                else:
-                    expires_at = expires_at.astimezone(UTC)
-
-                if now > expires_at:
-                    task.status = "expired"
-                    expired_count += 1
-
-            session.commit()
-
-            logger.info(f"Помечено как истекшие: {expired_count} заданий")
-            return expired_count
-
-    except Exception as e:
-        logger.error(f"Ошибка пометки заданий как истекших: {e}")
-        return 0
+    # Функция отключена - ограничение по времени снято
+    logger.debug("mark_tasks_as_expired вызвана, но отключена (ограничение по времени снято)")
+    return 0
 
 
 def get_tasks_approaching_deadline(hours_before: int = 2) -> list[dict]:

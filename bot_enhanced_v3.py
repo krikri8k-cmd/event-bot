@@ -5578,15 +5578,14 @@ async def on_my_tasks(message: types.Message):
     """Обработчик кнопки 'Мои квесты'"""
     user_id = message.from_user.id
 
-    # Автомодерация: помечаем истекшие задания
-    from tasks_service import mark_tasks_as_expired
-
-    try:
-        expired_count = mark_tasks_as_expired()
-        if expired_count > 0:
-            await message.answer(f"🤖 Автоматически истекло {expired_count} просроченных заданий")
-    except Exception as e:
-        logger.error(f"Ошибка автомодерации заданий для пользователя {user_id}: {e}")
+    # Автомодерация: помечаем истекшие задания (отключено - ограничение по времени снято)
+    # from tasks_service import mark_tasks_as_expired
+    # try:
+    #     expired_count = mark_tasks_as_expired()
+    #     if expired_count > 0:
+    #         await message.answer(f"🤖 Автоматически истекло {expired_count} просроченных заданий")
+    # except Exception as e:
+    #     logger.error(f"Ошибка автомодерации заданий для пользователя {user_id}: {e}")
 
     # Получаем активные задания пользователя
     active_tasks = get_user_active_tasks(user_id)
@@ -5614,22 +5613,12 @@ async def on_my_tasks(message: types.Message):
         message_text += f"**Баланс {rocket_balance} 🚀**\n\n"
 
         for i, task in enumerate(active_tasks, 1):
-            # Вычисляем оставшееся время
-            expires_at = task["expires_at"]
-            if expires_at.tzinfo is None:
-                expires_at = expires_at.replace(tzinfo=UTC)
-            time_left = expires_at - datetime.now(UTC)
-            int(time_left.total_seconds() / 3600)
+            # Время выполнения больше не показываем - ограничение по времени снято
 
             category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
             category_emoji = category_emojis.get(task["category"], "📋")
-            # Форматируем время выполнения в компактном виде
-            start_time = task["accepted_at"]
-            end_time = expires_at
-            time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')}"
 
             message_text += f"{i}) {category_emoji} **{task['title']}**\n"
-            message_text += f"⏰ **Время на выполнение:** {time_period}\n"
 
             # Показываем локацию, если есть
             if task.get("place_name") or task.get("place_url"):
@@ -5758,15 +5747,14 @@ async def cmd_mytasks(message: types.Message):
 
         UserAnalytics.maybe_increment_sessions_world(user_id, min_interval_minutes=6)
 
-    # Автомодерация: помечаем истекшие задания
-    from tasks_service import mark_tasks_as_expired
-
-    try:
-        expired_count = mark_tasks_as_expired()
-        if expired_count > 0:
-            await message.answer(f"🤖 Автоматически истекло {expired_count} просроченных заданий")
-    except Exception as e:
-        logger.error(f"Ошибка автомодерации заданий для пользователя {user_id}: {e}")
+    # Автомодерация: помечаем истекшие задания (отключено - ограничение по времени снято)
+    # from tasks_service import mark_tasks_as_expired
+    # try:
+    #     expired_count = mark_tasks_as_expired()
+    #     if expired_count > 0:
+    #         await message.answer(f"🤖 Автоматически истекло {expired_count} просроченных заданий")
+    # except Exception as e:
+    #     logger.error(f"Ошибка автомодерации заданий для пользователя {user_id}: {e}")
 
     # Получаем активные задания пользователя
     active_tasks = get_user_active_tasks(user_id)
@@ -5794,22 +5782,12 @@ async def cmd_mytasks(message: types.Message):
         message_text += f"**Баланс {rocket_balance} 🚀**\n\n"
 
         for i, task in enumerate(active_tasks, 1):
-            # Вычисляем оставшееся время
-            expires_at = task["expires_at"]
-            if expires_at.tzinfo is None:
-                expires_at = expires_at.replace(tzinfo=UTC)
-            time_left = expires_at - datetime.now(UTC)
-            int(time_left.total_seconds() / 3600)
+            # Время выполнения больше не показываем - ограничение по времени снято
 
             category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
             category_emoji = category_emojis.get(task["category"], "📋")
-            # Форматируем время выполнения в компактном виде
-            start_time = task["accepted_at"]
-            end_time = expires_at
-            time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')}"
 
             message_text += f"{i}) {category_emoji} **{task['title']}**\n"
-            message_text += f"⏰ **Время на выполнение:** {time_period}\n"
 
             # Показываем локацию, если есть
             if task.get("place_name") or task.get("place_url"):
@@ -5954,13 +5932,7 @@ async def show_task_detail(callback_or_message, tasks: list, task_index: int, us
     message_text = f"📋 **{task['title']}**\n\n"
     message_text += f"{category_emoji} **Категория:** {category_name}\n"
     message_text += f"📝 **Описание:** {task['description']}\n"
-    # Форматируем время выполнения в компактном виде
-    start_time = task["accepted_at"]
-    end_time = expires_at
-
-    message_text += (
-        f"⏰ **Время на выполнение:** {start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')}\n"
-    )
+    # Время выполнения больше не показываем - ограничение по времени снято
 
     # Показываем локацию, если есть
     if task.get("place_name") or task.get("place_url"):
@@ -7188,34 +7160,14 @@ async def handle_task_manage(callback: types.CallbackQuery):
         await callback.answer()
         return
 
-    # Проверяем, не истекло ли задание
-    now = datetime.now(UTC)
-    if now > task_info["expires_at"]:
-        await callback.message.edit_text(
-            "⏰ **Задание истекло**\n\n"
-            "Время выполнения задания закончилось.\n"
-            "Примите новое задание в '🎯 Цели на районе'!",
-            parse_mode="Markdown",
-        )
-        await callback.answer()
-        return
-
-    # Вычисляем оставшееся время
-    time_left = task_info["expires_at"] - now
-    hours_left = int(time_left.total_seconds() / 3600)
-    minutes_left = int((time_left.total_seconds() % 3600) / 60)
-
-    if hours_left > 0:
-        time_text = f"⏰ До: {hours_left}ч {minutes_left}м"
-    else:
-        time_text = f"⏰ До: {minutes_left}м"
+    # Проверка на истечение отключена - задания доступны всегда
+    # Время истечения больше не показываем, так как ограничение снято
 
     category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
     category_emoji = category_emojis.get(task_info["category"], "📋")
 
     message = f"{category_emoji} **{task_info['title']}**\n\n"
     message += f"{task_info['description']}\n\n"
-    message += f"{time_text}\n\n"
 
     # Показываем локацию, если есть
     if task_info.get("place_name") or task_info.get("place_url"):
@@ -9588,19 +9540,18 @@ async def main():
 
     # Запускаем фоновую задачу для очистки моментов
     from config import load_settings
-    from tasks_service import mark_tasks_as_expired
 
     load_settings()
 
-    # Очищаем просроченные задания при старте
-    try:
-        expired_count = mark_tasks_as_expired()
-        if expired_count > 0:
-            logger.info(f"При старте помечено как истекшие: {expired_count} заданий")
-        else:
-            logger.info("При старте просроченных заданий не найдено")
-    except Exception as e:
-        logger.error(f"Ошибка очистки просроченных заданий при старте: {e}")
+    # Очищаем просроченные задания при старте (отключено - ограничение по времени снято)
+    # try:
+    #     expired_count = mark_tasks_as_expired()
+    #     if expired_count > 0:
+    #         logger.info(f"При старте помечено как истекшие: {expired_count} заданий")
+    #     else:
+    #         logger.info("При старте просроченных заданий не найдено")
+    # except Exception as e:
+    #     logger.error(f"Ошибка очистки просроченных заданий при старте: {e}")
 
     # Читаем переменные окружения
     RUN_MODE = os.getenv("BOT_RUN_MODE", "webhook")
