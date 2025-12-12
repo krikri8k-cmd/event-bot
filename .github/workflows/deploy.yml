@@ -114,6 +114,31 @@ jobs:
         echo "   🌙 Evening parsing (~20:00)"
         echo ""
         echo "✅ Code is ready for production deployment!"
+    
+    - name: 🚂 Deploy to Railway
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      env:
+        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      run: |
+        echo "🚂 Deploying to Railway..."
+        
+        # Проверяем наличие Railway token
+        if [ -z "$RAILWAY_TOKEN" ]; then
+          echo "⚠️ RAILWAY_TOKEN not set - skipping Railway deployment"
+          echo "💡 Railway will auto-deploy via GitHub integration if configured"
+          exit 0
+        fi
+        
+        # Устанавливаем Railway CLI
+        curl -fsSL https://railway.app/install.sh | sh
+        
+        # Логинимся через token
+        echo "$RAILWAY_TOKEN" | railway login --token
+        
+        # Деплоим
+        railway up --detach
+        
+        echo "✅ Railway deployment triggered!"
         
     - name: 🏷️ Create release tag
       if: github.ref == 'refs/heads/main'
