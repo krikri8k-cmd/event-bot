@@ -335,6 +335,89 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
         await message.answer("❌ Ошибка при загрузке события")
 
 
+@group_router.message(F.text.regexp(r"^/joinevent(\d+)(@\w+)?$"))
+async def handle_join_event_command_short(message: Message, bot: Bot, session: AsyncSession):
+    """Обработчик команды /joinevent123 для записи на событие (без подчеркивания)"""
+    chat_id = message.chat.id
+    user_id = message.from_user.id
+
+    # Извлекаем ID события из текста команды
+    import re
+
+    match = re.match(r"^/joinevent(\d+)(@\w+)?$", message.text)
+    if not match:
+        await message.answer("❌ Используйте команду: /joinevent123 (где 123 - ID события)")
+        return
+
+    try:
+        event_id = int(match.group(1))
+    except (ValueError, AttributeError):
+        await message.answer("❌ Неверный ID события. Используйте: /joinevent123")
+        return
+
+    logger.info(f"🔥 handle_join_event_command_short: пользователь {user_id} запрашивает запись на событие {event_id}")
+
+    try:
+        # Проверяем, что событие существует
+        from sqlalchemy import select
+
+        stmt = select(CommunityEvent).where(CommunityEvent.id == event_id, CommunityEvent.chat_id == chat_id)
+        result = await session.execute(stmt)
+        event = result.scalar_one_or_none()
+
+        if not event:
+            await message.answer("❌ Событие не найдено")
+            return
+
+        # Проверяем, не записан ли уже пользователь
+        from utils.community_participants_service import is_participant_async
+
+        is_participant = await is_participant_async(session, event_id, user_id)
+        if is_participant:
+            await message.answer("ℹ️ Вы уже записаны на это событие")
+            return
+
+        # Формируем текст подтверждения
+        safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
+        date_str = event.starts_at.strftime("%d.%m.%Y %H:%M") if event.starts_at else "Дата не указана"
+
+        confirmation_text = (
+            f"✅ **Записаться на событие?**\n\n"
+            f"**{safe_title}**\n"
+            f"📅 {date_str}\n\n"
+            f"Вы будете добавлены в список участников этого события."
+        )
+
+        # Создаем клавиатуру с подтверждением
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="✅ Да, записаться", callback_data=f"community_join_confirm_{event_id}")],
+                [InlineKeyboardButton(text="❌ Отмена", callback_data="group_list")],
+            ]
+        )
+
+        # Отправляем сообщение с подтверждением
+        is_forum = getattr(message.chat, "is_forum", False)
+        thread_id = getattr(message, "message_thread_id", None)
+
+        send_kwargs = {
+            "text": confirmation_text,
+            "parse_mode": "Markdown",
+            "reply_markup": keyboard,
+        }
+        if is_forum and thread_id:
+            send_kwargs["message_thread_id"] = thread_id
+
+        await message.answer(**send_kwargs)
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка показа подтверждения: {e}")
+        import traceback
+
+        logger.error(traceback.format_exc())
+        await message.answer("❌ Ошибка при загрузке события")
+
+
 @group_router.message(Command("leave_event"))
 async def handle_leave_event_command(message: Message, bot: Bot, session: AsyncSession, command: CommandObject):
     """Обработчик команды /leave_event_123 для отмены записи на событие"""
@@ -367,19 +450,22 @@ async def handle_leave_event_command(message: Message, bot: Bot, session: AsyncS
     await community_leave_event(fake_callback, bot, session)
 
 
-@group_router.message(Command("leaveevent"))
-async def handle_leave_event_command_short(message: Message, bot: Bot, session: AsyncSession, command: CommandObject):
+@group_router.message(F.text.regexp(r"^/leaveevent(\d+)(@\w+)?$"))
+async def handle_leave_event_command_short(message: Message, bot: Bot, session: AsyncSession):
     """Обработчик команды /leaveevent123 для отмены записи на событие (без подчеркивания)"""
     user_id = message.from_user.id
 
-    # Извлекаем ID события из команды
-    if not command.args:
+    # Извлекаем ID события из текста команды
+    import re
+
+    match = re.match(r"^/leaveevent(\d+)(@\w+)?$", message.text)
+    if not match:
         await message.answer("❌ Используйте команду: /leaveevent123 (где 123 - ID события)")
         return
 
     try:
-        event_id = int(command.args)
-    except ValueError:
+        event_id = int(match.group(1))
+    except (ValueError, AttributeError):
         await message.answer("❌ Неверный ID события. Используйте: /leaveevent123")
         return
 
