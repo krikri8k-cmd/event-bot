@@ -287,9 +287,9 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
             return
 
         # Проверяем, не записан ли уже пользователь
-        from utils.community_participants_service import is_participant_async
+        from utils.community_participants_service_optimized import is_participant_optimized
 
-        is_participant = await is_participant_async(session, event_id, user_id)
+        is_participant = await is_participant_optimized(session, event_id, user_id)
         if is_participant:
             await message.answer("ℹ️ Вы уже записаны на это событие")
             return
@@ -387,9 +387,9 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
             return
 
         # Проверяем, не записан ли уже пользователь
-        from utils.community_participants_service import is_participant_async
+        from utils.community_participants_service_optimized import is_participant_optimized
 
-        is_participant = await is_participant_async(session, event_id, user_id)
+        is_participant = await is_participant_optimized(session, event_id, user_id)
         if is_participant:
             await message.answer("ℹ️ Вы уже записаны на это событие")
             return
@@ -1315,10 +1315,13 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                     text += f"   👤 Организатор: @{event.organizer_username}\n"
 
                 # Получаем количество участников и добавляем в текст
-                from utils.community_participants_service import get_participants_count_async, is_participant_async
+                from utils.community_participants_service_optimized import (
+                    get_participants_count_optimized,
+                    is_participant_optimized,
+                )
 
-                participants_count = await get_participants_count_async(session, event.id)
-                is_user_participant = await is_participant_async(session, event.id, user_id)
+                participants_count = await get_participants_count_optimized(session, event.id)
+                is_user_participant = await is_participant_optimized(session, event.id, user_id)
 
                 text += f"   👥 Участников: {participants_count}\n"
 
@@ -1794,9 +1797,9 @@ async def community_show_members(callback: CallbackQuery, bot: Bot, session: Asy
             return
 
         # Получаем участников
-        from utils.community_participants_service import get_participants_async
+        from utils.community_participants_service_optimized import get_participants_optimized
 
-        participants = await get_participants_async(session, event_id)
+        participants = await get_participants_optimized(session, event_id)
         participants_count = len(participants)
 
         # Формируем текст сообщения
@@ -1818,9 +1821,9 @@ async def community_show_members(callback: CallbackQuery, bot: Bot, session: Asy
         keyboard_buttons = []
 
         # Проверяем, является ли пользователь участником
-        from utils.community_participants_service import is_participant_async
+        from utils.community_participants_service_optimized import is_participant_optimized
 
-        is_user_participant = await is_participant_async(session, event_id, user_id)
+        is_user_participant = await is_participant_optimized(session, event_id, user_id)
 
         if is_user_participant:
             keyboard_buttons.append(
@@ -1889,9 +1892,9 @@ async def community_join_event(callback: CallbackQuery, bot: Bot, session: Async
             return
 
         # Проверяем, не записан ли уже пользователь
-        from utils.community_participants_service import is_participant_async
+        from utils.community_participants_service_optimized import is_participant_optimized
 
-        is_participant = await is_participant_async(session, event_id, user_id)
+        is_participant = await is_participant_optimized(session, event_id, user_id)
         if is_participant:
             await callback.message.answer("ℹ️ Вы уже записаны на это событие")
             return
@@ -1963,9 +1966,9 @@ async def community_join_confirm(callback: CallbackQuery, bot: Bot, session: Asy
             return
 
         # Добавляем участника
-        from utils.community_participants_service import add_participant_async
+        from utils.community_participants_service_optimized import add_participant_optimized
 
-        added = await add_participant_async(session, event_id, user_id, username)
+        added = await add_participant_optimized(session, event_id, user_id, username)
 
         if added:
             await callback.answer("✅ Вы записались на событие!")
@@ -2036,9 +2039,9 @@ async def community_leave_event(callback: CallbackQuery, bot: Bot, session: Asyn
             return
 
         # Удаляем участника
-        from utils.community_participants_service import remove_participant_async
+        from utils.community_participants_service_optimized import remove_participant_optimized
 
-        removed = await remove_participant_async(session, event_id, user_id)
+        removed = await remove_participant_optimized(session, event_id, user_id)
 
         if removed:
             await callback.answer("✅ Вы отменили запись на событие")

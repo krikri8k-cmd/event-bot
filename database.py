@@ -4,6 +4,7 @@ import logging
 import os
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     Boolean,
     DateTime,
@@ -214,6 +215,8 @@ class CommunityEvent(Base):
     location_name: Mapped[str | None] = mapped_column(String(255))
     location_url: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(16), default="open", index=True)
+    participants_count: Mapped[int] = mapped_column(Integer, default=0)
+    participants_ids: Mapped[dict | None] = mapped_column(JSON, default=dict)  # JSONB массив участников
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
