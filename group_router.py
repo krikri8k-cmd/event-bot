@@ -2080,7 +2080,42 @@ async def community_leave_event(callback: CallbackQuery, bot: Bot, session: Asyn
         removed = await remove_participant_optimized(session, event_id, user_id)
 
         if removed:
-            await callback.answer("✅ Вы отменили запись на событие")
+            await callback.answer("✅ Запись отменена")
+
+            # Показываем сообщение с названием события
+            safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
+            leave_text = (
+                f"✅ **Вы больше не записаны на событие**\n\n"
+                f"**{safe_title}**\n\n"
+                f"Вы были удалены из списка участников."
+            )
+
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="🔙 Вернуться к списку", callback_data="group_list")]]
+            )
+
+            is_forum = getattr(callback.message.chat, "is_forum", False)
+            thread_id = getattr(callback.message, "message_thread_id", None)
+
+            send_kwargs = {
+                "text": leave_text,
+                "parse_mode": "Markdown",
+                "reply_markup": keyboard,
+            }
+            if is_forum and thread_id:
+                send_kwargs["message_thread_id"] = thread_id
+
+            # Отправляем через send_tracked для автоудаления
+            from utils.messaging_utils import send_tracked
+
+            await send_tracked(
+                bot,
+                session,
+                chat_id=chat_id,
+                text=leave_text,
+                tag="service",
+                **send_kwargs,
+            )
         else:
             await callback.answer("ℹ️ Вы не были записаны на это событие")
 
