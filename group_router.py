@@ -1359,14 +1359,18 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                     can_delete_this_event = True
 
                 if can_delete_this_event:
-                    # Безопасное обрезание названия события
-                    safe_title = event.title[:15] if len(event.title) > 15 else event.title
-                    # Убираем проблемные символы
-                    safe_title = safe_title.replace("\n", " ").replace("\r", " ").strip()
+                    # Номер события на текущей странице (с учетом offset)
+                    event_number = offset + i
+                    # Безопасное название события (полное, но без проблемных символов)
+                    safe_title = event.title.replace("\n", " ").replace("\r", " ").strip()
+                    # Ограничиваем длину для кнопки (максимум 30 символов)
+                    if len(safe_title) > 30:
+                        safe_title = safe_title[:27] + "..."
 
+                    # Формат: "❌ Удалить #4: Название"
                     delete_buttons.append(
                         InlineKeyboardButton(
-                            text=f"❌ Удалить: {safe_title}",
+                            text=f"❌ Удалить #{event_number}: {safe_title}",
                             callback_data=f"group_delete_event_{event.id}",
                         )
                     )
