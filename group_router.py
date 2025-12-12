@@ -431,9 +431,15 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
         )
 
         # Создаем клавиатуру с подтверждением
+        # Передаем message_id в callback_data для последующего удаления исходного сообщения
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="✅ Да, записаться", callback_data=f"community_join_confirm_{event_id}")],
+                [
+                    InlineKeyboardButton(
+                        text="✅ Да, записаться",
+                        callback_data=f"community_join_confirm_{event_id}_{message.message_id}",
+                    )
+                ],
                 [InlineKeyboardButton(text="❌ Отмена", callback_data="group_list")],
             ]
         )
@@ -459,6 +465,9 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
             tag="service",  # Автоудаление через 3.5 минуты
             **send_kwargs,
         )
+
+        # НЕ удаляем сообщение пользователя здесь - удалим его в community_join_confirm после подтверждения
+        # Если пользователь нажмет "Отмена", сообщение останется (это нормально)
 
     except Exception as e:
         logger.error(f"❌ Ошибка показа подтверждения: {e}")
