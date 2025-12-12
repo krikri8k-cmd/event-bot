@@ -306,9 +306,15 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
         )
 
         # Создаем клавиатуру с подтверждением
+        # Передаем message_id в callback_data для последующего удаления исходного сообщения
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="✅ Да, записаться", callback_data=f"community_join_confirm_{event_id}")],
+                [
+                    InlineKeyboardButton(
+                        text="✅ Да, записаться",
+                        callback_data=f"community_join_confirm_{event_id}_{message.message_id}",
+                    )
+                ],
                 [InlineKeyboardButton(text="❌ Отмена", callback_data="group_list")],
             ]
         )
@@ -335,12 +341,8 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
             **send_kwargs,
         )
 
-        # Удаляем сообщение пользователя с командой
-        try:
-            await bot.delete_message(chat_id=chat_id, message_id=message.message_id)
-            logger.info(f"✅ Удалено сообщение пользователя {user_id} с командой /join_event_{event_id}")
-        except Exception as delete_error:
-            logger.warning(f"⚠️ Не удалось удалить сообщение пользователя: {delete_error}")
+        # НЕ удаляем сообщение пользователя здесь - удалим его в community_join_confirm после подтверждения
+        # Если пользователь нажмет "Отмена", сообщение останется (это нормально)
 
     except Exception as e:
         logger.error(f"❌ Ошибка показа подтверждения: {e}")
@@ -2026,10 +2028,12 @@ async def community_join_confirm(callback: CallbackQuery, bot: Bot, session: Asy
     user_id = callback.from_user.id
     username = callback.from_user.username
 
-    # Извлекаем ID события
+    # Извлекаем ID события и message_id исходного сообщения пользователя
     try:
-        event_id = int(callback.data.split("_")[-1])
-    except ValueError:
+        parts = callback.data.split("_")
+        event_id = int(parts[-2]) if len(parts) >= 4 else int(parts[-1])
+        user_message_id = int(parts[-1]) if len(parts) >= 4 and parts[-1].isdigit() else 0
+    except (ValueError, IndexError):
         await callback.answer("❌ Неверный ID события", show_alert=True)
         return
 
@@ -2059,6 +2063,17 @@ async def community_join_confirm(callback: CallbackQuery, bot: Bot, session: Asy
                 await callback.message.delete()
             except Exception:
                 pass
+
+            # Удаляем исходное сообщение пользователя с командой (если оно было передано)
+            if user_message_id > 0:
+                try:
+                    await bot.delete_message(chat_id=chat_id, message_id=user_message_id)
+                    logger.info(
+                        f"✅ Удалено исходное сообщение пользователя {user_id} "
+                        f"с командой (message_id={user_message_id})"
+                    )
+                except Exception as delete_error:
+                    logger.warning(f"⚠️ Не удалось удалить исходное сообщение пользователя: {delete_error}")
         else:
             await callback.answer("ℹ️ Вы уже записаны на это событие", show_alert=True)
             return
