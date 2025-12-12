@@ -335,6 +335,13 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
             **send_kwargs,
         )
 
+        # Удаляем сообщение пользователя с командой
+        try:
+            await bot.delete_message(chat_id=chat_id, message_id=message.message_id)
+            logger.info(f"✅ Удалено сообщение пользователя {user_id} с командой /join_event_{event_id}")
+        except Exception as delete_error:
+            logger.warning(f"⚠️ Не удалось удалить сообщение пользователя: {delete_error}")
+
     except Exception as e:
         logger.error(f"❌ Ошибка показа подтверждения: {e}")
         import traceback
@@ -498,6 +505,13 @@ async def handle_leave_event_command(message: Message, bot: Bot, session: AsyncS
     fake_callback = FakeCallback(message, message.from_user)
     await community_leave_event(fake_callback, bot, session)
 
+    # Удаляем сообщение пользователя с командой
+    try:
+        await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        logger.info(f"✅ Удалено сообщение пользователя {user_id} с командой /leaveevent{event_id}")
+    except Exception as delete_error:
+        logger.warning(f"⚠️ Не удалось удалить сообщение пользователя: {delete_error}")
+
 
 @group_router.message(F.text.regexp(r"^/leaveevent(\d+)(@\w+)?$"))
 async def handle_leave_event_command_short(message: Message, bot: Bot, session: AsyncSession):
@@ -533,6 +547,13 @@ async def handle_leave_event_command_short(message: Message, bot: Bot, session: 
 
     fake_callback = FakeCallback(message, message.from_user)
     await community_leave_event(fake_callback, bot, session)
+
+    # Удаляем сообщение пользователя с командой
+    try:
+        await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        logger.info(f"✅ Удалено сообщение пользователя {user_id} с командой /leaveevent{event_id}")
+    except Exception as delete_error:
+        logger.warning(f"⚠️ Не удалось удалить сообщение пользователя: {delete_error}")
 
 
 @group_router.message(Command("start"))
