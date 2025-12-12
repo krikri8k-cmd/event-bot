@@ -3263,57 +3263,92 @@ async def handle_group_myevents(callback: types.CallbackQuery):
 
 
 @main_router.callback_query(F.data == "group_hide_bot")
-async def handle_group_hide_bot(callback: types.CallbackQuery):
+async def handle_group_hide_bot(callback: types.CallbackQuery, bot: Bot, session):
     """Обработчик кнопки 'Спрятать бота' в групповых чатах"""
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from group_router import ensure_group_start_command
+    from utils.messaging_utils import delete_all_tracked
+
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id
 
-    # Любой пользователь может скрыть бота (особенно полезно для создателей событий)
-    # Выполняем действие сразу без промежуточного подтверждения
+    # Получаем thread_id для форумов
+    is_forum = getattr(callback.message.chat, "is_forum", False)
+    thread_id = getattr(callback.message, "message_thread_id", None)
 
+    logger.info(
+        f"🔥 handle_group_hide_bot: пользователь {user_id} скрывает бота в чате {chat_id}, thread_id={thread_id}"
+    )
+
+    await callback.answer("Скрываем сервисные сообщения бота…", show_alert=False)
+
+    # Проверяем права бота на удаление сообщений
     try:
-        # Удаляем текущее сообщение
-        await callback.message.delete()
-
-        # Отправляем финальное сообщение о скрытии (которое тоже можно будет удалить)
-        from aiogram import Bot
-
-        bot = Bot.get_current()
-
-        final_message = await bot.send_message(
-            chat_id=chat_id,
-            text=(
-                "👁️‍🗨️ **Бот скрыт**\n\n"
-                "Все сообщения бота были скрыты из этого чата.\n\n"
-                "💡 **Для восстановления функций бота:**\n"
-                "Используйте команду /start"
-            ),
-            parse_mode="Markdown",
+        bot_member = await bot.get_chat_member(chat_id, bot.id)
+        logger.info(
+            f"🔥 Права бота в чате {chat_id}: status={bot_member.status}, "
+            f"can_delete_messages={getattr(bot_member, 'can_delete_messages', None)}"
         )
 
-        # Добавляем кнопку для удаления этого сообщения
-        delete_keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="🗑️ Удалить это сообщение", callback_data=f"delete_message_{final_message.message_id}"
-                    )
-                ],
-            ]
-        )
-        await final_message.edit_reply_markup(reply_markup=delete_keyboard)
-
-        logger.info(f"✅ Бот скрыт в чате {chat_id} пользователем {user_id}")
-
+        if bot_member.status != "administrator" or not getattr(bot_member, "can_delete_messages", False):
+            logger.warning(f"🚫 У бота нет прав на удаление сообщений в чате {chat_id}")
+            await callback.message.edit_text(
+                "❌ **Ошибка: Нет прав на удаление**\n\n"
+                "Бот должен быть администратором с правом 'Удаление сообщений'.\n\n"
+                "Попросите администратора группы:\n"
+                "1. Сделать бота администратором\n"
+                "2. Включить право 'Удаление сообщений'\n\n"
+                "После этого попробуйте снова.",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [InlineKeyboardButton(text="◀️ Назад к панели", callback_data="group_back_to_panel")]
+                    ]
+                ),
+            )
+            return
     except Exception as e:
-        logger.error(f"❌ Ошибка при скрытии бота в чате {chat_id}: {e}")
-        # Если не удалось скрыть, просто удаляем сообщение
-        try:
-            await callback.message.delete()
-        except Exception:
-            pass
+        logger.error(f"❌ Ошибка проверки прав бота: {e}")
 
-    await callback.answer("✅ Бот скрыт")
+    # Используем асинхронную версию delete_all_tracked для удаления всех трекированных сообщений
+    try:
+        if isinstance(session, AsyncSession):
+            deleted = await delete_all_tracked(bot, session, chat_id=chat_id)
+        else:
+            # Fallback для синхронной сессии (не должно происходить, но на всякий случай)
+            from utils.messaging_utils import delete_all_tracked_sync
+
+            deleted = delete_all_tracked_sync(bot, session, chat_id=chat_id)
+    except Exception as e:
+        logger.error(f"❌ Ошибка удаления трекированных сообщений: {e}")
+        deleted = 0
+
+    # Короткое уведомление о результате (не трекаем, чтобы не гоняться за ним)
+    send_kwargs = {
+        "text": f"👁️‍🗨️ **Бот скрыт**\n\n"
+        f"✅ Удалено сообщений бота: {deleted}\n"
+        f"✅ Команды /start автоматически удаляются\n"
+        f"✅ События в базе данных сохранены\n\n"
+        f"💡 **Для восстановления функций бота:**\n"
+        f"Используйте команду /start",
+        "parse_mode": "Markdown",
+    }
+    if is_forum and thread_id:
+        send_kwargs["message_thread_id"] = thread_id
+    note = await bot.send_message(chat_id, **send_kwargs)
+
+    # ВОССТАНАВЛИВАЕМ КОМАНДЫ ПОСЛЕ СКРЫТИЯ БОТА (НАДЕЖНО)
+    await ensure_group_start_command(bot, chat_id)
+
+    # Удаляем уведомление через 5 секунд
+    try:
+        await asyncio.sleep(5)
+        await note.delete()
+    except Exception:
+        pass  # Игнорируем ошибки удаления уведомления
+
+    logger.info(f"✅ Бот скрыт в чате {chat_id} пользователем {user_id}, удалено сообщений: {deleted}")
 
 
 @main_router.callback_query(F.data.regexp(r"^delete_message_\d+$"))

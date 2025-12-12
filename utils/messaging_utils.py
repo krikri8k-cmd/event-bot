@@ -464,16 +464,35 @@ async def delete_all_tracked(bot: Bot, session: AsyncSession, *, chat_id: int) -
             deleted += 1
             logger.info(f"✅ Удалено сообщение {bot_msg.message_id} (tag: {bot_msg.tag})")
         except TelegramForbiddenError as e:
-            # Нет прав на удаление
-            logger.error(f"🚫 Нет прав на удаление сообщения {bot_msg.message_id}: {e}")
-            # НЕ помечаем как удаленное!
+            # Нет прав на удаление - проверяем, может сообщение уже удалено
+            error_str = str(e).lower()
+            if "message to delete not found" in error_str or "message can't be deleted" in error_str:
+                # Сообщение уже удалено, помечаем как удаленное
+                logger.info(f"ℹ️ Сообщение {bot_msg.message_id} уже удалено (в ответе на ForbiddenError)")
+                bot_msg.deleted = True
+            else:
+                # Действительно нет прав
+                logger.error(f"🚫 Нет прав на удаление сообщения {bot_msg.message_id}: {e}")
+                # НЕ помечаем как удаленное - попробуем снова при следующем вызове
         except TelegramBadRequest as e:
             # Сообщение уже удалено или недоступно
-            logger.warning(f"⚠️ Не удалось удалить сообщение {bot_msg.message_id}: {e}")
-            bot_msg.deleted = True  # Помечаем как удаленное
+            error_str = str(e).lower()
+            if "message to delete not found" in error_str or "message can't be deleted" in error_str:
+                logger.info(f"ℹ️ Сообщение {bot_msg.message_id} уже удалено или недоступно: {e}")
+                bot_msg.deleted = True  # Помечаем как удаленное
+            else:
+                logger.warning(f"⚠️ Не удалось удалить сообщение {bot_msg.message_id}: {e}")
+                # Для других ошибок BadRequest тоже помечаем как удаленное (скорее всего сообщение недоступно)
+                bot_msg.deleted = True
         except Exception as e:
-            logger.error(f"❌ Неожиданная ошибка удаления сообщения {bot_msg.message_id}: {e}")
-            # НЕ помечаем как удаленное при неожиданных ошибках!
+            error_str = str(e).lower()
+            # Проверяем, может это тоже ошибка о том, что сообщение уже удалено
+            if "message to delete not found" in error_str or "message can't be deleted" in error_str:
+                logger.info(f"ℹ️ Сообщение {bot_msg.message_id} уже удалено: {e}")
+                bot_msg.deleted = True
+            else:
+                logger.error(f"❌ Неожиданная ошибка удаления сообщения {bot_msg.message_id}: {e}")
+                # НЕ помечаем как удаленное при неожиданных ошибках!
 
     # Обнуляем ссылку на панель
     result = await session.execute(select(ChatSettings).where(ChatSettings.chat_id == chat_id))
