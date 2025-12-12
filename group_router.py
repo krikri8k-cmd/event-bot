@@ -1238,6 +1238,10 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
     is_forum = getattr(callback.message.chat, "is_forum", False)
     thread_id = getattr(callback.message, "message_thread_id", None)
 
+    # Проверяем, является ли сообщение сообщением бота (можно редактировать только сообщения бота)
+    bot_info = await bot.get_me()
+    is_bot_message = callback.message.from_user is not None and callback.message.from_user.id == bot_info.id
+
     logger.info(
         f"🔥 group_list_events_page: запрос списка событий в чате {chat_id}, страница {page}, thread_id={thread_id}"
     )
@@ -1474,14 +1478,35 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                 text = text.replace(marker, f"[{safe_text}]({safe_url})")
 
             # Отправляем с Markdown для поддержки ссылок
-            await callback.message.edit_text(text, reply_markup=back_kb, parse_mode="Markdown")
-            logger.info("✅ Список событий успешно обновлен")
+            # Если это сообщение пользователя (не бота), отправляем новое сообщение вместо редактирования
+            if is_bot_message:
+                await callback.message.edit_text(text, reply_markup=back_kb, parse_mode="Markdown")
+                logger.info("✅ Список событий успешно обновлен")
+            else:
+                # Сообщение пользователя - отправляем новое сообщение
+                answer_kwargs = {"reply_markup": back_kb, "parse_mode": "Markdown"}
+                if is_forum and thread_id:
+                    answer_kwargs["message_thread_id"] = thread_id
+                await callback.message.answer(text, **answer_kwargs)
+                logger.info("✅ Новое сообщение со списком событий отправлено (исходное сообщение от пользователя)")
         except Exception as e:
             logger.error(f"❌ Ошибка редактирования сообщения: {e}")
 
             # Специальная обработка для ошибки "сообщение не изменено"
             if "message is not modified" in str(e).lower():
                 logger.info("🔥 Сообщение не изменилось, отправляем новое сообщение")
+                try:
+                    answer_kwargs = {"reply_markup": back_kb, "parse_mode": "Markdown"}
+                    if is_forum and thread_id:
+                        answer_kwargs["message_thread_id"] = thread_id
+                    await callback.message.answer(text, **answer_kwargs)
+                    logger.info("✅ Новое сообщение со списком событий отправлено")
+                except Exception as e2:
+                    logger.error(f"❌ Ошибка отправки нового сообщения: {e2}")
+                    await callback.answer("❌ Ошибка отображения событий", show_alert=True)
+            elif "message can't be edited" in str(e).lower():
+                # Сообщение нельзя редактировать (например, это сообщение пользователя)
+                logger.info("🔥 Сообщение нельзя редактировать, отправляем новое сообщение")
                 try:
                     answer_kwargs = {"reply_markup": back_kb, "parse_mode": "Markdown"}
                     if is_forum and thread_id:
