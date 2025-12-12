@@ -313,26 +313,42 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
             ]
         )
 
-        # Отправляем сообщение с подтверждением
+        # Отправляем сообщение с подтверждением через send_tracked
+        from utils.messaging_utils import send_tracked
+
         is_forum = getattr(message.chat, "is_forum", False)
         thread_id = getattr(message, "message_thread_id", None)
 
         send_kwargs = {
-            "text": confirmation_text,
             "parse_mode": "Markdown",
             "reply_markup": keyboard,
         }
         if is_forum and thread_id:
             send_kwargs["message_thread_id"] = thread_id
 
-        await message.answer(**send_kwargs)
+        await send_tracked(
+            bot,
+            session,
+            chat_id=chat_id,
+            text=confirmation_text,
+            tag="service",  # Автоудаление через 3.5 минуты
+            **send_kwargs,
+        )
 
     except Exception as e:
         logger.error(f"❌ Ошибка показа подтверждения: {e}")
         import traceback
 
         logger.error(traceback.format_exc())
-        await message.answer("❌ Ошибка при загрузке события")
+        from utils.messaging_utils import send_tracked
+
+        await send_tracked(
+            bot,
+            session,
+            chat_id=chat_id,
+            text="❌ Ошибка при загрузке события",
+            tag="service",
+        )
 
 
 # Глобальный словарь для отслеживания обработанных сообщений (защита от дублирования)
@@ -413,26 +429,42 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
             ]
         )
 
-        # Отправляем сообщение с подтверждением
+        # Отправляем сообщение с подтверждением через send_tracked
+        from utils.messaging_utils import send_tracked
+
         is_forum = getattr(message.chat, "is_forum", False)
         thread_id = getattr(message, "message_thread_id", None)
 
         send_kwargs = {
-            "text": confirmation_text,
             "parse_mode": "Markdown",
             "reply_markup": keyboard,
         }
         if is_forum and thread_id:
             send_kwargs["message_thread_id"] = thread_id
 
-        await message.answer(**send_kwargs)
+        await send_tracked(
+            bot,
+            session,
+            chat_id=chat_id,
+            text=confirmation_text,
+            tag="service",  # Автоудаление через 3.5 минуты
+            **send_kwargs,
+        )
 
     except Exception as e:
         logger.error(f"❌ Ошибка показа подтверждения: {e}")
         import traceback
 
         logger.error(traceback.format_exc())
-        await message.answer("❌ Ошибка при загрузке события")
+        from utils.messaging_utils import send_tracked
+
+        await send_tracked(
+            bot,
+            session,
+            chat_id=chat_id,
+            text="❌ Ошибка при загрузке события",
+            tag="service",
+        )
 
 
 @group_router.message(Command("leave_event"))
