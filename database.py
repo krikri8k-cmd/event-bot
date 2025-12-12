@@ -220,6 +220,20 @@ class CommunityEvent(Base):
     )
 
 
+class CommunityEventParticipant(Base):
+    """Участники событий в групповых чатах (Community)"""
+
+    __tablename__ = "community_event_participants"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    event_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("events_community.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    username: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class BotMessage(Base):
     """Трекинг всех сообщений бота в групповых чатах для функции 'Спрятать бота'"""
 
