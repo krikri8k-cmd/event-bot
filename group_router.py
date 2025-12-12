@@ -16,7 +16,7 @@ import re
 from datetime import UTC, datetime, timedelta
 
 from aiogram import Bot, F, Router, types
-from aiogram.filters import Command
+from aiogram.filters import Command, CommandObject
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -253,6 +253,71 @@ async def test_autodelete(message: Message, bot: Bot, session: AsyncSession):
         asyncio.create_task(auto_delete_message(bot, message.chat.id, test_msg.message_id, 10))
 
         await message.answer("✅ Тест автоудаления запущен! Сообщение удалится через 10 секунд.")
+
+
+@group_router.message(Command("join_event"))
+async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSession, command: CommandObject):
+    """Обработчик команды /join_event_123 для записи на событие"""
+    user_id = message.from_user.id
+
+    # Извлекаем ID события из команды
+    if not command.args:
+        await message.answer("❌ Используйте команду: /join_event_123 (где 123 - ID события)")
+        return
+
+    try:
+        event_id = int(command.args)
+    except ValueError:
+        await message.answer("❌ Неверный ID события. Используйте: /join_event_123")
+        return
+
+    logger.info(f"🔥 handle_join_event_command: пользователь {user_id} запрашивает запись на событие {event_id}")
+
+    # Используем существующий обработчик подтверждения
+    # Создаем фиктивный callback для использования существующей логики
+    class FakeCallback:
+        def __init__(self, msg, user):
+            self.message = msg
+            self.from_user = user
+            self.data = f"community_join_{event_id}"
+
+        async def answer(self, text=None, show_alert=False):
+            pass
+
+    fake_callback = FakeCallback(message, message.from_user)
+    await community_join_event(fake_callback, bot, session)
+
+
+@group_router.message(Command("leave_event"))
+async def handle_leave_event_command(message: Message, bot: Bot, session: AsyncSession, command: CommandObject):
+    """Обработчик команды /leave_event_123 для отмены записи на событие"""
+    user_id = message.from_user.id
+
+    # Извлекаем ID события из команды
+    if not command.args:
+        await message.answer("❌ Используйте команду: /leave_event_123 (где 123 - ID события)")
+        return
+
+    try:
+        event_id = int(command.args)
+    except ValueError:
+        await message.answer("❌ Неверный ID события. Используйте: /leave_event_123")
+        return
+
+    logger.info(f"🔥 handle_leave_event_command: пользователь {user_id} отменяет запись на событие {event_id}")
+
+    # Используем существующий обработчик
+    class FakeCallback:
+        def __init__(self, msg, user):
+            self.message = msg
+            self.from_user = user
+            self.data = f"community_leave_{event_id}"
+
+        async def answer(self, text=None, show_alert=False):
+            pass
+
+    fake_callback = FakeCallback(message, message.from_user)
+    await community_leave_event(fake_callback, bot, session)
 
 
 @group_router.message(Command("start"))
@@ -1067,10 +1132,19 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                     text += f"   👤 Организатор: @{event.organizer_username}\n"
 
                 # Получаем количество участников и добавляем в текст
-                from utils.community_participants_service import get_participants_count_async
+                from utils.community_participants_service import get_participants_count_async, is_participant_async
 
                 participants_count = await get_participants_count_async(session, event.id)
+                is_user_participant = await is_participant_async(session, event.id, user_id)
+
                 text += f"   👥 Участников: {participants_count}\n"
+
+                # Добавляем ссылку на запись прямо в тексте (через команду)
+                # В групповых чатах используем команды, которые можно вызвать
+                if is_user_participant:
+                    text += f"   ✅ Вы записаны | Нажмите /leave_event_{event.id} чтобы отменить\n"
+                else:
+                    text += f"   Нажмите /join_event_{event.id} чтобы записаться\n"
 
                 text += "\n"
 
@@ -1081,33 +1155,10 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                 text += "🔧 Ваши события: Вы можете удалить свои события кнопками ниже!\n"
                 text += "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
 
-        # Создаем клавиатуру с кнопками
+        # Создаем клавиатуру с кнопками (только для удаления событий)
         keyboard_buttons = []
 
         if events:
-            # Импортируем сервис для работы с участниками
-            from utils.community_participants_service import is_participant_async
-
-            # Добавляем кнопки для каждого события: только запись/отмена
-            for i, event in enumerate(events, 1):
-                # Проверяем, является ли пользователь участником
-                is_user_participant = await is_participant_async(session, event.id, user_id)
-
-                # Кнопка записи/отмены
-                if is_user_participant:
-                    join_button = InlineKeyboardButton(
-                        text="➖ Отменить",
-                        callback_data=f"community_leave_{event.id}",
-                    )
-                else:
-                    join_button = InlineKeyboardButton(
-                        text="➕ Записаться",
-                        callback_data=f"community_join_{event.id}",
-                    )
-
-                # Добавляем кнопку под каждым событием
-                keyboard_buttons.append([join_button])
-
             # Добавляем кнопки удаления для событий, которые пользователь может удалить
             delete_buttons = []
             for i, event in enumerate(events, 1):
