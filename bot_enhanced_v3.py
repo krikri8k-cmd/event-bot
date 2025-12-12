@@ -2089,6 +2089,7 @@ class CommunityEventCreation(StatesGroup):
     waiting_for_date = State()
     waiting_for_time = State()
     waiting_for_city = State()  # Город события
+    waiting_for_location_type = State()  # Выбор типа локации (ссылка/карта/координаты)
     waiting_for_location_url = State()  # Ссылка на место
     waiting_for_description = State()
     confirmation = State()
@@ -3016,12 +3017,96 @@ async def process_community_city_pm(message: types.Message, state: FSMContext):
     logger.info(f"🔥 process_community_city_pm: получили город '{city}' от пользователя {message.from_user.id}")
 
     await state.update_data(city=city)
-    await state.set_state(CommunityEventCreation.waiting_for_location_url)
+    await state.set_state(CommunityEventCreation.waiting_for_location_type)
+
+    # Создаем клавиатуру для выбора типа локации (как в World режиме)
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="community_location_link")],
+            [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="community_location_map")],
+            [InlineKeyboardButton(text="📍 Ввести координаты", callback_data="community_location_coords")],
+        ]
+    )
 
     await message.answer(
-        f"**Город сохранен:** {city} ✅\n\n🔗 **Введите ссылку на место** (Google Maps или адрес):",
+        f"**Город сохранен:** {city} ✅\n\n📍 **Как укажем место?**\n\nВыберите один из способов:",
         parse_mode="Markdown",
-        reply_markup=get_community_cancel_kb(),
+        reply_markup=keyboard,
+    )
+
+
+@main_router.message(CommunityEventCreation.waiting_for_location_type)
+async def handle_community_location_type_text(message: types.Message, state: FSMContext):
+    """Обработка текстовых сообщений в состоянии выбора типа локации в Community режиме"""
+    text = message.text.strip()
+
+    # Проверяем, является ли это Google Maps ссылкой
+    if any(domain in text.lower() for domain in ["maps.google.com", "goo.gl/maps", "maps.app.goo.gl"]):
+        # Пользователь отправил ссылку напрямую - обрабатываем как ссылку
+        await state.set_state(CommunityEventCreation.waiting_for_location_url)
+        # Имитируем обработку через process_community_location_url_pm
+        from aiogram import Bot
+
+        from database import async_session_maker
+
+        bot = Bot.get_current()
+        async with async_session_maker() as session:
+            await process_community_location_url_pm(message, state, bot, session)
+        return
+
+    # Проверяем, являются ли это координаты (широта, долгота)
+    if "," in text and len(text.split(",")) == 2:
+        try:
+            lat_str, lng_str = text.split(",")
+            lat = float(lat_str.strip())
+            lng = float(lng_str.strip())
+
+            # Проверяем валидность координат
+            if -90 <= lat <= 90 and -180 <= lng <= 180:
+                # Сохраняем координаты
+                await state.update_data(
+                    location_name="Место по координатам",
+                    location_lat=lat,
+                    location_lng=lng,
+                    location_url=text,
+                )
+
+                # Переходим к описанию
+                await state.set_state(CommunityEventCreation.waiting_for_description)
+                await message.answer(
+                    f"📍 **Место определено по координатам:** {lat}, {lng} ✅\n\n"
+                    "📝 **Введите описание события** (что будет происходить, кому интересно):",
+                    parse_mode="Markdown",
+                    reply_markup=get_community_cancel_kb(),
+                )
+                return
+            else:
+                raise ValueError("Invalid coordinates range")
+        except (ValueError, TypeError):
+            await message.answer(
+                "❌ **Неверный формат координат!**\n\n"
+                "Используйте формат: **широта, долгота**\n"
+                "Например: 55.7558, 37.6176\n\n"
+                "Диапазоны:\n"
+                "• Широта: -90 до 90\n"
+                "• Долгота: -180 до 180",
+                parse_mode="Markdown",
+                reply_markup=get_community_cancel_kb(),
+            )
+            return
+
+    # Если не распознали, показываем подсказку
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="community_location_link")],
+            [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="community_location_map")],
+            [InlineKeyboardButton(text="📍 Ввести координаты", callback_data="community_location_coords")],
+        ]
+    )
+    await message.answer(
+        "📍 **Как укажем место?**\n\nВыберите один из способов:",
+        parse_mode="Markdown",
+        reply_markup=keyboard,
     )
 
 
@@ -3040,33 +3125,64 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
         )
         return
 
-    location_url = message.text.strip()
-    logger.info(f"🔥 process_community_location_url_pm: получили ссылку от пользователя {message.from_user.id}")
+    location_input = message.text.strip()
+    logger.info(f"🔥 process_community_location_url_pm: получили ввод от пользователя {message.from_user.id}")
 
     # Определяем название места по ссылке и пробуем достать координаты
     location_name = "Место по ссылке"  # Базовое название
     location_lat = None
     location_lng = None
+    location_url = None
 
-    try:
-        if "maps.google.com" in location_url or "goo.gl" in location_url or "maps.app.goo.gl" in location_url:
-            from utils.geo_utils import parse_google_maps_link
+    # Проверяем, являются ли это координаты (широта, долгота)
+    if "," in location_input and len(location_input.split(",")) == 2:
+        try:
+            lat_str, lng_str = location_input.split(",")
+            lat = float(lat_str.strip())
+            lng = float(lng_str.strip())
 
-            location_data = await parse_google_maps_link(location_url)
-            logger.info(f"🌍 parse_google_maps_link (community) ответ: {location_data}")
-            if location_data:
-                location_name = location_data.get("name") or "Место на карте"
-                location_lat = location_data.get("lat")
-                location_lng = location_data.get("lng")
+            # Проверяем валидность координат
+            if -90 <= lat <= 90 and -180 <= lng <= 180:
+                location_name = "Место по координатам"
+                location_lat = lat
+                location_lng = lng
+                location_url = location_input  # Сохраняем координаты как строку
             else:
-                location_name = "Место на карте"
-        elif "yandex.ru/maps" in location_url:
-            location_name = "Место на Яндекс.Картах"
-        else:
+                raise ValueError("Invalid coordinates range")
+        except (ValueError, TypeError):
+            await message.answer(
+                "❌ **Неверный формат координат!**\n\n"
+                "Используйте формат: **широта, долгота**\n"
+                "Например: 55.7558, 37.6176\n\n"
+                "Диапазоны:\n"
+                "• Широта: -90 до 90\n"
+                "• Долгота: -180 до 180",
+                parse_mode="Markdown",
+                reply_markup=get_community_cancel_kb(),
+            )
+            return
+    else:
+        # Это ссылка
+        location_url = location_input
+        try:
+            if "maps.google.com" in location_url or "goo.gl" in location_url or "maps.app.goo.gl" in location_url:
+                from utils.geo_utils import parse_google_maps_link
+
+                location_data = await parse_google_maps_link(location_url)
+                logger.info(f"🌍 parse_google_maps_link (community) ответ: {location_data}")
+                if location_data:
+                    location_name = location_data.get("name") or "Место на карте"
+                    location_lat = location_data.get("lat")
+                    location_lng = location_data.get("lng")
+                else:
+                    location_name = "Место на карте"
+            elif "yandex.ru/maps" in location_url:
+                location_name = "Место на Яндекс.Картах"
+            else:
+                location_name = "Место по ссылке"
+        except Exception as e:
+            logger.warning(f"Не удалось распарсить ссылку для community события: {e}")
             location_name = "Место по ссылке"
-    except Exception as e:
-        logger.warning(f"Не удалось распарсить ссылку для community события: {e}")
-        location_name = "Место по ссылке"
 
     await state.update_data(
         location_url=location_url,
@@ -3076,8 +3192,13 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
     )
     await state.set_state(CommunityEventCreation.waiting_for_description)
 
+    if location_lat and location_lng:
+        location_text = f"📍 **Место:** {location_name}\n**Координаты:** {location_lat}, {location_lng}"
+    else:
+        location_text = f"📍 **Место:** {location_name}"
+
     await message.answer(
-        f"**Ссылка сохранена** ✅\n📍 **Место:** {location_name}\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
+        f"**Место сохранено** ✅\n{location_text}\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
         parse_mode="Markdown",
         reply_markup=get_community_cancel_kb(),
     )
@@ -7669,6 +7790,39 @@ async def handle_location_coords_choice(callback: types.CallbackQuery, state: FS
     await callback.answer()
 
 
+# Обработчики для выбора типа локации в Community режиме
+@main_router.callback_query(F.data == "community_location_link")
+async def handle_community_location_link_choice(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор ввода готовой ссылки в Community режиме"""
+    await state.set_state(CommunityEventCreation.waiting_for_location_url)
+    await callback.message.answer("🔗 Вставьте сюда ссылку из Google Maps:", reply_markup=get_community_cancel_kb())
+    await callback.answer()
+
+
+@main_router.callback_query(F.data == "community_location_map")
+async def handle_community_location_map_choice(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор поиска на карте в Community режиме"""
+    # Создаем кнопку для открытия Google Maps
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text="🌍 Открыть Google Maps", url="https://www.google.com/maps")]]
+    )
+    await state.set_state(CommunityEventCreation.waiting_for_location_url)
+    await callback.message.answer("🌍 Открой карту, найди место и вставь ссылку сюда 👇", reply_markup=keyboard)
+    await callback.answer()
+
+
+@main_router.callback_query(F.data == "community_location_coords")
+async def handle_community_location_coords_choice(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор ввода координат в Community режиме"""
+    await state.set_state(CommunityEventCreation.waiting_for_location_url)
+    await callback.message.answer(
+        "📍 Введите координаты в формате: **широта, долгота**\n\n" "Например: 55.7558, 37.6176\n" "Или: -8.67, 115.21",
+        parse_mode="Markdown",
+        reply_markup=get_community_cancel_kb(),
+    )
+    await callback.answer()
+
+
 @main_router.message(TaskFlow.waiting_for_custom_location)
 async def process_task_custom_location(message: types.Message, state: FSMContext):
     """Обработка ввода своей локации для задания"""
@@ -8477,12 +8631,96 @@ async def process_community_city_group(message: types.Message, state: FSMContext
     logger.info(f"🔥 process_community_city_group: получили город '{city}' от пользователя {message.from_user.id}")
 
     await state.update_data(city=city)
-    await state.set_state(CommunityEventCreation.waiting_for_location_url)
+    await state.set_state(CommunityEventCreation.waiting_for_location_type)
+
+    # Создаем клавиатуру для выбора типа локации (как в World режиме)
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="community_location_link")],
+            [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="community_location_map")],
+            [InlineKeyboardButton(text="📍 Ввести координаты", callback_data="community_location_coords")],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")],
+        ]
+    )
 
     await message.answer(
-        f"**Город сохранен:** {city} ✅\n\n🔗 **Введите ссылку на место** (Google Maps или адрес):",
+        f"**Город сохранен:** {city} ✅\n\n📍 **Как укажем место?**\n\nВыберите один из способов:",
         parse_mode="Markdown",
-        reply_markup=ForceReply(selective=True),
+        reply_markup=keyboard,
+    )
+
+
+@main_router.message(
+    CommunityEventCreation.waiting_for_location_type,
+    F.chat.type.in_({"group", "supergroup"}),
+)
+async def handle_community_location_type_text_group(message: types.Message, state: FSMContext):
+    """Обработка текстовых сообщений в состоянии выбора типа локации в Community режиме (групповые чаты)"""
+    text = message.text.strip()
+
+    # Проверяем, является ли это Google Maps ссылкой
+    if any(domain in text.lower() for domain in ["maps.google.com", "goo.gl/maps", "maps.app.goo.gl"]):
+        # Пользователь отправил ссылку напрямую - обрабатываем как ссылку
+        await state.set_state(CommunityEventCreation.waiting_for_location_url)
+        await process_community_location_url_group(message, state)
+        return
+
+    # Проверяем, являются ли это координаты (широта, долгота)
+    if "," in text and len(text.split(",")) == 2:
+        try:
+            lat_str, lng_str = text.split(",")
+            lat = float(lat_str.strip())
+            lng = float(lng_str.strip())
+
+            # Проверяем валидность координат
+            if -90 <= lat <= 90 and -180 <= lng <= 180:
+                # Сохраняем координаты
+                await state.update_data(
+                    location_name="Место по координатам",
+                    location_lat=lat,
+                    location_lng=lng,
+                    location_url=text,
+                )
+
+                # Переходим к описанию
+                await state.set_state(CommunityEventCreation.waiting_for_description)
+                await message.answer(
+                    f"📍 **Место определено по координатам:** {lat}, {lng} ✅\n\n"
+                    "📝 **Введите описание события** (что будет происходить, кому интересно):",
+                    parse_mode="Markdown",
+                    reply_markup=ForceReply(selective=True),
+                )
+                return
+            else:
+                raise ValueError("Invalid coordinates range")
+        except (ValueError, TypeError):
+            await message.answer(
+                "❌ **Неверный формат координат!**\n\n"
+                "Используйте формат: **широта, долгота**\n"
+                "Например: 55.7558, 37.6176\n\n"
+                "Диапазоны:\n"
+                "• Широта: -90 до 90\n"
+                "• Долгота: -180 до 180",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+                ),
+            )
+            return
+
+    # Если не распознали, показываем подсказку
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="community_location_link")],
+            [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="community_location_map")],
+            [InlineKeyboardButton(text="📍 Ввести координаты", callback_data="community_location_coords")],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")],
+        ]
+    )
+    await message.answer(
+        "📍 **Как укажем место?**\n\nВыберите один из способов:",
+        parse_mode="Markdown",
+        reply_markup=keyboard,
     )
 
 
@@ -8510,29 +8748,82 @@ async def process_community_location_url_group(message: types.Message, state: FS
         )
         return
 
-    location_url = message.text.strip()
-    logger.info(f"🔥 process_community_location_url_group: получили ссылку от пользователя {message.from_user.id}")
+    location_input = message.text.strip()
+    logger.info(f"🔥 process_community_location_url_group: получили ввод от пользователя {message.from_user.id}")
 
-    # Определяем название места по ссылке
+    # Определяем название места по ссылке и пробуем достать координаты
     location_name = "Место по ссылке"  # Базовое название
+    location_lat = None
+    location_lng = None
+    location_url = None
 
-    try:
-        # Пытаемся извлечь название из Google Maps ссылки
-        if "maps.google.com" in location_url or "goo.gl" in location_url:
-            location_name = "Место на карте"
-        elif "yandex.ru/maps" in location_url:
-            location_name = "Место на Яндекс.Картах"
-        else:
+    # Проверяем, являются ли это координаты (широта, долгота)
+    if "," in location_input and len(location_input.split(",")) == 2:
+        try:
+            lat_str, lng_str = location_input.split(",")
+            lat = float(lat_str.strip())
+            lng = float(lng_str.strip())
+
+            # Проверяем валидность координат
+            if -90 <= lat <= 90 and -180 <= lng <= 180:
+                location_name = "Место по координатам"
+                location_lat = lat
+                location_lng = lng
+                location_url = location_input  # Сохраняем координаты как строку
+            else:
+                raise ValueError("Invalid coordinates range")
+        except (ValueError, TypeError):
+            await message.answer(
+                "❌ **Неверный формат координат!**\n\n"
+                "Используйте формат: **широта, долгота**\n"
+                "Например: 55.7558, 37.6176\n\n"
+                "Диапазоны:\n"
+                "• Широта: -90 до 90\n"
+                "• Долгота: -180 до 180",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+                ),
+            )
+            return
+    else:
+        # Это ссылка
+        location_url = location_input
+        try:
+            if "maps.google.com" in location_url or "goo.gl" in location_url or "maps.app.goo.gl" in location_url:
+                from utils.geo_utils import parse_google_maps_link
+
+                location_data = await parse_google_maps_link(location_url)
+                logger.info(f"🌍 parse_google_maps_link (community group) ответ: {location_data}")
+                if location_data:
+                    location_name = location_data.get("name") or "Место на карте"
+                    location_lat = location_data.get("lat")
+                    location_lng = location_data.get("lng")
+                else:
+                    location_name = "Место на карте"
+            elif "yandex.ru/maps" in location_url:
+                location_name = "Место на Яндекс.Картах"
+            else:
+                location_name = "Место по ссылке"
+        except Exception as e:
+            logger.warning(f"Не удалось распарсить ссылку для community события: {e}")
             location_name = "Место по ссылке"
-    except Exception as e:
-        logger.warning(f"Не удалось определить название места: {e}")
-        location_name = "Место по ссылке"
 
-    await state.update_data(location_url=location_url, location_name=location_name)
+    await state.update_data(
+        location_url=location_url,
+        location_name=location_name,
+        location_lat=location_lat,
+        location_lng=location_lng,
+    )
     await state.set_state(CommunityEventCreation.waiting_for_description)
 
+    if location_lat and location_lng:
+        location_text = f"📍 **Место:** {location_name}\n**Координаты:** {location_lat}, {location_lng}"
+    else:
+        location_text = f"📍 **Место:** {location_name}"
+
     await message.answer(
-        f"**Ссылка сохранена** ✅\n📍 **Место:** {location_name}\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
+        f"**Место сохранено** ✅\n{location_text}\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
         parse_mode="Markdown",
         reply_markup=ForceReply(selective=True),
     )
