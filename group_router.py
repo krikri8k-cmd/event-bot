@@ -2174,7 +2174,9 @@ async def community_leave_event(callback: CallbackQuery, bot: Bot, session: Asyn
             if is_forum and thread_id:
                 send_kwargs["message_thread_id"] = thread_id
 
-            # Отправляем через send_tracked для автоудаления
+            # Отправляем через send_tracked
+            # Используем тег "notification" чтобы сообщение НЕ удалялось автоматически
+            # (пользователь должен видеть подтверждение об отмене записи)
             from utils.messaging_utils import send_tracked
 
             await send_tracked(
@@ -2182,11 +2184,16 @@ async def community_leave_event(callback: CallbackQuery, bot: Bot, session: Asyn
                 session,
                 chat_id=chat_id,
                 text=leave_text,
-                tag="service",
+                tag="notification",  # Не удаляем автоматически
                 **send_kwargs,
             )
         else:
             await callback.answer("ℹ️ Вы не были записаны на это событие")
+
+        # Небольшая задержка перед обновлением списка, чтобы сообщение успело отобразиться
+        import asyncio
+
+        await asyncio.sleep(0.5)
 
         # Обновляем список событий (чтобы обновился счетчик участников)
         try:
