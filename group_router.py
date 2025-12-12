@@ -2098,7 +2098,6 @@ async def community_leave_event(callback: CallbackQuery, bot: Bot, session: Asyn
             thread_id = getattr(callback.message, "message_thread_id", None)
 
             send_kwargs = {
-                "text": leave_text,
                 "parse_mode": "Markdown",
                 "reply_markup": keyboard,
             }
