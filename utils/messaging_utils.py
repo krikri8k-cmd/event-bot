@@ -62,6 +62,23 @@ async def auto_delete_message(bot: Bot, chat_id: int, message_id: int, delay_sec
         logger.info(f"🕐 Запущено автоудаление сообщения {message_id} в чате {chat_id} через {delay_seconds}с")
         await asyncio.sleep(delay_seconds)
 
+        # Проверяем, что сообщение еще не удалено (помечаем в БД как удаленное при успешном удалении)
+        from sqlalchemy import select
+
+        from database import BotMessage, get_async_session
+
+        async with get_async_session() as check_session:
+            result = await check_session.execute(
+                select(BotMessage).where(
+                    BotMessage.chat_id == chat_id,
+                    BotMessage.message_id == message_id,
+                )
+            )
+            bot_msg = result.scalar_one_or_none()
+            if bot_msg and bot_msg.deleted:
+                logger.info(f"ℹ️ Сообщение {message_id} уже помечено как удаленное, пропускаем автоудаление")
+                return
+
         # Проверяем права бота перед удалением
         try:
             bot_member = await bot.get_chat_member(chat_id, bot.id)
@@ -101,10 +118,48 @@ async def auto_delete_message(bot: Bot, chat_id: int, message_id: int, delay_sec
         try:
             await bot.delete_message(chat_id=chat_id, message_id=message_id)
             logger.info(f"✅ Сообщение {message_id} автоматически удалено из чата {chat_id} через {delay_seconds}с")
+
+            # Помечаем сообщение как удаленное в БД
+            from sqlalchemy import select
+
+            from database import get_async_session
+
+            async with get_async_session() as update_session:
+                result = await update_session.execute(
+                    select(BotMessage).where(
+                        BotMessage.chat_id == chat_id,
+                        BotMessage.message_id == message_id,
+                    )
+                )
+                bot_msg = result.scalar_one_or_none()
+                if bot_msg:
+                    bot_msg.deleted = True
+                    await update_session.commit()
+                    logger.info(f"✅ Сообщение {message_id} помечено как удаленное в БД")
         except Exception as delete_error:
             error_str = str(delete_error).lower()
             if "message to delete not found" in error_str or "message can't be deleted" in error_str:
                 logger.info(f"ℹ️ Сообщение {message_id} уже удалено или недоступно для удаления: {delete_error}")
+                # Помечаем как удаленное в БД, так как сообщение уже удалено
+                try:
+                    from sqlalchemy import select
+
+                    from database import get_async_session
+
+                    async with get_async_session() as update_session:
+                        result = await update_session.execute(
+                            select(BotMessage).where(
+                                BotMessage.chat_id == chat_id,
+                                BotMessage.message_id == message_id,
+                            )
+                        )
+                        bot_msg = result.scalar_one_or_none()
+                        if bot_msg and not bot_msg.deleted:
+                            bot_msg.deleted = True
+                            await update_session.commit()
+                            logger.info(f"✅ Сообщение {message_id} помечено как удаленное в БД (уже было удалено)")
+                except Exception as db_error:
+                    logger.warning(f"⚠️ Не удалось пометить сообщение как удаленное в БД: {db_error}")
             elif "not enough rights" in error_str or "can't delete" in error_str:
                 logger.warning(
                     f"⚠️ Недостаточно прав для удаления сообщения {message_id} в чате {chat_id}: {delete_error}"
@@ -418,7 +473,24 @@ async def send_tracked(
     # Автоудаление через 3.5 минуты для определенных тегов (кроме важных уведомлений)
     if tag in ["service", "panel", "list"]:  # Не удаляем "notification" (новые события)
         logger.info(f"🕐 Запуск автоудаления для сообщения {msg.message_id} с тегом '{tag}' в чате {chat_id}")
-        asyncio.create_task(auto_delete_message(bot, chat_id, msg.message_id, 210))  # 3.5 минуты
+
+        # Создаем задачу с обработкой исключений
+        async def safe_auto_delete():
+            try:
+                await auto_delete_message(bot, chat_id, msg.message_id, 210)  # 3.5 минуты
+            except Exception as e:
+                logger.error(f"❌ Критическая ошибка в задаче автоудаления для сообщения {msg.message_id}: {e}")
+                import traceback
+
+                logger.error(traceback.format_exc())
+
+        task = asyncio.create_task(safe_auto_delete())
+        # Добавляем callback для обработки исключений в задаче
+        task.add_done_callback(
+            lambda t: logger.error(f"❌ Задача автоудаления завершилась с ошибкой: {t.exception()}")
+            if t.exception()
+            else None
+        )
 
     return msg
 
