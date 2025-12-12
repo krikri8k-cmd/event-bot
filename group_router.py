@@ -335,9 +335,26 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
         await message.answer("❌ Ошибка при загрузке события")
 
 
+# Глобальный словарь для отслеживания обработанных сообщений (защита от дублирования)
+_processed_messages = set()
+
+
 @group_router.message(F.text.regexp(r"^/joinevent(\d+)(@\w+)?$"))
 async def handle_join_event_command_short(message: Message, bot: Bot, session: AsyncSession):
     """Обработчик команды /joinevent123 для записи на событие (без подчеркивания)"""
+    # Защита от дублирования: проверяем, не обрабатывали ли мы уже это сообщение
+    message_key = f"{message.chat.id}_{message.message_id}"
+    if message_key in _processed_messages:
+        logger.warning(f"⚠️ Сообщение {message_key} уже обработано, пропускаем")
+        return
+
+    # Помечаем сообщение как обработанное
+    _processed_messages.add(message_key)
+
+    # Очищаем старые записи (оставляем только последние 1000)
+    if len(_processed_messages) > 1000:
+        _processed_messages.clear()
+
     chat_id = message.chat.id
     user_id = message.from_user.id
 
@@ -1840,7 +1857,7 @@ async def community_show_members(callback: CallbackQuery, bot: Bot, session: Asy
         await callback.message.answer("❌ Ошибка при загрузке участников")
 
 
-@group_router.callback_query(F.data.startswith("community_join_"))
+@group_router.callback_query(F.data.startswith("community_join_") & ~F.data.startswith("community_join_confirm_"))
 async def community_join_event(callback: CallbackQuery, bot: Bot, session: AsyncSession):
     """Показ подтверждения записи на событие"""
     chat_id = callback.message.chat.id
