@@ -1066,6 +1066,12 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                 if event.organizer_username:
                     text += f"   👤 Организатор: @{event.organizer_username}\n"
 
+                # Получаем количество участников и добавляем в текст
+                from utils.community_participants_service import get_participants_count_async
+
+                participants_count = await get_participants_count_async(session, event.id)
+                text += f"   👥 Участников: {participants_count}\n"
+
                 text += "\n"
 
             if is_admin:
@@ -1080,21 +1086,12 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
 
         if events:
             # Импортируем сервис для работы с участниками
-            from utils.community_participants_service import get_participants_count_async, is_participant_async
+            from utils.community_participants_service import is_participant_async
 
-            # Добавляем кнопки для каждого события: участники и запись
+            # Добавляем кнопки для каждого события: только запись/отмена
             for i, event in enumerate(events, 1):
-                # Получаем количество участников
-                participants_count = await get_participants_count_async(session, event.id)
-
                 # Проверяем, является ли пользователь участником
                 is_user_participant = await is_participant_async(session, event.id, user_id)
-
-                # Кнопка просмотра участников
-                participants_button = InlineKeyboardButton(
-                    text=f"👤 Участники ({participants_count})",
-                    callback_data=f"community_members_{event.id}",
-                )
 
                 # Кнопка записи/отмены
                 if is_user_participant:
@@ -1108,8 +1105,8 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                         callback_data=f"community_join_{event.id}",
                     )
 
-                # Добавляем кнопки под каждым событием
-                keyboard_buttons.append([participants_button, join_button])
+                # Добавляем кнопку под каждым событием
+                keyboard_buttons.append([join_button])
 
             # Добавляем кнопки удаления для событий, которые пользователь может удалить
             delete_buttons = []
@@ -1664,14 +1661,28 @@ async def community_join_event(callback: CallbackQuery, bot: Bot, session: Async
         else:
             await callback.answer("ℹ️ Вы уже записаны на это событие")
 
-        # Обновляем сообщение с участниками (если это оно)
-        # Или просто показываем обновленный список участников
+        # Обновляем список событий (чтобы обновился счетчик участников)
         try:
-            # Пытаемся обновить текущее сообщение
-            await community_show_members(callback, bot, session)
-        except Exception:
-            # Если не получилось, просто показываем новое сообщение
-            pass
+            # Пытаемся обновить список событий
+            # Определяем страницу по содержимому сообщения или используем первую
+            page = 1
+            # Пытаемся найти номер страницы в тексте сообщения
+            message_text = callback.message.text or ""
+            if "стр." in message_text:
+                import re
+
+                match = re.search(r"стр\.\s*(\d+)", message_text)
+                if match:
+                    page = int(match.group(1))
+
+            await group_list_events_page(callback, bot, session, page=page)
+        except Exception as e:
+            logger.warning(f"⚠️ Не удалось обновить список событий: {e}")
+            # Если не получилось, просто показываем сообщение с участниками (если это оно)
+            try:
+                await community_show_members(callback, bot, session)
+            except Exception:
+                pass
 
     except Exception as e:
         logger.error(f"❌ Ошибка записи на событие: {e}")
@@ -1715,11 +1726,26 @@ async def community_leave_event(callback: CallbackQuery, bot: Bot, session: Asyn
         else:
             await callback.answer("ℹ️ Вы не были записаны на это событие")
 
-        # Обновляем сообщение с участниками
+        # Обновляем список событий (чтобы обновился счетчик участников)
         try:
-            await community_show_members(callback, bot, session)
-        except Exception:
-            pass
+            # Пытаемся обновить список событий
+            page = 1
+            message_text = callback.message.text or ""
+            if "стр." in message_text:
+                import re
+
+                match = re.search(r"стр\.\s*(\d+)", message_text)
+                if match:
+                    page = int(match.group(1))
+
+            await group_list_events_page(callback, bot, session, page=page)
+        except Exception as e:
+            logger.warning(f"⚠️ Не удалось обновить список событий: {e}")
+            # Если не получилось, просто показываем сообщение с участниками (если это оно)
+            try:
+                await community_show_members(callback, bot, session)
+            except Exception:
+                pass
 
     except Exception as e:
         logger.error(f"❌ Ошибка отмены записи: {e}")
