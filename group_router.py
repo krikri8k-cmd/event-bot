@@ -1247,6 +1247,52 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
 @group_router.callback_query(F.data == "group_list")
 async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSession):
     """Показать список событий этого чата (первая страница)"""
+    chat_id = callback.message.chat.id
+
+    # Удаляем сообщение с подтверждением (из которого была нажата кнопка)
+    try:
+        await callback.message.delete()
+        logger.info(f"✅ Удалено сообщение с подтверждением (message_id={callback.message.message_id})")
+    except Exception as e:
+        logger.warning(f"⚠️ Не удалось удалить сообщение с подтверждением: {e}")
+
+    # Удаляем все предыдущие сообщения со списком событий (тег "list" или "service" с текстом о событиях)
+    try:
+        from sqlalchemy import select
+
+        from database import BotMessage
+
+        # Находим все сообщения со списком событий (тег "list" или "service")
+        result = await session.execute(
+            select(BotMessage).where(
+                BotMessage.chat_id == chat_id,
+                BotMessage.deleted.is_(False),
+                BotMessage.tag.in_(["list", "service"]),  # Списки событий и подтверждения
+            )
+        )
+        list_messages = result.scalars().all()
+
+        deleted_count = 0
+        for bot_msg in list_messages:
+            try:
+                await bot.delete_message(chat_id=chat_id, message_id=bot_msg.message_id)
+                bot_msg.deleted = True
+                deleted_count += 1
+                logger.info(
+                    f"✅ Удалено сообщение со списком событий (message_id={bot_msg.message_id}, tag={bot_msg.tag})"
+                )
+            except Exception as delete_error:
+                logger.warning(f"⚠️ Не удалось удалить сообщение {bot_msg.message_id}: {delete_error}")
+                bot_msg.deleted = True  # Помечаем как удаленное
+
+        await session.commit()
+        logger.info(f"✅ Удалено {deleted_count} сообщений со списком событий")
+    except Exception as e:
+        logger.error(f"❌ Ошибка при удалении предыдущих списков событий: {e}")
+
+    # Создаем новый список событий
+    # Помечаем, что мы пришли из group_list, чтобы создать новое сообщение вместо редактирования
+    callback._from_group_list = True
     await group_list_events_page(callback, bot, session, page=1)
 
 
@@ -1510,17 +1556,29 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                 text = text.replace(marker, f"[{safe_text}]({safe_url})")
 
             # Отправляем с Markdown для поддержки ссылок
-            # Если это сообщение пользователя (не бота), отправляем новое сообщение вместо редактирования
-            if is_bot_message:
+            # Если это сообщение пользователя (не бота) или мы пришли из group_list (удаляем старые списки),
+            # отправляем новое сообщение через send_tracked с тегом "list"
+            from utils.messaging_utils import send_tracked
+
+            if is_bot_message and not hasattr(callback, "_from_group_list"):
+                # Редактируем существующее сообщение со списком
                 await callback.message.edit_text(text, reply_markup=back_kb, parse_mode="Markdown")
                 logger.info("✅ Список событий успешно обновлен")
             else:
-                # Сообщение пользователя - отправляем новое сообщение
-                answer_kwargs = {"reply_markup": back_kb, "parse_mode": "Markdown"}
+                # Отправляем новое сообщение через send_tracked для трекинга
+                send_kwargs = {"reply_markup": back_kb, "parse_mode": "Markdown"}
                 if is_forum and thread_id:
-                    answer_kwargs["message_thread_id"] = thread_id
-                await callback.message.answer(text, **answer_kwargs)
-                logger.info("✅ Новое сообщение со списком событий отправлено (исходное сообщение от пользователя)")
+                    send_kwargs["message_thread_id"] = thread_id
+
+                await send_tracked(
+                    bot,
+                    session,
+                    chat_id=chat_id,
+                    text=text,
+                    tag="list",  # Тег для списка событий
+                    **send_kwargs,
+                )
+                logger.info("✅ Новое сообщение со списком событий отправлено и трекируется")
         except Exception as e:
             logger.error(f"❌ Ошибка редактирования сообщения: {e}")
 
