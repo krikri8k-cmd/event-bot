@@ -1261,7 +1261,7 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
         logger.warning(f"⚠️ Не удалось удалить сообщение с подтверждением: {e}")
 
     if is_from_cancellation:
-        # Если пришли из сообщения об отмене - обновляем предыдущий список, а не создаем новый
+        # Если пришли из сообщения об отмене - обновляем предыдущий список на месте, как при записи
         logger.info("🔥 Обновляем предыдущий список событий после отмены записи")
         try:
             from sqlalchemy import select
@@ -1282,9 +1282,10 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
             last_list_message = result.scalar_one_or_none()
 
             if last_list_message:
-                # Обновляем существующий список напрямую
+                # Обновляем существующий список на месте
                 try:
                     # Создаем фейковый callback с правильным message_id для обновления
+                    # Важно: НЕ ставим _from_group_list, чтобы список обновился на месте через edit_text
                     from aiogram.types import Message, User
 
                     bot_user = await bot.get_me()
@@ -1306,9 +1307,11 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
                         message=fake_message,
                         data=callback.data,
                     )
-                    # Обновляем существующий список
+                    # НЕ ставим _from_group_list - это позволит обновить существующее сообщение через edit_text
                     await group_list_events_page(fake_callback, bot, session, page=1)
-                    logger.info(f"✅ Обновлен предыдущий список событий (message_id={last_list_message.message_id})")
+                    logger.info(
+                        f"✅ Обновлен предыдущий список событий на месте (message_id={last_list_message.message_id})"
+                    )
                 except Exception as update_error:
                     logger.warning(f"⚠️ Не удалось обновить предыдущий список: {update_error}")
                     import traceback
@@ -1324,6 +1327,9 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
                 await group_list_events_page(callback, bot, session, page=1)
         except Exception as e:
             logger.error(f"❌ Ошибка при обновлении предыдущего списка: {e}")
+            import traceback
+
+            logger.error(traceback.format_exc())
             # Fallback: создаем новый список
             callback._from_group_list = True
             await group_list_events_page(callback, bot, session, page=1)
