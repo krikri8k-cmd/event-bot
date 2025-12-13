@@ -1,0 +1,528 @@
+﻿Loading places from file: food_places_example.txt (mode: ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╕╨╡)
+
+
+Category: food, Type: cafe, Region: moscow
+
+Category: food, Type: restaurant, Region: moscow
+
+Category: food, Type: street_food, Region: moscow
+
+Category: food, Type: market, Region: moscow
+
+Category: food, Type: bakery, Region: moscow
+
+Category: food, Type: coworking, Region: moscow
+
+Category: food, Type: cafe, Region: spb
+
+Category: food, Type: restaurant, Region: spb
+
+Category: food, Type: street_food, Region: spb
+
+Category: food, Type: market, Region: spb
+
+Category: food, Type: bakery, Region: spb
+
+Category: food, Type: coworking, Region: spb
+
+Category: food, Type: cafe, Region: bali
+
+Category: food, Type: restaurant, Region: bali
+
+Category: food, Type: street_food, Region: bali
+
+Category: food, Type: market, Region: bali
+
+Category: food, Type: bakery, Region: bali
+
+Category: food, Type: coworking, Region: bali
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.google.com/?cid=123456789...
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.google.com/?cid=987654321...
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.google.com/?cid=111222333...
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.google.com/?cid=444555666...
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.google.com/?cid=555666777...
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.google.com/?cid=777888999...
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.google.com/?cid=999000111...
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.google.com/?cid=111222333...
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.google.com/?cid=123456789...
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.google.com/?cid=987654321...
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.google.com/?cid=111222333...
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.google.com/?cid=444555666...
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.google.com/?cid=555666777...
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.google.com/?cid=777888999...
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.google.com/?cid=999000111...
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.google.com/?cid=111222333...
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/frzG51H3ijLPqEc46
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/frzG51H3ijLPqEc46 -> https://www.google.com/maps/place/Usha+Cafe%26Bakery,+No.,+Jl.+Raya+Pengosekan+No.2013,+Mas,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23d99af76f8fd:0xb7b0bc79549bf34c?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=7b4eae4b-3f12-4c47-9c08-5bab3ae38707
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5334611, 115.2636951
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Usha Cafe&Bakery
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Usha Cafe&Bakery (ID: 21) (bali, cafe) - -8.533461, 115.263695 -> -8.533461, 115.263695
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/DZZnNnUQY5Pn5qNe7
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/DZZnNnUQY5Pn5qNe7 -> https://www.google.com/maps/place/COARSE+%26+FINE+COFFEE+@The+Kemilau+Ubud,+Jl.+Raya+Pengosekan+Ubud,+Ubud,+Gianyar+Regency,+Bali+80571/data=!4m2!3m1!1s0x2dd23dacd1e25da9:0x38287a03a46e4ca7?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=f31337d4-bd26-45c6-9f80-bb8d215e258d
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.523292, 115.2633136
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╨┐╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╤Ä 'COARSE & FINE COFFEE @The Kemilau Ubud' ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.523292, 115.2633136
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: COARSE & FINE COFFEE @The Kemilau Ubud (ID: 22) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/7xq5GsnPK2j9XCXaA
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/7xq5GsnPK2j9XCXaA -> https://www.google.com/maps/place/Nostimo+Greek+Grill+Ubud,+Jl.+Raya+Pengosekan+Ubud+No.108,+Ubud,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23d74f8ebf2d1:0x5b7deda11bdb62c0?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=08cf897d-56e5-4dcb-b530-e4da1957800e
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5224852, 115.2628385
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Nostimo Greek Grill Ubud (ID: 22) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/kZTLwrjqYeyV2pc47
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/kZTLwrjqYeyV2pc47 -> https://www.google.com/maps/place/Zest/@-8.5049487,115.2537348,17z/data=!3m1!4b1!4m6!3m5!1s0x2dd23d3dfd1f975f:0xf6e33b9c72b33935!8m2!3d-8.5049487!4d115.2537348!16s%2Fg%2F11ggbc8323?entry=tts&g_ep=EgoyMDI1MTIwMi4wIPu8ASoASAFQAw%3D%3D&skid=06bc1f6e-8f4f-41fb-a0c7-f5be3c3c9a80
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Merlin's
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Merlin's (ID: 39) (bali, cafe) - -8.504949, 115.253735 -> -8.504949, 115.253735
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/78CPNPD9Qhh1rf5E8
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/78CPNPD9Qhh1rf5E8 -> https://www.google.com/maps/place/Taco+Casa+Fresh+Mexican+Grill,+Jl.+Raya+Pengosekan,+Mas,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23d7488585ca3:0x4c10c1e0f7ab135b?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=34b511cd-87f9-4b26-970d-d7772299e0f6
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5211849, 115.2629018
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Taco Casa Fresh Mexican Grill (ID: 23) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/GzF7LBnTnE2KbsPN7
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/GzF7LBnTnE2KbsPN7 -> https://www.google.com/maps/place/Mamma+Mia+Pizza+%26+Pasta+Ubud,+Jl.+Raya+Pengosekan+Ubud,+Ubud,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23d7488022ae9:0xbf50ff7d57ee654d?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=9eaf66aa-fa4a-4e36-8f4f-4fe62e08eb4a
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.521080999999999, 115.263003
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Mamma Mia Pizza & Pasta Ubud (ID: 23) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/Cwzy8NxQTNcif4m48
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/Cwzy8NxQTNcif4m48 -> https://www.google.com/maps/place/Pison+Ubud,+Jl.+Raya+Pengosekan+Ubud+No.10X,+Ubud,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23d7a21850c65:0x85cf8a5235a336aa?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=058f48b4-ce1b-4b00-95a4-de401da3b161
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.518258099999999, 115.2636643
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Pison Ubud (ID: 24) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/LfTWWzvEVuGYYGgA8
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/LfTWWzvEVuGYYGgA8 -> https://www.google.com/maps/place/F7M7%2B2HW+Monsieur+Spoon+Ubud,+99,+Jl.+Hanoman+No.10,+Ubud,+Gianyar+Regency,+Bali+80571/data=!4m2!3m1!1s0x2dd23d724fddbef5:0x19e400bf97dd64de?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=6df73585-1890-460a-9496-c2bfb65e6b31
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5172935, 115.263771
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Monsieur Spoon Ubud (ID: 24) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/4XNRAm7Cmr1N9DEv7
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/4XNRAm7Cmr1N9DEv7 -> https://www.google.com/maps/place/FLOCK+BALI,+Jl.+Jatayu,+Ubud,+Gianyar+Regency,+Bali+80571/data=!4m2!3m1!1s0x2dd23ddbe966f017:0x3d48b1d3c854f68b?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=274ee335-5114-480c-99e6-adb4c45de34f
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.516444, 115.2655511
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: FLOCK BALI (ID: 25) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/C17xqumKLHAhHLPbA
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/C17xqumKLHAhHLPbA -> https://www.google.com/maps/place/HOME+Cafe+JATAYU+%E2%84%A2%EF%B8%8F,+Jl.+Jatayu+No.18,+Peliatan,+Ubud,+Gianyar+Regency,+Bali+80571/data=!4m2!3m1!1s0x2dd23de0af2a54e3:0x2dddef0480798cd2?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=ebfd4555-1dc8-40c8-ae30-024c6d9e7eac
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5165861, 115.2664237
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: HOME Cafe JATAYU Γäó∩╕Å (ID: 25) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/Rdm1hWMzMmkmjXC29
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/Rdm1hWMzMmkmjXC29 -> https://www.google.com/maps/place/GENIO+by+twist,+Jl.+Sukma+Kesuma+No.45,+Peliatan,+Ubud,+Gianyar+Regency,+Bali+80571/data=!4m2!3m1!1s0x2dd23d5ba4edd151:0x1ab78a9f18832bc6?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=6087dd91-38ad-4994-b8ed-83904f36f259
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.514611200000001, 115.2675446
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: GENIO by twist (ID: 26) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/QQUtDbSfMEveg4gk9
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/QQUtDbSfMEveg4gk9 -> https://www.google.com/maps/place/CHAI+OF+THE+TIGER+(Indian+Street+Food),+Br+Tebesaya,+Jl.+Sukma+Kesuma+No.25,+Peliatan,+Kecamatan+Ubud,+Bali+80571/data=!4m2!3m1!1s0x2dd23dc0abd3f8fd:0xfd7291af70cfff89?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=060d23e7-b28a-4479-a4e2-13c9b63bdfda
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.512677, 115.2681868
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: CHAI OF THE TIGER (Indian Street Food)
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: CHAI OF THE TIGER (Indian Street Food) (ID: 27) (bali, cafe) - -8.512677, 115.268187 -> -8.512677, 115.268187
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/Pj8aYgDL5Yi1xTLC9
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/Pj8aYgDL5Yi1xTLC9 -> https://www.google.com/maps/place/Sayuri+Healing+Food,+Jl.+Sukma+Kesuma+No.2,+Peliatan,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23d6ed5151d4b:0xe58ea583a4d4a990?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=d17117ff-e25b-4903-ae06-c9a7215e5424
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5099193, 115.2688474
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Sayuri Healing Food (ID: 28) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/caii3qWjjU6n22iu9
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/caii3qWjjU6n22iu9 -> https://www.google.com/maps/place/Sunkiss+Restaurant,+Jl.+Raya+Ubud,+Petulu,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23d10ebaf02dd:0x73dd14cc38ada60f?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=e8a225bd-dad6-40b8-8b2d-7f1c13e19e2f
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5089687, 115.2690443
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Sunkiss Restaurant (ID: 28) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/vZg5VUVVVnBNYVvUA
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/vZg5VUVVVnBNYVvUA -> https://www.google.com/maps/place/Iraga+Coffee+%26+Roastery,+Jl.+Raya+Andong+No.14,+Peliatan,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23dd72af74fe3:0x3e63de7d952d10a2?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=675d2921-265d-4ccf-9a39-80aaaf959e6f
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5079655, 115.2713767
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Iraga Coffee & Roastery
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Iraga Coffee & Roastery (ID: 29) (bali, cafe) - -8.507965, 115.271377 -> -8.507965, 115.271377
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/jXaKQ2axUkTL55fC6
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/jXaKQ2axUkTL55fC6 -> https://www.google.com/maps/place/Livingstone+Holyground,+Jl.+Raya+Andong+No.88x,+Peliatan,+Ubud,+Gianyar+Regency,+Bali+80571/data=!4m2!3m1!1s0x2dd23d96a16fd43d:0x5362f4aadd0edb14?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=ffe08fe4-5aad-424a-8e72-eedef4ced1a1
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5046923, 115.2721383
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Livingstone Holyground
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Livingstone Holyground (ID: 30) (bali, cafe) - -8.504692, 115.272138 -> -8.504692, 115.272138
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/ZbzKN1L3SJrQW6GR7
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/ZbzKN1L3SJrQW6GR7 -> https://www.google.com/maps/place/Akamana+Coffee+Grill+Garden,+Jl.+Tirta+Tawar+No.178,+Ubud,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd223ce09a36f83:0x6bc8033c375738ba?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=f155623a-eaf4-43c1-a6d7-47b2c63c639e
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.4909093, 115.2702254
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Akamana Garden Coffee and Grill
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Akamana Garden Coffee and Grill (ID: 31) (bali, cafe) - -8.490909, 115.270225 -> -8.490909, 115.270225
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/rZkogdRtkRRFiPv46
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/rZkogdRtkRRFiPv46 -> https://www.google.com/maps/place/Syrco+BAS%C3%88+-+RESTAURANT+and+BAR,+Jl.+Sri+Wedari+No.72,+Ubud,+Gianyar+Regency,+Bali+80571/data=!4m2!3m1!1s0x2dd223ac88b6f097:0x62dd277f5539575a?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=37c72178-fad2-42b8-aaef-9e2116c0ee6f
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.482194, 115.2678094
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Syrco BAS├ê - RESTAURANT and BAR
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Syrco BAS├ê - RESTAURANT and BAR (ID: 32) (bali, cafe) - -8.482194, 115.267809 -> -8.482194, 115.267809
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/ratCzGjijV5fTMbq6
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/ratCzGjijV5fTMbq6 -> https://www.google.com/maps/place/Melali+Ubud,+Jl.+Sri+Wedari+No.58,+Ubud,+Gianyar+Regency,+Bali+80571/data=!4m2!3m1!1s0x2dd23dd7e2e89311:0xf91dc47ae6aa0266?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=634b3ac7-b486-4131-b560-b8a0c7c0ba96
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.4848109, 115.2669997
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Melali Ubud (ID: 33) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/MqJEap24UH7NduDD7
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/MqJEap24UH7NduDD7 -> https://www.google.com/maps/place/F7R6%2BPR8+Bali+Buda+Ubud,+Jalan+Raya+Ubud,+Next+To+Ganesha+Book+Shop,+Padang+Tegal+Kaja,+Jl.+Jembawan+No.2,+Ubud,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23d6943742833:0x56756b0592c63373?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=ef6800ad-9915-45ed-b938-e9add6445d43
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5088034, 115.2669792
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Bali Buda Ubud (ID: 34) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/moUgJxNt8f3hEtNYA
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/moUgJxNt8f3hEtNYA -> https://www.google.com/maps/place/F7R6%2BPR8+Sun+Sun+Warung,+Jl.+Jembawan+No.2,+Ubud,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23d638e54f86b:0xe15c34e1b206781d?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=359015fd-14eb-4d79-a084-2ef364fd21e1
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=ZERO_RESULTS, results_count=0
+Γ¥î ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╨╜╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î: ZERO_RESULTS, 
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5091172, 115.2669234
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╨┐╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╤Ä 'Sun Sun Warung' ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5091172, 115.2669234
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Sun Sun Warung (ID: 34) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/KM8s7zxZtZr2DxGLA
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/KM8s7zxZtZr2DxGLA -> https://www.google.com/maps/place/Melali+Ubud,+Jl.+Sri+Wedari+No.58,+Ubud,+Gianyar+Regency,+Bali+80571/data=!4m2!3m1!1s0x2dd23dd7e2e89311:0xf91dc47ae6aa0266?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=47550d68-51ec-4689-9ead-52e4de8fef05
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.4848109, 115.2669997
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Muse Cafe & Art | Ubud (ID: 33) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/rupivjcrXn3wMhHG6
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/rupivjcrXn3wMhHG6 -> https://www.google.com/maps/place/Milk+%26+Madu+Ubud,+Jl.+Suweta+No.3,+Ubud,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23d6a8e890949:0x6e63b6b7b41f0060?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=2199b5da-c4d9-419b-9eed-b982232e4d05
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5063254, 115.2624265
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Milk madu
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Milk madu (ID: 35) (bali, cafe) - -8.506325, 115.262427 -> -8.506325, 115.262427
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/Eynn75PuVMgXvv6UA
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/Eynn75PuVMgXvv6UA -> https://www.google.com/maps/place/La+Baracca+Bali+(Ubud),+Jl.+Suweta+No.16,+Ubud,+Gianyar+Regency,+Bali+80571/data=!4m2!3m1!1s0x2dd23df646ac13a3:0x3bc4c1319a66d47d?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=b852eb43-f1ca-4767-bff6-1ce38b986888
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.503981999999999, 115.2636298
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: La Baracca Bali (Ubud)
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: La Baracca Bali (Ubud) (ID: 36) (bali, cafe) - -8.503982, 115.263630 -> -8.503982, 115.263630
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/2rtvrDCYPJAhcQMc8
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/2rtvrDCYPJAhcQMc8 -> https://www.google.com/maps/place/Sinamon+Bali+Ubud,+Jl.+Monkey+Forest,+Ubud,+Gianyar+Regency,+Bali+80571/data=!4m2!3m1!1s0x2dd23d50b0b40b6b:0xbe2b9007d0c5ec93?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=5c184020-71bd-4215-8662-51feeef3a2fa
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.508395199999999, 115.2617871
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Sinamon Bali Ubud
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Sinamon Bali Ubud (ID: 37) (bali, cafe) - -8.508395, 115.261787 -> -8.508395, 115.261787
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/asCq5mx4dxvXPLp59
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/asCq5mx4dxvXPLp59 -> https://www.google.com/maps/place/Sala+Bistro+Ubud,+Jl.+Raya+Ubud+No.14,+Ubud,+Gianyar+Regency,+Bali+80571/data=!4m2!3m1!1s0x2dd23d002f8e9db7:0xaf5907994e4de99f?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=77eda948-4d16-4223-8ebe-d5f53d899873
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.506084, 115.2610849
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Sala Bistro Ubud
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Sala Bistro Ubud (ID: 38) (bali, cafe) - -8.506084, 115.261085 -> -8.506084, 115.261085
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/nUoUXoCJdR4weSdY7
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/nUoUXoCJdR4weSdY7 -> https://www.google.com/maps/place/Plant+Bistro,+Blanco+Museum+Area,+Jl.+Raya+Campuhan,+Sayan,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23df077b57bab:0xc7c37f2d7466ea2b?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=e1200e12-8117-4599-be93-612b0bc4ce4a
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.505421499999999, 115.2542999
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Plant Bistro (ID: 39) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/kZTLwrjqYeyV2pc47
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/kZTLwrjqYeyV2pc47 -> https://www.google.com/maps/place/Zest/@-8.5049487,115.2537348,17z/data=!3m1!4b1!4m6!3m5!1s0x2dd23d3dfd1f975f:0xf6e33b9c72b33935!8m2!3d-8.5049487!4d115.2537348!16s%2Fg%2F11ggbc8323?entry=tts&g_ep=EgoyMDI1MTIwMi4wIPu8ASoASAFQAw%3D%3D&skid=06bc1f6e-8f4f-41fb-a0c7-f5be3c3c9a80
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Zest (ID: 39) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/95jwJMwXJQZ7iQ3j8
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/95jwJMwXJQZ7iQ3j8 -> https://www.google.com/maps/place/Element+Restaurant+and+Bar,+Penestanan+Kelod,+Element+Restaurant+%26+Bar,+Jl.+Penestanan+Jl.+Penestanan+Kelod+No.8,+Sayan,+Ubud,+Gianyar+Regency,+Bali+80571/data=!4m2!3m1!1s0x2dd23d161bfeba73:0x5152d62796b600f9?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=9cc58267-03ee-4f1e-b4e8-8ac9b3fde1a3
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: 39.7064361, -74.2758941
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Element Restaurant and Bar, Penestanan Kelod
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Element Restaurant and Bar, Penestanan Kelod (ID: 40) (bali, cafe) - 39.706436, -74.275894 -> 39.706436, -74.275894
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/g8i6HkWmZg9VdCAo9
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/g8i6HkWmZg9VdCAo9 -> https://www.google.com/maps/place/Clover+Cafe+at+The+Hava+Ubud,+Jl.+Penestanan,+Sayan,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23df061fabf5d:0x6cc1bce7f97eadc9?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=da14a35d-8b68-48e8-9166-e0eed752dfa1
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5060997, 115.2521894
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Clover Cafe at The Hava Ubud (ID: 41) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/hq4dgo4DwbCnSwaz6
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/hq4dgo4DwbCnSwaz6 -> https://www.google.com/maps/place/Brie+Restaurant+%26+Cheesery,+Jl.+Penestanan+Kelod,+Sayan,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23dd5265bc4a9:0x5abc4293e0ca5286?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=f7be335c-14c5-454f-8217-30b6d4ace2c1
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5062564, 115.2518391
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Brie Restaurant & Cheesery (ID: 41) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/RubVPUhgDWTdQxHC8
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/RubVPUhgDWTdQxHC8 -> https://www.google.com/maps/place/Alchemy+Bali,+Jl.+Penestanan+Kelod+No.75,+Sayan,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23d16291588f1:0xcbc854861108956e?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=b689987c-9105-4e55-b92d-4bf5daf65b66
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=2
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.506393899999999, 115.2516442
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Alchemy Bali (ID: 41) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/kvV9XZXKMwFW1jJc6
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/kvV9XZXKMwFW1jJc6 -> https://www.google.com/maps/place/Green+Rabbit,+Jl.+Penestanan+Kelod+No.75,+Sayan,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23d4af7937927:0x55754a1de96b6ca?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=1bcebad4-601b-42a0-9f72-8aa9661cd606
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: 42.2057495, -71.02843469999999
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Green Rabbit
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Green Rabbit (ID: 42) (bali, cafe) - 42.205750, -71.028435 -> 42.205750, -71.028435
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/tzpWmT5qEtfu4Vrw7
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/tzpWmT5qEtfu4Vrw7 -> https://www.google.com/maps/place/TYGR+UBUD,+Jl.+Penestanan+Kelod+No.8,+Sayan,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23d7b27e9c07b:0xb829d438fabd95c1?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=460ffb3c-8ac5-40f5-b80e-ce28dd9e8c60
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5060694, 115.2510439
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Tygr sushi (ID: 43) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/hiWkqQU4SjEZ4Q9a9
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/hiWkqQU4SjEZ4Q9a9 -> https://www.google.com/maps/place/BGS+Ubud+-+Coffee+Bar+%26+Lifestyle+Shop,+Jl.+Penestanan,+Sayan,+Ubud,+Gianyar+Regency,+Bali+80571/data=!4m2!3m1!1s0x2dd23d8476657bc3:0x9be06315b86817e7?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=82e13ea2-ccff-4e4e-9154-8a595ab0ad73
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.505887699999999, 115.2508108
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: BGS Ubud - Coffee Bar & Lifestyle Shop (ID: 43) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/kukAZLpp2aJLdEb78
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/kukAZLpp2aJLdEb78 -> https://www.google.com/maps/place/Foodology+ubud,+Jl.+Penestanan+Kelod,+Sayan,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23d00112fd5e1:0x215d5e0ee05b9b76?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=eca87a58-5ab4-489f-b585-854829ab6526
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5058343, 115.2505556
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Foodology ubud (ID: 43) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/Y54ZqXggyxtsPkUdA
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/Y54ZqXggyxtsPkUdA -> https://www.google.com/maps/place/G6FW%2BX2G+Taman+Dedari,+Kedewatan,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd222da6a1af3c3:0x26ce11007cf77ea1?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=ab36b888-4b9b-4eab-ae10-39c3402c3f99
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.4751788, 115.2450829
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Taman Dedari
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Taman Dedari (ID: 44) (bali, cafe) - -8.475179, 115.245083 -> -8.475179, 115.245083
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/nVaKCZhP33F7thKC7
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/nVaKCZhP33F7thKC7 -> https://www.google.com/maps/place/R%C3%9CSTERS/@-8.5362062,115.2433837,18.97z/data=!4m9!3m8!1s0x2dd23d65f7756e43:0xc063a6737d391399!5m2!4m1!1i2!8m2!3d-8.5365081!4d115.2436876!16s%2Fg%2F11j50lcrqv?entry=tts&g_ep=EgoyMDI1MTIwMi4wIPu8ASoASAFQAw%3D%3D&skid=2edd6c70-6b23-4b24-b955-3d135ce490f9
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: R├£STERS
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: R├£STERS (ID: 49) (bali, cafe) - -8.536206, 115.243384 -> -8.536206, 115.243384
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/EEWH9jYgjVoAnYLu5
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/EEWH9jYgjVoAnYLu5 -> https://www.google.com/maps/place/Locavore+NXT,+Jl.+A.A.+Gede+Rai+Gang+Pura+Panti+Bija,+Lodtunduh,+Ubud,+Gianyar+Regency,+Bali+80571/data=!4m2!3m1!1s0x2dd23df8e648ddcb:0x5a7157f02c311f50?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=d00da633-9818-486e-b51b-9e5bb59acf3c
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5422753, 115.2573302
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Locavore NXT
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Locavore NXT (ID: 45) (bali, cafe) - -8.542275, 115.257330 -> -8.542275, 115.257330
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/54iBu5mVujstVRq2A
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/54iBu5mVujstVRq2A -> https://www.google.com/maps/place/Titi+Batu+Ubud+Club+Restaurant,+Jl.+Cempaka,+banjar+kumbuh,+Mas,+Ubud,+Gianyar+Regency,+Bali+80571/data=!4m2!3m1!1s0x2dd23d8505d1a819:0x10dad2d74c09a92a?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=75a5367d-7ddf-4acf-b5ad-58fd49359a36
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5364986, 115.2667886
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Titi Batu Ubud Club Restaurant
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Titi Batu Ubud Club Restaurant (ID: 46) (bali, cafe) - -8.536499, 115.266789 -> -8.536499, 115.266789
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/MtoDfKewEngfvmRg7
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/MtoDfKewEngfvmRg7 -> https://www.google.com/maps/place/80571+Bali,+Kabupaten+Gianyar,+Kecamatan+Ubud,+Peliatan,+Satu+Mangkok+(One+Bowl+Food)/data=!4m2!3m1!1s0x2dd23d17e12e7495:0x4c70698aeca6b2ea?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=34f32c9e-fbc0-47b4-bb11-4d14378e4c24
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5164072, 115.2481959
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Satu Mangkok (One Bowl Food)
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Satu Mangkok (One Bowl Food) (ID: 47) (bali, cafe) - -8.516407, 115.248196 -> -8.516407, 115.248196
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/chLspLCopdf8fcjv6
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/chLspLCopdf8fcjv6 -> https://www.google.com/maps/place/WORD.BALI+Ubud+cafe,+Jl.+Sukma+Kesuma+No.49,+Peliatan,+Ubud,+Gianyar+Regency,+Bali+80571/data=!4m2!3m1!1s0x2dd23d274ad5354f:0x245ae562fc4a753?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=4bac3d5e-0aa3-4e0f-bfe7-fdba92838d88
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5153144, 115.2673747
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: WORD.BALI Ubud cafe (ID: 26) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/9Pby1V1zHB1oADuz7
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/9Pby1V1zHB1oADuz7 -> https://www.google.com/maps/place/Kalos+Bali,+Jl.+Gn.+Sari,+Peliatan,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23d6b3472ddab:0xb8f734b408d519c4?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=077d9e33-e01a-4842-a997-ea19f11a8d03
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.509433699999999, 115.2753001
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Kalos Bali
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Kalos Bali (ID: 48) (bali, cafe) - -8.509434, 115.275300 -> -8.509434, 115.275300, ╨ƒ╤Ç╨╛╨╝╨╛╨║╨╛╨┤: PROMO2024
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/9jYjf3FjxmGQVzz88
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/9jYjf3FjxmGQVzz88 -> https://www.google.com/maps/place/UNIBOWL+PokeBowl+Bali,+Jl.+Bumbak+No.17,+Kerobokan,+Kerobokan+Kelod,+Kuta+Utara,+Badung+Regency,+Bali+80361/data=!4m2!3m1!1s0x2dd247480f194af1:0xdc8207dba8cb2861?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=de7b1d5e-83e8-4567-9292-d00c53a34c4c
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6516433, 115.1576027
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: UNIBOWL PokeBowl Bali
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: UNIBOWL PokeBowl Bali (ID: 50) (bali, cafe) - -8.651643, 115.157603 -> -8.651643, 115.157603
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/5M3tHYB6Fiue9Doz5
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/5M3tHYB6Fiue9Doz5 -> https://www.google.com/maps/place/n%C3%BCde+cafe+Umalas,+Jl.+Bumbak+Dauh+No.89D,+Kerobokan,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80361/data=!4m2!3m1!1s0x2dd2470030c6a5e9:0xa688dcafb39298b1?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=bb685f86-5383-4910-8cf8-daad93fd4eb3
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.654817999999999, 115.1534396
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: n├╝de cafe Umalas
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: n├╝de cafe Umalas (ID: 51) (bali, cafe) - -8.654818, 115.153440 -> -8.654818, 115.153440
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/YU8VEAa6gxiUC86HA
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/YU8VEAa6gxiUC86HA -> https://www.google.com/maps/place/7AM+Bakers+Umalas,+Jl.+Bumbak+Dauh+No.88,+Kerobokan,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80361/data=!4m2!3m1!1s0x2dd2479f84eeae85:0xbd45f0ed6303a6d9?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=a9538a91-84bd-4298-9275-89c77f88da50
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6563053, 115.1524157
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: 7AM Bakers Umalas
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: 7AM Bakers Umalas (ID: 52) (bali, cafe) - -8.656305, 115.152416 -> -8.656305, 115.152416
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/XBXa8nRt2LKNTkeK9
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/XBXa8nRt2LKNTkeK9 -> https://www.google.com/maps/place/La+Casetta,+Jl.+Bumbak+Dauh+No.172,+Kerobokan,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80361/data=!4m2!3m1!1s0x2dd2477b3a12c36f:0xe63906bde03b1976?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=8b7be8af-859b-4fdd-a9eb-e9aa14487606
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: 43.3007424, 10.5797227
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: La Casetta
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: La Casetta (ID: 53) (bali, cafe) - 43.300742, 10.579723 -> 43.300742, 10.579723
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/5oYzpVaYiRHLRK3f8
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/5oYzpVaYiRHLRK3f8 -> https://www.google.com/maps/place/Usha+Canggu,+Jl.+Bumbak+Dauh+No.167,+Kerobokan,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80361/data=!4m2!3m1!1s0x2dd2470054932be5:0x77f569357f8be980?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=f0f67ad8-ad74-4ee9-81d2-8109ec39f1d6
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6559097, 115.1528276
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Usha Canggu (ID: 52) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/ruK5C8tLtc8M4CHg8
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/ruK5C8tLtc8M4CHg8 -> https://www.google.com/maps/place/JUST+KITCHEN+Georgian+Restaurant,+Jl.+Bumbak+Dauh+No.112B,+Kerobokan,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80310/data=!4m2!3m1!1s0x2dd247ce501502b9:0x47ef8036aa90e04?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=8f6d202f-61a6-4185-9b59-1ec178a5575d
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6633142, 115.1524814
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: JUST KITCHEN Georgian Restaurant
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: JUST KITCHEN Georgian Restaurant (ID: 54) (bali, cafe) - -8.662905, 115.152253 -> -8.663314, 115.152481
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/4aajTSkGw5NS8rR46
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/4aajTSkGw5NS8rR46 -> https://www.google.com/maps/place/Bali+Beans+Coffee+%26+Co,+Jl.+Umalas+1+No.67,+Kerobokan+Kelod,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80361/data=!4m2!3m1!1s0x2dd247fe221bbff3:0x6a4c2adfc7a58144?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=d518a802-a5a7-4bc2-994f-259d78b10bc7
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6693684, 115.1564459
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Bali Beans Coffee & Co
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Bali Beans Coffee & Co (ID: 55) (bali, cafe) - -8.669368, 115.156446 -> -8.669368, 115.156446
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/CKyGvx1G15Y3MQr69
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/CKyGvx1G15Y3MQr69 -> https://www.google.com/maps/place/Nook,+Jl.+Umalas+1+No.3,+Kerobokan+Kelod,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80361/data=!4m2!3m1!1s0x2dd2476bdb660425:0x21d7604033fd4d8b?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=2e57895a-8e9e-458a-821c-a75782892d68
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=ZERO_RESULTS, results_count=0
+Γ¥î ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╨╜╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î: ZERO_RESULTS, 
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=ZERO_RESULTS, results_count=0
+Γ¥î ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╨╜╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î: ZERO_RESULTS, 
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.app.goo.gl/CKyGvx1G15Y3MQr69...
+   (╨┐╤Ç╨╛╨▒╨╛╨▓╨░╨╗╨╕ ╨│╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╤é╤î ╨┐╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╤Ä 'Nook', ╨╜╨╛ ╨╜╨╡ ╨┐╨╛╨╗╤â╤ç╨╕╨╗╨╛╤ü╤î)
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/zeh6mFFsoL8wNp316
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/zeh6mFFsoL8wNp316 -> https://www.google.com/maps/place/Nyom+Nyom+Coffee,+Jl.+Pantai+Berawa+Br+Pelambingan+No+37B+Tibubeneng,+Canggu,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80361/data=!4m2!3m1!1s0x2dd247573928c85f:0xc17dd41ee76648f8?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=af94fe26-6534-47ea-a917-cf13afaf6098
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.656742099999999, 115.1475279
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Nyom Nyom Coffee (ID: 56) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/Se4JmGvLELjmDPeG7
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/Se4JmGvLELjmDPeG7 -> https://www.google.com/maps/place/SATUSATU+COFFEE+COMPANY,+Jl.+Pantai+Berawa+No.36,+Tibubeneng,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80361/data=!4m2!3m1!1s0x2dd2477ddef07723:0xe4b94984490ec9b8?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=f2736748-c730-459e-8bfb-1214d4e92feb
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6558639, 115.1475222
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: SATUSATU COFFEE COMPANY (ID: 56) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/93YopYYK1UmfnU426
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/93YopYYK1UmfnU426 -> https://www.google.com/maps/place/Slavic+Roots+cafe+and+eatery,+Jl.+Pantai+Berawa+No.26,+Tibubeneng,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80361/data=!4m2!3m1!1s0x2dd2397003f937b9:0x914de8fab5402884?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=0674c293-8575-4547-acd4-096fc9868440
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.654578599999999, 115.1480378
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Slavic Roots cafe and eatery
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Slavic Roots cafe and eatery (ID: 57) (bali, cafe) - -8.654579, 115.148038 -> -8.654579, 115.148038
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/nDRGwfdgDFZ42Tsm7
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/nDRGwfdgDFZ42Tsm7 -> https://www.google.com/maps/place/KAI+Cafe+%26+Bar,+Jl.+Pantai+Berawa+No.77,+Tibubeneng,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80361/data=!4m2!3m1!1s0x2dd239b8c12d8775:0x95a91d4c9ab5d2bb?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=d36b4b3d-01f5-4805-8904-6f1a239087f7
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6504768, 115.1495644
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: KAI Cafe & Bar
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: KAI Cafe & Bar (ID: 58) (bali, cafe) - -8.650477, 115.149564 -> -8.650477, 115.149564
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/HMK1vxkwXYLQcSbb9
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/HMK1vxkwXYLQcSbb9 -> https://www.google.com/maps/place/Koloni,+Jl.+Raya+Semat+No.1,+Canggu,+Tibubeneng,+Kuta+Utara,+Badung+Regency,+Bali+80361/data=!4m2!3m1!1s0x2dd238812f71bbff:0x4f02e722c385f6a7?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=65b0df70-cb84-4ccb-ad12-599f35b5ee2f
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: 34.7519779, 32.4679536
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Koloni
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Koloni (ID: 59) (bali, cafe) - 34.751978, 32.467954 -> 34.751978, 32.467954
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/5QFPHAa5ZfPCY4jWA
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/5QFPHAa5ZfPCY4jWA -> https://www.google.com/maps/place/84XV%2BJRX+rabbithole+bakery+project,+Tibubeneng,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali/data=!4m2!3m1!1s0x2dd23966514fa781:0x168f483dc24091cf?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=93836201-2066-4ed5-862f-9595af64d487
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=ZERO_RESULTS, results_count=0
+Γ¥î ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╨╜╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î: ZERO_RESULTS, 
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6508966, 115.1446028
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╨┐╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╤Ä 'rabbithole bakery project' ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6508966, 115.1446028
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: rabbithole bakery project
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: rabbithole bakery project (ID: 60) (bali, cafe) - -8.650897, 115.144603 -> -8.650897, 115.144603
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/m4SuRQAEgCFu8prM9
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/m4SuRQAEgCFu8prM9 -> https://www.google.com/maps/place/Dang!+Cookies,+Jl.+Raya+Semat+No.15,+Tibubeneng,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80361/data=!4m2!3m1!1s0x2dd239572a62793f:0xe4e2fe7cd81778d9?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=e3e54e8d-2221-4696-b736-b50a649a2b1a
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6537443, 115.1429154
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Dang! Cookies
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Dang! Cookies (ID: 61) (bali, cafe) - -8.653744, 115.142915 -> -8.653744, 115.142915
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/eYtrPbbou7GLTnuG6
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/eYtrPbbou7GLTnuG6 -> https://www.google.com/maps/place/Hungry+Bird+Coffee+Roaster,+Jl.+Raya+Semat+No.86,+Tibubeneng,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80361/data=!4m2!3m1!1s0x5045cac6dd5666b:0xa20ec64c8cffc80c?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=c97877c4-75cf-4225-83c5-a4cb145c2c49
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.655999600000001, 115.1410649
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Hungry Bird Coffee Roaster
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Hungry Bird Coffee Roaster (ID: 62) (bali, cafe) - -8.656000, 115.141065 -> -8.656000, 115.141065
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/em67D6jeyBpF8ZMp9
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/em67D6jeyBpF8ZMp9 -> https://www.google.com/maps/place/Margaret+Bistro,+Jl.+Pantai+Berawa+No.99,+Tibubeneng,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80361/data=!4m2!3m1!1s0x2dd2472575ff085f:0xd27a949d519dbe0e?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=3328cd34-aac1-4317-9c5e-155d400fa356
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.660264, 115.1397565
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Margaret Bistro (ID: 63) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/u6SdkJVURiBoov43A
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/u6SdkJVURiBoov43A -> https://www.google.com/maps/place/Matcha+Cafe+Bali,+Jl.+Pantai+Berawa+No.99,+Tibubeneng,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80361/data=!4m2!3m1!1s0x2dd24782274743ff:0x7cb9088236314042?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=b741377f-e817-45d0-9ac2-9018be20976d
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6604116, 115.1395497
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Matcha Cafe Bali (ID: 63) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/5HevzuSCQoFhjj2F6
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/5HevzuSCQoFhjj2F6 -> https://www.google.com/maps/place/Monsieur+Spoon+The+Luc+Bali,+The+Luc+Bali,+Jl.+Pantai+Berawa,+Tibubeneng,+Kuta+Utara,+Badung+Regency,+Bali+80363/data=!4m2!3m1!1s0x2dd247753cbbbc71:0xb68e11c40449066c?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=ad725d2c-39e0-40c9-9ab0-79f6e496feb7
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.660648499999999, 115.1397737
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Monsieur Spoon The Luc Bali (ID: 63) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/VQc62YowARhVjvHZ7
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/VQc62YowARhVjvHZ7 -> https://www.google.com/maps/place/Copenhagen+CAFE+Berawa,+Gg.+Anggrek,+Tibubeneng,+Kuta+Utara,+Badung+Regency,+Bali+80361/data=!4m2!3m1!1s0x2dd2474e93e803ed:0x53cc824630314d84?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=936758d5-40b5-4107-8cd3-3ce963cc32b3
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6589493, 115.1381321
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Copenhagen CAFE Berawa
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Copenhagen CAFE Berawa (ID: 64) (bali, cafe) - -8.658949, 115.138132 -> -8.658949, 115.138132
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/oc1ngob9m2Eee9Qh8
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/oc1ngob9m2Eee9Qh8 -> https://www.google.com/maps/place/Motion+Cafe+Canggu,+Jl.+Pantai+Batu+Bolong+No.69B,+Canggu,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80351/data=!4m2!3m1!1s0x2dd23879525823f7:0xad42b3731210c20d?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=b74db8a0-92cb-4fe7-9f92-4bc43bb40b20
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6509743, 115.1352591
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Motion Cafe Canggu (ID: 65) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/28D1Wvp9ZVPHmeyy9
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/28D1Wvp9ZVPHmeyy9 -> https://www.google.com/maps/place/SECRET+SPOT+CANGGU,+Jl.+Tanah+Barak+No.7,+Canggu,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80361/data=!4m2!3m1!1s0x2dd2395756f49799:0x4399c5e980787647?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=7cc79df7-8819-43d3-98c4-99403ceda25f
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6507835, 115.1343239
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: SECRET SPOT CANGGU (ID: 65) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/Ks2NFtvfuHich97v7
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/Ks2NFtvfuHich97v7 -> https://www.google.com/maps/place/%D0%A4%D0%B0%D0%B1%D1%80%D0%B8%D0%BA%D0%B0+%D0%B0%D0%B2%D0%BE%D0%BA%D0%B0%D0%B4%D0%BE,+Jl.+Batu+Mejan+Canggu,+Canggu,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80351/data=!4m2!3m1!1s0x2dd23879c172aadf:0xf4d51b130959d687?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=53a810e1-b8dc-4442-8855-3c97c3180dd9
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6522994, 115.1318398
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: The Avocado Factory (ID: 66) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/gx9gR1HKdYsusYY57
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/gx9gR1HKdYsusYY57 -> https://www.google.com/maps/place/BGS+Bali+Canggu+-+Coffee+Bar+%26+Surf+Shop,+Jl.+Munduk+Catu+No.1,+Canggu,+Kuta+Utara,+Badung+Regency,+Bali+80361/data=!4m2!3m1!1s0x2dd23879c9dada73:0x6fd7670c5fec51a8?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=2c523b21-b430-42a9-9a7b-f4c82287e3f8
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.652970999999999, 115.131064
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: BGS Bali Canggu - Coffee Bar & Surf Shop (ID: 66) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/iV8pnWAqiPfZgvA48
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/iV8pnWAqiPfZgvA48 -> https://www.google.com/maps/place/Teamo+-+Gastro-Bistro,+Restaurant+Canggu,+Jl.+Munduk+Catu,+Canggu,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80361/data=!4m2!3m1!1s0x2dd2395509237293:0xb5878e5bb34200c?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=2436a0ff-ad5b-4df4-a0e0-9b39a5b82cf5
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.654581, 115.1296771
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Teamo - Gastro-Bistro, Restaurant Canggu
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Teamo - Gastro-Bistro, Restaurant Canggu (ID: 67) (bali, cafe) - -8.654581, 115.129677 -> -8.654581, 115.129677
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/Wfx2WJLfnkdYojv79
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/Wfx2WJLfnkdYojv79 -> https://www.google.com/maps/place/Marroosh+Bali,+Jl.+Pantai+Batu+Mejan+No.5D,+Canggu,+Kuta+Utara,+Badung+Regency,+Bali+80351/data=!4m2!3m1!1s0x2dd239d0efccb15b:0x3de004e135f68f7?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=5a390d57-b80e-4c55-af42-130c8d3c5894
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6500132, 115.130299
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Marroosh Bali
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Marroosh Bali (ID: 68) (bali, cafe) - -8.650013, 115.130299 -> -8.650013, 115.130299
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/dDdaLhjxnoPDnqGL9
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/dDdaLhjxnoPDnqGL9 -> https://www.google.com/maps/place/Feel+Food+Cafe,+Jl.+Pantai+Batu+Mejan+No.82,+Canggu,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80363/data=!4m2!3m1!1s0x2dd239b0ba66ec71:0xc3c1c9f1942a2b84?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=e436ea5c-8717-48fc-81ab-0e1ddfcbec2b
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.646807599999999, 115.1327586
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Feel Food Cafe
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Feel Food Cafe (ID: 69) (bali, cafe) - -8.646808, 115.132759 -> -8.646808, 115.132759
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/UWF3XD51EzGqcFAH8
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/UWF3XD51EzGqcFAH8 -> https://www.google.com/maps/place/%D0%9A%D0%BE%D0%BF%D0%B5%D0%BD%D0%B3%D0%B0%D0%B3%D0%B5%D0%BD,+Jl.+Padang+Lingjong+No.71a,+Canggu,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80361/data=!4m2!3m1!1s0x2dd2386340b679bd:0x260f391f0c4d2633?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=76ee3c59-24a2-4669-9e6b-5be72fb54071
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: 55.6760968, 12.5683371
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Copenhagen
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Copenhagen (ID: 70) (bali, cafe) - 55.676097, 12.568337 -> 55.676097, 12.568337
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/b5CQyxZgrp1bqGgC7
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/b5CQyxZgrp1bqGgC7 -> https://www.google.com/maps/place/Bali+Buda,+Jl.+Pantai+Batu+Mejan+No.67A,+Canggu,+Kec.+Kuta+Utara,+Kabupaten+Badung,+Bali+80351/data=!4m2!3m1!1s0x2dd2387b4e9b133f:0x6bbd98329ed0f6f?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=cbb5c1e0-927f-47a3-9b05-511e99dd64ce
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=ZERO_RESULTS, results_count=0
+Γ¥î ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╨╜╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î: ZERO_RESULTS, 
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=ZERO_RESULTS, results_count=0
+Γ¥î ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╨╜╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î: ZERO_RESULTS, 
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.app.goo.gl/b5CQyxZgrp1bqGgC7...
+   (╨┐╤Ç╨╛╨▒╨╛╨▓╨░╨╗╨╕ ╨│╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╤é╤î ╨┐╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╤Ä 'Bali Buda', ╨╜╨╛ ╨╜╨╡ ╨┐╨╛╨╗╤â╤ç╨╕╨╗╨╛╤ü╤î)
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/UxDEYoAAhw8hk5Zp9
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/UxDEYoAAhw8hk5Zp9 -> https://www.google.com/maps/place/Roots,+Jl.+Pantai+Pererenan+No.121,+Pererenan,+Kec.+Mengwi,+Kabupaten+Badung,+Bali+80351/data=!4m2!3m1!1s0x2dd239f29a921701:0x63f989b4512bad29?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=dbc0dfcd-a6cb-439f-a929-b78c8058a638
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=ZERO_RESULTS, results_count=0
+Γ¥î ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╨╜╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î: ZERO_RESULTS, 
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=ZERO_RESULTS, results_count=0
+Γ¥î ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╨╜╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î: ZERO_RESULTS, 
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.app.goo.gl/UxDEYoAAhw8hk5Zp9...
+   (╨┐╤Ç╨╛╨▒╨╛╨▓╨░╨╗╨╕ ╨│╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╤é╤î ╨┐╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╤Ä 'Roots', ╨╜╨╛ ╨╜╨╡ ╨┐╨╛╨╗╤â╤ç╨╕╨╗╨╛╤ü╤î)
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/3QusPc9T21hWmoFk8
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/3QusPc9T21hWmoFk8 -> https://www.google.com/maps/place/BAKED.+Pererenan,+Jl.+Pantai+Pererenan+No.118,+Pererenan,+Kec.+Mengwi,+Kabupaten+Badung,+Bali+80351/data=!4m2!3m1!1s0x2dd2394943b7c995:0x453bee4cc92fda83?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=9211c992-6b78-4834-9379-8d5b9b694287
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6467864, 115.1256135
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: BAKED. Pererenan (ID: 71) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/wV7wi5xP9hZ4eqHF6
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/wV7wi5xP9hZ4eqHF6 -> https://www.google.com/maps/place/ST.+ALi+-+Bali,+Jl.+Pantai+Pererenan,+Pererenan,+Mengwi,+Badung+Regency,+Bali+80351/data=!4m2!3m1!1s0x2dd239f6a41dde0f:0xb7aefbf530f7a0f7?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=e3373a0e-997c-45e1-bd7a-958270d69d1d
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.646774299999999, 115.1254023
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: ST. ALi - Bali (ID: 71) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/A1pdwZ42FQBQyto78
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/A1pdwZ42FQBQyto78 -> https://www.google.com/maps/place/Touch%C3%A9+Cafe+%26+Restaurant,+Jl.+Pantai+Pererenan+No.104,+Pererenan,+Mengwi,+Badung+Regency,+Bali+80351/data=!4m2!3m1!1s0x2dd239a54faf61c7:0x4cb9a5a4884270eb?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=e5ebf510-9207-46b9-b73a-3625a43c786e
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.645349, 115.1269664
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Touch├⌐ Cafe & Restaurant
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Touch├⌐ Cafe & Restaurant (ID: 72) (bali, cafe) - -8.645349, 115.126966 -> -8.645349, 115.126966
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/XwY5cFPnvZMTSVuq9
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/XwY5cFPnvZMTSVuq9 -> https://www.google.com/maps/place/ARTE+Canggu,+Jl.+Pantai+Pererenan+No.172,+Pererenan,+Kec.+Mengwi,+Kabupaten+Badung,+Bali+80351/data=!4m2!3m1!1s0x2dd239157fa29935:0x8962f6278125f1cb?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=128dd9df-e32f-4b07-8f4d-4fef332e3567
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6505025, 115.1220189
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: ARTE Italian Restaurant | Canggu (ID: 73) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/YaLypcxY9C2ERPpN6
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/YaLypcxY9C2ERPpN6 -> https://www.google.com/maps/place/7AM+Bakers+Pererenan,+Jl.+Pantai+Pererenan+No.164,+Pererenan,+Kec.+Mengwi,+Kabupaten+Badung,+Bali+86000/data=!4m2!3m1!1s0x2dd239e27ae5fbc9:0x5bf804b7edc9a8e7?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=df083421-5603-4334-96e1-1c84bacfd565
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6495264, 115.1229424
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: 7AM Bakers Pererenan (ID: 73) (bali, cafe) - ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╤ü╤ü╤ï╨╗╨║╨░
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/jFDqhbx1NKUbMc6e6
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/jFDqhbx1NKUbMc6e6 -> https://www.google.com/maps/place/n%C3%BCde+cafe+Pererenan,+Jl.+Raya+Tiyingtutul+No.19,+Pererenan,+Kuta+Utara,+Badung+Regency,+Bali+80351/data=!4m2!3m1!1s0x2dd2398d368c82ed:0x176693a7f7b89243?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=7be60035-182d-4a11-a358-5f15b53d600c
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6322212, 115.1399835
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: n├╝de cafe Pererenan
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: n├╝de cafe Pererenan (ID: 74) (bali, cafe) - -8.632221, 115.139983 -> -8.632221, 115.139983
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/QAyLberkARdXSAJ18
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/QAyLberkARdXSAJ18 -> https://www.google.com/maps/place/Copenhagen+BAKERY+Pererenan,+Jl.+Raya+Tiyingtutul+No.6,+Pererenan,+Kec.+Mengwi,+Kabupaten+Badung,+Bali+80351/data=!4m2!3m1!1s0x2dd23936893f8e6f:0x9d55dc7dd75ffb59?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=dea7a541-4eaa-4379-87b7-acee1c3aca28
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.6341468, 115.1401164
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Copenhagen BAKERY Pererenan
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Copenhagen BAKERY Pererenan (ID: 75) (bali, cafe) - -8.634147, 115.140116 -> -8.634147, 115.140116
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.google.com/?cid=555666777...
+ERROR: ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨╕╨╖╨▓╨╗╨╡╤ç╤î ╨║╨╛╨╛╤Ç╨┤╨╕╨╜╨░╤é╤ï ╨╕╨╖: https://maps.google.com/?cid=777888999...
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/ESprcxfxCAKYF7WT9
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/ESprcxfxCAKYF7WT9 -> https://www.google.com/maps/place/Ubud+Co-Working,+Jl.+Raya+Andong+No.92,+Petulu,+Ubud,+Gianyar+Regency,+Bali+80571/data=!4m2!3m1!1s0x2dd23d007946ed69:0x286517bd0406db6?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=4e5ced47-72a0-44dc-8a77-36aa6f58a246
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.500916, 115.2725542
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Ubud Co-Working
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Ubud Co-Working (ID: 76) (bali, coworking) - -8.500916, 115.272554 -> -8.500916, 115.272554
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/eKYSgaKM71YytMfy5
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/eKYSgaKM71YytMfy5 -> https://www.google.com/maps/place/F7V5%2BRF+Ubud.Space+Coworking+and+Coffee,+Ubud,+Kecamatan+Ubud,+Kabupaten+Gianyar,+Bali+80571/data=!4m2!3m1!1s0x2dd23d36c1fe7863:0x2a96fb8313d465e0?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=87d3f2e7-4985-482d-92be-e7b89cca3f64
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5054375, 115.2586875
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Ubud.Space Coworking and Coffee
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Ubud.Space Coworking and Coffee (ID: 77) (bali, coworking) - -8.505437, 115.258687 -> -8.505437, 115.258687
+[expand_short_url] GET (no redirect) 302 https://maps.app.goo.gl/XwXkQUjqBqKDGbbe9
+≡ƒöù ╨á╨░╤ü╤ê╨╕╤Ç╨╕╨╗╨╕ ╨║╨╛╤Ç╨╛╤é╨║╤â╤Ä ╤ü╤ü╤ï╨╗╨║╤â: https://maps.app.goo.gl/XwXkQUjqBqKDGbbe9 -> https://www.google.com/maps/place/Outpost+Ubud+Coworking,+Nyuh+Kuning+Rd,+Mas,+Ubud,+Gianyar+Regency,+Bali+80571/data=!4m2!3m1!1s0x2dd23da0e8530825:0x6562e225c6df8a88?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjQ3LjgYACCenQoqogEsOTQyNjc3MjcsOTQyNzU0MDcsOTQyOTIxOTUsOTQyODQ0NTcsOTQyMjMyOTksOTQyMTY0MTMsOTQyODA1NzYsOTQyMTI0OTYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTc1MjMsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksNDcwODQzOTMsOTQyMTMyMDBCAklE&skid=ae6594c9-3898-44dc-ac73-a2fb9a918ddb
+≡ƒîì Google Geocoding API ╨╛╤é╨▓╨╡╤é: status=OK, results_count=1
+Γ£à ╨ô╨╡╨╛╨║╨╛╨┤╨╕╤Ç╨╛╨▓╨░╨╜╨╕╨╡ ╤â╤ü╨┐╨╡╤ê╨╜╨╛: -8.5276721, 115.2556328
+≡ƒô¥ ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╨╛╨▓╨░╨╜╨╛ ╨╜╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╕╨╖ ╤ä╨░╨╣╨╗╨░: Outpost Ubud Coworking
+≡ƒöä ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛: Outpost Ubud Coworking (ID: 78) (bali, coworking) - -8.527672, 115.255633 -> -8.527672, 115.255633
+
+Done!
+   ╨ö╨╛╨▒╨░╨▓╨╗╨╡╨╜╨╛ ╨╜╨╛╨▓╤ï╤à: 0
+   ╨₧╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╛ ╤ü╤â╤ë╨╡╤ü╤é╨▓╤â╤Ä╤ë╨╕╤à: 80
+   ╨ƒ╤Ç╨╛╨┐╤â╤ë╨╡╨╜╨╛: 21

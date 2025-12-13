@@ -139,22 +139,22 @@ places:beach_club:bali:
 
 Чангу
 
-FINNS Beach Club
+FINNS 
 https://maps.app.goo.gl/Pgs6DsgQGEazoSd38
 
-Atlas Beach Club
+Atlas 
 https://maps.app.goo.gl/wwMctA5VBoiqLhVz8
 
-La Brisa Bali | Beach Club
+La Brisa
 https://maps.app.goo.gl/bKc3oPtazepLKqpcA
 
-The Lawn Canggu Beach Club
+The Lawn
 https://maps.app.goo.gl/XWwg85eQK9HoNwqS7
 
-Beach House at Regent Bali Canggu
+Beach House at Regent 
 https://maps.app.goo.gl/FfNND2eS24QQkM9M7
 
-Sol Rooftop Bali
+Sol Rooftop 
 https://maps.app.goo.gl/PJzDcYu9L1uMM5xMA
 
 Lyma Beach
@@ -166,13 +166,13 @@ https://maps.app.goo.gl/Jmi89CLnasDbm5d58
 Ocean Beach Pool
 https://maps.app.goo.gl/7TobbqoMexCHwuRQA
 
-Ольюуоту Бич
+Ulu Beach
 https://maps.app.goo.gl/pyBWT3Jo7u1dg1vQ8
 
 Ulu Cliffhouse
 https://maps.app.goo.gl/dx1gc1fdagQ89W5G8
 
-Kubu Beach Club
+Kubu 
 https://maps.app.goo.gl/rJgzChjfJy75Hu8X9
 
 # Культура (лавки, музеи)
@@ -189,7 +189,7 @@ https://maps.app.goo.gl/Crh9xmwnENuee5yA6
 ADA Studio Paint Art
 https://maps.app.goo.gl/sqVL4UBhxAiP1Eqn7
 
-Purpa Fine Art Gallery Seminyak
+Purpa Fine Art Gallery 
 https://maps.app.goo.gl/PSgL7j7TmTGA7APa9
 
 Букит

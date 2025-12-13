@@ -29,7 +29,7 @@ https://maps.app.goo.gl/p7zT3uKenYpVvywo9
 Ubud.Fitness
 https://maps.app.goo.gl/d6mN2tX2J5vGzaRk9
 
-The Collective Club Pilates Studio Bali
+The Collective Club Pilates Studio 
 https://maps.app.goo.gl/BrPSyN7Gg3tA45pi6
 
 NOVA wellness club
@@ -58,28 +58,28 @@ https://maps.app.goo.gl/7NZ7ZYQ3KFiX3m9o6
 Infinitus Gym Bali
 https://maps.app.goo.gl/4LqW84FffecCGmom8
 
-Alpha Gym - Bali (The Muscle Factory)
+Alpha Gym 
 https://maps.app.goo.gl/ETUpapiVMkESwAXYA
 
 LEVEL UP GYM
 https://maps.app.goo.gl/ypJgofdQTtHSf3jf6
 
-CrossFit Canggu | Canggu Fitness Studio & Open Gym in Bali
+CrossFit Canggu 
 https://maps.app.goo.gl/Y2pT7iDxr5jqjmty5
 
 POWER + REVIVE STUDIO
 https://maps.app.goo.gl/FaSwA3sE8GbFjwy97
 
-Canggu GYM (CANGGU 9YM)
+Canggu GYM
 https://maps.app.goo.gl/vHpjcbhRV8YhMvw4A
 
-TOPGYM Batu Bolong
+TOPGYM 
 https://maps.app.goo.gl/ufPJYmGHeJzEwbF38
 
 Avenue Fitness
 https://maps.app.goo.gl/eKnDDKoDxgiNXUXE8
 
-Wellness Gym Canggu
+Wellness Gym 
 https://maps.app.goo.gl/UaDGxjjPh66uPsTB6
 
 OBSIDIAN HYROX
@@ -97,11 +97,23 @@ https://maps.app.goo.gl/dzKKk24gEAhTNywZ9
 Wrong Gym
 https://maps.app.goo.gl/kTbyxieTd38JyvLn6
 
-BYND Fitness Club Bali - Gym
+BYND Fitness Club 
 https://maps.app.goo.gl/H43VWphFew1PcTAT8
+
+Букит
+
+https://maps.app.goo.gl/LoJrNR5UPGa2Va8j6
 
 # Спа и wellness
 health:spa:bali:
+
+Букит
+
+https://maps.app.goo.gl/v29RsjVU7i9eBs6z6
+
+https://maps.app.goo.gl/eQDRPVmumRmpVkUL7
+
+https://maps.app.goo.gl/KxPsXncySZXgTwYr6
 
 # Йога студии
 health:yoga_studio:bali:
