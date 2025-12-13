@@ -655,7 +655,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                     )
                 ],
                 [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_list")],
-                [InlineKeyboardButton(text='🚀 Расширенная версия "World"', url="https://t.me/EventAroundBot")],
+                [InlineKeyboardButton(text='🚀 Полная версия "World"', url="https://t.me/EventAroundBot")],
                 [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_execute")],
             ]
         )
@@ -669,7 +669,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                 "🎯 Что умею:\n\n"
                 "• Создавать события\n"
                 "• Показывать события этого чата\n"
-                '• Переводить в полный бот - версия "World"\n\n'
+                '• Полная версия "World"\n\n'
                 "💡 Выберите действие:"
             )
 
@@ -703,7 +703,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                     "🎯 Что умею:\n\n"
                     "• Создавать события\n"
                     "• Показывать события этого чата\n"
-                    '• Переводить в полный бот - версия "World"\n\n'
+                    '• Полная версия "World"\n\n'
                     "💡 Выберите действие:",
                     reply_markup=keyboard,
                     parse_mode="Markdown",
@@ -938,7 +938,7 @@ def group_kb(chat_id: int) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [InlineKeyboardButton(text="➕ Создать событие", url=f"https://t.me/EventAroundBot?start=group_{chat_id}")],
             [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_list")],
-            [InlineKeyboardButton(text='🚀 Расширенная версия "World"', url="https://t.me/EventAroundBot")],
+            [InlineKeyboardButton(text='🚀 Полная версия "World"', url="https://t.me/EventAroundBot")],
             [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_execute")],
         ]
     )
