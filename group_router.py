@@ -1249,6 +1249,10 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
     """Показать список событий этого чата (первая страница)"""
     chat_id = callback.message.chat.id
 
+    # Проверяем, пришли ли мы из сообщения об отмене записи
+    message_text = callback.message.text or ""
+    is_from_cancellation = "Вы больше не записаны" in message_text or "не записаны на событие" in message_text
+
     # Удаляем сообщение с подтверждением (из которого была нажата кнопка)
     try:
         await callback.message.delete()
@@ -1256,44 +1260,112 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
     except Exception as e:
         logger.warning(f"⚠️ Не удалось удалить сообщение с подтверждением: {e}")
 
-    # Удаляем все предыдущие сообщения со списком событий (тег "list" или "service" с текстом о событиях)
-    try:
-        from sqlalchemy import select
+    if is_from_cancellation:
+        # Если пришли из сообщения об отмене - обновляем предыдущий список, а не создаем новый
+        logger.info("🔥 Обновляем предыдущий список событий после отмены записи")
+        try:
+            from sqlalchemy import select
 
-        from database import BotMessage
+            from database import BotMessage
 
-        # Находим все сообщения со списком событий (тег "list" или "service")
-        result = await session.execute(
-            select(BotMessage).where(
-                BotMessage.chat_id == chat_id,
-                BotMessage.deleted.is_(False),
-                BotMessage.tag.in_(["list", "service"]),  # Списки событий и подтверждения
-            )
-        )
-        list_messages = result.scalars().all()
-
-        deleted_count = 0
-        for bot_msg in list_messages:
-            try:
-                await bot.delete_message(chat_id=chat_id, message_id=bot_msg.message_id)
-                bot_msg.deleted = True
-                deleted_count += 1
-                logger.info(
-                    f"✅ Удалено сообщение со списком событий (message_id={bot_msg.message_id}, tag={bot_msg.tag})"
+            # Находим последнее сообщение со списком событий (тег "list")
+            result = await session.execute(
+                select(BotMessage)
+                .where(
+                    BotMessage.chat_id == chat_id,
+                    BotMessage.deleted.is_(False),
+                    BotMessage.tag == "list",  # Только списки событий
                 )
-            except Exception as delete_error:
-                logger.warning(f"⚠️ Не удалось удалить сообщение {bot_msg.message_id}: {delete_error}")
-                bot_msg.deleted = True  # Помечаем как удаленное
+                .order_by(BotMessage.message_id.desc())
+                .limit(1)
+            )
+            last_list_message = result.scalar_one_or_none()
 
-        await session.commit()
-        logger.info(f"✅ Удалено {deleted_count} сообщений со списком событий")
-    except Exception as e:
-        logger.error(f"❌ Ошибка при удалении предыдущих списков событий: {e}")
+            if last_list_message:
+                # Обновляем существующий список напрямую
+                try:
+                    # Создаем фейковый callback с правильным message_id для обновления
+                    from aiogram.types import Message, User
 
-    # Создаем новый список событий
-    # Помечаем, что мы пришли из group_list, чтобы создать новое сообщение вместо редактирования
-    callback._from_group_list = True
-    await group_list_events_page(callback, bot, session, page=1)
+                    bot_user = await bot.get_me()
+                    fake_message = Message(
+                        message_id=last_list_message.message_id,
+                        date=0,
+                        chat=callback.message.chat,
+                        from_user=User(
+                            id=bot_user.id,
+                            is_bot=True,
+                            first_name=bot_user.first_name,
+                            username=bot_user.username,
+                        ),
+                    )
+                    fake_callback = CallbackQuery(
+                        id=callback.id,
+                        from_user=callback.from_user,
+                        chat_instance=callback.chat_instance,
+                        message=fake_message,
+                        data=callback.data,
+                    )
+                    # Обновляем существующий список
+                    await group_list_events_page(fake_callback, bot, session, page=1)
+                    logger.info(f"✅ Обновлен предыдущий список событий (message_id={last_list_message.message_id})")
+                except Exception as update_error:
+                    logger.warning(f"⚠️ Не удалось обновить предыдущий список: {update_error}")
+                    import traceback
+
+                    logger.error(traceback.format_exc())
+                    # Fallback: создаем новый список
+                    callback._from_group_list = True
+                    await group_list_events_page(callback, bot, session, page=1)
+            else:
+                # Если предыдущего списка нет - создаем новый
+                logger.info("ℹ️ Предыдущий список не найден, создаем новый")
+                callback._from_group_list = True
+                await group_list_events_page(callback, bot, session, page=1)
+        except Exception as e:
+            logger.error(f"❌ Ошибка при обновлении предыдущего списка: {e}")
+            # Fallback: создаем новый список
+            callback._from_group_list = True
+            await group_list_events_page(callback, bot, session, page=1)
+    else:
+        # Если пришли не из сообщения об отмене - удаляем все старые списки и создаем новый
+        try:
+            from sqlalchemy import select
+
+            from database import BotMessage
+
+            # Находим все сообщения со списком событий (тег "list" или "service")
+            result = await session.execute(
+                select(BotMessage).where(
+                    BotMessage.chat_id == chat_id,
+                    BotMessage.deleted.is_(False),
+                    BotMessage.tag.in_(["list", "service"]),  # Списки событий и подтверждения
+                )
+            )
+            list_messages = result.scalars().all()
+
+            deleted_count = 0
+            for bot_msg in list_messages:
+                try:
+                    await bot.delete_message(chat_id=chat_id, message_id=bot_msg.message_id)
+                    bot_msg.deleted = True
+                    deleted_count += 1
+                    logger.info(
+                        f"✅ Удалено сообщение со списком событий (message_id={bot_msg.message_id}, tag={bot_msg.tag})"
+                    )
+                except Exception as delete_error:
+                    logger.warning(f"⚠️ Не удалось удалить сообщение {bot_msg.message_id}: {delete_error}")
+                    bot_msg.deleted = True  # Помечаем как удаленное
+
+            await session.commit()
+            logger.info(f"✅ Удалено {deleted_count} сообщений со списком событий")
+        except Exception as e:
+            logger.error(f"❌ Ошибка при удалении предыдущих списков событий: {e}")
+
+        # Создаем новый список событий
+        # Помечаем, что мы пришли из group_list, чтобы создать новое сообщение вместо редактирования
+        callback._from_group_list = True
+        await group_list_events_page(callback, bot, session, page=1)
 
 
 @group_router.callback_query(F.data.startswith("group_list_page_"))
@@ -2247,32 +2319,6 @@ async def community_leave_event(callback: CallbackQuery, bot: Bot, session: Asyn
             )
         else:
             await callback.answer("ℹ️ Вы не были записаны на это событие")
-
-        # Небольшая задержка перед обновлением списка, чтобы сообщение успело отобразиться
-        import asyncio
-
-        await asyncio.sleep(0.5)
-
-        # Обновляем список событий (чтобы обновился счетчик участников)
-        try:
-            # Пытаемся обновить список событий
-            page = 1
-            message_text = callback.message.text or ""
-            if "стр." in message_text:
-                import re
-
-                match = re.search(r"стр\.\s*(\d+)", message_text)
-                if match:
-                    page = int(match.group(1))
-
-            await group_list_events_page(callback, bot, session, page=page)
-        except Exception as e:
-            logger.warning(f"⚠️ Не удалось обновить список событий: {e}")
-            # Если не получилось, просто показываем сообщение с участниками (если это оно)
-            try:
-                await community_show_members(callback, bot, session)
-            except Exception:
-                pass
 
     except Exception as e:
         logger.error(f"❌ Ошибка отмены записи: {e}")
