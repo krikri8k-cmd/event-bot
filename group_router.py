@@ -312,30 +312,175 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
             logger.warning(f"⚠️ Не удалось удалить сообщение пользователя: {delete_error}")
 
         # Сразу обновляем список событий (удаляем старый и создаем новый с обновленными данными)
-        # Используем существующую логику group_list_events через фейковый callback
-        from aiogram.types import CallbackQuery, Message, User
+        try:
+            from sqlalchemy import select
 
-        bot_user = await bot.get_me()
-        fake_message = Message(
-            message_id=0,  # Будет создано новое сообщение
-            date=0,
-            chat=message.chat,
-            from_user=User(
-                id=bot_user.id,
-                is_bot=True,
-                first_name=bot_user.first_name,
-                username=bot_user.username,
-            ),
+            from database import BotMessage
+
+            # Находим все сообщения со списком событий (тег "list" или "service")
+            result = await session.execute(
+                select(BotMessage).where(
+                    BotMessage.chat_id == chat_id,
+                    BotMessage.deleted.is_(False),
+                    BotMessage.tag.in_(["list", "service"]),  # Списки событий и подтверждения
+                )
+            )
+            list_messages = result.scalars().all()
+
+            deleted_count = 0
+            for bot_msg in list_messages:
+                try:
+                    await bot.delete_message(chat_id=chat_id, message_id=bot_msg.message_id)
+                    bot_msg.deleted = True
+                    deleted_count += 1
+                    logger.info(
+                        f"✅ Удалено сообщение со списком событий "
+                        f"(message_id={bot_msg.message_id}, tag={bot_msg.tag})"
+                    )
+                except Exception as delete_error:
+                    logger.warning(f"⚠️ Не удалось удалить сообщение {bot_msg.message_id}: {delete_error}")
+                    bot_msg.deleted = True  # Помечаем как удаленное
+
+            await session.commit()
+            logger.info(f"✅ Удалено {deleted_count} сообщений со списком событий")
+        except Exception as e:
+            logger.error(f"❌ Ошибка при удалении предыдущих списков событий: {e}")
+
+        # Создаем новый список событий с обновленными данными
+        # Используем send_tracked напрямую, без callback
+        from sqlalchemy import select
+
+        from utils.messaging_utils import send_tracked
+
+        # Получаем события для списка
+        now_utc = datetime.now(UTC) - timedelta(hours=3)
+        stmt = (
+            select(CommunityEvent)
+            .where(
+                CommunityEvent.chat_id == chat_id,
+                CommunityEvent.status == "open",
+                CommunityEvent.starts_at >= now_utc,
+            )
+            .order_by(CommunityEvent.starts_at)
+            .limit(10)
         )
-        fake_callback = CallbackQuery(
-            id="",
-            from_user=message.from_user,
-            chat_instance="",
-            message=fake_message,
-            data="group_list",
+        result = await session.execute(stmt)
+        events = result.scalars().all()
+
+        # Формируем текст списка (используем существующую логику из group_list_events_page)
+        if not events:
+            text = (
+                "📋 **События этого чата**\n\n"
+                "📭 **0 событий**\n\n"
+                "В этом чате пока нет активных событий.\n\n"
+                "💡 Создайте первое событие, нажав кнопку **➕ Создать событие**!"
+            )
+        else:
+            text = f"📋 **События этого чата** ({len(events)} событий)\n\n"
+            for i, event in enumerate(events, 1):
+                date_str = event.starts_at.strftime("%d.%m.%Y %H:%M")
+                safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
+                text += f"{i}. {safe_title}\n"
+                text += f"   📅 {date_str}\n"
+
+                city_to_show = event.city or (
+                    extract_city_from_location_url(event.location_url) if event.location_url else None
+                )
+                if city_to_show:
+                    safe_city = city_to_show.replace("*", "").replace("_", "").replace("`", "'")
+                    text += f"   🏙️ {safe_city}\n"
+
+                if event.description:
+                    desc = event.description[:80] + "..." if len(event.description) > 80 else event.description
+                    safe_desc = desc.replace("*", "").replace("_", "").replace("`", "'")
+                    text += f"   📝 {safe_desc}\n"
+
+                if event.location_name:
+                    safe_location = event.location_name.replace("*", "").replace("_", "").replace("`", "'")
+                    if event.location_url:
+                        safe_url = event.location_url.replace("(", "").replace(")")
+                        text += f"   📍 [{safe_location}]({safe_url})\n"
+                    else:
+                        text += f"   📍 {safe_location}\n"
+                elif event.location_url:
+                    safe_url = event.location_url.replace("(", "").replace(")")
+                    text += f"   📍 [Место на карте]({safe_url})\n"
+
+                if event.organizer_username:
+                    text += f"   👤 Организатор: @{event.organizer_username}\n"
+
+                from utils.community_participants_service_optimized import (
+                    get_participants_count_optimized,
+                    is_participant_optimized,
+                )
+
+                participants_count = await get_participants_count_optimized(session, event.id)
+                is_user_participant = await is_participant_optimized(session, event.id, user_id)
+
+                text += f"   👥 Участников: {participants_count}\n"
+
+                if is_user_participant:
+                    text += f"   ✅ Вы записаны | Нажмите /leaveevent{event.id} чтобы отменить\n"
+                else:
+                    text += f"   Нажмите /joinevent{event.id} чтобы записаться\n"
+
+                text += "\n"
+
+            # Проверяем, является ли пользователь админом
+            from utils.chat_utils import is_chat_admin
+
+            is_admin = await is_chat_admin(bot, chat_id, user_id)
+            if is_admin:
+                text += "🔧 Админ-панель: Вы можете удалить любое событие кнопками ниже!\n"
+                text += "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
+            else:
+                text += "🔧 Ваши события: Вы можете удалить свои события кнопками ниже!\n"
+                text += "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
+
+        # Создаем клавиатуру
+        keyboard_buttons = []
+        if events:
+            delete_buttons = []
+            for i, event in enumerate(events, 1):
+                can_delete = False
+                if event.organizer_id == user_id:
+                    can_delete = True
+                elif is_admin:
+                    can_delete = True
+
+                if can_delete:
+                    safe_title = event.title.replace("\n", " ").replace("\r", " ").strip()
+                    if len(safe_title) > 30:
+                        safe_title = safe_title[:27] + "..."
+                    delete_buttons.append(
+                        InlineKeyboardButton(
+                            text=f"❌ Удалить #{i}: {safe_title}",
+                            callback_data=f"group_delete_event_{event.id}",
+                        )
+                    )
+
+            if delete_buttons:
+                keyboard_buttons.append(delete_buttons)
+
+        keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel")])
+        back_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+
+        # Отправляем список через send_tracked
+        is_forum = getattr(message.chat, "is_forum", False)
+        thread_id = getattr(message, "message_thread_id", None)
+
+        send_kwargs = {"reply_markup": back_kb, "parse_mode": "Markdown"}
+        if is_forum and thread_id:
+            send_kwargs["message_thread_id"] = thread_id
+
+        await send_tracked(
+            bot,
+            session,
+            chat_id=chat_id,
+            text=text,
+            tag="list",  # Тег для списка событий
+            **send_kwargs,
         )
-        # Вызываем group_list_events, который удалит старые списки и создаст новый
-        await group_list_events(fake_callback, bot, session)
 
     except Exception as e:
         logger.error(f"❌ Ошибка показа подтверждения: {e}")
@@ -430,30 +575,175 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
             logger.warning(f"⚠️ Не удалось удалить сообщение пользователя: {delete_error}")
 
         # Сразу обновляем список событий (удаляем старый и создаем новый с обновленными данными)
-        # Используем существующую логику group_list_events через фейковый callback
-        from aiogram.types import CallbackQuery, Message, User
+        try:
+            from sqlalchemy import select
 
-        bot_user = await bot.get_me()
-        fake_message = Message(
-            message_id=0,  # Будет создано новое сообщение
-            date=0,
-            chat=message.chat,
-            from_user=User(
-                id=bot_user.id,
-                is_bot=True,
-                first_name=bot_user.first_name,
-                username=bot_user.username,
-            ),
+            from database import BotMessage
+
+            # Находим все сообщения со списком событий (тег "list" или "service")
+            result = await session.execute(
+                select(BotMessage).where(
+                    BotMessage.chat_id == chat_id,
+                    BotMessage.deleted.is_(False),
+                    BotMessage.tag.in_(["list", "service"]),  # Списки событий и подтверждения
+                )
+            )
+            list_messages = result.scalars().all()
+
+            deleted_count = 0
+            for bot_msg in list_messages:
+                try:
+                    await bot.delete_message(chat_id=chat_id, message_id=bot_msg.message_id)
+                    bot_msg.deleted = True
+                    deleted_count += 1
+                    logger.info(
+                        f"✅ Удалено сообщение со списком событий "
+                        f"(message_id={bot_msg.message_id}, tag={bot_msg.tag})"
+                    )
+                except Exception as delete_error:
+                    logger.warning(f"⚠️ Не удалось удалить сообщение {bot_msg.message_id}: {delete_error}")
+                    bot_msg.deleted = True  # Помечаем как удаленное
+
+            await session.commit()
+            logger.info(f"✅ Удалено {deleted_count} сообщений со списком событий")
+        except Exception as e:
+            logger.error(f"❌ Ошибка при удалении предыдущих списков событий: {e}")
+
+        # Создаем новый список событий с обновленными данными
+        # Используем send_tracked напрямую, без callback
+        from sqlalchemy import select
+
+        from utils.messaging_utils import send_tracked
+
+        # Получаем события для списка
+        now_utc = datetime.now(UTC) - timedelta(hours=3)
+        stmt = (
+            select(CommunityEvent)
+            .where(
+                CommunityEvent.chat_id == chat_id,
+                CommunityEvent.status == "open",
+                CommunityEvent.starts_at >= now_utc,
+            )
+            .order_by(CommunityEvent.starts_at)
+            .limit(10)
         )
-        fake_callback = CallbackQuery(
-            id="",
-            from_user=message.from_user,
-            chat_instance="",
-            message=fake_message,
-            data="group_list",
+        result = await session.execute(stmt)
+        events = result.scalars().all()
+
+        # Формируем текст списка (используем существующую логику из group_list_events_page)
+        if not events:
+            text = (
+                "📋 **События этого чата**\n\n"
+                "📭 **0 событий**\n\n"
+                "В этом чате пока нет активных событий.\n\n"
+                "💡 Создайте первое событие, нажав кнопку **➕ Создать событие**!"
+            )
+        else:
+            text = f"📋 **События этого чата** ({len(events)} событий)\n\n"
+            for i, event in enumerate(events, 1):
+                date_str = event.starts_at.strftime("%d.%m.%Y %H:%M")
+                safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
+                text += f"{i}. {safe_title}\n"
+                text += f"   📅 {date_str}\n"
+
+                city_to_show = event.city or (
+                    extract_city_from_location_url(event.location_url) if event.location_url else None
+                )
+                if city_to_show:
+                    safe_city = city_to_show.replace("*", "").replace("_", "").replace("`", "'")
+                    text += f"   🏙️ {safe_city}\n"
+
+                if event.description:
+                    desc = event.description[:80] + "..." if len(event.description) > 80 else event.description
+                    safe_desc = desc.replace("*", "").replace("_", "").replace("`", "'")
+                    text += f"   📝 {safe_desc}\n"
+
+                if event.location_name:
+                    safe_location = event.location_name.replace("*", "").replace("_", "").replace("`", "'")
+                    if event.location_url:
+                        safe_url = event.location_url.replace("(", "").replace(")")
+                        text += f"   📍 [{safe_location}]({safe_url})\n"
+                    else:
+                        text += f"   📍 {safe_location}\n"
+                elif event.location_url:
+                    safe_url = event.location_url.replace("(", "").replace(")")
+                    text += f"   📍 [Место на карте]({safe_url})\n"
+
+                if event.organizer_username:
+                    text += f"   👤 Организатор: @{event.organizer_username}\n"
+
+                from utils.community_participants_service_optimized import (
+                    get_participants_count_optimized,
+                    is_participant_optimized,
+                )
+
+                participants_count = await get_participants_count_optimized(session, event.id)
+                is_user_participant = await is_participant_optimized(session, event.id, user_id)
+
+                text += f"   👥 Участников: {participants_count}\n"
+
+                if is_user_participant:
+                    text += f"   ✅ Вы записаны | Нажмите /leaveevent{event.id} чтобы отменить\n"
+                else:
+                    text += f"   Нажмите /joinevent{event.id} чтобы записаться\n"
+
+                text += "\n"
+
+            # Проверяем, является ли пользователь админом
+            from utils.chat_utils import is_chat_admin
+
+            is_admin = await is_chat_admin(bot, chat_id, user_id)
+            if is_admin:
+                text += "🔧 Админ-панель: Вы можете удалить любое событие кнопками ниже!\n"
+                text += "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
+            else:
+                text += "🔧 Ваши события: Вы можете удалить свои события кнопками ниже!\n"
+                text += "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
+
+        # Создаем клавиатуру
+        keyboard_buttons = []
+        if events:
+            delete_buttons = []
+            for i, event in enumerate(events, 1):
+                can_delete = False
+                if event.organizer_id == user_id:
+                    can_delete = True
+                elif is_admin:
+                    can_delete = True
+
+                if can_delete:
+                    safe_title = event.title.replace("\n", " ").replace("\r", " ").strip()
+                    if len(safe_title) > 30:
+                        safe_title = safe_title[:27] + "..."
+                    delete_buttons.append(
+                        InlineKeyboardButton(
+                            text=f"❌ Удалить #{i}: {safe_title}",
+                            callback_data=f"group_delete_event_{event.id}",
+                        )
+                    )
+
+            if delete_buttons:
+                keyboard_buttons.append(delete_buttons)
+
+        keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel")])
+        back_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+
+        # Отправляем список через send_tracked
+        is_forum = getattr(message.chat, "is_forum", False)
+        thread_id = getattr(message, "message_thread_id", None)
+
+        send_kwargs = {"reply_markup": back_kb, "parse_mode": "Markdown"}
+        if is_forum and thread_id:
+            send_kwargs["message_thread_id"] = thread_id
+
+        await send_tracked(
+            bot,
+            session,
+            chat_id=chat_id,
+            text=text,
+            tag="list",  # Тег для списка событий
+            **send_kwargs,
         )
-        # Вызываем group_list_events, который удалит старые списки и создаст новый
-        await group_list_events(fake_callback, bot, session)
 
     except Exception as e:
         logger.error(f"❌ Ошибка показа подтверждения: {e}")
@@ -1355,7 +1645,12 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
         f"🔥 group_list_events_page: запрос списка событий в чате {chat_id}, страница {page}, thread_id={thread_id}"
     )
 
-    await callback.answer()  # Тост, не спамим
+    # Пытаемся ответить на callback (только если это реальный callback, не фейковый)
+    try:
+        await callback.answer()  # Тост, не спамим
+    except (RuntimeError, AttributeError) as e:
+        # Игнорируем ошибки для фейковых callback (например, из команд)
+        logger.debug(f"⚠️ Не удалось ответить на callback (возможно, фейковый): {e}")
 
     try:
         # Получаем будущие события этого чата
