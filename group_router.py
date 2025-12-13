@@ -1261,78 +1261,45 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
         logger.warning(f"⚠️ Не удалось удалить сообщение с подтверждением: {e}")
 
     if is_from_cancellation:
-        # Если пришли из сообщения об отмене - обновляем предыдущий список на месте, как при записи
-        logger.info("🔥 Обновляем предыдущий список событий после отмены записи")
+        # Если пришли из сообщения об отмене - удаляем старый список и создаем новый на его месте (как при записи)
+        logger.info("🔥 Обновляем список событий после отмены записи (удаляем старый и создаем новый)")
         try:
             from sqlalchemy import select
 
             from database import BotMessage
 
-            # Находим последнее сообщение со списком событий (тег "list")
+            # Находим все сообщения со списком событий (тег "list" или "service")
             result = await session.execute(
-                select(BotMessage)
-                .where(
+                select(BotMessage).where(
                     BotMessage.chat_id == chat_id,
                     BotMessage.deleted.is_(False),
-                    BotMessage.tag == "list",  # Только списки событий
+                    BotMessage.tag.in_(["list", "service"]),  # Списки событий и подтверждения
                 )
-                .order_by(BotMessage.message_id.desc())
-                .limit(1)
             )
-            last_list_message = result.scalar_one_or_none()
+            list_messages = result.scalars().all()
 
-            if last_list_message:
-                # Обновляем существующий список на месте
+            deleted_count = 0
+            for bot_msg in list_messages:
                 try:
-                    # Создаем фейковый callback с правильным message_id для обновления
-                    # Важно: НЕ ставим _from_group_list, чтобы список обновился на месте через edit_text
-                    from aiogram.types import Message, User
-
-                    bot_user = await bot.get_me()
-                    fake_message = Message(
-                        message_id=last_list_message.message_id,
-                        date=0,
-                        chat=callback.message.chat,
-                        from_user=User(
-                            id=bot_user.id,
-                            is_bot=True,
-                            first_name=bot_user.first_name,
-                            username=bot_user.username,
-                        ),
-                    )
-                    fake_callback = CallbackQuery(
-                        id=callback.id,
-                        from_user=callback.from_user,
-                        chat_instance=callback.chat_instance,
-                        message=fake_message,
-                        data=callback.data,
-                    )
-                    # НЕ ставим _from_group_list - это позволит обновить существующее сообщение через edit_text
-                    await group_list_events_page(fake_callback, bot, session, page=1)
+                    await bot.delete_message(chat_id=chat_id, message_id=bot_msg.message_id)
+                    bot_msg.deleted = True
+                    deleted_count += 1
                     logger.info(
-                        f"✅ Обновлен предыдущий список событий на месте (message_id={last_list_message.message_id})"
+                        f"✅ Удалено сообщение со списком событий (message_id={bot_msg.message_id}, tag={bot_msg.tag})"
                     )
-                except Exception as update_error:
-                    logger.warning(f"⚠️ Не удалось обновить предыдущий список: {update_error}")
-                    import traceback
+                except Exception as delete_error:
+                    logger.warning(f"⚠️ Не удалось удалить сообщение {bot_msg.message_id}: {delete_error}")
+                    bot_msg.deleted = True  # Помечаем как удаленное
 
-                    logger.error(traceback.format_exc())
-                    # Fallback: создаем новый список
-                    callback._from_group_list = True
-                    await group_list_events_page(callback, bot, session, page=1)
-            else:
-                # Если предыдущего списка нет - создаем новый
-                logger.info("ℹ️ Предыдущий список не найден, создаем новый")
-                callback._from_group_list = True
-                await group_list_events_page(callback, bot, session, page=1)
+            await session.commit()
+            logger.info(f"✅ Удалено {deleted_count} сообщений со списком событий")
         except Exception as e:
-            logger.error(f"❌ Ошибка при обновлении предыдущего списка: {e}")
-            import traceback
+            logger.error(f"❌ Ошибка при удалении предыдущих списков событий: {e}")
 
-            logger.error(traceback.format_exc())
-            # Fallback: создаем новый список
-            callback._from_group_list = True
-            await group_list_events_page(callback, bot, session, page=1)
+        # Создаем новый список событий на месте старого
+        # Помечаем, что мы пришли из group_list, чтобы создать новое сообщение вместо редактирования
+        callback._from_group_list = True
+        await group_list_events_page(callback, bot, session, page=1)
     else:
         # Если пришли не из сообщения об отмене - удаляем все старые списки и создаем новый
         try:
