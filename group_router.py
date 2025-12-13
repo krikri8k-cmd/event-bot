@@ -427,8 +427,6 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
                 text += "\n"
 
             # Проверяем, является ли пользователь админом
-            from utils.chat_utils import is_chat_admin
-
             is_admin = await is_chat_admin(bot, chat_id, user_id)
             if is_admin:
                 text += "🔧 Админ-панель: Вы можете удалить любое событие кнопками ниже!\n"
@@ -690,8 +688,6 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
                 text += "\n"
 
             # Проверяем, является ли пользователь админом
-            from utils.chat_utils import is_chat_admin
-
             is_admin = await is_chat_admin(bot, chat_id, user_id)
             if is_admin:
                 text += "🔧 Админ-панель: Вы можете удалить любое событие кнопками ниже!\n"
