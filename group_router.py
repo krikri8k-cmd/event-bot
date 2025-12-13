@@ -294,55 +294,55 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
             await message.answer("ℹ️ Вы уже записаны на это событие")
             return
 
-        # Формируем текст подтверждения
+        # Сразу записываем пользователя на событие (без промежуточного подтверждения)
+        from utils.community_participants_service_optimized import add_participant_optimized
+
+        username = message.from_user.username
+        added = await add_participant_optimized(session, event_id, user_id, username)
+
+        if not added:
+            await message.answer("❌ Не удалось записаться на событие")
+            return
+
+        # Удаляем сообщение пользователя с командой
+        try:
+            await bot.delete_message(chat_id=chat_id, message_id=message.message_id)
+            logger.info(f"✅ Удалено сообщение пользователя {user_id} с командой /joinevent{event_id}")
+        except Exception as delete_error:
+            logger.warning(f"⚠️ Не удалось удалить сообщение пользователя: {delete_error}")
+
+        # Показываем успешное сообщение с кнопкой возврата к списку
         safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
-        date_str = event.starts_at.strftime("%d.%m.%Y %H:%M") if event.starts_at else "Дата не указана"
-
-        confirmation_text = (
-            f"✅ **Записаться на событие?**\n\n"
-            f"**{safe_title}**\n"
-            f"📅 {date_str}\n\n"
-            f"Вы будете добавлены в список участников этого события."
+        success_text = (
+            f"✅ **Вы записались на событие!**\n\n"
+            f"**{safe_title}**\n\n"
+            f"Теперь вы в списке участников. Нажмите 'Вернуться к списку' чтобы увидеть обновленный счетчик."
         )
 
-        # Создаем клавиатуру с подтверждением
-        # Передаем message_id в callback_data для последующего удаления исходного сообщения
         keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="✅ Да, записаться",
-                        callback_data=f"community_join_confirm_{event_id}_{message.message_id}",
-                    )
-                ],
-                [InlineKeyboardButton(text="❌ Отмена", callback_data="group_list")],
-            ]
+            inline_keyboard=[[InlineKeyboardButton(text="◀️ Вернуться к списку", callback_data="group_list")]]
         )
-
-        # Отправляем сообщение с подтверждением через send_tracked
-        from utils.messaging_utils import send_tracked
 
         is_forum = getattr(message.chat, "is_forum", False)
         thread_id = getattr(message, "message_thread_id", None)
 
         send_kwargs = {
+            "text": success_text,
             "parse_mode": "Markdown",
             "reply_markup": keyboard,
         }
         if is_forum and thread_id:
             send_kwargs["message_thread_id"] = thread_id
 
+        from utils.messaging_utils import send_tracked
+
         await send_tracked(
             bot,
             session,
             chat_id=chat_id,
-            text=confirmation_text,
-            tag="service",  # Автоудаление через 3.5 минуты
+            tag="notification",  # Не удаляем автоматически
             **send_kwargs,
         )
-
-        # НЕ удаляем сообщение пользователя здесь - удалим его в community_join_confirm после подтверждения
-        # Если пользователь нажмет "Отмена", сообщение останется (это нормально)
 
     except Exception as e:
         logger.error(f"❌ Ошибка показа подтверждения: {e}")
@@ -419,55 +419,55 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
             await message.answer("ℹ️ Вы уже записаны на это событие")
             return
 
-        # Формируем текст подтверждения
+        # Сразу записываем пользователя на событие (без промежуточного подтверждения)
+        from utils.community_participants_service_optimized import add_participant_optimized
+
+        username = message.from_user.username
+        added = await add_participant_optimized(session, event_id, user_id, username)
+
+        if not added:
+            await message.answer("❌ Не удалось записаться на событие")
+            return
+
+        # Удаляем сообщение пользователя с командой
+        try:
+            await bot.delete_message(chat_id=chat_id, message_id=message.message_id)
+            logger.info(f"✅ Удалено сообщение пользователя {user_id} с командой /joinevent{event_id}")
+        except Exception as delete_error:
+            logger.warning(f"⚠️ Не удалось удалить сообщение пользователя: {delete_error}")
+
+        # Показываем успешное сообщение с кнопкой возврата к списку
         safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
-        date_str = event.starts_at.strftime("%d.%m.%Y %H:%M") if event.starts_at else "Дата не указана"
-
-        confirmation_text = (
-            f"✅ **Записаться на событие?**\n\n"
-            f"**{safe_title}**\n"
-            f"📅 {date_str}\n\n"
-            f"Вы будете добавлены в список участников этого события."
+        success_text = (
+            f"✅ **Вы записались на событие!**\n\n"
+            f"**{safe_title}**\n\n"
+            f"Теперь вы в списке участников. Нажмите 'Вернуться к списку' чтобы увидеть обновленный счетчик."
         )
 
-        # Создаем клавиатуру с подтверждением
-        # Передаем message_id в callback_data для последующего удаления исходного сообщения
         keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="✅ Да, записаться",
-                        callback_data=f"community_join_confirm_{event_id}_{message.message_id}",
-                    )
-                ],
-                [InlineKeyboardButton(text="❌ Отмена", callback_data="group_list")],
-            ]
+            inline_keyboard=[[InlineKeyboardButton(text="◀️ Вернуться к списку", callback_data="group_list")]]
         )
-
-        # Отправляем сообщение с подтверждением через send_tracked
-        from utils.messaging_utils import send_tracked
 
         is_forum = getattr(message.chat, "is_forum", False)
         thread_id = getattr(message, "message_thread_id", None)
 
         send_kwargs = {
+            "text": success_text,
             "parse_mode": "Markdown",
             "reply_markup": keyboard,
         }
         if is_forum and thread_id:
             send_kwargs["message_thread_id"] = thread_id
 
+        from utils.messaging_utils import send_tracked
+
         await send_tracked(
             bot,
             session,
             chat_id=chat_id,
-            text=confirmation_text,
-            tag="service",  # Автоудаление через 3.5 минуты
+            tag="notification",  # Не удаляем автоматически
             **send_kwargs,
         )
-
-        # НЕ удаляем сообщение пользователя здесь - удалим его в community_join_confirm после подтверждения
-        # Если пользователь нажмет "Отмена", сообщение останется (это нормально)
 
     except Exception as e:
         logger.error(f"❌ Ошибка показа подтверждения: {e}")
