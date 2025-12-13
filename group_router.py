@@ -438,8 +438,21 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
         # Создаем клавиатуру
         keyboard_buttons = []
         if events:
-            delete_buttons = []
+            # Добавляем кнопки для каждого события (просмотр участников и удаление)
             for i, event in enumerate(events, 1):
+                event_buttons = []
+
+                # Кнопка просмотра участников для каждого события
+                from utils.community_participants_service_optimized import get_participants_count_optimized
+
+                event_participants_count = await get_participants_count_optimized(session, event.id)
+                event_buttons.append(
+                    InlineKeyboardButton(
+                        text=f"👥 Участников: {event_participants_count}",
+                        callback_data=f"community_members_{event.id}",
+                    )
+                )
+
                 can_delete = False
                 if event.organizer_id == user_id:
                     can_delete = True
@@ -450,15 +463,16 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
                     safe_title = event.title.replace("\n", " ").replace("\r", " ").strip()
                     if len(safe_title) > 30:
                         safe_title = safe_title[:27] + "..."
-                    delete_buttons.append(
+                    event_buttons.append(
                         InlineKeyboardButton(
                             text=f"❌ Удалить #{i}: {safe_title}",
                             callback_data=f"group_delete_event_{event.id}",
                         )
                     )
 
-            if delete_buttons:
-                keyboard_buttons.append(delete_buttons)
+                # Добавляем кнопки для этого события
+                if event_buttons:
+                    keyboard_buttons.append(event_buttons)
 
         keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel")])
         back_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -699,8 +713,21 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
         # Создаем клавиатуру
         keyboard_buttons = []
         if events:
-            delete_buttons = []
+            # Добавляем кнопки для каждого события (просмотр участников и удаление)
             for i, event in enumerate(events, 1):
+                event_buttons = []
+
+                # Кнопка просмотра участников для каждого события
+                from utils.community_participants_service_optimized import get_participants_count_optimized
+
+                event_participants_count = await get_participants_count_optimized(session, event.id)
+                event_buttons.append(
+                    InlineKeyboardButton(
+                        text=f"👥 Участников: {event_participants_count}",
+                        callback_data=f"community_members_{event.id}",
+                    )
+                )
+
                 can_delete = False
                 if event.organizer_id == user_id:
                     can_delete = True
@@ -711,15 +738,16 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
                     safe_title = event.title.replace("\n", " ").replace("\r", " ").strip()
                     if len(safe_title) > 30:
                         safe_title = safe_title[:27] + "..."
-                    delete_buttons.append(
+                    event_buttons.append(
                         InlineKeyboardButton(
                             text=f"❌ Удалить #{i}: {safe_title}",
                             callback_data=f"group_delete_event_{event.id}",
                         )
                     )
 
-            if delete_buttons:
-                keyboard_buttons.append(delete_buttons)
+                # Добавляем кнопки для этого события
+                if event_buttons:
+                    keyboard_buttons.append(event_buttons)
 
         keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel")])
         back_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -1759,6 +1787,7 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                 participants_count = await get_participants_count_optimized(session, event.id)
                 is_user_participant = await is_participant_optimized(session, event.id, user_id)
 
+                # Добавляем информацию об участниках (кнопка будет добавлена в клавиатуру)
                 text += f"   👥 Участников: {participants_count}\n"
 
                 # Добавляем ссылку на запись прямо в тексте (через команду)
@@ -1777,16 +1806,27 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                 text += "🔧 Ваши события: Вы можете удалить свои события кнопками ниже!\n"
                 text += "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
 
-        # Создаем клавиатуру с кнопками (только для удаления событий)
+        # Создаем клавиатуру с кнопками (удаление и просмотр участников)
         keyboard_buttons = []
 
         if events:
-            # Добавляем кнопки удаления для событий, которые пользователь может удалить
-            delete_buttons = []
+            # Добавляем кнопки для каждого события (просмотр участников и удаление)
             for i, event in enumerate(events, 1):
+                event_buttons = []
+
+                # Кнопка просмотра участников для каждого события
+                from utils.community_participants_service_optimized import get_participants_count_optimized
+
+                event_participants_count = await get_participants_count_optimized(session, event.id)
+                event_buttons.append(
+                    InlineKeyboardButton(
+                        text=f"👥 Участников: {event_participants_count}",
+                        callback_data=f"community_members_{event.id}",
+                    )
+                )
+
                 # Проверяем, может ли пользователь удалить это событие
                 can_delete_this_event = False
-
                 # 1. Создатель события может удалить свое событие
                 if event.organizer_id == user_id:
                     can_delete_this_event = True
@@ -1804,16 +1844,16 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                         safe_title = safe_title[:27] + "..."
 
                     # Формат: "❌ Удалить #4: Название"
-                    delete_buttons.append(
+                    event_buttons.append(
                         InlineKeyboardButton(
                             text=f"❌ Удалить #{event_number}: {safe_title}",
                             callback_data=f"group_delete_event_{event.id}",
                         )
                     )
 
-            # Добавляем кнопки удаления отдельной строкой, если есть
-            if delete_buttons:
-                keyboard_buttons.append(delete_buttons)
+                # Добавляем кнопки для этого события
+                if event_buttons:
+                    keyboard_buttons.append(event_buttons)
 
         # Добавляем кнопки навигации по страницам
         navigation_buttons = []
