@@ -398,12 +398,12 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
                 if event.location_name:
                     safe_location = event.location_name.replace("*", "").replace("_", "").replace("`", "'")
                     if event.location_url:
-                        safe_url = event.location_url.replace("(", "").replace(")")
+                        safe_url = event.location_url.replace("(", "").replace(")", "")
                         text += f"   📍 [{safe_location}]({safe_url})\n"
                     else:
                         text += f"   📍 {safe_location}\n"
                 elif event.location_url:
-                    safe_url = event.location_url.replace("(", "").replace(")")
+                    safe_url = event.location_url.replace("(", "").replace(")", "")
                     text += f"   📍 [Место на карте]({safe_url})\n"
 
                 if event.organizer_username:
@@ -661,12 +661,12 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
                 if event.location_name:
                     safe_location = event.location_name.replace("*", "").replace("_", "").replace("`", "'")
                     if event.location_url:
-                        safe_url = event.location_url.replace("(", "").replace(")")
+                        safe_url = event.location_url.replace("(", "").replace(")", "")
                         text += f"   📍 [{safe_location}]({safe_url})\n"
                     else:
                         text += f"   📍 {safe_location}\n"
                 elif event.location_url:
-                    safe_url = event.location_url.replace("(", "").replace(")")
+                    safe_url = event.location_url.replace("(", "").replace(")", "")
                     text += f"   📍 [Место на карте]({safe_url})\n"
 
                 if event.organizer_username:
