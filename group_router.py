@@ -311,38 +311,31 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
         except Exception as delete_error:
             logger.warning(f"⚠️ Не удалось удалить сообщение пользователя: {delete_error}")
 
-        # Показываем успешное сообщение с кнопкой возврата к списку
-        safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
-        success_text = (
-            f"✅ **Вы записались на событие!**\n\n"
-            f"**{safe_title}**\n\n"
-            f"Теперь вы в списке участников. Нажмите 'Вернуться к списку' чтобы увидеть обновленный счетчик."
+        # Сразу обновляем список событий (удаляем старый и создаем новый с обновленными данными)
+        # Используем существующую логику group_list_events через фейковый callback
+        from aiogram.types import CallbackQuery, Message, User
+
+        bot_user = await bot.get_me()
+        fake_message = Message(
+            message_id=0,  # Будет создано новое сообщение
+            date=0,
+            chat=message.chat,
+            from_user=User(
+                id=bot_user.id,
+                is_bot=True,
+                first_name=bot_user.first_name,
+                username=bot_user.username,
+            ),
         )
-
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text="◀️ Вернуться к списку", callback_data="group_list")]]
+        fake_callback = CallbackQuery(
+            id="",
+            from_user=message.from_user,
+            chat_instance="",
+            message=fake_message,
+            data="group_list",
         )
-
-        is_forum = getattr(message.chat, "is_forum", False)
-        thread_id = getattr(message, "message_thread_id", None)
-
-        send_kwargs = {
-            "text": success_text,
-            "parse_mode": "Markdown",
-            "reply_markup": keyboard,
-        }
-        if is_forum and thread_id:
-            send_kwargs["message_thread_id"] = thread_id
-
-        from utils.messaging_utils import send_tracked
-
-        await send_tracked(
-            bot,
-            session,
-            chat_id=chat_id,
-            tag="notification",  # Не удаляем автоматически
-            **send_kwargs,
-        )
+        # Вызываем group_list_events, который удалит старые списки и создаст новый
+        await group_list_events(fake_callback, bot, session)
 
     except Exception as e:
         logger.error(f"❌ Ошибка показа подтверждения: {e}")
@@ -436,38 +429,31 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
         except Exception as delete_error:
             logger.warning(f"⚠️ Не удалось удалить сообщение пользователя: {delete_error}")
 
-        # Показываем успешное сообщение с кнопкой возврата к списку
-        safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
-        success_text = (
-            f"✅ **Вы записались на событие!**\n\n"
-            f"**{safe_title}**\n\n"
-            f"Теперь вы в списке участников. Нажмите 'Вернуться к списку' чтобы увидеть обновленный счетчик."
+        # Сразу обновляем список событий (удаляем старый и создаем новый с обновленными данными)
+        # Используем существующую логику group_list_events через фейковый callback
+        from aiogram.types import CallbackQuery, Message, User
+
+        bot_user = await bot.get_me()
+        fake_message = Message(
+            message_id=0,  # Будет создано новое сообщение
+            date=0,
+            chat=message.chat,
+            from_user=User(
+                id=bot_user.id,
+                is_bot=True,
+                first_name=bot_user.first_name,
+                username=bot_user.username,
+            ),
         )
-
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text="◀️ Вернуться к списку", callback_data="group_list")]]
+        fake_callback = CallbackQuery(
+            id="",
+            from_user=message.from_user,
+            chat_instance="",
+            message=fake_message,
+            data="group_list",
         )
-
-        is_forum = getattr(message.chat, "is_forum", False)
-        thread_id = getattr(message, "message_thread_id", None)
-
-        send_kwargs = {
-            "text": success_text,
-            "parse_mode": "Markdown",
-            "reply_markup": keyboard,
-        }
-        if is_forum and thread_id:
-            send_kwargs["message_thread_id"] = thread_id
-
-        from utils.messaging_utils import send_tracked
-
-        await send_tracked(
-            bot,
-            session,
-            chat_id=chat_id,
-            tag="notification",  # Не удаляем автоматически
-            **send_kwargs,
-        )
+        # Вызываем group_list_events, который удалит старые списки и создаст новый
+        await group_list_events(fake_callback, bot, session)
 
     except Exception as e:
         logger.error(f"❌ Ошибка показа подтверждения: {e}")
@@ -2255,41 +2241,44 @@ async def community_leave_event(callback: CallbackQuery, bot: Bot, session: Asyn
         if removed:
             await callback.answer("✅ Запись отменена")
 
-            # Показываем сообщение с названием события
-            safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
-            leave_text = (
-                f"✅ **Вы больше не записаны на событие**\n\n"
-                f"**{safe_title}**\n\n"
-                f"Вы были удалены из списка участников."
-            )
+            # Сразу обновляем список событий (удаляем старый и создаем новый с обновленными данными)
+            try:
+                from sqlalchemy import select
 
-            keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text="◀️ Вернуться к списку", callback_data="group_list")]]
-            )
+                from database import BotMessage
 
-            is_forum = getattr(callback.message.chat, "is_forum", False)
-            thread_id = getattr(callback.message, "message_thread_id", None)
+                # Находим все сообщения со списком событий (тег "list" или "service")
+                result = await session.execute(
+                    select(BotMessage).where(
+                        BotMessage.chat_id == chat_id,
+                        BotMessage.deleted.is_(False),
+                        BotMessage.tag.in_(["list", "service"]),  # Списки событий и подтверждения
+                    )
+                )
+                list_messages = result.scalars().all()
 
-            send_kwargs = {
-                "parse_mode": "Markdown",
-                "reply_markup": keyboard,
-            }
-            if is_forum and thread_id:
-                send_kwargs["message_thread_id"] = thread_id
+                deleted_count = 0
+                for bot_msg in list_messages:
+                    try:
+                        await bot.delete_message(chat_id=chat_id, message_id=bot_msg.message_id)
+                        bot_msg.deleted = True
+                        deleted_count += 1
+                        logger.info(
+                            f"✅ Удалено сообщение со списком событий "
+                            f"(message_id={bot_msg.message_id}, tag={bot_msg.tag})"
+                        )
+                    except Exception as delete_error:
+                        logger.warning(f"⚠️ Не удалось удалить сообщение {bot_msg.message_id}: {delete_error}")
+                        bot_msg.deleted = True  # Помечаем как удаленное
 
-            # Отправляем через send_tracked
-            # Используем тег "notification" чтобы сообщение НЕ удалялось автоматически
-            # (пользователь должен видеть подтверждение об отмене записи)
-            from utils.messaging_utils import send_tracked
+                await session.commit()
+                logger.info(f"✅ Удалено {deleted_count} сообщений со списком событий")
+            except Exception as e:
+                logger.error(f"❌ Ошибка при удалении предыдущих списков событий: {e}")
 
-            await send_tracked(
-                bot,
-                session,
-                chat_id=chat_id,
-                text=leave_text,
-                tag="notification",  # Не удаляем автоматически
-                **send_kwargs,
-            )
+            # Создаем новый список событий с обновленными данными
+            callback._from_group_list = True
+            await group_list_events_page(callback, bot, session, page=1)
         else:
             await callback.answer("ℹ️ Вы не были записаны на это событие")
 
