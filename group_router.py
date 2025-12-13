@@ -420,9 +420,9 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
                 text += f"   👥 Участников: {participants_count}\n"
 
                 if is_user_participant:
-                    text += f"   ✅ Вы записаны | Нажмите /leaveevent{event.id} чтобы отменить\n"
+                    text += f"   ✅ Вы записаны | Нажмите 👉 /leaveevent{event.id} чтобы отменить\n"
                 else:
-                    text += f"   Нажмите /joinevent{event.id} чтобы записаться\n"
+                    text += f"   Нажмите 👉 /joinevent{event.id} чтобы записаться\n"
 
                 text += "\n"
 
@@ -681,9 +681,9 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
                 text += f"   👥 Участников: {participants_count}\n"
 
                 if is_user_participant:
-                    text += f"   ✅ Вы записаны | Нажмите /leaveevent{event.id} чтобы отменить\n"
+                    text += f"   ✅ Вы записаны | Нажмите 👉 /leaveevent{event.id} чтобы отменить\n"
                 else:
-                    text += f"   Нажмите /joinevent{event.id} чтобы записаться\n"
+                    text += f"   Нажмите 👉 /joinevent{event.id} чтобы записаться\n"
 
                 text += "\n"
 
@@ -1764,9 +1764,9 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                 # Добавляем ссылку на запись прямо в тексте (через команду)
                 # В групповых чатах используем команды, которые можно вызвать
                 if is_user_participant:
-                    text += f"   ✅ Вы записаны | Нажмите /leaveevent{event.id} чтобы отменить\n"
+                    text += f"   ✅ Вы записаны | Нажмите 👉 /leaveevent{event.id} чтобы отменить\n"
                 else:
-                    text += f"   Нажмите /joinevent{event.id} чтобы записаться\n"
+                    text += f"   Нажмите 👉 /joinevent{event.id} чтобы записаться\n"
 
                 text += "\n"
 
