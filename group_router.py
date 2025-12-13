@@ -2030,7 +2030,7 @@ async def community_show_members(callback: CallbackQuery, bot: Bot, session: Asy
                 [InlineKeyboardButton(text="➕ Записаться", callback_data=f"community_join_{event_id}")]
             )
 
-        keyboard_buttons.append([InlineKeyboardButton(text="🔙 Назад к списку", callback_data="group_list")])
+        keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад к списку", callback_data="group_list")])
 
         # Добавляем кнопку обновления списка событий (для обновления счетчиков)
         keyboard_buttons.append([InlineKeyboardButton(text="🔄 Обновить список событий", callback_data="group_list")])
@@ -2199,7 +2199,7 @@ async def community_join_confirm(callback: CallbackQuery, bot: Bot, session: Asy
         )
 
         keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text="🔙 Вернуться к списку", callback_data="group_list")]]
+            inline_keyboard=[[InlineKeyboardButton(text="◀️ Вернуться к списку", callback_data="group_list")]]
         )
 
         is_forum = getattr(callback.message.chat, "is_forum", False)
@@ -2264,7 +2264,7 @@ async def community_leave_event(callback: CallbackQuery, bot: Bot, session: Asyn
             )
 
             keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text="🔙 Вернуться к списку", callback_data="group_list")]]
+                inline_keyboard=[[InlineKeyboardButton(text="◀️ Вернуться к списку", callback_data="group_list")]]
             )
 
             is_forum = getattr(callback.message.chat, "is_forum", False)
