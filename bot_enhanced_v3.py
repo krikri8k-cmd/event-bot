@@ -9680,10 +9680,11 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
         groups = group_by_type(prepared)
         counts = make_counts(groups)
 
-        # Обновляем состояние
+        # Обновляем состояние (сохраняем радиус при переключении даты)
         state["prepared"] = prepared
         state["counts"] = counts
         state["date_filter"] = date_type
+        state["radius"] = int(radius)  # Сохраняем текущий радиус
         state["page"] = 1  # Сбрасываем страницу на 1
         state["diag"] = diag
         user_state[callback.message.chat.id] = state
