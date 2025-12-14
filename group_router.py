@@ -2712,12 +2712,20 @@ async def _show_community_manage_event(
         ]
     )
 
-    # Добавляем навигацию
+    # Добавляем навигацию: "Вернуться к списку" заменяет "Назад" когда на первом событии
     nav_row = []
     if index > 0:
         nav_row.append(InlineKeyboardButton(text="◀️ Предыдущее", callback_data=f"group_prev_event_{index-1}"))
+    else:
+        # На первом событии показываем "Вернуться к списку" вместо "Предыдущее"
+        nav_row.append(InlineKeyboardButton(text="📋 Вернуться к списку", callback_data="group_list"))
+
     if index < total - 1:
         nav_row.append(InlineKeyboardButton(text="▶️ Следующее", callback_data=f"group_next_event_{index+1}"))
+    elif total == 1:
+        # Если только одно событие, не показываем "Следующее", только "Вернуться к списку"
+        pass
+
     if nav_row:
         keyboard.inline_keyboard.append(nav_row)
 
@@ -3195,8 +3203,7 @@ def get_community_status_buttons(event_id: int, current_status: str) -> list[dic
     # Кнопка удаления
     buttons.append({"text": "❌ Удалить", "callback_data": f"group_delete_event_{event_id}"})
 
-    # Кнопка возврата к списку событий
-    buttons.append({"text": "📋 Вернуться к списку", "callback_data": "group_list"})
+    # Кнопка "Вернуться к списку" теперь встроена в навигацию, а не отдельная кнопка
 
     return buttons
 
