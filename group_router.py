@@ -1895,6 +1895,61 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                 # Редактируем существующее сообщение со списком
                 await callback.message.edit_text(text, reply_markup=back_kb, parse_mode="Markdown")
                 logger.info("✅ Список событий успешно обновлен")
+
+                # Убеждаемся, что отредактированное сообщение трекируется и будет автоудалено
+                import asyncio
+
+                from sqlalchemy import select
+
+                from database import BotMessage
+                from utils.messaging_utils import auto_delete_message
+
+                # Проверяем, есть ли уже запись в БД
+                result = await session.execute(
+                    select(BotMessage).where(
+                        BotMessage.chat_id == chat_id,
+                        BotMessage.message_id == callback.message.message_id,
+                    )
+                )
+                bot_msg = result.scalar_one_or_none()
+
+                if not bot_msg:
+                    # Если сообщение не трекируется, добавляем его в БД
+                    bot_msg = BotMessage(
+                        chat_id=chat_id,
+                        message_id=callback.message.message_id,
+                        tag="list",
+                    )
+                    session.add(bot_msg)
+                    await session.commit()
+                    logger.info(
+                        f"✅ Отредактированное сообщение {callback.message.message_id} "
+                        f"добавлено в трекинг для автоудаления"
+                    )
+
+                # Запускаем автоудаление (если еще не запущено)
+                # Проверяем, не помечено ли сообщение как удаленное
+                if not bot_msg.deleted:
+
+                    async def safe_auto_delete():
+                        try:
+                            await auto_delete_message(bot, chat_id, callback.message.message_id, 210)  # 3.5 минуты
+                        except Exception as e:
+                            logger.error(
+                                f"❌ Ошибка автоудаления для отредактированного сообщения "
+                                f"{callback.message.message_id}: {e}"
+                            )
+
+                    task = asyncio.create_task(safe_auto_delete())
+                    task.add_done_callback(
+                        lambda t: logger.error(f"❌ Задача автоудаления завершилась с ошибкой: {t.exception()}")
+                        if t.exception()
+                        else None
+                    )
+                    logger.info(
+                        f"🕐 Запущено автоудаление для отредактированного сообщения "
+                        f"{callback.message.message_id} в чате {chat_id}"
+                    )
             else:
                 # Отправляем новое сообщение через send_tracked для трекинга
                 send_kwargs = {"reply_markup": back_kb, "parse_mode": "Markdown"}
@@ -1920,8 +1975,16 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                     answer_kwargs = {"reply_markup": back_kb, "parse_mode": "Markdown"}
                     if is_forum and thread_id:
                         answer_kwargs["message_thread_id"] = thread_id
-                    await callback.message.answer(text, **answer_kwargs)
-                    logger.info("✅ Новое сообщение со списком событий отправлено")
+                    # Используем send_tracked вместо answer для автоудаления
+                    await send_tracked(
+                        bot,
+                        session,
+                        chat_id=chat_id,
+                        text=text,
+                        tag="list",
+                        **answer_kwargs,
+                    )
+                    logger.info("✅ Новое сообщение со списком событий отправлено и трекируется")
                 except Exception as e2:
                     logger.error(f"❌ Ошибка отправки нового сообщения: {e2}")
                     await callback.answer("❌ Ошибка отображения событий", show_alert=True)
@@ -1932,8 +1995,16 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                     answer_kwargs = {"reply_markup": back_kb, "parse_mode": "Markdown"}
                     if is_forum and thread_id:
                         answer_kwargs["message_thread_id"] = thread_id
-                    await callback.message.answer(text, **answer_kwargs)
-                    logger.info("✅ Новое сообщение со списком событий отправлено")
+                    # Используем send_tracked вместо answer для автоудаления
+                    await send_tracked(
+                        bot,
+                        session,
+                        chat_id=chat_id,
+                        text=text,
+                        tag="list",
+                        **answer_kwargs,
+                    )
+                    logger.info("✅ Новое сообщение со списком событий отправлено и трекируется")
                 except Exception as e2:
                     logger.error(f"❌ Ошибка отправки нового сообщения: {e2}")
                     await callback.answer("❌ Ошибка отображения событий", show_alert=True)
