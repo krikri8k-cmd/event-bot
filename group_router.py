@@ -2344,20 +2344,7 @@ async def community_show_members(callback: CallbackQuery, bot: Bot, session: Asy
 
         # Кнопки записи/отмены записи убраны - запись происходит через команды /joinevent и /leaveevent в списке событий
 
-        # Проверяем, может ли пользователь управлять этим событием (для кнопки "Управление")
-        from sqlalchemy import select
-
-        stmt = select(CommunityEvent).where(CommunityEvent.id == event_id, CommunityEvent.chat_id == chat_id)
-        result = await session.execute(stmt)
-        event = result.scalar_one_or_none()
-
-        if event:
-            is_admin = await is_chat_admin(bot, chat_id, user_id)
-            can_manage = event.organizer_id == user_id or is_admin
-            if can_manage:
-                keyboard_buttons.append(
-                    [InlineKeyboardButton(text="⚙️ Управление", callback_data=f"group_manage_event_{event_id}")]
-                )
+        # Кнопка "Управление" убрана - она дублирует кнопку "Назад", которая ведет к тому же меню
 
         # Добавляем кнопку "Назад" для возврата к меню управления событием
         # Нужно найти индекс события в списке управляемых событий
