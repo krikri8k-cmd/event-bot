@@ -9715,9 +9715,9 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
         is_first_page = True  # Всегда первая страница при переключении даты
 
         # Для первой страницы с картой используем меньше событий (лимит caption 1024 байта)
-        # Tracking URL очень длинные, поэтому уменьшаем до 2 событий
+        # Tracking URL очень длинные, поэтому уменьшаем до 1 события
         if is_first_page and is_photo_message:
-            page_size = 2  # Первая страница с картой - 2 события (из-за длинных tracking URL)
+            page_size = 1  # Первая страница с картой - 1 событие (из-за длинных tracking URL)
         else:
             page_size = 8  # Текстовые сообщения - 8 событий
 
@@ -9802,9 +9802,9 @@ async def handle_pagination(callback: types.CallbackQuery):
         is_first_page = page == 1
 
         # Для первой страницы с картой используем меньше событий (лимит caption 1024 байта)
-        # Tracking URL очень длинные, поэтому уменьшаем до 2 событий
+        # Tracking URL очень длинные, поэтому уменьшаем до 1 события
         if is_first_page and is_photo_message:
-            page_size = 2  # Первая страница с картой - 2 события (из-за длинных tracking URL)
+            page_size = 1  # Первая страница с картой - 1 событие (из-за длинных tracking URL)
         else:
             page_size = 8  # Текстовые сообщения - 8 событий
 
