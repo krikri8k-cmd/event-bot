@@ -9682,7 +9682,15 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
         events = sort_events_by_time(events)
 
         # Фильтруем и подготавливаем события
+        logger.info(
+            f"🔍 ПЕРЕД prepare_events_for_feed: найдено {len(events)} событий, "
+            f"radius_km={radius}, user_point=({lat}, {lng})"
+        )
         prepared, diag = prepare_events_for_feed(events, user_point=(lat, lng), radius_km=int(radius), with_diag=True)
+        logger.info(
+            f"🔍 ПОСЛЕ prepare_events_for_feed: осталось {len(prepared)} событий, "
+            f"radius_km={radius}, dropped={diag.get('dropped', 0)}"
+        )
 
         # Обогащаем события reverse geocoding для названий локаций
         prepared = await enrich_events_with_reverse_geocoding(prepared)
