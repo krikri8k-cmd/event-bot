@@ -2371,11 +2371,12 @@ async def community_show_members(callback: CallbackQuery, bot: Bot, session: Asy
                     [InlineKeyboardButton(text="⚙️ Управление", callback_data=f"group_manage_event_{event_id}")]
                 )
 
-        keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад к списку", callback_data="group_list")])
+        # Добавляем кнопку "Назад" для возврата к меню управления событием
+        keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data=f"group_manage_event_{event_id}")])
 
         keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
-        # Отправляем сообщение
+        # Редактируем существующее сообщение вместо создания нового
         is_forum = getattr(callback.message.chat, "is_forum", False)
         thread_id = getattr(callback.message, "message_thread_id", None)
 
@@ -2387,7 +2388,11 @@ async def community_show_members(callback: CallbackQuery, bot: Bot, session: Asy
         if is_forum and thread_id:
             send_kwargs["message_thread_id"] = thread_id
 
-        await callback.message.answer(**send_kwargs)
+        try:
+            await callback.message.edit_text(**send_kwargs)
+        except Exception:
+            # Если не удалось отредактировать, отправляем новое сообщение
+            await callback.message.answer(**send_kwargs)
 
     except Exception as e:
         logger.error(f"❌ Ошибка показа участников: {e}")
