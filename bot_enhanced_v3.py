@@ -9606,6 +9606,11 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
         radius = state.get("radius", 5)
         region = state.get("region", "bali")
 
+        logger.info(
+            f"🔍 ПЕРЕКЛЮЧЕНИЕ ДАТЫ: radius из состояния={radius}, "
+            f"current_filter={current_filter}, date_type={date_type}"
+        )
+
         if not lat or not lng:
             await callback.answer("❌ Геолокация не найдена. Отправьте геолокацию заново.")
             return
@@ -9634,11 +9639,17 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
 
         logger.info(
             f"🔄 Переключение фильтра даты: {current_filter} → {date_type} "
-            f"(offset={date_offset}) для пользователя {callback.from_user.id}"
+            f"(offset={date_offset}) для пользователя {callback.from_user.id}, "
+            f"radius={radius} км из состояния"
         )
 
         events = events_service.search_events_today(
             city=city, user_lat=lat, user_lng=lng, radius_km=int(radius), date_offset=date_offset
+        )
+
+        logger.info(
+            f"🔍 После переключения даты: найдено {len(events)} событий с radius_km={radius}, "
+            f"date_offset={date_offset}"
         )
 
         # Конвертируем в старый формат для совместимости
