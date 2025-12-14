@@ -3126,7 +3126,7 @@ async def _get_manageable_community_events(
     closed_stmt = select(CommunityEvent).where(
         CommunityEvent.chat_id == chat_id,
         CommunityEvent.status == "closed",
-        CommunityEvent.updated_at_utc >= day_ago,
+        CommunityEvent.updated_at >= day_ago,
     )
 
     if not is_admin:
