@@ -2142,7 +2142,7 @@ async def group_hide_execute_direct(callback: CallbackQuery, bot: Bot, session: 
     user_id = callback.from_user.id
 
     # Получаем thread_id для форумов
-    is_forum = getattr(callback.message.chat, "is_forum", False)
+    getattr(callback.message.chat, "is_forum", False)
     thread_id = getattr(callback.message, "message_thread_id", None)
 
     logger.info(
@@ -2186,31 +2186,9 @@ async def group_hide_execute_direct(callback: CallbackQuery, bot: Bot, session: 
         logger.error(f"❌ Ошибка удаления трекированных сообщений: {e}")
         deleted = 0
 
-    # Короткое уведомление о результате (не трекаем, чтобы не гоняться за ним)
-    send_kwargs = {
-        "text": f"👁️‍🗨️ **Бот скрыт**\n\n"
-        f"✅ Удалено сообщений бота: {deleted}\n"
-        f"✅ Команды /start автоматически удаляются\n"
-        f"✅ События в базе данных сохранены\n\n"
-        f"💡 **Для восстановления функций бота:**\n"
-        f"Используйте команду /start",
-        "parse_mode": "Markdown",
-    }
-    if is_forum and thread_id:
-        send_kwargs["message_thread_id"] = thread_id
-    note = await bot.send_message(chat_id, **send_kwargs)
-
+    # Сообщение о скрытии бота убрано - бот просто скрывается без уведомления
     # ВОССТАНАВЛИВАЕМ КОМАНДЫ ПОСЛЕ СКРЫТИЯ БОТА (НАДЕЖНО)
     await ensure_group_start_command(bot, chat_id)
-
-    # Удаляем уведомление через 5 секунд
-    try:
-        import asyncio
-
-        await asyncio.sleep(5)
-        await note.delete()
-    except Exception:
-        pass  # Игнорируем ошибки удаления уведомления
 
     logger.info(f"✅ Бот скрыт в чате {chat_id} пользователем {user_id}, удалено сообщений: {deleted}")
 
@@ -2222,7 +2200,7 @@ async def group_hide_execute(callback: CallbackQuery, bot: Bot, session: AsyncSe
     user_id = callback.from_user.id
 
     # Получаем thread_id для форумов
-    is_forum = getattr(callback.message.chat, "is_forum", False)
+    getattr(callback.message.chat, "is_forum", False)
     thread_id = getattr(callback.message, "message_thread_id", None)
 
     logger.info(
@@ -2261,32 +2239,13 @@ async def group_hide_execute(callback: CallbackQuery, bot: Bot, session: AsyncSe
 
     # Используем асинхронную версию delete_all_tracked
     try:
-        deleted = await delete_all_tracked(bot, session, chat_id=chat_id)
+        await delete_all_tracked(bot, session, chat_id=chat_id)
     except Exception as e:
         logger.error(f"❌ Ошибка удаления сообщений: {e}")
-        deleted = 0
 
-    # Короткое уведомление о результате (не трекаем, чтобы не гоняться за ним)
-    send_kwargs = {
-        "text": f"👁️‍🗨️ **Бот скрыт**\n\n"
-        f"Удалено сообщений: {deleted}\n"
-        f"События в базе данных сохранены.\n\n"
-        f"Для восстановления панели используйте /start",
-        "parse_mode": "Markdown",
-    }
-    if is_forum and thread_id:
-        send_kwargs["message_thread_id"] = thread_id
-    note = await bot.send_message(chat_id, **send_kwargs)
-
+    # Сообщение о скрытии бота убрано - бот просто скрывается без уведомления
     # ВОССТАНАВЛИВАЕМ КОМАНДЫ ПОСЛЕ СКРЫТИЯ БОТА (НАДЕЖНО)
     await ensure_group_start_command(bot, chat_id)
-
-    # Автоудаление через 8 секунд
-    try:
-        await asyncio.sleep(8)
-        await bot.delete_message(chat_id, note.message_id)
-    except Exception as e:
-        logger.warning(f"⚠️ Не удалось удалить уведомление: {e}")
 
 
 @group_router.callback_query(F.data.startswith("community_members_"))
