@@ -2342,19 +2342,7 @@ async def community_show_members(callback: CallbackQuery, bot: Bot, session: Asy
         # Создаем клавиатуру
         keyboard_buttons = []
 
-        # Проверяем, является ли пользователь участником
-        from utils.community_participants_service_optimized import is_participant_optimized
-
-        is_user_participant = await is_participant_optimized(session, event_id, user_id)
-
-        if is_user_participant:
-            keyboard_buttons.append(
-                [InlineKeyboardButton(text="➖ Отменить запись", callback_data=f"community_leave_{event_id}")]
-            )
-        else:
-            keyboard_buttons.append(
-                [InlineKeyboardButton(text="➕ Записаться", callback_data=f"community_join_{event_id}")]
-            )
+        # Кнопки записи/отмены записи убраны - запись происходит через команды /joinevent и /leaveevent в списке событий
 
         # Проверяем, может ли пользователь управлять этим событием (для кнопки "Управление")
         from sqlalchemy import select
