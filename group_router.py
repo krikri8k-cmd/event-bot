@@ -2372,7 +2372,27 @@ async def community_show_members(callback: CallbackQuery, bot: Bot, session: Asy
                 )
 
         # Добавляем кнопку "Назад" для возврата к меню управления событием
-        keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data=f"group_manage_event_{event_id}")])
+        # Нужно найти индекс события в списке управляемых событий
+        is_admin = await is_chat_admin(bot, chat_id, user_id)
+        manageable_events = await _get_manageable_community_events(session, chat_id, user_id, is_admin)
+
+        # Находим индекс события в списке
+        event_index = None
+        for i, e in enumerate(manageable_events):
+            if e.id == event_id:
+                event_index = i
+                break
+
+        if event_index is not None:
+            # Используем callback для возврата к меню управления с правильным индексом
+            keyboard_buttons.append(
+                [InlineKeyboardButton(text="◀️ Назад", callback_data=f"group_prev_event_{event_index}")]
+            )
+        else:
+            # Fallback: если не нашли индекс, используем старый обработчик
+            keyboard_buttons.append(
+                [InlineKeyboardButton(text="◀️ Назад", callback_data=f"group_manage_event_{event_id}")]
+            )
 
         keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
