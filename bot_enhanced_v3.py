@@ -3005,7 +3005,13 @@ async def process_community_date_pm(message: types.Message, state: FSMContext):
         today_bali = now_bali.date()
         event_date_only = event_date.date()
 
+        logger.info(
+            f"🔍 Проверка даты: event_date_only={event_date_only}, today_bali={today_bali}, "
+            f"сравнение: {event_date_only < today_bali}"
+        )
+
         if event_date_only < today_bali:
+            logger.warning(f"⚠️ Пользователь {message.from_user.id} пытается создать событие с прошлой датой: {date}")
             await message.answer(
                 f"⚠️ Внимание! Дата *{date}* уже прошла (сегодня {today_bali.strftime('%d.%m.%Y')}).\n\n"
                 "📅 Введите дату:",
