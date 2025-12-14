@@ -437,34 +437,25 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
 
         # Создаем клавиатуру с кнопками управления событиями
         keyboard_buttons = []
+
+        # Проверяем, есть ли события, которыми пользователь может управлять
+        manageable_events_count = 0
         if events:
-            # Добавляем кнопку управления для каждого события (только для создателя и админов)
-            for i, event in enumerate(events, 1):
-                # Проверяем, может ли пользователь управлять этим событием
-                can_manage_this_event = False
-                # 1. Создатель события может управлять своим событием
-                if event.organizer_id == user_id:
-                    can_manage_this_event = True
-                # 2. Админ группы может управлять любым событием
-                elif is_admin:
-                    can_manage_this_event = True
+            for event in events:
+                can_manage = event.organizer_id == user_id or is_admin
+                if can_manage:
+                    manageable_events_count += 1
 
-                if can_manage_this_event:
-                    # Безопасное название события (полное, но без проблемных символов)
-                    safe_title = event.title.replace("\n", " ").replace("\r", " ").strip()
-                    # Ограничиваем длину для кнопки (максимум 25 символов)
-                    if len(safe_title) > 25:
-                        safe_title = safe_title[:22] + "..."
-
-                    # Формат: "⚙️ Управление #N: Название"
-                    keyboard_buttons.append(
-                        [
-                            InlineKeyboardButton(
-                                text=f"⚙️ Управление #{i}: {safe_title}",
-                                callback_data=f"group_manage_event_{event.id}",
-                            )
-                        ]
+        # Добавляем одну кнопку "Управление событиями" (как в World режиме)
+        if manageable_events_count > 0:
+            keyboard_buttons.append(
+                [
+                    InlineKeyboardButton(
+                        text="🔧 Управление событиями",
+                        callback_data="group_manage_events",
                     )
+                ]
+            )
 
         keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel")])
         back_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -704,34 +695,25 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
 
         # Создаем клавиатуру с кнопками управления событиями
         keyboard_buttons = []
+
+        # Проверяем, есть ли события, которыми пользователь может управлять
+        manageable_events_count = 0
         if events:
-            # Добавляем кнопку управления для каждого события (только для создателя и админов)
-            for i, event in enumerate(events, 1):
-                # Проверяем, может ли пользователь управлять этим событием
-                can_manage_this_event = False
-                # 1. Создатель события может управлять своим событием
-                if event.organizer_id == user_id:
-                    can_manage_this_event = True
-                # 2. Админ группы может управлять любым событием
-                elif is_admin:
-                    can_manage_this_event = True
+            for event in events:
+                can_manage = event.organizer_id == user_id or is_admin
+                if can_manage:
+                    manageable_events_count += 1
 
-                if can_manage_this_event:
-                    # Безопасное название события (полное, но без проблемных символов)
-                    safe_title = event.title.replace("\n", " ").replace("\r", " ").strip()
-                    # Ограничиваем длину для кнопки (максимум 25 символов)
-                    if len(safe_title) > 25:
-                        safe_title = safe_title[:22] + "..."
-
-                    # Формат: "⚙️ Управление #N: Название"
-                    keyboard_buttons.append(
-                        [
-                            InlineKeyboardButton(
-                                text=f"⚙️ Управление #{i}: {safe_title}",
-                                callback_data=f"group_manage_event_{event.id}",
-                            )
-                        ]
+        # Добавляем одну кнопку "Управление событиями" (как в World режиме)
+        if manageable_events_count > 0:
+            keyboard_buttons.append(
+                [
+                    InlineKeyboardButton(
+                        text="🔧 Управление событиями",
+                        callback_data="group_manage_events",
                     )
+                ]
+            )
 
         keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel")])
         back_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -1793,36 +1775,23 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
         # Создаем клавиатуру с кнопками управления событиями
         keyboard_buttons = []
 
-        if events:
-            # Добавляем кнопку управления для каждого события (только для создателя и админов)
-            for i, event in enumerate(events, 1):
-                # Проверяем, может ли пользователь управлять этим событием
-                can_manage_this_event = False
-                # 1. Создатель события может управлять своим событием
-                if event.organizer_id == user_id:
-                    can_manage_this_event = True
-                # 2. Админ группы может управлять любым событием
-                elif is_admin:
-                    can_manage_this_event = True
+        # Проверяем, есть ли события, которыми пользователь может управлять
+        manageable_events_count = 0
+        for event in events:
+            can_manage = event.organizer_id == user_id or is_admin
+            if can_manage:
+                manageable_events_count += 1
 
-                if can_manage_this_event:
-                    # Номер события на текущей странице (с учетом offset)
-                    event_number = offset + i
-                    # Безопасное название события (полное, но без проблемных символов)
-                    safe_title = event.title.replace("\n", " ").replace("\r", " ").strip()
-                    # Ограничиваем длину для кнопки (максимум 25 символов)
-                    if len(safe_title) > 25:
-                        safe_title = safe_title[:22] + "..."
-
-                    # Формат: "⚙️ Управление #N: Название"
-                    keyboard_buttons.append(
-                        [
-                            InlineKeyboardButton(
-                                text=f"⚙️ Управление #{event_number}: {safe_title}",
-                                callback_data=f"group_manage_event_{event.id}",
-                            )
-                        ]
+        # Добавляем одну кнопку "Управление событиями" (как в World режиме)
+        if manageable_events_count > 0:
+            keyboard_buttons.append(
+                [
+                    InlineKeyboardButton(
+                        text="🔧 Управление событиями",
+                        callback_data="group_manage_events",
                     )
+                ]
+            )
 
         # Добавляем кнопки навигации по страницам
         navigation_buttons = []
@@ -2670,6 +2639,163 @@ async def community_leave_event(callback: CallbackQuery, bot: Bot, session: Asyn
         await callback.answer("❌ Ошибка при отмене записи", show_alert=True)
 
 
+@group_router.callback_query(F.data == "group_manage_events")
+async def group_manage_events(callback: CallbackQuery, bot: Bot, session: AsyncSession):
+    """Обработчик кнопки Управление событиями (главная кнопка, как в World режиме)"""
+    chat_id = callback.message.chat.id
+    user_id = callback.from_user.id
+
+    logger.info(f"🔥 group_manage_events: пользователь {user_id} открывает управление событиями в чате {chat_id}")
+
+    await callback.answer()
+
+    try:
+        # Проверяем, является ли пользователь админом
+        is_admin = await is_chat_admin(bot, chat_id, user_id)
+
+        # Получаем события, которыми может управлять пользователь
+        manageable_events = await _get_manageable_community_events(session, chat_id, user_id, is_admin)
+
+        if not manageable_events:
+            text = "У вас нет событий для управления."
+            try:
+                await callback.message.edit_text(text, reply_markup=None)
+            except Exception:
+                await callback.message.answer(text, reply_markup=None)
+            return
+
+        # Показываем первое событие
+        await _show_community_manage_event(callback, bot, session, manageable_events, 0, chat_id, user_id, is_admin)
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка показа управления событиями: {e}")
+        import traceback
+
+        logger.error(traceback.format_exc())
+        await callback.answer("❌ Ошибка при загрузке событий", show_alert=True)
+
+
+async def _show_community_manage_event(
+    callback: CallbackQuery,
+    bot: Bot,
+    session: AsyncSession,
+    events: list[CommunityEvent],
+    index: int,
+    chat_id: int,
+    user_id: int,
+    is_admin: bool,
+):
+    """Показывает событие под нужным индексом с навигацией"""
+    if not events:
+        return
+
+    total = len(events)
+    if index < 0 or index >= total:
+        index = 0
+
+    event = events[index]
+
+    # Проверяем права доступа
+    can_manage = event.organizer_id == user_id or is_admin
+    if not can_manage:
+        await callback.answer("❌ У вас нет прав для управления этим событием", show_alert=True)
+        return
+
+    header = f"🔧 Управление событием ({index + 1}/{total}):\n\n"
+    text = f"{header}{format_community_event_for_display(event)}"
+
+    # Получаем кнопки управления
+    buttons = get_community_status_buttons(event.id, event.status)
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
+        ]
+    )
+
+    # Добавляем навигацию
+    nav_row = []
+    if index > 0:
+        nav_row.append(InlineKeyboardButton(text="◀️ Предыдущее", callback_data=f"group_prev_event_{index-1}"))
+    if index < total - 1:
+        nav_row.append(InlineKeyboardButton(text="▶️ Следующее", callback_data=f"group_next_event_{index+1}"))
+    if nav_row:
+        keyboard.inline_keyboard.append(nav_row)
+
+    # Сохраняем список событий в callback для последующего использования
+    callback._manageable_events = events
+    callback._chat_id = chat_id
+    callback._user_id = user_id
+    callback._is_admin = is_admin
+
+    # Отправляем или редактируем сообщение
+    is_forum = getattr(callback.message.chat, "is_forum", False)
+    thread_id = getattr(callback.message, "message_thread_id", None)
+
+    send_kwargs = {
+        "text": text,
+        "parse_mode": "Markdown",
+        "reply_markup": keyboard,
+    }
+    if is_forum and thread_id:
+        send_kwargs["message_thread_id"] = thread_id
+
+    try:
+        await callback.message.edit_text(**send_kwargs)
+    except Exception:
+        # Если не удалось отредактировать, отправляем новое сообщение
+        await callback.message.answer(**send_kwargs)
+
+
+@group_router.callback_query(F.data.startswith("group_next_event_"))
+async def group_next_event(callback: CallbackQuery, bot: Bot, session: AsyncSession):
+    """Переход к следующему событию"""
+    chat_id = callback.message.chat.id
+    user_id = callback.from_user.id
+
+    try:
+        target_index = int(callback.data.split("_")[-1])
+    except ValueError:
+        await callback.answer("❌ Неверный индекс", show_alert=True)
+        return
+
+    is_admin = await is_chat_admin(bot, chat_id, user_id)
+    manageable_events = await _get_manageable_community_events(session, chat_id, user_id, is_admin)
+
+    if target_index >= len(manageable_events):
+        await callback.answer("Больше событий нет")
+        return
+
+    await _show_community_manage_event(
+        callback, bot, session, manageable_events, target_index, chat_id, user_id, is_admin
+    )
+    await callback.answer()
+
+
+@group_router.callback_query(F.data.startswith("group_prev_event_"))
+async def group_prev_event(callback: CallbackQuery, bot: Bot, session: AsyncSession):
+    """Переход к предыдущему событию"""
+    chat_id = callback.message.chat.id
+    user_id = callback.from_user.id
+
+    try:
+        target_index = int(callback.data.split("_")[-1])
+    except ValueError:
+        await callback.answer("❌ Неверный индекс", show_alert=True)
+        return
+
+    is_admin = await is_chat_admin(bot, chat_id, user_id)
+    manageable_events = await _get_manageable_community_events(session, chat_id, user_id, is_admin)
+
+    if target_index < 0 or target_index >= len(manageable_events):
+        await callback.answer("Это первое событие")
+        return
+
+    await _show_community_manage_event(
+        callback, bot, session, manageable_events, target_index, chat_id, user_id, is_admin
+    )
+    await callback.answer()
+
+
 @group_router.callback_query(F.data.startswith("group_manage_event_"))
 async def group_manage_event(callback: CallbackQuery, bot: Bot, session: AsyncSession):
     """Меню управления событием (для создателя и админов)"""
@@ -2755,6 +2881,118 @@ async def group_manage_event(callback: CallbackQuery, bot: Bot, session: AsyncSe
 
         logger.error(traceback.format_exc())
         await callback.answer("❌ Ошибка при загрузке события", show_alert=True)
+
+
+@group_router.callback_query(F.data.startswith("group_close_event_"))
+async def group_close_event(callback: CallbackQuery, bot: Bot, session: AsyncSession):
+    """Закрытие события (завершение мероприятия)"""
+    chat_id = callback.message.chat.id
+    user_id = callback.from_user.id
+
+    try:
+        event_id = int(callback.data.split("_")[-1])
+    except ValueError:
+        await callback.answer("❌ Неверный ID события", show_alert=True)
+        return
+
+    logger.info(f"🔥 group_close_event: пользователь {user_id} закрывает событие {event_id} в чате {chat_id}")
+
+    try:
+        from sqlalchemy import select
+
+        stmt = select(CommunityEvent).where(CommunityEvent.id == event_id, CommunityEvent.chat_id == chat_id)
+        result = await session.execute(stmt)
+        event = result.scalar_one_or_none()
+
+        if not event:
+            await callback.answer("❌ Событие не найдено", show_alert=True)
+            return
+
+        # Проверяем права
+        is_admin = await is_chat_admin(bot, chat_id, user_id)
+        can_manage = event.organizer_id == user_id or is_admin
+
+        if not can_manage:
+            await callback.answer("❌ У вас нет прав для управления этим событием", show_alert=True)
+            return
+
+        # Закрываем событие
+        event.status = "closed"
+        event.updated_at_utc = datetime.now(UTC)
+        await session.commit()
+
+        await callback.answer("✅ Событие завершено")
+
+        # Обновляем отображение события
+        manageable_events = await _get_manageable_community_events(session, chat_id, user_id, is_admin)
+        # Находим индекс закрытого события
+        event_index = next((i for i, e in enumerate(manageable_events) if e.id == event_id), 0)
+        await _show_community_manage_event(
+            callback, bot, session, manageable_events, event_index, chat_id, user_id, is_admin
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка закрытия события: {e}")
+        import traceback
+
+        logger.error(traceback.format_exc())
+        await callback.answer("❌ Ошибка при закрытии события", show_alert=True)
+
+
+@group_router.callback_query(F.data.startswith("group_open_event_"))
+async def group_open_event(callback: CallbackQuery, bot: Bot, session: AsyncSession):
+    """Возобновление события (открытие закрытого мероприятия)"""
+    chat_id = callback.message.chat.id
+    user_id = callback.from_user.id
+
+    try:
+        event_id = int(callback.data.split("_")[-1])
+    except ValueError:
+        await callback.answer("❌ Неверный ID события", show_alert=True)
+        return
+
+    logger.info(f"🔥 group_open_event: пользователь {user_id} возобновляет событие {event_id} в чате {chat_id}")
+
+    try:
+        from sqlalchemy import select
+
+        stmt = select(CommunityEvent).where(CommunityEvent.id == event_id, CommunityEvent.chat_id == chat_id)
+        result = await session.execute(stmt)
+        event = result.scalar_one_or_none()
+
+        if not event:
+            await callback.answer("❌ Событие не найдено", show_alert=True)
+            return
+
+        # Проверяем права
+        is_admin = await is_chat_admin(bot, chat_id, user_id)
+        can_manage = event.organizer_id == user_id or is_admin
+
+        if not can_manage:
+            await callback.answer("❌ У вас нет прав для управления этим событием", show_alert=True)
+            return
+
+        # Открываем событие
+        event.status = "open"
+        event.updated_at_utc = datetime.now(UTC)
+        await session.commit()
+
+        await callback.answer("✅ Событие возобновлено")
+
+        # Обновляем отображение события
+        manageable_events = await _get_manageable_community_events(session, chat_id, user_id, is_admin)
+        # Находим индекс возобновленного события
+        event_index = next((i for i, e in enumerate(manageable_events) if e.id == event_id), 0)
+        await _show_community_manage_event(
+            callback, bot, session, manageable_events, event_index, chat_id, user_id, is_admin
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка возобновления события: {e}")
+        import traceback
+
+        logger.error(traceback.format_exc())
+        await callback.answer("❌ Ошибка при возобновлении события", show_alert=True)
 
 
 @group_router.callback_query(F.data.startswith("group_delete_event_"))
@@ -2856,6 +3094,111 @@ async def group_delete_event(callback: CallbackQuery, bot: Bot, session: AsyncSe
 
 
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
+
+
+def _get_manageable_community_events(
+    session: AsyncSession, chat_id: int, user_id: int, is_admin: bool
+) -> list[CommunityEvent]:
+    """Получает события, которыми может управлять пользователь (созданные им или все, если админ)"""
+    from datetime import UTC, datetime, timedelta
+
+    from sqlalchemy import select
+
+    # Получаем активные события и недавно закрытые (в течение 24 часов)
+    now_utc = datetime.now(UTC) - timedelta(hours=3)
+    day_ago = datetime.now(UTC) - timedelta(hours=24)
+
+    # Получаем активные события
+    stmt = select(CommunityEvent).where(
+        CommunityEvent.chat_id == chat_id,
+        CommunityEvent.status == "open",
+        CommunityEvent.starts_at >= now_utc,
+    )
+
+    if not is_admin:
+        # Если не админ, показываем только свои события
+        stmt = stmt.where(CommunityEvent.organizer_id == user_id)
+
+    result = await session.execute(stmt)
+    active_events = list(result.scalars().all())
+
+    # Получаем недавно закрытые события (в течение 24 часов)
+    closed_stmt = select(CommunityEvent).where(
+        CommunityEvent.chat_id == chat_id,
+        CommunityEvent.status == "closed",
+        CommunityEvent.updated_at_utc >= day_ago,
+    )
+
+    if not is_admin:
+        closed_stmt = closed_stmt.where(CommunityEvent.organizer_id == user_id)
+
+    closed_result = await session.execute(closed_stmt)
+    closed_events = list(closed_result.scalars().all())
+
+    # Объединяем и сортируем по дате начала
+    all_events = active_events + closed_events
+    all_events.sort(key=lambda e: e.starts_at if e.starts_at else datetime.min.replace(tzinfo=UTC))
+
+    return all_events
+
+
+def format_community_event_for_display(event: CommunityEvent) -> str:
+    """Форматирует Community событие для отображения в Telegram"""
+    lines = []
+
+    # Заголовок
+    safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
+    status_emoji = "🟢" if event.status == "open" else "🔴" if event.status == "closed" else "⚫"
+    lines.append(f"{status_emoji} **{safe_title}**")
+
+    # Время
+    if event.starts_at:
+        date_str = event.starts_at.strftime("%d.%m.%Y | %H:%M")
+        lines.append(f"📅 {date_str}")
+    else:
+        lines.append("📅 Время не указано")
+
+    # Место
+    if event.location_name:
+        safe_location = event.location_name.replace("*", "").replace("_", "").replace("`", "'")
+        lines.append(f"📍 {safe_location}")
+
+    # Статус
+    status_desc = "Активно" if event.status == "open" else "Закрыто" if event.status == "closed" else "Отменено"
+    lines.append(f"📊 Статус: {status_desc}")
+
+    # Описание (если есть)
+    if event.description:
+        desc = event.description[:100] + "..." if len(event.description) > 100 else event.description
+        safe_desc = desc.replace("*", "").replace("_", "").replace("`", "'")
+        lines.append(f"📄 {safe_desc}")
+
+    return "\n".join(lines)
+
+
+def get_community_status_buttons(event_id: int, current_status: str) -> list[dict[str, str]]:
+    """Возвращает кнопки для управления Community событием"""
+    buttons = []
+
+    # Кнопки в зависимости от текущего статуса
+    if current_status == "open":
+        buttons.append({"text": "✅ Завершить мероприятие", "callback_data": f"group_close_event_{event_id}"})
+    elif current_status == "closed":
+        buttons.append({"text": "🔄 Возобновить мероприятие", "callback_data": f"group_open_event_{event_id}"})
+
+    # Кнопка просмотра участников
+    buttons.append({"text": "👥 Участники", "callback_data": f"community_members_{event_id}"})
+
+    # Кнопка редактирования (всегда доступна)
+    buttons.append({"text": "✏️ Редактировать", "callback_data": f"group_edit_event_{event_id}"})
+
+    # Кнопка удаления
+    buttons.append({"text": "❌ Удалить", "callback_data": f"group_delete_event_{event_id}"})
+
+    # Кнопка возврата к списку событий
+    buttons.append({"text": "📋 Вернуться к списку", "callback_data": "group_list"})
+
+    return buttons
 
 
 def format_event_short(event: CommunityEvent) -> str:
