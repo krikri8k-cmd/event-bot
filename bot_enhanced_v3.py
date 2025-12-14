@@ -4840,8 +4840,43 @@ async def on_location(message: types.Message, state: FSMContext):
                 prepared = await enrich_events_with_reverse_geocoding(prepared)
 
                 # 5) Рендерим события (первая страница)
-                page_html, _ = render_page(prepared, page=0, page_size=8, user_id=message.from_user.id)
+                # Для первой страницы с картой динамически определяем, сколько событий поместится
+                MAX_CAPTION_LENGTH = 1024
+                header_length = len(header_html.encode("utf-8"))
+
+                # Пробуем добавить события по одному, пока не превысим лимит
+                page_size = 0
+                page_html_parts = []
+                MAX_CAPTION_LENGTH - header_length - 2  # -2 для "\n\n"
+
+                for idx, event in enumerate(prepared, start=1):
+                    event_html = render_event_html(event, idx, message.from_user.id, is_caption=True)
+                    event_length = len(event_html.encode("utf-8"))
+
+                    # Проверяем, поместится ли событие (с учетом разделителя "\n")
+                    separator_length = len(b"\n") if page_html_parts else 0
+                    total_length = (
+                        header_length
+                        + 2
+                        + sum(len(p.encode("utf-8")) for p in page_html_parts)
+                        + separator_length
+                        + event_length
+                    )
+
+                    if total_length <= MAX_CAPTION_LENGTH:
+                        page_html_parts.append(event_html)
+                        page_size += 1
+                    else:
+                        break
+
+                # Если не поместилось ни одного события, берем хотя бы одно (оно будет обрезано)
+                if page_size == 0 and prepared:
+                    page_size = 1
+                    page_html_parts = [render_event_html(prepared[0], 1, message.from_user.id, is_caption=True)]
+
+                page_html = "\n".join(page_html_parts)
                 events_text = header_html + "\n\n" + page_html
+                logger.info(f"🔍 Динамический page_size для первой страницы с картой: {page_size} событий")
 
                 # 4.5) Логируем показ событий в списке (list_view)
                 from database import get_engine
@@ -4871,7 +4906,7 @@ async def on_location(message: types.Message, state: FSMContext):
                         logger.warning(f"⚠️ У события нет id для логирования: {event.get('title', 'Без названия')[:30]}")
 
                 # 5) Добавляем навигацию если нужно
-                total_pages = max(1, ceil(len(prepared) / 8))
+                total_pages = max(1, ceil(len(prepared) / max(page_size, 1)))
                 if total_pages > 1:
                     events_text += f"\n\n📄 Страница 1 из {total_pages}"
 
@@ -4882,6 +4917,14 @@ async def on_location(message: types.Message, state: FSMContext):
 
                 # 7) Отправляем ОДНО сообщение с картой И событиями
                 if map_bytes:
+                    # Проверяем длину caption перед отправкой
+                    events_text_bytes = events_text.encode("utf-8")
+                    if len(events_text_bytes) > MAX_CAPTION_LENGTH:
+                        logger.warning(
+                            f"⚠️ Текст caption слишком длинный ({len(events_text_bytes)} байт), обрезаем до {MAX_CAPTION_LENGTH}"
+                        )
+                        events_text = truncate_html_safely(events_text, MAX_CAPTION_LENGTH)
+
                     # Отправляем с изображением карты + события в caption
                     from aiogram.types import BufferedInputFile
 
@@ -9714,28 +9757,64 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
         is_photo_message = callback.message.photo is not None
         is_first_page = True  # Всегда первая страница при переключении даты
 
-        # Для первой страницы с картой используем меньше событий (лимит caption 1024 байта)
-        # Tracking URL очень длинные, поэтому уменьшаем до 1 события
-        if is_first_page and is_photo_message:
-            page_size = 1  # Первая страница с картой - 1 событие (из-за длинных tracking URL)
-        else:
-            page_size = 8  # Текстовые сообщения - 8 событий
-
-        # Для первой страницы с картой передаем is_caption=True для агрессивной обрезки описаний
-        page_html, total_pages = render_page(
-            prepared,
-            page=1,
-            page_size=page_size,
-            user_id=callback.from_user.id,
-            is_caption=(is_first_page and is_photo_message),
-        )
-
-        # Формируем заголовок
-        header_html = render_header(counts, radius_km=int(radius))
-        new_text = header_html + "\n\n" + page_html
-
         # Telegram ограничивает длину caption для медиа до 1024 символов
         MAX_CAPTION_LENGTH = 1024
+
+        # Для первой страницы с картой динамически определяем, сколько событий поместится
+        if is_first_page and is_photo_message:
+            # Формируем заголовок
+            header_html = render_header(counts, radius_km=int(radius))
+            header_length = len(header_html.encode("utf-8"))
+
+            # Пробуем добавить события по одному, пока не превысим лимит
+            page_size = 0
+            page_html_parts = []
+            MAX_CAPTION_LENGTH - header_length - 2  # -2 для "\n\n"
+
+            for idx, event in enumerate(prepared, start=1):
+                event_html = render_event_html(event, idx, callback.from_user.id, is_caption=True)
+                event_length = len(event_html.encode("utf-8"))
+
+                # Проверяем, поместится ли событие (с учетом разделителя "\n")
+                separator_length = len(b"\n") if page_html_parts else 0
+                total_length = (
+                    header_length
+                    + 2
+                    + sum(len(p.encode("utf-8")) for p in page_html_parts)
+                    + separator_length
+                    + event_length
+                )
+
+                if total_length <= MAX_CAPTION_LENGTH:
+                    page_html_parts.append(event_html)
+                    page_size += 1
+                else:
+                    break
+
+            # Если не поместилось ни одного события, берем хотя бы одно (оно будет обрезано)
+            if page_size == 0 and prepared:
+                page_size = 1
+                page_html_parts = [render_event_html(prepared[0], 1, callback.from_user.id, is_caption=True)]
+
+            page_html = "\n".join(page_html_parts)
+            total_pages = max(1, ceil(len(prepared) / max(page_size, 1)))
+            logger.info(f"🔍 Динамический page_size для первой страницы с картой: {page_size} событий")
+        else:
+            page_size = 8  # Текстовые сообщения - 8 событий
+            page_html, total_pages = render_page(
+                prepared,
+                page=1,
+                page_size=page_size,
+                user_id=callback.from_user.id,
+                is_caption=False,
+            )
+
+        # Формируем финальный текст
+        if is_first_page and is_photo_message:
+            new_text = header_html + "\n\n" + page_html
+        else:
+            header_html = render_header(counts, radius_km=int(radius))
+            new_text = header_html + "\n\n" + page_html
 
         # Создаем клавиатуру с правильным фильтром даты
         combined_keyboard = kb_pager(1, total_pages, current_radius=int(radius), date_filter=date_type)
