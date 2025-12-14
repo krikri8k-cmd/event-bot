@@ -263,7 +263,7 @@ def get_status_change_buttons(event_id: int, current_status: str):
     # Кнопка поделиться событием
     buttons.append({"text": "🔗 Поделиться", "callback_data": f"share_event_{event_id}"})
 
-    # Кнопка возврата в главное меню (всегда доступна)
-    buttons.append({"text": "✨ Всё супер → Главное меню", "callback_data": f"back_to_main_{event_id}"})
+    # Кнопка возврата к списку событий (всегда доступна)
+    buttons.append({"text": "◀️ Вернуться к списку", "callback_data": f"back_to_list_{event_id}"})
 
     return buttons

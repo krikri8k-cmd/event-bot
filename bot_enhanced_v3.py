@@ -11092,10 +11092,25 @@ async def handle_next_event(callback: types.CallbackQuery):
 
 @main_router.callback_query(F.data.startswith("back_to_main_"))
 async def handle_back_to_main(callback: types.CallbackQuery):
-    """Возврат в главное меню"""
+    """Возврат в главное меню (старый обработчик для совместимости)"""
     # Показываем анимацию ракеты с главным меню
     await callback.answer("🎯 Возврат в главное меню")
     await send_spinning_menu(callback.message)
+
+
+@main_router.callback_query(F.data.startswith("back_to_list_"))
+async def handle_back_to_list(callback: types.CallbackQuery):
+    """Возврат к списку событий"""
+    await callback.answer("📋 Возврат к списку событий")
+
+    # Используем callback.message как Message для вызова on_my_events
+    # Создаем временный объект Message из callback
+    message = callback.message
+    message.text = "📋 Мои события"
+    message.from_user = callback.from_user
+
+    # Вызываем обработчик напрямую
+    await on_my_events(message)
 
 
 @main_router.callback_query(F.data.startswith("prev_event_"))
