@@ -3190,7 +3190,7 @@ def get_community_status_buttons(event_id: int, current_status: str) -> list[dic
 
     # Кнопки в зависимости от текущего статуса
     if current_status == "open":
-        buttons.append({"text": "✅ Завершить мероприятие", "callback_data": f"group_close_event_{event_id}"})
+        buttons.append({"text": "⛔ Завершить мероприятие", "callback_data": f"group_close_event_{event_id}"})
     elif current_status == "closed":
         buttons.append({"text": "🔄 Возобновить мероприятие", "callback_data": f"group_open_event_{event_id}"})
 
