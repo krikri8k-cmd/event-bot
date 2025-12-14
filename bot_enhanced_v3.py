@@ -1925,6 +1925,40 @@ from aiogram import BaseMiddleware  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker  # noqa: E402
 
 
+class DuplicateCallbackMiddleware(BaseMiddleware):
+    """Middleware для защиты от дублирования обработки callback_query"""
+
+    def __init__(self):
+        # Храним обработанные callback_query ID (очищаем старые периодически)
+        self._processed_callbacks: set[str] = set()
+        self._max_size = 10000  # Максимальное количество хранимых ID
+
+    async def __call__(
+        self, handler: Callable[[Any, dict[str, Any]], Awaitable[Any]], event: Any, data: dict[str, Any]
+    ) -> Any:
+        # Проверяем только callback_query
+        if isinstance(event, types.CallbackQuery):
+            callback_id = event.id
+            if callback_id in self._processed_callbacks:
+                # Этот callback уже обработан - игнорируем
+                logger.warning(f"⚠️ Дублирование callback_query {callback_id}, пропускаем")
+                try:
+                    await event.answer("⏳ Уже обрабатывается...", show_alert=False)
+                except Exception:
+                    pass  # Игнорируем ошибки ответа
+                return  # Прерываем обработку
+
+            # Помечаем как обработанный
+            self._processed_callbacks.add(callback_id)
+
+            # Очищаем старые записи, если слишком много
+            if len(self._processed_callbacks) > self._max_size:
+                # Оставляем только последние 5000
+                self._processed_callbacks = set(list(self._processed_callbacks)[-5000:])
+
+        return await handler(event, data)
+
+
 class BanCheckMiddleware(BaseMiddleware):
     """Middleware для проверки бана пользователей"""
 
@@ -1982,6 +2016,12 @@ class DbSessionMiddleware(BaseMiddleware):
 from database import async_session_maker  # noqa: E402
 
 # Подключаем middleware для проверки бана (должен быть первым)
+# Защита от дублирования callback_query (должен быть первым)
+duplicate_callback_middleware = DuplicateCallbackMiddleware()
+dp.update.middleware(duplicate_callback_middleware)
+dp.callback_query.middleware(duplicate_callback_middleware)
+
+# Проверка бана пользователей
 dp.update.middleware(BanCheckMiddleware())
 dp.message.middleware(BanCheckMiddleware())
 dp.callback_query.middleware(BanCheckMiddleware())
