@@ -3200,9 +3200,7 @@ def get_community_status_buttons(event_id: int, current_status: str) -> list[dic
     # Кнопка редактирования (всегда доступна)
     buttons.append({"text": "✏️ Редактировать", "callback_data": f"group_edit_event_{event_id}"})
 
-    # Кнопка удаления
-    buttons.append({"text": "❌ Удалить", "callback_data": f"group_delete_event_{event_id}"})
-
+    # Кнопка удаления убрана - для закрытия события используется "Завершить мероприятие"
     # Кнопка "Вернуться к списку" теперь встроена в навигацию, а не отдельная кнопка
 
     return buttons
