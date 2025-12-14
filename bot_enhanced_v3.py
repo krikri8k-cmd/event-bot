@@ -11103,14 +11103,164 @@ async def handle_back_to_list(callback: types.CallbackQuery):
     """Возврат к списку событий"""
     await callback.answer("📋 Возврат к списку событий")
 
-    # Используем callback.message как Message для вызова on_my_events
-    # Создаем временный объект Message из callback
-    message = callback.message
-    message.text = "📋 Мои события"
-    message.from_user = callback.from_user
+    user_id = callback.from_user.id
 
-    # Вызываем обработчик напрямую
-    await on_my_events(message)
+    # Автомодерация: закрываем прошедшие события
+    closed_count = auto_close_events()
+    if closed_count > 0:
+        await callback.message.answer(f"🤖 Автоматически закрыто {closed_count} прошедших событий")
+
+    # Получаем события пользователя
+    events = get_user_events(user_id)
+
+    # Получаем баланс ракет пользователя
+    from rockets_service import get_user_rockets
+
+    rocket_balance = get_user_rockets(user_id)
+
+    # Формируем текст сообщения
+    text_parts = ["📋 **Мои события:**\n", f"**Баланс {rocket_balance} 🚀**\n"]
+
+    # Созданные события
+    if events:
+        active_events = [e for e in events if e.get("status") == "open"]
+
+        # Показываем также недавно закрытые события (за последние 7 дней)
+        from datetime import datetime, timedelta
+
+        import pytz
+
+        tz_bali = pytz.timezone("Asia/Makassar")
+        now_bali = datetime.now(tz_bali)
+        week_ago = now_bali - timedelta(days=7)
+
+        recent_closed_events = []
+        for e in events:
+            if e.get("status") == "closed":
+                starts_at = e.get("starts_at")
+                if starts_at:
+                    local_time = starts_at.astimezone(tz_bali)
+                    if local_time >= week_ago:
+                        recent_closed_events.append(e)
+
+        if active_events:
+            text_parts.append("📝 **Созданные мной:**")
+            for i, event in enumerate(active_events[:3], 1):
+                title = event.get("title", "Без названия")
+                location = event.get("location_name", "Место уточняется")
+                starts_at = event.get("starts_at")
+
+                if starts_at:
+                    local_time = starts_at.astimezone(tz_bali)
+                    time_str = local_time.strftime("%d.%m.%Y %H:%M")
+                else:
+                    time_str = "Время уточняется"
+
+                escaped_title = (
+                    title.replace("\\", "\\\\")
+                    .replace("*", "\\*")
+                    .replace("_", "\\_")
+                    .replace("`", "\\`")
+                    .replace("[", "\\[")
+                )
+                escaped_location = (
+                    location.replace("\\", "\\\\")
+                    .replace("*", "\\*")
+                    .replace("_", "\\_")
+                    .replace("`", "\\`")
+                    .replace("[", "\\[")
+                )
+
+                text_parts.append(f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location}\n")
+
+            if len(active_events) > 3:
+                text_parts.append(f"... и еще {len(active_events) - 3} событий")
+
+        # Показываем недавно закрытые события
+        if recent_closed_events:
+            text_parts.append(f"\n🔴 **Недавно закрытые ({len(recent_closed_events)}):**")
+            for i, event in enumerate(recent_closed_events[:3], 1):
+                title = event.get("title", "Без названия")
+                location = event.get("location_name", "Место уточняется")
+                starts_at = event.get("starts_at")
+
+                if starts_at:
+                    local_time = starts_at.astimezone(tz_bali)
+                    time_str = local_time.strftime("%d.%m.%Y %H:%M")
+                else:
+                    time_str = "Время уточняется"
+
+                escaped_title = (
+                    title.replace("\\", "\\\\")
+                    .replace("*", "\\*")
+                    .replace("_", "\\_")
+                    .replace("`", "\\`")
+                    .replace("[", "\\[")
+                )
+                escaped_location = (
+                    location.replace("\\", "\\\\")
+                    .replace("*", "\\*")
+                    .replace("_", "\\_")
+                    .replace("`", "\\`")
+                    .replace("[", "\\[")
+                )
+
+                text_parts.append(f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location} (закрыто)\n")
+
+            if len(recent_closed_events) > 3:
+                text_parts.append(f"... и еще {len(recent_closed_events) - 3} закрытых событий")
+
+    # Если нет событий вообще
+    if not events:
+        text_parts = [
+            "📋 **Мои события:**\n",
+            "У вас пока нет событий.\n",
+            f"**Баланс {rocket_balance} 🚀**",
+        ]
+
+    text = "\n".join(text_parts)
+
+    # Создаем клавиатуру
+    keyboard_buttons = []
+
+    if events:
+        keyboard_buttons.append([InlineKeyboardButton(text="🔧 Управление событиями", callback_data="manage_events")])
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons) if keyboard_buttons else main_menu_kb()
+
+    # Пытаемся отправить с изображением (как в on_my_events)
+    import os
+    from pathlib import Path
+
+    photo_path = Path(__file__).parent / "images" / "my_events.png"
+
+    if os.path.exists(photo_path):
+        try:
+            from aiogram.types import FSInputFile
+
+            photo = FSInputFile(photo_path)
+            # Удаляем старое сообщение и отправляем новое с изображением
+            try:
+                await callback.message.delete()
+            except Exception:
+                pass
+            await callback.message.answer_photo(photo, caption=text, reply_markup=keyboard, parse_mode="Markdown")
+            return
+        except Exception as e:
+            logger.error(f"❌ Ошибка отправки фото для 'Мои события': {e}", exc_info=True)
+
+    # Fallback: отправляем только текст
+    try:
+        # Удаляем старое сообщение и отправляем новое
+        try:
+            await callback.message.delete()
+        except Exception:
+            pass
+        await callback.message.answer(text, reply_markup=keyboard, parse_mode="Markdown")
+    except Exception as e:
+        logger.error(f"❌ Ошибка отправки сообщения: {e}")
+        # Fallback - отправляем то же сообщение без Markdown
+        await callback.message.answer(text, reply_markup=keyboard)
 
 
 @main_router.callback_query(F.data.startswith("prev_event_"))
