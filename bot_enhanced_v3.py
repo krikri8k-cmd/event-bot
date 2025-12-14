@@ -5000,24 +5000,25 @@ async def on_my_events(message: types.Message):
     if events:
         active_events = [e for e in events if e.get("status") == "open"]
 
-        # Показываем также недавно закрытые события (за последние 7 дней)
+        # Показываем также недавно закрытые события (за последние 24 часа)
         from datetime import datetime, timedelta
 
         import pytz
 
         tz_bali = pytz.timezone("Asia/Makassar")
         now_bali = datetime.now(tz_bali)
-        week_ago = now_bali - timedelta(days=7)
+        day_ago = now_bali - timedelta(hours=24)
 
         recent_closed_events = []
         for e in events:
             if e.get("status") == "closed":
-                starts_at = e.get("starts_at")
-                if starts_at:
+                # Проверяем дату закрытия (updated_at_utc), а не дату начала события
+                updated_at = e.get("updated_at_utc")
+                if updated_at:
                     # Конвертируем UTC в местное время Бали для сравнения
-                    local_time = starts_at.astimezone(tz_bali)
-                    # Проверяем, что событие было закрыто недавно (в пределах недели)
-                    if local_time >= week_ago:
+                    local_time = updated_at.astimezone(tz_bali)
+                    # Проверяем, что событие было закрыто недавно (в пределах 24 часов)
+                    if local_time >= day_ago:
                         recent_closed_events.append(e)
 
         if active_events:
@@ -9441,9 +9442,31 @@ async def handle_manage_events(callback: types.CallbackQuery):
 
 
 def _get_active_user_events(user_id: int) -> list[dict]:
-    """Возвращает только активные события пользователя"""
+    """Возвращает активные события и недавно закрытые (в течение 24 часов) для управления"""
     events = get_user_events(user_id)
-    return [e for e in events if e.get("status") == "open"]
+    active_events = [e for e in events if e.get("status") == "open"]
+
+    # Добавляем закрытые события, которые можно возобновить (закрыты в течение 24 часов)
+    from datetime import datetime, timedelta
+
+    import pytz
+
+    tz_bali = pytz.timezone("Asia/Makassar")
+    now_bali = datetime.now(tz_bali)
+    day_ago = now_bali - timedelta(hours=24)
+
+    recent_closed_for_management = []
+    for e in events:
+        if e.get("status") == "closed":
+            updated_at = e.get("updated_at_utc")
+            if updated_at:
+                local_time = updated_at.astimezone(tz_bali)
+                # Проверяем, что событие было закрыто в течение последних 24 часов
+                if local_time >= day_ago:
+                    recent_closed_for_management.append(e)
+
+    # Объединяем активные и недавно закрытые события
+    return active_events + recent_closed_for_management
 
 
 def _extract_index(callback_data: str, prefix: str) -> int | None:
