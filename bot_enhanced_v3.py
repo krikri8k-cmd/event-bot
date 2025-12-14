@@ -10422,27 +10422,36 @@ async def handle_close_event(callback: types.CallbackQuery):
 
     success = change_event_status(event_id, "closed", user_id)
     if success:
-        # Получаем название события для сообщения
-        events = get_user_events(user_id)
-        event_name = "мероприятие"
-        if events:
-            event = next((e for e in events if e["id"] == event_id), None)
-            if event:
-                event_name = event["title"]
+        # Получаем закрытое событие для отображения
+        closed_event = get_event_by_id(event_id, user_id)
 
-        await callback.answer(f"✅ Мероприятие '{event_name}' завершено!")
+        if closed_event:
+            event_name = closed_event["title"]
+            await callback.answer(f"✅ Мероприятие '{event_name}' завершено!")
 
-        # Обновляем сообщение
-        if events:
-            first_event = events[0]
-            text = f"📋 **Ваши события:**\n\n{format_event_for_display(first_event)}"
-            buttons = get_status_change_buttons(first_event["id"], first_event["status"])
+            # Обновляем сообщение, показывая закрытое событие с кнопкой "Возобновить"
+            text = f"📋 **Ваши события:**\n\n{format_event_for_display(closed_event)}"
+            buttons = get_status_change_buttons(closed_event["id"], closed_event["status"])
             keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[
                     [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
                 ]
             )
             await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
+        else:
+            # Если событие не найдено, показываем первое событие из списка
+            events = get_user_events(user_id)
+            if events:
+                first_event = events[0]
+                text = f"📋 **Ваши события:**\n\n{format_event_for_display(first_event)}"
+                buttons = get_status_change_buttons(first_event["id"], first_event["status"])
+                keyboard = InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
+                    ]
+                )
+                await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
+            await callback.answer("✅ Мероприятие завершено!")
     else:
         await callback.answer("❌ Ошибка при завершении мероприятия")
 
@@ -10455,27 +10464,36 @@ async def handle_open_event(callback: types.CallbackQuery):
 
     success = change_event_status(event_id, "open", user_id)
     if success:
-        # Получаем название события для сообщения
-        events = get_user_events(user_id)
-        event_name = "мероприятие"
-        if events:
-            event = next((e for e in events if e["id"] == event_id), None)
-            if event:
-                event_name = event["title"]
+        # Получаем возобновленное событие для отображения
+        reopened_event = get_event_by_id(event_id, user_id)
 
-        await callback.answer(f"🔄 Мероприятие '{event_name}' снова активно!")
+        if reopened_event:
+            event_name = reopened_event["title"]
+            await callback.answer(f"🔄 Мероприятие '{event_name}' снова активно!")
 
-        # Обновляем сообщение
-        if events:
-            first_event = events[0]
-            text = f"📋 **Ваши события:**\n\n{format_event_for_display(first_event)}"
-            buttons = get_status_change_buttons(first_event["id"], first_event["status"])
+            # Обновляем сообщение, показывая возобновленное событие с кнопкой "Завершить"
+            text = f"📋 **Ваши события:**\n\n{format_event_for_display(reopened_event)}"
+            buttons = get_status_change_buttons(reopened_event["id"], reopened_event["status"])
             keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[
                     [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
                 ]
             )
             await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
+        else:
+            # Если событие не найдено, показываем первое событие из списка
+            events = get_user_events(user_id)
+            if events:
+                first_event = events[0]
+                text = f"📋 **Ваши события:**\n\n{format_event_for_display(first_event)}"
+                buttons = get_status_change_buttons(first_event["id"], first_event["status"])
+                keyboard = InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
+                    ]
+                )
+                await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
+            await callback.answer("🔄 Мероприятие снова активно!")
     else:
         await callback.answer("❌ Ошибка при возобновлении мероприятия")
 
