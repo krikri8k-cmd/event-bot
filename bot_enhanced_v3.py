@@ -2950,6 +2950,45 @@ async def process_community_date_pm(message: types.Message, state: FSMContext):
         )
         return
 
+    # Дополнительная проверка: валидность даты и проверка на прошлое
+    try:
+        day, month, year = map(int, date.split("."))
+        from datetime import datetime
+
+        import pytz
+
+        event_date = datetime(year, month, day)  # Проверяем валидность даты
+
+        # Проверяем, что дата не в прошлом
+        tz_bali = pytz.timezone("Asia/Makassar")  # UTC+8 для Бали
+        now_bali = datetime.now(tz_bali)
+        today_bali = now_bali.date()
+        event_date_only = event_date.date()
+
+        if event_date_only < today_bali:
+            await message.answer(
+                f"⚠️ **Внимание!** Дата *{date}* уже прошла (сегодня {today_bali.strftime('%d.%m.%Y')}).\n\n"
+                "События с датой в прошлом будут автоматически закрыты и не будут отображаться в списке активных событий.\n\n"
+                "Если вы хотите создать событие на будущую дату, введите правильную дату.\n\n"
+                "📅 **Введите дату** (например: 15.12.2024):",
+                parse_mode="Markdown",
+                reply_markup=get_community_cancel_kb(),
+            )
+            return
+    except ValueError:
+        await message.answer(
+            "❌ **Неверная дата!**\n\n"
+            "Проверьте правильность даты:\n"
+            "• День: 1-31\n"
+            "• Месяц: 1-12\n"
+            "• Год: 2024-2030\n\n"
+            "Например: 15.12.2024\n\n"
+            "📅 **Введите дату** (например: 15.12.2024):",
+            parse_mode="Markdown",
+            reply_markup=get_community_cancel_kb(),
+        )
+        return
+
     await state.update_data(date=date)
     await state.set_state(CommunityEventCreation.waiting_for_time)
 
@@ -4922,6 +4961,27 @@ async def on_my_events(message: types.Message):
     # Созданные события
     if events:
         active_events = [e for e in events if e.get("status") == "open"]
+
+        # Показываем также недавно закрытые события (за последние 7 дней)
+        from datetime import datetime, timedelta
+
+        import pytz
+
+        tz_bali = pytz.timezone("Asia/Makassar")
+        now_bali = datetime.now(tz_bali)
+        week_ago = now_bali - timedelta(days=7)
+
+        recent_closed_events = []
+        for e in events:
+            if e.get("status") == "closed":
+                starts_at = e.get("starts_at")
+                if starts_at:
+                    # Конвертируем UTC в местное время Бали для сравнения
+                    local_time = starts_at.astimezone(tz_bali)
+                    # Проверяем, что событие было закрыто недавно (в пределах недели)
+                    if local_time >= week_ago:
+                        recent_closed_events.append(e)
+
         if active_events:
             text_parts.append("📝 **Созданные мной:**")
             for i, event in enumerate(active_events[:3], 1):
@@ -4933,9 +4993,6 @@ async def on_my_events(message: types.Message):
                 starts_at = event.get("starts_at")
                 if starts_at:
                     # Конвертируем UTC в местное время Бали
-                    import pytz
-
-                    tz_bali = pytz.timezone("Asia/Makassar")  # UTC+8
                     local_time = starts_at.astimezone(tz_bali)
                     time_str = local_time.strftime("%d.%m.%Y %H:%M")
                 else:
@@ -4961,6 +5018,40 @@ async def on_my_events(message: types.Message):
 
             if len(active_events) > 3:
                 text_parts.append(f"... и еще {len(active_events) - 3} событий")
+
+        # Показываем недавно закрытые события
+        if recent_closed_events:
+            text_parts.append(f"\n🔴 **Недавно закрытые ({len(recent_closed_events)}):**")
+            for i, event in enumerate(recent_closed_events[:3], 1):
+                title = event.get("title", "Без названия")
+                location = event.get("location_name", "Место уточняется")
+                starts_at = event.get("starts_at")
+
+                if starts_at:
+                    local_time = starts_at.astimezone(tz_bali)
+                    time_str = local_time.strftime("%d.%m.%Y %H:%M")
+                else:
+                    time_str = "Время уточняется"
+
+                escaped_title = (
+                    title.replace("\\", "\\\\")
+                    .replace("*", "\\*")
+                    .replace("_", "\\_")
+                    .replace("`", "\\`")
+                    .replace("[", "\\[")
+                )
+                escaped_location = (
+                    location.replace("\\", "\\\\")
+                    .replace("*", "\\*")
+                    .replace("_", "\\_")
+                    .replace("`", "\\`")
+                    .replace("[", "\\[")
+                )
+
+                text_parts.append(f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location} (закрыто)\n")
+
+            if len(recent_closed_events) > 3:
+                text_parts.append(f"... и еще {len(recent_closed_events) - 3} закрытых событий")
 
     # Добавленные события
     if all_participations:
@@ -7560,7 +7651,25 @@ async def process_date(message: types.Message, state: FSMContext):
         day, month, year = map(int, date.split("."))
         from datetime import datetime
 
-        datetime(year, month, day)  # Проверяем валидность даты
+        import pytz
+
+        event_date = datetime(year, month, day)  # Проверяем валидность даты
+
+        # Проверяем, что дата не в прошлом
+        tz_bali = pytz.timezone("Asia/Makassar")  # UTC+8 для Бали
+        now_bali = datetime.now(tz_bali)
+        today_bali = now_bali.date()
+        event_date_only = event_date.date()
+
+        if event_date_only < today_bali:
+            await message.answer(
+                f"⚠️ **Внимание!** Дата *{date}* уже прошла (сегодня {today_bali.strftime('%d.%m.%Y')}).\n\n"
+                "События с датой в прошлом будут автоматически закрыты и не будут отображаться в списке активных событий.\n\n"
+                "Если вы хотите создать событие на будущую дату, введите правильную дату.\n\n"
+                "📅 Введите дату:",
+                parse_mode="Markdown",
+            )
+            return
     except ValueError:
         await message.answer(
             "❌ Неверная дата!\n\n"
@@ -8539,6 +8648,49 @@ async def process_community_date_group(message: types.Message, state: FSMContext
     if not re.match(r"^\d{1,2}\.\d{1,2}\.\d{4}$", date):
         await message.answer(
             "❌ **Неверный формат даты!**\n\n" "📅 Введите дату в формате **ДД.ММ.ГГГГ**\n" "Например: 15.12.2024",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+            ),
+        )
+        return
+
+    # Дополнительная проверка: валидность даты и проверка на прошлое
+    try:
+        day, month, year = map(int, date.split("."))
+        from datetime import datetime
+
+        import pytz
+
+        event_date = datetime(year, month, day)  # Проверяем валидность даты
+
+        # Проверяем, что дата не в прошлом
+        tz_bali = pytz.timezone("Asia/Makassar")  # UTC+8 для Бали
+        now_bali = datetime.now(tz_bali)
+        today_bali = now_bali.date()
+        event_date_only = event_date.date()
+
+        if event_date_only < today_bali:
+            await message.answer(
+                f"⚠️ **Внимание!** Дата *{date}* уже прошла (сегодня {today_bali.strftime('%d.%m.%Y')}).\n\n"
+                "События с датой в прошлом будут автоматически закрыты и не будут отображаться в списке активных событий.\n\n"
+                "Если вы хотите создать событие на будущую дату, введите правильную дату.\n\n"
+                "📅 **Введите дату** (например: 15.12.2024):",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
+                ),
+            )
+            return
+    except ValueError:
+        await message.answer(
+            "❌ **Неверная дата!**\n\n"
+            "Проверьте правильность даты:\n"
+            "• День: 1-31\n"
+            "• Месяц: 1-12\n"
+            "• Год: 2024-2030\n\n"
+            "Например: 15.12.2024\n\n"
+            "📅 **Введите дату** (например: 15.12.2024):",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
