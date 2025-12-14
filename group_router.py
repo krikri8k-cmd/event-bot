@@ -3096,7 +3096,7 @@ async def group_delete_event(callback: CallbackQuery, bot: Bot, session: AsyncSe
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
 
 
-def _get_manageable_community_events(
+async def _get_manageable_community_events(
     session: AsyncSession, chat_id: int, user_id: int, is_admin: bool
 ) -> list[CommunityEvent]:
     """Получает события, которыми может управлять пользователь (созданные им или все, если админ)"""
