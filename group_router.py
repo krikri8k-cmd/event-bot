@@ -3334,9 +3334,7 @@ async def update_community_event_field(
             # Для Community событий starts_at - это TIMESTAMP WITHOUT TIME ZONE (naive datetime)
             # Парсим дату и время в формате ДД.ММ.ГГГГ ЧЧ:ММ
             try:
-                from datetime import datetime
-
-                # Парсим дату и время
+                # Парсим дату и время (используем глобальный datetime из импортов)
                 dt = datetime.strptime(value.strip(), "%d.%m.%Y %H:%M")
                 event.starts_at = dt  # Сохраняем как naive datetime
                 logger.info(f"Обновлена дата/время события {event_id}: {dt}")
@@ -3546,8 +3544,7 @@ async def group_handle_date_input(message: Message, bot: Bot, session: AsyncSess
                 session, event_id, "starts_at", new_datetime, user_id, chat_id, is_admin
             )
         else:
-            # Если нет текущей даты, используем сегодняшнюю
-            datetime.now().strftime("%d.%m.%Y")
+            # Если нет текущей даты, используем введенную дату с временем по умолчанию
             new_datetime = f"{message.text.strip()} 12:00"
             success = await update_community_event_field(
                 session, event_id, "starts_at", new_datetime, user_id, chat_id, is_admin
