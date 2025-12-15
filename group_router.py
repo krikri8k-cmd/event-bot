@@ -2686,11 +2686,42 @@ async def _show_community_manage_event(
     if is_forum and thread_id:
         send_kwargs["message_thread_id"] = thread_id
 
-    try:
-        await callback.message.edit_text(**send_kwargs)
-    except Exception:
-        # Если не удалось отредактировать, отправляем новое сообщение
-        await callback.message.answer(**send_kwargs)
+    # Проверяем, является ли сообщение сообщением бота (можно редактировать только сообщения бота)
+    bot_info = await bot.get_me()
+    is_bot_message = callback.message.from_user is not None and callback.message.from_user.id == bot_info.id
+
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    # Пытаемся отредактировать сообщение только если это сообщение бота и есть текст/подпись
+    if is_bot_message and (callback.message.text or callback.message.caption):
+        try:
+            await callback.message.edit_text(**send_kwargs)
+        except Exception as e:
+            # Логируем ошибку для отладки
+            logger.warning(
+                f"⚠️ Не удалось отредактировать сообщение {callback.message.message_id}: {type(e).__name__}: {e}"
+            )
+            # Если не удалось отредактировать, отправляем новое сообщение
+            try:
+                await callback.message.answer(**send_kwargs)
+            except Exception as e2:
+                logger.error(f"❌ Не удалось отправить новое сообщение: {type(e2).__name__}: {e2}")
+    else:
+        # Если это не сообщение бота или нет текста/подписи, отправляем новое сообщение
+        if not is_bot_message:
+            from_user_id = callback.message.from_user.id if callback.message.from_user else None
+            logger.debug(
+                f"Сообщение {callback.message.message_id} не от бота "
+                f"(from_user.id={from_user_id}, bot.id={bot_info.id}), отправляем новое"
+            )
+        else:
+            logger.debug(f"Сообщение {callback.message.message_id} не имеет текста/подписи, отправляем новое")
+        try:
+            await callback.message.answer(**send_kwargs)
+        except Exception as e:
+            logger.error(f"❌ Не удалось отправить новое сообщение: {type(e).__name__}: {e}")
 
 
 @group_router.callback_query(F.data.startswith("group_next_event_"))
