@@ -244,15 +244,30 @@ def format_event_for_display(event):
     return "\n".join(lines)
 
 
-def get_status_change_buttons(event_id: int, current_status: str):
+def get_status_change_buttons(event_id: int, current_status: str, updated_at_utc=None):
     """Возвращает кнопки для изменения статуса события"""
+    from datetime import UTC, datetime, timedelta
+
     buttons = []
 
     # Кнопки в зависимости от текущего статуса
     if current_status == "open":
         buttons.append({"text": "⛔ Завершить мероприятие", "callback_data": f"close_event_{event_id}"})
     elif current_status == "closed":
-        buttons.append({"text": "🔄 Возобновить мероприятие", "callback_data": f"open_event_{event_id}"})
+        # Показываем кнопку "Возобновить" только если событие закрыто менее 24 часов назад
+        can_resume = True
+        if updated_at_utc:
+            day_ago = datetime.now(UTC) - timedelta(hours=24)
+            # Если updated_at_utc это datetime без timezone, добавляем UTC
+            if updated_at_utc.tzinfo is None:
+                updated_at_utc_tz = updated_at_utc.replace(tzinfo=UTC)
+            else:
+                updated_at_utc_tz = updated_at_utc
+            if updated_at_utc_tz < day_ago:
+                can_resume = False
+
+        if can_resume:
+            buttons.append({"text": "🔄 Возобновить мероприятие", "callback_data": f"open_event_{event_id}"})
     elif current_status == "canceled":
         # Для отмененных событий показываем только возобновление
         buttons.append({"text": "🔄 Возобновить мероприятие", "callback_data": f"open_event_{event_id}"})

@@ -9539,7 +9539,8 @@ async def _show_manage_event(callback: types.CallbackQuery, events: list[dict], 
     header = f"🔧 Управление событием ({index + 1}/{total}):\n\n"
     text = f"{header}{format_event_for_display(event)}"
 
-    buttons = get_status_change_buttons(event["id"], event["status"])
+    # Передаем updated_at_utc для проверки времени закрытия
+    buttons = get_status_change_buttons(event["id"], event["status"], event.get("updated_at_utc"))
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
