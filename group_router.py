@@ -2871,7 +2871,7 @@ async def group_close_event(callback: CallbackQuery, bot: Bot, session: AsyncSes
 
         # Закрываем событие
         event.status = "closed"
-        event.updated_at_utc = datetime.now(UTC)
+        event.updated_at = datetime.now(UTC)
         await session.commit()
 
         await callback.answer("✅ Событие завершено")
@@ -2934,7 +2934,7 @@ async def group_open_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
         from datetime import timedelta
 
         day_ago = datetime.now(UTC) - timedelta(hours=24)
-        if event.updated_at_utc and event.updated_at_utc < day_ago:
+        if event.updated_at and event.updated_at < day_ago:
             await callback.answer(
                 "❌ Возобновление возможно только в течение 24 часов после закрытия события", show_alert=True
             )
@@ -2942,7 +2942,7 @@ async def group_open_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
 
         # Открываем событие
         event.status = "open"
-        event.updated_at_utc = datetime.now(UTC)
+        event.updated_at = datetime.now(UTC)
         await session.commit()
 
         await callback.answer("✅ Событие возобновлено")
