@@ -353,7 +353,8 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
         from utils.messaging_utils import send_tracked
 
         # Получаем события для списка
-        now_utc = datetime.now(UTC) - timedelta(hours=3)
+        # Для Community событий starts_at теперь TIMESTAMP WITHOUT TIME ZONE, поэтому убираем timezone
+        now_utc = (datetime.now(UTC) - timedelta(hours=3)).replace(tzinfo=None)
         stmt = (
             select(CommunityEvent)
             .where(
@@ -603,7 +604,8 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
         from utils.messaging_utils import send_tracked
 
         # Получаем события для списка
-        now_utc = datetime.now(UTC) - timedelta(hours=3)
+        # Для Community событий starts_at теперь TIMESTAMP WITHOUT TIME ZONE, поэтому убираем timezone
+        now_utc = (datetime.now(UTC) - timedelta(hours=3)).replace(tzinfo=None)
         stmt = (
             select(CommunityEvent)
             .where(
@@ -2934,6 +2936,7 @@ async def group_open_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
         # Проверяем, что событие было закрыто в течение последних 24 часов
         from datetime import timedelta
 
+        # Для Community событий updated_at имеет timezone, но starts_at - нет
         day_ago = datetime.now(UTC) - timedelta(hours=24)
         if event.updated_at and event.updated_at < day_ago:
             await callback.answer(
