@@ -9492,26 +9492,30 @@ async def handle_manage_events(callback: types.CallbackQuery):
 
 def _get_active_user_events(user_id: int) -> list[dict]:
     """Возвращает активные события и недавно закрытые (в течение 24 часов) для управления"""
+    from datetime import UTC, datetime, timedelta
+
     events = get_user_events(user_id)
-    active_events = [e for e in events if e.get("status") == "open"]
+    now_utc = datetime.now(UTC)
 
-    # Добавляем закрытые события, которые можно возобновить (закрыты в течение 24 часов)
-    from datetime import datetime, timedelta
+    # Получаем активные события (которые еще не начались)
+    active_events = [
+        e for e in events if e.get("status") == "open" and e.get("starts_at") and e["starts_at"] >= now_utc
+    ]
 
-    import pytz
-
-    tz_bali = pytz.timezone("Asia/Makassar")
-    now_bali = datetime.now(tz_bali)
-    day_ago = now_bali - timedelta(hours=24)
+    # Добавляем закрытые события, которые можно возобновить
+    # Важно: событие должно быть закрыто менее 24 часов назад И еще не началось
+    # Если событие уже прошло (starts_at < now_utc), его нельзя возобновить
+    day_ago = datetime.now(UTC) - timedelta(hours=24)
 
     recent_closed_for_management = []
     for e in events:
         if e.get("status") == "closed":
             updated_at = e.get("updated_at_utc")
-            if updated_at:
-                local_time = updated_at.astimezone(tz_bali)
+            starts_at = e.get("starts_at")
+            if updated_at and starts_at:
                 # Проверяем, что событие было закрыто в течение последних 24 часов
-                if local_time >= day_ago:
+                # И что событие еще не началось
+                if updated_at >= day_ago and starts_at >= now_utc:
                     recent_closed_for_management.append(e)
 
     # Объединяем активные и недавно закрытые события
