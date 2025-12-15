@@ -3367,8 +3367,8 @@ async def update_community_event_field(
 
 
 @group_router.callback_query(F.data.startswith("group_edit_event_"))
-async def group_edit_event(callback: CallbackQuery, bot: Bot, session: AsyncSession, state: FSMContext):
-    """Начало редактирования Community события"""
+async def group_edit_event(callback: CallbackQuery, bot: Bot, session: AsyncSession):
+    """Начало редактирования Community события - перекидывает в основной бот"""
     user_id = callback.from_user.id
     chat_id = callback.message.chat.id
 
@@ -3394,26 +3394,47 @@ async def group_edit_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
         await callback.answer("❌ У вас нет прав для редактирования этого события", show_alert=True)
         return
 
-    # Сохраняем данные в состоянии
-    await state.update_data(event_id=event_id, chat_id=chat_id, is_admin=is_admin)
-    await state.set_state(CommunityEventEditing.choosing_field)
+    # Получаем username бота для deep-link
+    bot_info = await bot.get_me()
+    bot_username = bot_info.username or "EventAroundBot"
 
-    # Показываем меню редактирования
-    keyboard = group_edit_event_keyboard(event_id)
+    # Создаем deep-link для редактирования в основном боте
+    edit_link = f"https://t.me/{bot_username}?start=edit_group_{event_id}_{chat_id}"
+
+    # Отправляем сообщение с кнопкой для перехода в основной бот
     await callback.message.answer(
-        "✏️ **Редактирование события**\n\nВыберите, что хотите изменить:", parse_mode="Markdown", reply_markup=keyboard
+        "✏️ **Редактирование события**\n\n" "Для редактирования перейдите в приватный чат с ботом:",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="✏️ Редактировать событие", url=edit_link)],
+            ]
+        ),
     )
-    await callback.answer()
+    await callback.answer("Перейдите в приватный чат для редактирования")
 
 
 # === ОБРАБОТЧИКИ ВЫБОРА ПОЛЕЙ ДЛЯ РЕДАКТИРОВАНИЯ ===
 @group_router.callback_query(F.data.startswith("group_edit_title_"))
-async def group_edit_title_choice(callback: CallbackQuery, state: FSMContext):
+async def group_edit_title_choice(callback: CallbackQuery, bot: Bot, state: FSMContext):
     """Выбор редактирования названия"""
     event_id = int(callback.data.split("_")[-1])
+    chat_id = callback.message.chat.id
     await state.update_data(event_id=event_id)
     await state.set_state(CommunityEventEditing.waiting_for_title)
-    await callback.message.answer("✍️ Введите новое название события:")
+
+    # Удаляем предыдущее меню редактирования, если есть
+    data = await state.get_data()
+    last_menu_msg_id = data.get("last_menu_msg_id")
+    if last_menu_msg_id:
+        try:
+            await bot.delete_message(chat_id=chat_id, message_id=last_menu_msg_id)
+        except Exception:
+            pass
+
+    # Отправляем запрос и сохраняем его ID
+    prompt_msg = await callback.message.answer("✍️ Введите новое название события:")
+    await state.update_data(prompt_msg_id=prompt_msg.message_id)
     await callback.answer()
 
 
@@ -3514,9 +3535,28 @@ async def group_handle_title_input(message: Message, bot: Bot, session: AsyncSes
             session, event_id, "title", message.text.strip(), user_id, chat_id, is_admin
         )
         if success:
-            await message.answer("✅ Название обновлено!")
+            # Удаляем сообщение с запросом и сообщение пользователя
+            prompt_msg_id = data.get("prompt_msg_id")
+            if prompt_msg_id:
+                try:
+                    await bot.delete_message(chat_id=chat_id, message_id=prompt_msg_id)
+                except Exception:
+                    pass
+            try:
+                await bot.delete_message(chat_id=chat_id, message_id=message.message_id)
+            except Exception:
+                pass
+
+            # Отправляем подтверждение и меню
+            confirm_msg = await message.answer("✅ Название обновлено!")
             keyboard = group_edit_event_keyboard(event_id)
-            await message.answer("Выберите, что еще хотите изменить:", reply_markup=keyboard)
+            menu_msg = await message.answer("Выберите, что еще хотите изменить:", reply_markup=keyboard)
+
+            # Сохраняем ID сообщений для последующего удаления
+            await state.update_data(
+                last_confirm_msg_id=confirm_msg.message_id,
+                last_menu_msg_id=menu_msg.message_id,
+            )
             await state.set_state(CommunityEventEditing.choosing_field)
         else:
             await message.answer("❌ Ошибка при обновлении названия")

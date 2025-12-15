@@ -2781,7 +2781,7 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
     user_id = message.from_user.id
     chat_type = message.chat.type
 
-    # Проверяем, есть ли параметр group_ (deep-link из группы)
+    # Проверяем, есть ли параметр group_ (deep-link из группы для создания)
     group_id = None
     if command and command.args and command.args.startswith("group_"):
         try:
@@ -2789,6 +2789,27 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
             logger.info(f"🔥 cmd_start: пользователь {user_id} перешёл из группы {group_id}")
         except ValueError:
             logger.warning(f"🔥 cmd_start: неверный параметр group_ {command.args}")
+
+    # Проверяем, есть ли параметр edit_group_ (deep-link из группы для редактирования)
+    edit_params = None
+    if command and command.args and command.args.startswith("edit_group_"):
+        try:
+            # Формат: edit_group_{event_id}_{chat_id}
+            parts = command.args.replace("edit_group_", "").split("_")
+            if len(parts) == 2:
+                event_id = int(parts[0])
+                chat_id = int(parts[1])
+                edit_params = {"event_id": event_id, "chat_id": chat_id}
+                logger.info(
+                    f"🔥 cmd_start: пользователь {user_id} перешёл для редактирования события {event_id} из группы {chat_id}"
+                )
+        except (ValueError, IndexError) as e:
+            logger.warning(f"🔥 cmd_start: неверный параметр edit_group_ {command.args}: {e}")
+
+    # Если это переход из группы для редактирования, запускаем FSM для редактирования
+    if edit_params and chat_type == "private":
+        await start_group_event_editing(message, edit_params["event_id"], edit_params["chat_id"], state)
+        return
 
     # Если это переход из группы, запускаем FSM для создания группового события
     if group_id and chat_type == "private":
@@ -2883,6 +2904,87 @@ async def start_group_event_creation(message: types.Message, group_id: int, stat
     )
 
     await message.answer(welcome_text, parse_mode="Markdown", reply_markup=get_community_cancel_kb())
+
+
+async def start_group_event_editing(message: types.Message, event_id: int, chat_id: int, state: FSMContext):
+    """Запуск редактирования Community события в ЛС"""
+    from database import CommunityEvent, get_session
+
+    logger.info(
+        f"🔥 start_group_event_editing: запуск редактирования события {event_id} из группы {chat_id}, "
+        f"пользователь {message.from_user.id}"
+    )
+
+    # Загружаем событие из БД (используем синхронную сессию для простоты)
+    user_id = message.from_user.id
+    try:
+        with get_session() as session:
+            event = (
+                session.query(CommunityEvent)
+                .filter(CommunityEvent.id == event_id, CommunityEvent.chat_id == chat_id)
+                .first()
+            )
+
+            if not event:
+                await message.answer("❌ Событие не найдено")
+                return
+
+            # Проверяем права доступа
+            can_edit = event.organizer_id == user_id
+            if not can_edit:
+                await message.answer("❌ У вас нет прав для редактирования этого события")
+                return
+
+            # Форматируем дату и время для отображения
+            date_str = event.starts_at.strftime("%d.%m.%Y") if event.starts_at else "Не указано"
+            time_str = event.starts_at.strftime("%H:%M") if event.starts_at else "Не указано"
+
+            # Показываем информацию о событии и меню редактирования
+            event_info = (
+                f"✏️ **Редактирование события**\n\n"
+                f"**Текущие данные:**\n"
+                f"📌 Название: {event.title}\n"
+                f"📅 Дата: {date_str}\n"
+                f"⏰ Время: {time_str}\n"
+                f"📍 Локация: {event.location_name or 'Не указано'}\n"
+                f"📝 Описание: {event.description or 'Не указано'}\n\n"
+                f"**Выберите, что хотите изменить:**"
+            )
+
+            # Создаем клавиатуру для редактирования
+            from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="📌 Название", callback_data=f"pm_edit_title_{event_id}_{chat_id}")],
+                    [InlineKeyboardButton(text="📅 Дата", callback_data=f"pm_edit_date_{event_id}_{chat_id}")],
+                    [InlineKeyboardButton(text="⏰ Время", callback_data=f"pm_edit_time_{event_id}_{chat_id}")],
+                    [InlineKeyboardButton(text="📍 Локация", callback_data=f"pm_edit_location_{event_id}_{chat_id}")],
+                    [
+                        InlineKeyboardButton(
+                            text="📝 Описание", callback_data=f"pm_edit_description_{event_id}_{chat_id}"
+                        )
+                    ],
+                    [InlineKeyboardButton(text="✅ Завершить", callback_data=f"pm_edit_finish_{event_id}_{chat_id}")],
+                ]
+            )
+
+            # Сохраняем данные в состоянии
+            await state.update_data(
+                event_id=event_id,
+                chat_id=chat_id,
+                editing_community_event=True,
+                original_title=event.title,
+                original_date=date_str,
+                original_time=time_str,
+                original_location=event.location_name,
+                original_description=event.description,
+            )
+
+            await message.answer(event_info, parse_mode="Markdown", reply_markup=keyboard)
+    except Exception as e:
+        logger.error(f"Ошибка при загрузке события для редактирования: {e}")
+        await message.answer("❌ Ошибка при загрузке события")
 
 
 # Обработчики FSM для создания событий в ЛС (для групп)
