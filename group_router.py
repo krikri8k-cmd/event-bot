@@ -2654,11 +2654,22 @@ async def _show_community_manage_event(
     header = f"🔧 Управление событием ({index + 1}/{total}):\n\n"
     text = f"{header}{format_community_event_for_display(event)}"
 
+    # Получаем username бота для deep-link
+    bot_info = await bot.get_me()
+    bot_username = bot_info.username or "EventAroundBot"
+
     # Получаем кнопки управления (передаем также updated_at для проверки времени закрытия)
-    buttons = get_community_status_buttons(event.id, event.status, event.updated_at)
+    buttons = get_community_status_buttons(event.id, event.status, event.updated_at, chat_id, bot_username)
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
+            [
+                InlineKeyboardButton(
+                    text=btn["text"],
+                    callback_data=btn.get("callback_data"),
+                    url=btn.get("url"),
+                )
+            ]
+            for btn in buttons
         ]
     )
 
@@ -3224,7 +3235,9 @@ def format_community_event_for_display(event: CommunityEvent) -> str:
     return "\n".join(lines)
 
 
-def get_community_status_buttons(event_id: int, current_status: str, updated_at=None) -> list[dict[str, str]]:
+def get_community_status_buttons(
+    event_id: int, current_status: str, updated_at=None, chat_id: int = None, bot_username: str = None
+) -> list[dict[str, str]]:
     """Возвращает кнопки для управления Community событием"""
     from datetime import UTC, datetime, timedelta
 
@@ -3252,8 +3265,13 @@ def get_community_status_buttons(event_id: int, current_status: str, updated_at=
     # Кнопка просмотра участников
     buttons.append({"text": "👥 Участники", "callback_data": f"community_members_{event_id}"})
 
-    # Кнопка редактирования (всегда доступна)
-    buttons.append({"text": "✏️ Редактировать", "callback_data": f"group_edit_event_{event_id}"})
+    # Кнопка редактирования (всегда доступна) - используем deep-link для прямого перехода
+    if chat_id and bot_username:
+        edit_link = f"https://t.me/{bot_username}?start=edit_group_{event_id}_{chat_id}"
+        buttons.append({"text": "✏️ Редактировать", "url": edit_link})
+    else:
+        # Fallback на callback_data, если нет данных для deep-link
+        buttons.append({"text": "✏️ Редактировать", "callback_data": f"group_edit_event_{event_id}"})
 
     # Кнопка удаления убрана - для закрытия события используется "Завершить мероприятие"
     # Кнопка "Вернуться к списку" теперь встроена в навигацию, а не отдельная кнопка
@@ -3368,7 +3386,9 @@ async def update_community_event_field(
 
 @group_router.callback_query(F.data.startswith("group_edit_event_"))
 async def group_edit_event(callback: CallbackQuery, bot: Bot, session: AsyncSession):
-    """Начало редактирования Community события - перекидывает в основной бот"""
+    """Начало редактирования Community события - перекидывает в основной бот (fallback для старых кнопок)"""
+    # Этот обработчик теперь используется только как fallback, если кнопка не была обновлена
+    # Обычно кнопка "Редактировать" теперь использует deep-link напрямую
     user_id = callback.from_user.id
     chat_id = callback.message.chat.id
 
@@ -3379,7 +3399,7 @@ async def group_edit_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
         await callback.answer("❌ Неверный ID события", show_alert=True)
         return
 
-    logger.info(f"🔥 group_edit_event: пользователь {user_id} запрашивает редактирование события {event_id}")
+    logger.info(f"🔥 group_edit_event: пользователь {user_id} запрашивает редактирование события {event_id} (fallback)")
 
     # Проверяем права доступа
     is_admin = await is_chat_admin(bot, chat_id, user_id)
@@ -3401,17 +3421,15 @@ async def group_edit_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
     # Создаем deep-link для редактирования в основном боте
     edit_link = f"https://t.me/{bot_username}?start=edit_group_{event_id}_{chat_id}"
 
-    # Отправляем сообщение с кнопкой для перехода в основной бот
+    # Просто отвечаем и перекидываем через deep-link
+    await callback.answer("Переход в приватный чат...", show_alert=False)
+    # Отправляем сообщение с кнопкой для перехода (на случай, если deep-link не сработал)
     await callback.message.answer(
-        "✏️ **Редактирование события**\n\n" "Для редактирования перейдите в приватный чат с ботом:",
-        parse_mode="Markdown",
+        "✏️ Для редактирования перейдите в приватный чат:",
         reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="✏️ Редактировать событие", url=edit_link)],
-            ]
+            inline_keyboard=[[InlineKeyboardButton(text="✏️ Редактировать событие", url=edit_link)]]
         ),
     )
-    await callback.answer("Перейдите в приватный чат для редактирования")
 
 
 # === ОБРАБОТЧИКИ ВЫБОРА ПОЛЕЙ ДЛЯ РЕДАКТИРОВАНИЯ ===
@@ -3506,10 +3524,20 @@ async def group_edit_finish(callback: CallbackQuery, bot: Bot, session: AsyncSes
             event = await session.get(CommunityEvent, event_id)
             if event and event.chat_id == chat_id:
                 text = f"✅ **Событие обновлено!**\n\n{format_community_event_for_display(event)}"
-                buttons = get_community_status_buttons(event.id, event.status, event.updated_at)
+                # Получаем username бота для deep-link
+                bot_info = await bot.get_me()
+                bot_username = bot_info.username or "EventAroundBot"
+                buttons = get_community_status_buttons(event.id, event.status, event.updated_at, chat_id, bot_username)
                 keyboard = InlineKeyboardMarkup(
                     inline_keyboard=[
-                        [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
+                        [
+                            InlineKeyboardButton(
+                                text=btn["text"],
+                                callback_data=btn.get("callback_data"),
+                                url=btn.get("url"),
+                            )
+                        ]
+                        for btn in buttons
                     ]
                 )
                 await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
