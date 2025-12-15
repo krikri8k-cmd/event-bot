@@ -3140,10 +3140,16 @@ async def pm_edit_time_choice(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer("❌ Ошибка", show_alert=True)
 
 
-@main_router.callback_query(F.data.startswith("pm_edit_location_"))
+@main_router.callback_query(
+    F.data.startswith("pm_edit_location_")
+    & ~F.data.startswith("pm_edit_location_link_")
+    & ~F.data.startswith("pm_edit_location_map_")
+    & ~F.data.startswith("pm_edit_location_coords_")
+)
 async def pm_edit_location_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор редактирования локации Community события - показываем 3 кнопки"""
     try:
+        # Формат: pm_edit_location_{event_id}_{chat_id}
         parts = callback.data.replace("pm_edit_location_", "").split("_")
         if len(parts) >= 2:
             event_id = int(parts[0])
