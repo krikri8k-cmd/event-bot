@@ -250,7 +250,7 @@ def get_status_change_buttons(event_id: int, current_status: str):
 
     # Кнопки в зависимости от текущего статуса
     if current_status == "open":
-        buttons.append({"text": "✅ Завершить мероприятие", "callback_data": f"close_event_{event_id}"})
+        buttons.append({"text": "⛔ Завершить мероприятие", "callback_data": f"close_event_{event_id}"})
     elif current_status == "closed":
         buttons.append({"text": "🔄 Возобновить мероприятие", "callback_data": f"open_event_{event_id}"})
     elif current_status == "canceled":
