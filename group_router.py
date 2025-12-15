@@ -3073,14 +3073,14 @@ async def _get_manageable_community_events(
     from sqlalchemy import select
 
     # Получаем активные события и недавно закрытые (в течение 24 часов)
-    now_utc = datetime.now(UTC) - timedelta(hours=3)
+    now_utc = datetime.now(UTC)
     day_ago = datetime.now(UTC) - timedelta(hours=24)
 
-    # Получаем активные события
+    # Получаем активные события (которые еще не начались)
     stmt = select(CommunityEvent).where(
         CommunityEvent.chat_id == chat_id,
         CommunityEvent.status == "open",
-        CommunityEvent.starts_at >= now_utc,
+        CommunityEvent.starts_at >= now_utc,  # Событие еще не началось
     )
 
     if not is_admin:
@@ -3091,13 +3091,13 @@ async def _get_manageable_community_events(
     active_events = list(result.scalars().all())
 
     # Получаем недавно закрытые события (в течение 24 часов)
-    # Важно: событие должно быть закрыто менее 24 часов назад И закончиться менее 24 часов назад
-    # Это предотвращает показ старых событий, которые были закрыты автоматически недавно
+    # Важно: событие должно быть закрыто менее 24 часов назад И еще не началось (starts_at >= now_utc)
+    # Если событие уже прошло (starts_at < now_utc), его нельзя возобновить
     closed_stmt = select(CommunityEvent).where(
         CommunityEvent.chat_id == chat_id,
         CommunityEvent.status == "closed",
         CommunityEvent.updated_at >= day_ago,  # Закрыто менее 24 часов назад
-        CommunityEvent.starts_at >= day_ago,  # Закончилось менее 24 часов назад
+        CommunityEvent.starts_at >= now_utc,  # Событие еще не началось (можно возобновить)
     )
 
     if not is_admin:
