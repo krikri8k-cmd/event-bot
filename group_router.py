@@ -3122,7 +3122,8 @@ async def _get_manageable_community_events(
 
     # Объединяем и сортируем по дате начала
     all_events = active_events + closed_events
-    all_events.sort(key=lambda e: e.starts_at if e.starts_at else datetime.min.replace(tzinfo=UTC))
+    # Для Community событий starts_at теперь TIMESTAMP WITHOUT TIME ZONE (naive datetime)
+    all_events.sort(key=lambda e: e.starts_at if e.starts_at else datetime.min)
 
     return all_events
 
