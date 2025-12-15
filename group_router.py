@@ -2649,8 +2649,8 @@ async def _show_community_manage_event(
     header = f"🔧 Управление событием ({index + 1}/{total}):\n\n"
     text = f"{header}{format_community_event_for_display(event)}"
 
-    # Получаем кнопки управления
-    buttons = get_community_status_buttons(event.id, event.status)
+    # Получаем кнопки управления (передаем также updated_at для проверки времени закрытия)
+    buttons = get_community_status_buttons(event.id, event.status, event.updated_at)
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
@@ -3144,15 +3144,30 @@ def format_community_event_for_display(event: CommunityEvent) -> str:
     return "\n".join(lines)
 
 
-def get_community_status_buttons(event_id: int, current_status: str) -> list[dict[str, str]]:
+def get_community_status_buttons(event_id: int, current_status: str, updated_at=None) -> list[dict[str, str]]:
     """Возвращает кнопки для управления Community событием"""
+    from datetime import UTC, datetime, timedelta
+
     buttons = []
 
     # Кнопки в зависимости от текущего статуса
     if current_status == "open":
         buttons.append({"text": "⛔ Завершить мероприятие", "callback_data": f"group_close_event_{event_id}"})
     elif current_status == "closed":
-        buttons.append({"text": "🔄 Возобновить мероприятие", "callback_data": f"group_open_event_{event_id}"})
+        # Показываем кнопку "Возобновить" только если событие закрыто менее 24 часов назад
+        can_resume = True
+        if updated_at:
+            day_ago = datetime.now(UTC) - timedelta(hours=24)
+            # Если updated_at это datetime без timezone, добавляем UTC
+            if updated_at.tzinfo is None:
+                updated_at_utc = updated_at.replace(tzinfo=UTC)
+            else:
+                updated_at_utc = updated_at
+            if updated_at_utc < day_ago:
+                can_resume = False
+
+        if can_resume:
+            buttons.append({"text": "🔄 Возобновить мероприятие", "callback_data": f"group_open_event_{event_id}"})
 
     # Кнопка просмотра участников
     buttons.append({"text": "👥 Участники", "callback_data": f"community_members_{event_id}"})
