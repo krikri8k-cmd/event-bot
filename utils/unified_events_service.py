@@ -526,6 +526,9 @@ class UnifiedEventsService:
         """
         with self.engine.begin() as conn:
             # Переносим устаревшие записи в архив ТОЛЬКО для пользовательских событий
+            # Для открытых событий: по дате начала (starts_at)
+            # Для закрытых событий: по времени закрытия (updated_at_utc),
+            # чтобы можно было возобновить в течение 24 часов
             archived_count = conn.execute(
                 text(
                     """
@@ -543,8 +546,14 @@ class UnifiedEventsService:
                         created_at_utc, updated_at_utc, NOW()
                     FROM events
                     WHERE city = :city
-                    AND starts_at < NOW() - INTERVAL '1 day'
                     AND source = 'user'
+                    AND (
+                        -- Открытые события: архивируем по дате начала
+                        (status = 'open' AND starts_at < NOW() - INTERVAL '1 day')
+                        OR
+                        -- Закрытые события: архивируем только если закрыты более 24 часов назад
+                        (status = 'closed' AND updated_at_utc < NOW() - INTERVAL '24 hours')
+                    )
                     ON CONFLICT (id) DO NOTHING
                     """
                 ),
@@ -552,12 +561,23 @@ class UnifiedEventsService:
             ).rowcount
 
             # Удаляем все старые события (и пользовательские, и парсерные)
+            # Для парсерных событий: по дате начала (как раньше)
+            # Для пользовательских: по той же логике, что и архивация
             events_deleted = conn.execute(
                 text(
                     """
                     DELETE FROM events
                     WHERE city = :city
-                    AND starts_at < NOW() - INTERVAL '1 day'
+                    AND (
+                        -- Парсерные события: удаляем по дате начала (как раньше)
+                        (source != 'user' AND starts_at < NOW() - INTERVAL '1 day')
+                        OR
+                        -- Пользовательские открытые события: удаляем по дате начала
+                        (source = 'user' AND status = 'open' AND starts_at < NOW() - INTERVAL '1 day')
+                        OR
+                        -- Пользовательские закрытые события: удаляем только если закрыты более 24 часов назад
+                        (source = 'user' AND status = 'closed' AND updated_at_utc < NOW() - INTERVAL '24 hours')
+                    )
                     """
                 ),
                 {"city": city},

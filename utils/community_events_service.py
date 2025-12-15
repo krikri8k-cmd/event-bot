@@ -248,7 +248,8 @@ class CommunityEventsService:
         """
         with self.engine.connect() as conn:
             # Сначала переносим старые записи в архив
-            # Используем make_interval для параметризованного запроса
+            # Для открытых событий: по дате начала (starts_at)
+            # Для закрытых событий: по времени закрытия (updated_at), чтобы можно было возобновить в течение 24 часов
             archive_query = text(
                 """
                 INSERT INTO events_community_archive (
@@ -264,7 +265,13 @@ class CommunityEventsService:
                        location_name, location_url, created_at,
                        status, NOW()
                 FROM events_community
-                WHERE starts_at < NOW() - make_interval(days => :days_old)
+                WHERE (
+                    -- Открытые события: архивируем по дате начала
+                    (status = 'open' AND starts_at < NOW() - make_interval(days => :days_old))
+                    OR
+                    -- Закрытые события: архивируем только если закрыты более 24 часов назад
+                    (status = 'closed' AND updated_at < NOW() - INTERVAL '24 hours')
+                )
                 ON CONFLICT (id) DO NOTHING
                 """
             )
@@ -274,7 +281,13 @@ class CommunityEventsService:
             delete_query = text(
                 """
                 DELETE FROM events_community
-                WHERE starts_at < NOW() - make_interval(days => :days_old)
+                WHERE (
+                    -- Открытые события: удаляем по дате начала
+                    (status = 'open' AND starts_at < NOW() - make_interval(days => :days_old))
+                    OR
+                    -- Закрытые события: удаляем только если закрыты более 24 часов назад
+                    (status = 'closed' AND updated_at < NOW() - INTERVAL '24 hours')
+                )
                 """
             )
             result = conn.execute(delete_query, {"days_old": days_old})
