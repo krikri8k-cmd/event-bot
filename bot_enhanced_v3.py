@@ -9518,6 +9518,13 @@ def _get_active_user_events(user_id: int) -> list[dict]:
                 if updated_at >= day_ago and starts_at >= now_utc:
                     recent_closed_for_management.append(e)
 
+    # Дополнительная фильтрация: исключаем прошедшие события (на случай, если они попали в список)
+    now_utc = datetime.now(UTC)
+    active_events = [e for e in active_events if e.get("starts_at") and e["starts_at"] >= now_utc]
+    recent_closed_for_management = [
+        e for e in recent_closed_for_management if e.get("starts_at") and e["starts_at"] >= now_utc
+    ]
+
     # Объединяем активные и недавно закрытые события
     return active_events + recent_closed_for_management
 
@@ -10663,6 +10670,12 @@ async def handle_open_event(callback: types.CallbackQuery):
         await callback.answer(
             "❌ Возобновление возможно только в течение 24 часов после закрытия события", show_alert=True
         )
+        return
+
+    # Проверяем, что событие еще не началось (не прошло по времени)
+    now_utc = datetime.now(UTC)
+    if event.get("starts_at") and event["starts_at"] < now_utc:
+        await callback.answer("❌ Нельзя возобновить событие, которое уже прошло по времени", show_alert=True)
         return
 
     success = change_event_status(event_id, "open", user_id)

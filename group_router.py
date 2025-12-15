@@ -2940,6 +2940,12 @@ async def group_open_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
             )
             return
 
+        # Проверяем, что событие еще не началось (не прошло по времени)
+        now_utc = datetime.now(UTC)
+        if event.starts_at and event.starts_at < now_utc:
+            await callback.answer("❌ Нельзя возобновить событие, которое уже прошло по времени", show_alert=True)
+            return
+
         # Открываем событие
         event.status = "open"
         event.updated_at = datetime.now(UTC)
@@ -3105,6 +3111,11 @@ async def _get_manageable_community_events(
 
     closed_result = await session.execute(closed_stmt)
     closed_events = list(closed_result.scalars().all())
+
+    # Дополнительная фильтрация: исключаем прошедшие события (на случай, если они попали в список)
+    now_utc = datetime.now(UTC)
+    active_events = [e for e in active_events if e.starts_at and e.starts_at >= now_utc]
+    closed_events = [e for e in closed_events if e.starts_at and e.starts_at >= now_utc]
 
     # Объединяем и сортируем по дате начала
     all_events = active_events + closed_events
