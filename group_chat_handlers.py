@@ -321,15 +321,8 @@ async def group_finish(message: types.Message, state: FSMContext, bot: Bot):
 
         # В Community режиме сохраняем время как указал пользователь, БЕЗ конвертации в UTC
         # Пользователь сам указал город и время, значит он уже учел свой часовой пояс
-        from zoneinfo import ZoneInfo
-
-        from utils.simple_timezone import get_city_timezone
-
-        city = data.get("city")
-        tz_name = get_city_timezone(city)
-        local_tz = ZoneInfo(tz_name)
-        # Сохраняем с локальным timezone, БЕЗ конвертации в UTC
-        starts_at_utc = naive_local_dt.replace(tzinfo=local_tz)
+        # Сохраняем как naive datetime (без timezone), т.к. колонка в БД TIMESTAMP WITHOUT TIME ZONE
+        starts_at_utc = naive_local_dt
 
         service = CommunityEventsService()
 

@@ -3599,9 +3599,7 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
         # Парсим дату и время с учетом города
         from datetime import datetime
 
-        import pytz
-
-        from utils.simple_timezone import get_city_from_coordinates, get_city_timezone
+        from utils.simple_timezone import get_city_from_coordinates
 
         date_str = data["date"]
         time_str = data["time"]
@@ -3619,15 +3617,10 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
 
         # В Community режиме сохраняем время как указал пользователь, БЕЗ конвертации в UTC
         # Пользователь сам указал город и время, значит он уже учел свой часовой пояс
-        naive_local_dt = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
-        # Определяем часовой пояс города для сохранения с timezone (требуется БД)
-        city_for_timezone = normalized_city or data.get("city")
-        tz_name = get_city_timezone(city_for_timezone)
-        local_tz = pytz.timezone(tz_name)
-        # Сохраняем с локальным timezone, БЕЗ конвертации в UTC
-        starts_at = local_tz.localize(naive_local_dt)
+        # Сохраняем как naive datetime (без timezone), т.к. колонка в БД TIMESTAMP WITHOUT TIME ZONE
+        starts_at = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
         logger.info(
-            f"🕐 Community событие: время={time_str}, город={city_for_timezone}, tz={tz_name}, starts_at={starts_at}"
+            f"🕐 Community событие: время={time_str}, дата={date_str}, starts_at={starts_at} (naive, без timezone)"
         )
 
         # Импортируем сервис для событий сообществ
@@ -9158,21 +9151,13 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
         # Парсим дату и время с учетом указанного города
         from datetime import datetime
 
-        import pytz
-
-        from utils.simple_timezone import get_city_timezone
-
         date_str = data["date"]
         time_str = data["time"]
 
         # В Community режиме сохраняем время как указал пользователь, БЕЗ конвертации в UTC
         # Пользователь сам указал город и время, значит он уже учел свой часовой пояс
-        naive_local_dt = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
-        city = data.get("city")
-        tz_name = get_city_timezone(city)
-        local_tz = pytz.timezone(tz_name)
-        # Сохраняем с локальным timezone, БЕЗ конвертации в UTC
-        starts_at = local_tz.localize(naive_local_dt)
+        # Сохраняем как naive datetime (без timezone), т.к. колонка в БД TIMESTAMP WITHOUT TIME ZONE
+        starts_at = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
 
         # Импортируем сервис для событий сообществ
         from utils.community_events_service import CommunityEventsService
