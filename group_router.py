@@ -3135,13 +3135,35 @@ def format_community_event_time(event: CommunityEvent, format_str: str = "%d.%m.
     from datetime import UTC
     from zoneinfo import ZoneInfo
 
-    from utils.simple_timezone import get_city_timezone
+    from utils.simple_timezone import get_city_from_coordinates, get_city_timezone
 
     logger = logging.getLogger(__name__)
 
     # Определяем часовой пояс города события
+    # Приоритет: 1) city из события, 2) город по координатам из location_url, 3) UTC
     city = event.city
     tz_name = get_city_timezone(city)
+
+    # Если город неизвестен или вернулся UTC, пробуем определить по координатам из location_url
+    if tz_name == "UTC" and event.location_url:
+        try:
+            # Пробуем извлечь координаты из location_url
+            # Формат может быть: https://maps.google.com/...@lat,lng или https://goo.gl/...
+            import re
+
+            # Ищем координаты в URL (разные форматы Google Maps)
+            coords_match = re.search(r"@(-?\d+\.?\d*),(-?\d+\.?\d*)", event.location_url)
+            if coords_match:
+                lat = float(coords_match.group(1))
+                lng = float(coords_match.group(2))
+                city_from_coords = get_city_from_coordinates(lat, lng)
+                if city_from_coords:
+                    city = city_from_coords
+                    tz_name = get_city_timezone(city)
+                    logger.debug(f"🌍 Событие {event.id}: определен город {city} по координатам из location_url")
+        except Exception as e:
+            logger.warning(f"⚠️ Не удалось определить город по координатам для события {event.id}: {e}")
+
     event_tz = ZoneInfo(tz_name)
 
     # Обрабатываем случай, когда starts_at может быть naive datetime (старые события)
