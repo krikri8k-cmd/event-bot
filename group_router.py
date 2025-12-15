@@ -3091,10 +3091,13 @@ async def _get_manageable_community_events(
     active_events = list(result.scalars().all())
 
     # Получаем недавно закрытые события (в течение 24 часов)
+    # Важно: событие должно быть закрыто менее 24 часов назад И закончиться менее 24 часов назад
+    # Это предотвращает показ старых событий, которые были закрыты автоматически недавно
     closed_stmt = select(CommunityEvent).where(
         CommunityEvent.chat_id == chat_id,
         CommunityEvent.status == "closed",
-        CommunityEvent.updated_at >= day_ago,
+        CommunityEvent.updated_at >= day_ago,  # Закрыто менее 24 часов назад
+        CommunityEvent.starts_at >= day_ago,  # Закончилось менее 24 часов назад
     )
 
     if not is_admin:
