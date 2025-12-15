@@ -3142,7 +3142,7 @@ async def pm_edit_time_choice(callback: types.CallbackQuery, state: FSMContext):
 
 @main_router.callback_query(F.data.startswith("pm_edit_location_"))
 async def pm_edit_location_choice(callback: types.CallbackQuery, state: FSMContext):
-    """Выбор редактирования локации Community события"""
+    """Выбор редактирования локации Community события - показываем 3 кнопки"""
     try:
         parts = callback.data.replace("pm_edit_location_", "").split("_")
         if len(parts) >= 2:
@@ -3150,17 +3150,118 @@ async def pm_edit_location_choice(callback: types.CallbackQuery, state: FSMConte
             chat_id = int(parts[1])
             await state.update_data(event_id=event_id, chat_id=chat_id)
             await state.set_state(CommunityEventEditing.waiting_for_location)
+
+            # Создаем клавиатуру с 3 кнопками для выбора способа ввода локации
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text="🔗 Вставить готовую ссылку",
+                            callback_data=f"pm_edit_location_link_{event_id}_{chat_id}",
+                        )
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            text="🌍 Найти на карте", callback_data=f"pm_edit_location_map_{event_id}_{chat_id}"
+                        )
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            text="📍 Ввести координаты", callback_data=f"pm_edit_location_coords_{event_id}_{chat_id}"
+                        )
+                    ],
+                ]
+            )
+
             await callback.message.answer(
-                "📍 Введите новую локацию:\n"
-                "• Название места\n"
-                "• Ссылка Google Maps\n"
-                "• Координаты (широта, долгота)"
+                "📍 **Как укажем место?**\n\nВыберите один из способов:",
+                parse_mode="Markdown",
+                reply_markup=keyboard,
             )
             await callback.answer()
         else:
             await callback.answer("❌ Неверный формат", show_alert=True)
     except (ValueError, IndexError) as e:
         logger.error(f"Ошибка парсинга pm_edit_location_: {e}")
+        await callback.answer("❌ Ошибка", show_alert=True)
+
+
+@main_router.callback_query(F.data.startswith("pm_edit_location_link_"))
+async def pm_edit_location_link_choice(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор ввода ссылки Google Maps для редактирования локации"""
+    try:
+        parts = callback.data.replace("pm_edit_location_link_", "").split("_")
+        if len(parts) >= 2:
+            event_id = int(parts[0])
+            chat_id = int(parts[1])
+            await state.update_data(event_id=event_id, chat_id=chat_id)
+            await state.set_state(CommunityEventEditing.waiting_for_location)
+            await callback.message.answer(
+                "🔗 Вставьте ссылку Google Maps:\n\n" "Скопируйте ссылку из приложения Google Maps и отправьте её сюда."
+            )
+            await callback.answer()
+        else:
+            await callback.answer("❌ Неверный формат", show_alert=True)
+    except (ValueError, IndexError) as e:
+        logger.error(f"Ошибка парсинга pm_edit_location_link_: {e}")
+        await callback.answer("❌ Ошибка", show_alert=True)
+
+
+@main_router.callback_query(F.data.startswith("pm_edit_location_map_"))
+async def pm_edit_location_map_choice(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор поиска на карте для редактирования локации"""
+    try:
+        parts = callback.data.replace("pm_edit_location_map_", "").split("_")
+        if len(parts) >= 2:
+            event_id = int(parts[0])
+            chat_id = int(parts[1])
+            await state.update_data(event_id=event_id, chat_id=chat_id)
+            await state.set_state(CommunityEventEditing.waiting_for_location)
+
+            # Показываем кнопку с картой
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+                ]
+            )
+
+            await callback.message.answer(
+                "🌍 **Найдите место на карте**\n\n"
+                "1. Нажмите кнопку ниже, чтобы открыть Google Maps\n"
+                "2. Найдите нужное место\n"
+                "3. Скопируйте ссылку и отправьте её сюда",
+                parse_mode="Markdown",
+                reply_markup=keyboard,
+            )
+            await callback.answer()
+        else:
+            await callback.answer("❌ Неверный формат", show_alert=True)
+    except (ValueError, IndexError) as e:
+        logger.error(f"Ошибка парсинга pm_edit_location_map_: {e}")
+        await callback.answer("❌ Ошибка", show_alert=True)
+
+
+@main_router.callback_query(F.data.startswith("pm_edit_location_coords_"))
+async def pm_edit_location_coords_choice(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор ввода координат для редактирования локации"""
+    try:
+        parts = callback.data.replace("pm_edit_location_coords_", "").split("_")
+        if len(parts) >= 2:
+            event_id = int(parts[0])
+            chat_id = int(parts[1])
+            await state.update_data(event_id=event_id, chat_id=chat_id)
+            await state.set_state(CommunityEventEditing.waiting_for_location)
+            await callback.message.answer(
+                "📍 Введите координаты в формате: **широта, долгота**\n\n"
+                "Например: 55.7558, 37.6176\n"
+                "Или: -8.67, 115.21",
+                parse_mode="Markdown",
+            )
+            await callback.answer()
+        else:
+            await callback.answer("❌ Неверный формат", show_alert=True)
+    except (ValueError, IndexError) as e:
+        logger.error(f"Ошибка парсинга pm_edit_location_coords_: {e}")
         await callback.answer("❌ Ошибка", show_alert=True)
 
 
