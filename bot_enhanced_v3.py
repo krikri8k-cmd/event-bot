@@ -9571,22 +9571,13 @@ async def _show_manage_event(callback: types.CallbackQuery, events: list[dict], 
         ]
     )
 
-    # Добавляем навигацию: "Вернуться к списку" заменяет "Назад" когда на первом событии
-    nav_row = []
-    if index > 0:
-        nav_row.append(InlineKeyboardButton(text="◀️ Предыдущее", callback_data=f"prev_event_{index-1}"))
-    else:
-        # На первом событии показываем "Вернуться к списку" вместо "Предыдущее"
-        nav_row.append(InlineKeyboardButton(text="📋 Вернуться к списку", callback_data=f"back_to_list_{event['id']}"))
-
-    if index < total - 1:
-        nav_row.append(InlineKeyboardButton(text="▶️ Следующее", callback_data=f"next_event_{index+1}"))
-    elif total == 1:
-        # Если только одно событие, не показываем "Следующее", только "Вернуться к списку"
-        pass
-
-    if nav_row:
-        keyboard.inline_keyboard.append(nav_row)
+    # Добавляем навигацию: всегда показываем 3 кнопки (Список, Назад, Вперед)
+    nav_row = [
+        InlineKeyboardButton(text="📋 Список", callback_data=f"back_to_list_{event['id']}"),
+        InlineKeyboardButton(text="◀️ Назад", callback_data=f"prev_event_{max(0, index-1)}"),
+        InlineKeyboardButton(text="▶️ Вперед", callback_data=f"next_event_{min(total-1, index+1)}"),
+    ]
+    keyboard.inline_keyboard.append(nav_row)
 
     await _send_or_edit_manage_message(callback, text, keyboard)
 

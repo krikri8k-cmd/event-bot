@@ -2660,22 +2660,13 @@ async def _show_community_manage_event(
         ]
     )
 
-    # Добавляем навигацию: "Вернуться к списку" заменяет "Назад" когда на первом событии
-    nav_row = []
-    if index > 0:
-        nav_row.append(InlineKeyboardButton(text="◀️ Предыдущее", callback_data=f"group_prev_event_{index-1}"))
-    else:
-        # На первом событии показываем "Вернуться к списку" вместо "Предыдущее"
-        nav_row.append(InlineKeyboardButton(text="📋 Вернуться к списку", callback_data="group_list"))
-
-    if index < total - 1:
-        nav_row.append(InlineKeyboardButton(text="▶️ Следующее", callback_data=f"group_next_event_{index+1}"))
-    elif total == 1:
-        # Если только одно событие, не показываем "Следующее", только "Вернуться к списку"
-        pass
-
-    if nav_row:
-        keyboard.inline_keyboard.append(nav_row)
+    # Добавляем навигацию: всегда показываем 3 кнопки (Список, Назад, Вперед)
+    nav_row = [
+        InlineKeyboardButton(text="📋 Список", callback_data="group_list"),
+        InlineKeyboardButton(text="◀️ Назад", callback_data=f"group_prev_event_{max(0, index-1)}"),
+        InlineKeyboardButton(text="▶️ Вперед", callback_data=f"group_next_event_{min(total-1, index+1)}"),
+    ]
+    keyboard.inline_keyboard.append(nav_row)
 
     # Сохраняем список событий в callback для последующего использования
     callback._manageable_events = events
