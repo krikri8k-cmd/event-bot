@@ -3131,10 +3131,13 @@ def format_community_event_time(event: CommunityEvent, format_str: str = "%d.%m.
     if not event.starts_at:
         return "Время не указано"
 
+    import logging
     from datetime import UTC
     from zoneinfo import ZoneInfo
 
     from utils.simple_timezone import get_city_timezone
+
+    logger = logging.getLogger(__name__)
 
     # Определяем часовой пояс города события
     city = event.city
@@ -3145,11 +3148,17 @@ def format_community_event_time(event: CommunityEvent, format_str: str = "%d.%m.
     starts_at = event.starts_at
     if starts_at.tzinfo is None:
         # Если время без timezone, предполагаем что это UTC (для старых событий)
+        logger.warning(f"⚠️ Событие {event.id} имеет naive datetime: {starts_at}. Предполагаем UTC.")
         starts_at = starts_at.replace(tzinfo=UTC)
+
+    # Логируем для отладки
+    logger.debug(f"🕐 Событие {event.id} ({event.title}): UTC={starts_at}, city={city}, tz={tz_name}")
 
     # Конвертируем UTC время в локальное время города
     local_time = starts_at.astimezone(event_tz)
-    return local_time.strftime(format_str)
+    result = local_time.strftime(format_str)
+    logger.debug(f"🕐 Событие {event.id}: результат={result}")
+    return result
 
 
 def format_community_event_for_display(event: CommunityEvent) -> str:
