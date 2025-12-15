@@ -3788,6 +3788,10 @@ async def publish_community_event_to_world(
     """
     Публикует событие из Community в основную таблицу events.
 
+    Args:
+        starts_at: naive datetime (без timezone) - время как указал пользователь в Community режиме
+        normalized_city: нормализованный город для определения часового пояса
+
     Returns:
         dict: {"success": bool, "world_event_id": int | None, "reason": str | None}
     """
@@ -3805,15 +3809,33 @@ async def publish_community_event_to_world(
         return {"success": False, "reason": "missing_coordinates"}
 
     try:
+        from datetime import UTC
+
+        import pytz
+
         from database import get_engine
+        from utils.simple_timezone import get_city_timezone
         from utils.unified_events_service import UnifiedEventsService
+
+        # В World режиме нужно конвертировать время в UTC с учетом часового пояса города
+        # starts_at приходит как naive datetime (время как указал пользователь)
+        # Определяем часовой пояс города и конвертируем в UTC
+        city = normalized_city or event_data.get("city")
+        tz_name = get_city_timezone(city)
+        local_tz = pytz.timezone(tz_name)
+        # Локализуем naive datetime в часовой пояс города и конвертируем в UTC
+        local_dt = local_tz.localize(starts_at)
+        starts_at_utc = local_dt.astimezone(UTC)
+
+        logger.info(
+            f"🌍 Публикация в World: время={starts_at} (naive), город={city}, tz={tz_name}, UTC={starts_at_utc}"
+        )
 
         engine = get_engine()
         events_service = UnifiedEventsService(engine)
 
         location_name = event_data.get("location_name") or "Место на карте"
         location_url = event_data.get("location_url")
-        city = normalized_city or event_data.get("city")
         chat_id = event_data.get("group_id")
 
         external_id = f"community:{chat_id}:{community_event_id}"
@@ -3822,7 +3844,7 @@ async def publish_community_event_to_world(
             organizer_id=organizer_id,
             title=event_data["title"],
             description=event_data["description"],
-            starts_at_utc=starts_at,
+            starts_at_utc=starts_at_utc,  # Конвертированное время в UTC для World режима
             city=city,
             lat=lat,
             lng=lng,
