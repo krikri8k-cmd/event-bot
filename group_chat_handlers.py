@@ -313,10 +313,23 @@ async def group_finish(message: types.Message, state: FSMContext, bot: Bot):
     try:
         datetime_str = data["datetime"]
         try:
-            parsed_datetime = datetime.strptime(datetime_str, "%d.%m.%Y %H:%M")
+            # Парсим время как локальное (naive datetime)
+            naive_local_dt = datetime.strptime(datetime_str, "%d.%m.%Y %H:%M")
         except ValueError:
             await message.answer("❌ **Ошибка в формате даты!** Попробуйте еще раз.", parse_mode="Markdown")
             return
+
+        # Конвертируем локальное время в UTC с учетом часового пояса города
+        from datetime import UTC
+        from zoneinfo import ZoneInfo
+
+        from utils.simple_timezone import get_city_timezone
+
+        city = data.get("city")
+        tz_name = get_city_timezone(city)
+        local_tz = ZoneInfo(tz_name)
+        local_dt = naive_local_dt.replace(tzinfo=local_tz)
+        starts_at_utc = local_dt.astimezone(UTC)
 
         service = CommunityEventsService()
 
@@ -331,7 +344,7 @@ async def group_finish(message: types.Message, state: FSMContext, bot: Bot):
             creator_id=data["initiator_id"],  # Исправляем параметр
             creator_username=message.from_user.username,
             title=data["title"],
-            date=parsed_datetime,  # Исправляем параметр
+            date=starts_at_utc,  # Используем время в UTC
             description=description,
             city=data["city"],
             location_name=data["location"],

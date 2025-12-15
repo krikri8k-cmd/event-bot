@@ -378,7 +378,7 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
         else:
             text = f"📋 **События этого чата** ({len(events)} событий)\n\n"
             for i, event in enumerate(events, 1):
-                date_str = event.starts_at.strftime("%d.%m.%Y %H:%M")
+                date_str = format_community_event_time(event, "%d.%m.%Y %H:%M")
                 safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
                 text += f"{i}. {safe_title}\n"
                 text += f"   📅 {date_str}\n"
@@ -628,7 +628,7 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
         else:
             text = f"📋 **События этого чата** ({len(events)} событий)\n\n"
             for i, event in enumerate(events, 1):
-                date_str = event.starts_at.strftime("%d.%m.%Y %H:%M")
+                date_str = format_community_event_time(event, "%d.%m.%Y %H:%M")
                 safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
                 text += f"{i}. {safe_title}\n"
                 text += f"   📅 {date_str}\n"
@@ -1685,8 +1685,8 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
             for i, event in enumerate(events, 1):
                 # Номер события на текущей странице (с учетом offset)
                 event_number = offset + i
-                # Форматируем дату
-                date_str = event.starts_at.strftime("%d.%m.%Y %H:%M")
+                # Форматируем дату с конвертацией в часовой пояс города
+                date_str = format_community_event_time(event, "%d.%m.%Y %H:%M")
 
                 # Добавляем событие в список (безопасная версия)
                 safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
@@ -2371,7 +2371,7 @@ async def community_join_event(callback: CallbackQuery, bot: Bot, session: Async
 
         # Формируем текст подтверждения
         safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
-        date_str = event.starts_at.strftime("%d.%m.%Y %H:%M") if event.starts_at else "Дата не указана"
+        date_str = format_community_event_time(event, "%d.%m.%Y %H:%M") if event.starts_at else "Дата не указана"
 
         confirmation_text = (
             f"✅ **Записаться на событие?**\n\n"
@@ -2793,7 +2793,7 @@ async def group_manage_event(callback: CallbackQuery, bot: Bot, session: AsyncSe
 
         # Формируем текст с информацией о событии
         safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
-        date_str = event.starts_at.strftime("%d.%m.%Y %H:%M") if event.starts_at else "Дата не указана"
+        date_str = format_community_event_time(event, "%d.%m.%Y %H:%M") if event.starts_at else "Дата не указана"
 
         text = "⚙️ **Управление событием**\n\n"
         text += f"**{safe_title}**\n"
@@ -3126,6 +3126,25 @@ async def _get_manageable_community_events(
     return all_events
 
 
+def format_community_event_time(event: CommunityEvent, format_str: str = "%d.%m.%Y %H:%M") -> str:
+    """Форматирует время события с конвертацией из UTC в локальный часовой пояс города"""
+    if not event.starts_at:
+        return "Время не указано"
+
+    from zoneinfo import ZoneInfo
+
+    from utils.simple_timezone import get_city_timezone
+
+    # Определяем часовой пояс города события
+    city = event.city
+    tz_name = get_city_timezone(city)
+    event_tz = ZoneInfo(tz_name)
+
+    # Конвертируем UTC время в локальное время города
+    local_time = event.starts_at.astimezone(event_tz)
+    return local_time.strftime(format_str)
+
+
 def format_community_event_for_display(event: CommunityEvent) -> str:
     """Форматирует Community событие для отображения в Telegram"""
     lines = []
@@ -3135,9 +3154,9 @@ def format_community_event_for_display(event: CommunityEvent) -> str:
     status_emoji = "🟢" if event.status == "open" else "🔴" if event.status == "closed" else "⚫"
     lines.append(f"{status_emoji} **{safe_title}**")
 
-    # Время
+    # Время (конвертируем из UTC в локальный часовой пояс города)
     if event.starts_at:
-        date_str = event.starts_at.strftime("%d.%m.%Y | %H:%M")
+        date_str = format_community_event_time(event, "%d.%m.%Y | %H:%M")
         lines.append(f"📅 {date_str}")
     else:
         lines.append("📅 Время не указано")
@@ -3199,7 +3218,7 @@ def get_community_status_buttons(event_id: int, current_status: str, updated_at=
 
 def format_event_short(event: CommunityEvent) -> str:
     """Краткое форматирование события для списка"""
-    date_str = event.starts_at.strftime("%d.%m %H:%M")
+    date_str = format_community_event_time(event, "%d.%m %H:%M")
     text = f"**{event.title}**\n📅 {date_str}"
 
     # Город (приоритет: ручной ввод, затем автоматическое извлечение)
