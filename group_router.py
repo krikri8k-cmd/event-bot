@@ -2939,6 +2939,21 @@ async def group_open_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
             await callback.answer("❌ У вас нет прав для управления этим событием", show_alert=True)
             return
 
+        # Проверяем, что событие закрыто
+        if event.status != "closed":
+            await callback.answer("❌ Событие не закрыто, его нельзя возобновить", show_alert=True)
+            return
+
+        # Проверяем, что событие было закрыто в течение последних 24 часов
+        from datetime import timedelta
+
+        day_ago = datetime.now(UTC) - timedelta(hours=24)
+        if event.updated_at_utc and event.updated_at_utc < day_ago:
+            await callback.answer(
+                "❌ Возобновление возможно только в течение 24 часов после закрытия события", show_alert=True
+            )
+            return
+
         # Открываем событие
         event.status = "open"
         event.updated_at_utc = datetime.now(UTC)

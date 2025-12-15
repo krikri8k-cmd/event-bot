@@ -10639,6 +10639,27 @@ async def handle_open_event(callback: types.CallbackQuery):
     event_id = int(callback.data.split("_")[-1])
     user_id = callback.from_user.id
 
+    # Получаем событие для проверки статуса и времени закрытия
+    event = get_event_by_id(event_id, user_id)
+    if not event:
+        await callback.answer("❌ Событие не найдено", show_alert=True)
+        return
+
+    # Проверяем, что событие закрыто
+    if event["status"] != "closed":
+        await callback.answer("❌ Событие не закрыто, его нельзя возобновить", show_alert=True)
+        return
+
+    # Проверяем, что событие было закрыто в течение последних 24 часов
+    from datetime import timedelta
+
+    day_ago = datetime.now(UTC) - timedelta(hours=24)
+    if event.get("updated_at_utc") and event["updated_at_utc"] < day_ago:
+        await callback.answer(
+            "❌ Возобновление возможно только в течение 24 часов после закрытия события", show_alert=True
+        )
+        return
+
     success = change_event_status(event_id, "open", user_id)
     if success:
         # Получаем возобновленное событие для отображения
