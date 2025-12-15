@@ -10631,29 +10631,20 @@ async def handle_close_event(callback: types.CallbackQuery):
             event_name = closed_event["title"]
             await callback.answer(f"✅ Мероприятие '{event_name}' завершено!")
 
-            # Обновляем сообщение, показывая закрытое событие с кнопкой "Возобновить"
-            text = f"📋 **Ваши события:**\n\n{format_event_for_display(closed_event)}"
-            buttons = get_status_change_buttons(closed_event["id"], closed_event["status"])
-            keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
-                ]
-            )
-            await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
+            # Получаем список всех событий (включая закрытое) для навигации
+            events = _get_active_user_events(user_id)
+            # Находим индекс закрытого события
+            event_index = next((i for i, e in enumerate(events) if e["id"] == event_id), 0)
+
+            # Показываем событие через _show_manage_event с навигацией
+            await _show_manage_event(callback, events, event_index)
         else:
             # Если событие не найдено, показываем первое событие из списка
-            events = get_user_events(user_id)
+            events = _get_active_user_events(user_id)
             if events:
-                first_event = events[0]
-                text = f"📋 **Ваши события:**\n\n{format_event_for_display(first_event)}"
-                buttons = get_status_change_buttons(first_event["id"], first_event["status"])
-                keyboard = InlineKeyboardMarkup(
-                    inline_keyboard=[
-                        [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
-                    ]
-                )
-                await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
-            await callback.answer("✅ Мероприятие завершено!")
+                await _show_manage_event(callback, events, 0)
+            else:
+                await callback.answer("✅ Мероприятие завершено!")
     else:
         await callback.answer("❌ Ошибка при завершении мероприятия")
 
