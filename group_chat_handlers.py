@@ -319,8 +319,8 @@ async def group_finish(message: types.Message, state: FSMContext, bot: Bot):
             await message.answer("❌ **Ошибка в формате даты!** Попробуйте еще раз.", parse_mode="Markdown")
             return
 
-        # Конвертируем локальное время в UTC с учетом часового пояса города
-        from datetime import UTC
+        # В Community режиме сохраняем время как указал пользователь, БЕЗ конвертации в UTC
+        # Пользователь сам указал город и время, значит он уже учел свой часовой пояс
         from zoneinfo import ZoneInfo
 
         from utils.simple_timezone import get_city_timezone
@@ -328,8 +328,8 @@ async def group_finish(message: types.Message, state: FSMContext, bot: Bot):
         city = data.get("city")
         tz_name = get_city_timezone(city)
         local_tz = ZoneInfo(tz_name)
-        local_dt = naive_local_dt.replace(tzinfo=local_tz)
-        starts_at_utc = local_dt.astimezone(UTC)
+        # Сохраняем с локальным timezone, БЕЗ конвертации в UTC
+        starts_at_utc = naive_local_dt.replace(tzinfo=local_tz)
 
         service = CommunityEventsService()
 
@@ -344,7 +344,7 @@ async def group_finish(message: types.Message, state: FSMContext, bot: Bot):
             creator_id=data["initiator_id"],  # Исправляем параметр
             creator_username=message.from_user.username,
             title=data["title"],
-            date=starts_at_utc,  # Используем время в UTC
+            date=starts_at_utc,  # Время с локальным timezone (без конвертации в UTC)
             description=description,
             city=data["city"],
             location_name=data["location"],

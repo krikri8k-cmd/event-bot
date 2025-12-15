@@ -3617,14 +3617,15 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
                 f"⚠️ Не удалось преобразовать координаты community события: lat={location_lat}, lng={location_lng}"
             )
 
-        # Используем нормализованный город (по координатам), иначе текст, который ввел пользователь
-        city_for_timezone = normalized_city or data.get("city")
-
+        # В Community режиме сохраняем время как указал пользователь, БЕЗ конвертации в UTC
+        # Пользователь сам указал город и время, значит он уже учел свой часовой пояс
         naive_local_dt = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
+        # Определяем часовой пояс города для сохранения с timezone (требуется БД)
+        city_for_timezone = normalized_city or data.get("city")
         tz_name = get_city_timezone(city_for_timezone)
         local_tz = pytz.timezone(tz_name)
-        local_dt = local_tz.localize(naive_local_dt)
-        starts_at = local_dt.astimezone(pytz.UTC)
+        # Сохраняем с локальным timezone, БЕЗ конвертации в UTC
+        starts_at = local_tz.localize(naive_local_dt)
 
         # Импортируем сервис для событий сообществ
         from utils.community_events_service import CommunityEventsService
@@ -9161,12 +9162,14 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
         date_str = data["date"]
         time_str = data["time"]
 
+        # В Community режиме сохраняем время как указал пользователь, БЕЗ конвертации в UTC
+        # Пользователь сам указал город и время, значит он уже учел свой часовой пояс
         naive_local_dt = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
         city = data.get("city")
         tz_name = get_city_timezone(city)
         local_tz = pytz.timezone(tz_name)
-        local_dt = local_tz.localize(naive_local_dt)
-        starts_at = local_dt.astimezone(pytz.UTC)
+        # Сохраняем с локальным timezone, БЕЗ конвертации в UTC
+        starts_at = local_tz.localize(naive_local_dt)
 
         # Импортируем сервис для событий сообществ
         from utils.community_events_service import CommunityEventsService

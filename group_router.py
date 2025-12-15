@@ -3127,58 +3127,25 @@ async def _get_manageable_community_events(
 
 
 def format_community_event_time(event: CommunityEvent, format_str: str = "%d.%m.%Y %H:%M") -> str:
-    """Форматирует время события с конвертацией из UTC в локальный часовой пояс города"""
+    """Форматирует время события БЕЗ конвертации - как указал пользователь"""
     if not event.starts_at:
         return "Время не указано"
 
     import logging
-    from datetime import UTC
-    from zoneinfo import ZoneInfo
-
-    from utils.simple_timezone import get_city_from_coordinates, get_city_timezone
 
     logger = logging.getLogger(__name__)
 
-    # Определяем часовой пояс города события
-    # Приоритет: 1) city из события, 2) город по координатам из location_url, 3) UTC
-    city = event.city
-    tz_name = get_city_timezone(city)
-
-    # Если город неизвестен или вернулся UTC, пробуем определить по координатам из location_url
-    if tz_name == "UTC" and event.location_url:
-        try:
-            # Пробуем извлечь координаты из location_url
-            # Формат может быть: https://maps.google.com/...@lat,lng или https://goo.gl/...
-            import re
-
-            # Ищем координаты в URL (разные форматы Google Maps)
-            coords_match = re.search(r"@(-?\d+\.?\d*),(-?\d+\.?\d*)", event.location_url)
-            if coords_match:
-                lat = float(coords_match.group(1))
-                lng = float(coords_match.group(2))
-                city_from_coords = get_city_from_coordinates(lat, lng)
-                if city_from_coords:
-                    city = city_from_coords
-                    tz_name = get_city_timezone(city)
-                    logger.debug(f"🌍 Событие {event.id}: определен город {city} по координатам из location_url")
-        except Exception as e:
-            logger.warning(f"⚠️ Не удалось определить город по координатам для события {event.id}: {e}")
-
-    event_tz = ZoneInfo(tz_name)
-
-    # Обрабатываем случай, когда starts_at может быть naive datetime (старые события)
     starts_at = event.starts_at
-    if starts_at.tzinfo is None:
-        # Если время без timezone, предполагаем что это UTC (для старых событий)
-        logger.warning(f"⚠️ Событие {event.id} имеет naive datetime: {starts_at}. Предполагаем UTC.")
-        starts_at = starts_at.replace(tzinfo=UTC)
 
-    # Логируем для отладки
-    logger.debug(f"🕐 Событие {event.id} ({event.title}): UTC={starts_at}, city={city}, tz={tz_name}")
+    # Если время с timezone, просто форматируем как есть (БЕЗ конвертации)
+    if starts_at.tzinfo is not None:
+        result = starts_at.strftime(format_str)
+        logger.debug(f"🕐 Событие {event.id} ({event.title}): время={starts_at}, результат={result} (без конвертации)")
+        return result
 
-    # Конвертируем UTC время в локальное время города
-    local_time = starts_at.astimezone(event_tz)
-    result = local_time.strftime(format_str)
+    # Если время без timezone (старые события), форматируем как есть
+    logger.warning(f"⚠️ Событие {event.id} имеет naive datetime: {starts_at}. Форматируем как есть.")
+    result = starts_at.strftime(format_str)
     logger.debug(f"🕐 Событие {event.id}: результат={result}")
     return result
 
