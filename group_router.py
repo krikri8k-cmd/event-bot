@@ -2941,9 +2941,11 @@ async def group_open_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
             return
 
         # Проверяем, что событие еще не началось (не прошло по времени)
+        # Если событие уже прошло, просто не обрабатываем запрос (событие не должно было попасть в список)
         now_utc = datetime.now(UTC)
         if event.starts_at and event.starts_at < now_utc:
-            await callback.answer("❌ Нельзя возобновить событие, которое уже прошло по времени", show_alert=True)
+            # Событие уже прошло - просто игнорируем (не должно было попасть в список)
+            await callback.answer()
             return
 
         # Открываем событие
