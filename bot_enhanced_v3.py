@@ -3626,6 +3626,9 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
         local_tz = pytz.timezone(tz_name)
         # Сохраняем с локальным timezone, БЕЗ конвертации в UTC
         starts_at = local_tz.localize(naive_local_dt)
+        logger.info(
+            f"🕐 Community событие: время={time_str}, город={city_for_timezone}, tz={tz_name}, starts_at={starts_at}"
+        )
 
         # Импортируем сервис для событий сообществ
         from utils.community_events_service import CommunityEventsService

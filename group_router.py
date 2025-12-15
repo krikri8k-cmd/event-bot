@@ -3137,10 +3137,17 @@ def format_community_event_time(event: CommunityEvent, format_str: str = "%d.%m.
 
     starts_at = event.starts_at
 
+    # Логируем для отладки
+    logger.debug(
+        f"🕐 Событие {event.id} ({event.title}): "
+        f"starts_at={starts_at}, tzinfo={starts_at.tzinfo}, type={type(starts_at)}"
+    )
+
     # Если время с timezone, просто форматируем как есть (БЕЗ конвертации)
     if starts_at.tzinfo is not None:
+        # Форматируем время напрямую, без конвертации
         result = starts_at.strftime(format_str)
-        logger.debug(f"🕐 Событие {event.id} ({event.title}): время={starts_at}, результат={result} (без конвертации)")
+        logger.debug(f"🕐 Событие {event.id}: результат={result} (без конвертации, timezone={starts_at.tzinfo})")
         return result
 
     # Если время без timezone (старые события), форматируем как есть
