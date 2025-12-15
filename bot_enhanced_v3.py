@@ -11001,24 +11001,37 @@ async def handle_edit_finish(callback: types.CallbackQuery, state: FSMContext):
     """Завершение редактирования"""
     data = await state.get_data()
     event_id = data.get("event_id")
+    user_id = callback.from_user.id
 
     if event_id:
-        # Получаем обновленное событие
-        events = get_user_events(callback.from_user.id)
-        updated_event = next((event for event in events if event["id"] == event_id), None)
+        # Получаем список всех событий (включая обновленное) для навигации
+        events = _get_active_user_events(user_id)
+        # Находим индекс обновленного события
+        event_index = next((i for i, e in enumerate(events) if e["id"] == event_id), None)
 
-        if updated_event:
-            text = f"✅ **Событие обновлено!**\n\n{format_event_for_display(updated_event)}"
-            buttons = get_status_change_buttons(updated_event["id"], updated_event["status"])
-            keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
-                ]
-            )
-            await callback.message.answer(text, parse_mode="Markdown", reply_markup=keyboard)
+        if event_index is not None:
+            # Показываем событие через _show_manage_event с навигацией
+            await _show_manage_event(callback, events, event_index)
+            await callback.answer("✅ Событие обновлено!")
+        else:
+            # Если событие не найдено в списке активных, получаем его напрямую
+            all_events = get_user_events(user_id)
+            updated_event = next((event for event in all_events if event["id"] == event_id), None)
+
+            if updated_event:
+                text = f"✅ **Событие обновлено!**\n\n{format_event_for_display(updated_event)}"
+                buttons = get_status_change_buttons(updated_event["id"], updated_event["status"])
+                keyboard = InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
+                    ]
+                )
+                await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
+                await callback.answer("✅ Событие обновлено!")
+            else:
+                await callback.answer("❌ Событие не найдено")
 
     await state.clear()
-    await callback.answer("✅ Редактирование завершено!")
 
 
 # Обработчики ввода данных для редактирования
