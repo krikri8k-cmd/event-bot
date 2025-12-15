@@ -2937,8 +2937,9 @@ async def group_open_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
 
         # Проверяем, что событие еще не началось (не прошло по времени)
         # Если событие уже прошло, просто не обрабатываем запрос (событие не должно было попасть в список)
-        now_utc = datetime.now(UTC)
-        if event.starts_at and event.starts_at < now_utc:
+        # Для Community событий starts_at теперь TIMESTAMP WITHOUT TIME ZONE, поэтому убираем timezone
+        now_naive = datetime.now(UTC).replace(tzinfo=None)
+        if event.starts_at and event.starts_at < now_naive:
             # Событие уже прошло - просто игнорируем (не должно было попасть в список)
             await callback.answer()
             return
@@ -3076,14 +3077,16 @@ async def _get_manageable_community_events(
     from sqlalchemy import select
 
     # Получаем активные события и недавно закрытые (в течение 24 часов)
+    # Для Community событий starts_at теперь TIMESTAMP WITHOUT TIME ZONE, поэтому убираем timezone
     now_utc = datetime.now(UTC)
+    now_naive = now_utc.replace(tzinfo=None)  # Для сравнения с starts_at
     day_ago = datetime.now(UTC) - timedelta(hours=24)
 
     # Получаем активные события (которые еще не начались)
     stmt = select(CommunityEvent).where(
         CommunityEvent.chat_id == chat_id,
         CommunityEvent.status == "open",
-        CommunityEvent.starts_at >= now_utc,  # Событие еще не началось
+        CommunityEvent.starts_at >= now_naive,  # Событие еще не началось
     )
 
     if not is_admin:
@@ -3094,13 +3097,13 @@ async def _get_manageable_community_events(
     active_events = list(result.scalars().all())
 
     # Получаем недавно закрытые события (в течение 24 часов)
-    # Важно: событие должно быть закрыто менее 24 часов назад И еще не началось (starts_at >= now_utc)
-    # Если событие уже прошло (starts_at < now_utc), его нельзя возобновить
+    # Важно: событие должно быть закрыто менее 24 часов назад И еще не началось (starts_at >= now_naive)
+    # Если событие уже прошло (starts_at < now_naive), его нельзя возобновить
     closed_stmt = select(CommunityEvent).where(
         CommunityEvent.chat_id == chat_id,
         CommunityEvent.status == "closed",
         CommunityEvent.updated_at >= day_ago,  # Закрыто менее 24 часов назад
-        CommunityEvent.starts_at >= now_utc,  # Событие еще не началось (можно возобновить)
+        CommunityEvent.starts_at >= now_naive,  # Событие еще не началось (можно возобновить)
     )
 
     if not is_admin:
@@ -3110,9 +3113,9 @@ async def _get_manageable_community_events(
     closed_events = list(closed_result.scalars().all())
 
     # Дополнительная фильтрация: исключаем прошедшие события (на случай, если они попали в список)
-    now_utc = datetime.now(UTC)
-    active_events = [e for e in active_events if e.starts_at and e.starts_at >= now_utc]
-    closed_events = [e for e in closed_events if e.starts_at and e.starts_at >= now_utc]
+    now_naive = datetime.now(UTC).replace(tzinfo=None)
+    active_events = [e for e in active_events if e.starts_at and e.starts_at >= now_naive]
+    closed_events = [e for e in closed_events if e.starts_at and e.starts_at >= now_naive]
 
     # Объединяем и сортируем по дате начала
     all_events = active_events + closed_events
