@@ -438,24 +438,16 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
         # Создаем клавиатуру с кнопками управления событиями
         keyboard_buttons = []
 
-        # Проверяем, есть ли события, которыми пользователь может управлять
-        manageable_events_count = 0
-        if events:
-            for event in events:
-                can_manage = event.organizer_id == user_id or is_admin
-                if can_manage:
-                    manageable_events_count += 1
-
-        # Добавляем одну кнопку "Управление событиями" (как в World режиме)
-        if manageable_events_count > 0:
-            keyboard_buttons.append(
-                [
-                    InlineKeyboardButton(
-                        text="🔧 Управление событиями",
-                        callback_data="group_manage_events",
-                    )
-                ]
-            )
+        # Всегда показываем кнопку "Управление событиями", даже если активных событий нет
+        # Это позволяет возобновлять закрытые события (в течение 24 часов после закрытия)
+        keyboard_buttons.append(
+            [
+                InlineKeyboardButton(
+                    text="🔧 Управление событиями",
+                    callback_data="group_manage_events",
+                )
+            ]
+        )
 
         keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel")])
         back_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -696,24 +688,16 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
         # Создаем клавиатуру с кнопками управления событиями
         keyboard_buttons = []
 
-        # Проверяем, есть ли события, которыми пользователь может управлять
-        manageable_events_count = 0
-        if events:
-            for event in events:
-                can_manage = event.organizer_id == user_id or is_admin
-                if can_manage:
-                    manageable_events_count += 1
-
-        # Добавляем одну кнопку "Управление событиями" (как в World режиме)
-        if manageable_events_count > 0:
-            keyboard_buttons.append(
-                [
-                    InlineKeyboardButton(
-                        text="🔧 Управление событиями",
-                        callback_data="group_manage_events",
-                    )
-                ]
-            )
+        # Всегда показываем кнопку "Управление событиями", даже если активных событий нет
+        # Это позволяет возобновлять закрытые события (в течение 24 часов после закрытия)
+        keyboard_buttons.append(
+            [
+                InlineKeyboardButton(
+                    text="🔧 Управление событиями",
+                    callback_data="group_manage_events",
+                )
+            ]
+        )
 
         keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel")])
         back_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -1775,23 +1759,16 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
         # Создаем клавиатуру с кнопками управления событиями
         keyboard_buttons = []
 
-        # Проверяем, есть ли события, которыми пользователь может управлять
-        manageable_events_count = 0
-        for event in events:
-            can_manage = event.organizer_id == user_id or is_admin
-            if can_manage:
-                manageable_events_count += 1
-
-        # Добавляем одну кнопку "Управление событиями" (как в World режиме)
-        if manageable_events_count > 0:
-            keyboard_buttons.append(
-                [
-                    InlineKeyboardButton(
-                        text="🔧 Управление событиями",
-                        callback_data="group_manage_events",
-                    )
-                ]
-            )
+        # Всегда показываем кнопку "Управление событиями", даже если активных событий нет
+        # Это позволяет возобновлять закрытые события (в течение 24 часов после закрытия)
+        keyboard_buttons.append(
+            [
+                InlineKeyboardButton(
+                    text="🔧 Управление событиями",
+                    callback_data="group_manage_events",
+                )
+            ]
+        )
 
         # Добавляем кнопки навигации по страницам
         navigation_buttons = []
@@ -2616,11 +2593,20 @@ async def group_manage_events(callback: CallbackQuery, bot: Bot, session: AsyncS
         manageable_events = await _get_manageable_community_events(session, chat_id, user_id, is_admin)
 
         if not manageable_events:
-            text = "У вас нет событий для управления."
+            text = (
+                "📋 **Управление событиями**\n\n"
+                "У вас нет событий для управления.\n\n"
+                "💡 Вы можете:\n"
+                "• Создать новое событие через кнопку ➕ Создать событие\n"
+                "• Возобновить закрытые события (если они были закрыты менее 24 часов назад)"
+            )
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="◀️ Назад к списку", callback_data="group_list")]]
+            )
             try:
-                await callback.message.edit_text(text, reply_markup=None)
+                await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
             except Exception:
-                await callback.message.answer(text, reply_markup=None)
+                await callback.message.answer(text, parse_mode="Markdown", reply_markup=keyboard)
             return
 
         # Показываем первое событие
