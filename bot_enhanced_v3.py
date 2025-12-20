@@ -184,34 +184,6 @@ def get_short_source_link(event: dict) -> str:
         return "📌"
 
 
-def create_enhanced_google_maps_url(user_lat: float, user_lng: float, events: list) -> str:
-    """
-    Создает расширенную ссылку на Google Maps с информацией о событиях
-    """
-    # Базовая ссылка на Google Maps
-    base_url = "https://www.google.com/maps/search/"
-
-    # Добавляем события как поисковые запросы
-    search_queries = []
-    for i, event in enumerate(events[:8], 1):  # Максимум 8 событий для URL
-        title = event.get("title", "").replace(" ", "+")
-        time_part = event.get("time_local", "").replace(" ", "+") if event.get("time_local") else ""
-
-        # Формируем поисковый запрос: "Название+события+время+координаты"
-        search_query = f"{title}"
-        if time_part:
-            search_query += f"+{time_part}"
-
-        search_queries.append(search_query)
-
-    # Объединяем все поисковые запросы
-    if search_queries:
-        combined_search = "+".join(search_queries)
-        return f"{base_url}{combined_search}/@{user_lat:.6f},{user_lng:.6f},13z"
-    else:
-        return f"{base_url}@{user_lat:.6f},{user_lng:.6f},13z"
-
-
 def sort_events_by_time(events: list) -> list:
     """
     Сортирует события по времени (ближайшие первыми)
@@ -2233,6 +2205,7 @@ main_router.callback_query.filter(F.message.chat.type == "private")
 # === ПОДКЛЮЧЕНИЕ ИЗОЛИРОВАННОГО ГРУППОВОГО РОУТЕРА ===
 # Импортируем роутер для групп (полностью изолирован от основного бота)
 from debug_test_router import diag_router  # noqa: E402
+
 from diagnostic_router import diag  # noqa: E402
 from group_router import group_router  # noqa: E402
 

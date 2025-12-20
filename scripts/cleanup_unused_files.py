@@ -159,16 +159,20 @@ if __name__ == "__main__":
     import sys
 
     dry_run = "--execute" not in sys.argv
+    auto_yes = "--yes" in sys.argv
 
     if dry_run:
         print("🔍 РЕЖИМ ПРОВЕРКИ (dry run) - файлы не будут удалены")
         print("Для реального удаления запустите: python scripts/cleanup_unused_files.py --execute\n")
     else:
         print("⚠️  РЕЖИМ УДАЛЕНИЯ - файлы будут удалены!")
-        response = input("Продолжить? (yes/no): ")
-        if response.lower() != "yes":
-            print("Отменено")
-            sys.exit(0)
+        if not auto_yes:
+            response = input("Продолжить? (yes/no): ")
+            if response.lower() != "yes":
+                print("Отменено")
+                sys.exit(0)
+        else:
+            print("✅ Автоматическое подтверждение (--yes)")
         print()
 
     print("=" * 60)
