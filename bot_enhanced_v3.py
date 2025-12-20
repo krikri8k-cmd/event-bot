@@ -859,9 +859,21 @@ logger = logging.getLogger(__name__)
 
 def build_maps_url(e: dict) -> str:
     """Создает URL для маршрута с приоритетом location_url > venue_name > address > coordinates"""
-    # Для пользовательских событий приоритизируем location_url (ссылка, которую указал пользователь)
-    if e.get("type") == "user" and e.get("location_url"):
-        return e["location_url"]
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    # Приоритизируем location_url для ВСЕХ типов событий (если есть ссылка, используем её)
+    # Это важно, так как события от парсеров тоже могут иметь location_url (например, "ZAI cafe")
+    location_url = e.get("location_url", "").strip() if e.get("location_url") else ""
+    if location_url:
+        if location_url.startswith(("http://", "https://", "www.")):
+            logger.info(
+                f"🚗 Используем location_url для маршрута: '{location_url[:50]}...' для события '{e.get('title', 'Без названия')[:30]}'"
+            )
+            return location_url
+        else:
+            logger.debug(f"⚠️ location_url не является валидной ссылкой: '{location_url[:50]}'")
 
     # Поддерживаем новую структуру venue и старую
     # Приоритет: venue.name (из источника) > venue_name (из источника) > location_name (может быть из reverse geocoding)
