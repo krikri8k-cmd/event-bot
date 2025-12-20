@@ -1987,6 +1987,7 @@ async def perform_nearby_search(
 
                 # Сохраняем message_id карты в состоянии для последующего редактирования
                 if message.chat.id in user_state:
+                    update_user_state_timestamp(message.chat.id)
                     user_state[message.chat.id]["map_message_id"] = map_message.message_id
 
                 # Отправляем список событий отдельным текстовым сообщением
@@ -7638,6 +7639,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     )
 
     # Обновляем состояние (сохраняем map_message_id и list_message_id для редактирования)
+    update_user_state_timestamp(chat_id)
     user_state[chat_id] = {
         "prepared": prepared,
         "counts": counts,
