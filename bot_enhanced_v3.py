@@ -1913,14 +1913,25 @@ async def perform_nearby_search(
             date_filter_state = user_state.get(message.chat.id, {}).get("date_filter", "today")
             combined_keyboard = kb_pager(1, total_pages, int(radius), date_filter=date_filter_state)
 
+            # ИСПРАВЛЕНИЕ: Отправляем карту и список событий отдельными сообщениями
             if map_bytes:
+                # Отправляем карту отдельным сообщением
                 map_file = BufferedInputFile(map_bytes, filename="map.jpg")
+                map_caption = f"📍 Карта событий в радиусе {int(radius)} км"
                 await message.answer_photo(
                     map_file,
-                    caption=short_caption,
+                    caption=map_caption,
+                    parse_mode="HTML",
+                )
+                logger.info("✅ Карта отправлена отдельным сообщением (send_compact_events_list)")
+
+                # Отправляем список событий отдельным текстовым сообщением
+                await message.answer(
+                    short_caption,
                     parse_mode="HTML",
                     reply_markup=combined_keyboard,
                 )
+                logger.info("✅ Список событий отправлен отдельным сообщением (send_compact_events_list)")
             else:
                 await message.answer(
                     short_caption,
@@ -5620,7 +5631,7 @@ async def on_location(message: types.Message, state: FSMContext):
             except Exception:
                 pass
 
-            # ИСПРАВЛЕНИЕ: Объединяем карту и список событий в ОДНО сообщение
+            # ИСПРАВЛЕНИЕ: Отправляем карту и список событий ОТДЕЛЬНЫМИ сообщениями
             try:
                 # Создаем полный текст с событиями (как в send_compact_events_list_prepared)
                 # 1) Обогащаем события названиями мест и расстояниями
@@ -7560,20 +7571,29 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         except Exception as map_error:
             logger.warning(f"⚠️ Не удалось создать карту: {map_error}")
 
-        # Отправляем с картой если есть
+        # ИСПРАВЛЕНИЕ: Отправляем карту и список событий отдельными сообщениями
         if map_bytes:
             from aiogram.types import BufferedInputFile
 
             map_file = BufferedInputFile(map_bytes, filename="map.png")
 
-            # Отправляем новое фото сообщение
+            # Отправляем карту отдельным сообщением
             await current_message.delete()  # Удаляем сообщение загрузки
-            new_msg = await current_message.answer_photo(
+            map_caption = "📍 Карта событий"
+            await current_message.answer_photo(
                 map_file,
-                caption=text,
+                caption=map_caption,
+                parse_mode="HTML",
+            )
+            logger.info("✅ Карта отправлена отдельным сообщением (perform_nearby_search)")
+
+            # Отправляем список событий отдельным текстовым сообщением
+            new_msg = await current_message.answer(
+                text,
                 reply_markup=keyboard,
                 parse_mode="HTML",
             )
+            logger.info("✅ Список событий отправлен отдельным сообщением (perform_nearby_search)")
             # Используем новое сообщение для дальнейших операций
             current_message = new_msg
         else:
