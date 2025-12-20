@@ -2935,6 +2935,35 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
         except (ValueError, IndexError) as e:
             logger.warning(f"🔥 cmd_start: неверный параметр edit_group_ {command.args}: {e}")
 
+    # Проверяем, есть ли параметр add_quest_ (deep-link для добавления места в квесты)
+    if command and command.args and command.args.startswith("add_quest_"):
+        try:
+            place_id = int(command.args.replace("add_quest_", ""))
+            logger.info(f"🎯 cmd_start: пользователь {user_id} добавляет место {place_id} в квесты через deep link")
+
+            # Получаем координаты пользователя из БД
+            with get_session() as session:
+                user = session.query(User).filter(User.id == user_id).first()
+                user_lat = user.last_lat if user else None
+                user_lng = user.last_lng if user else None
+
+            # Создаем задание из места
+            from tasks_service import create_task_from_place
+
+            success = create_task_from_place(user_id, place_id, user_lat, user_lng)
+
+            if success:
+                await message.answer(
+                    "✅ Место добавлено в квесты! Проверь раздел '🏆 Мои квесты'", reply_markup=main_menu_kb()
+                )
+            else:
+                await message.answer(
+                    "❌ Не удалось добавить место. Возможно, оно уже в квестах.", reply_markup=main_menu_kb()
+                )
+            return
+        except (ValueError, Exception) as e:
+            logger.warning(f"🎯 cmd_start: неверный параметр add_quest_ {command.args}: {e}")
+
     # Если это переход из группы для редактирования, запускаем FSM для редактирования
     if edit_params and chat_type == "private":
         await start_group_event_editing(message, edit_params["event_id"], edit_params["chat_id"], state)
@@ -7883,8 +7912,9 @@ async def show_tasks_for_category(
     text = f"🎯 **{category_name}**\n\n"
     text += f"📍 Найдено мест: {len(all_places)}\n\n"
 
-    # Создаем клавиатуру
-    place_buttons = []  # Кнопки для мест (будут сгруппированы)
+    # Получаем username бота для создания deep links
+    bot_info = await message_or_callback.bot.get_me() if hasattr(message_or_callback, "bot") else None
+    bot_username = bot_info.username if bot_info else "EventAroundBot"
 
     # Добавляем каждое место с кнопкой в том же порядке
     for idx, place in enumerate(page_places, start=start_idx + 1):
@@ -7909,25 +7939,15 @@ async def show_tasks_for_category(
         if place.task_hint:
             text += f"💡 {place.task_hint}\n"
 
+        # Добавляем скрытую ссылку "Забрать квест" под каждым местом
+        # Используем deep link через команду /start с параметром
+        deep_link = f"https://t.me/{bot_username}?start=add_quest_{place.id}"
+        text += f"[🎯 Забрать квест]({deep_link})\n"
+
         text += "\n"
 
-        # Кнопка с номером и названием места (обрезаем название, чтобы влезло в кнопку)
-        # Формат: "➕ 1. Название" - для 2 кнопок в ряд нужна компактная длина
-        name_part = place.name[:18]  # Оставляем место для "➕ N. " (~5 символов), итого ~23 символа на кнопку
-        if len(place.name) > 18:
-            name_part = name_part[:15] + "..."
-        button_text = f"➕ {idx}. {name_part}"
-        place_buttons.append(InlineKeyboardButton(text=button_text, callback_data=f"add_place_to_quests:{place.id}"))
-
-    # Группируем кнопки мест по 2 в ряд для компактности
+    # Создаем клавиатуру только с кнопками пагинации (без кнопок мест)
     keyboard = []
-    for i in range(0, len(place_buttons), 2):
-        if i + 1 < len(place_buttons):
-            # Две кнопки в ряд
-            keyboard.append([place_buttons[i], place_buttons[i + 1]])
-        else:
-            # Последняя нечетная кнопка
-            keyboard.append([place_buttons[i]])
 
     # Кнопки пагинации
     nav_buttons = []
