@@ -2468,7 +2468,7 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
         [KeyboardButton(text="📍 Что рядом"), KeyboardButton(text="➕ Создать")],
         [KeyboardButton(text="🎯 Чем заняться"), KeyboardButton(text="🏆 Мои квесты")],
         [KeyboardButton(text="🔗 Добавить бота в чат"), KeyboardButton(text="📋 Мои события")],
-        [KeyboardButton(text="💬 Написать отзыв Разработчику"), KeyboardButton(text="🚀 Старт")],
+        [KeyboardButton(text="🚀 Старт")],
     ]
 
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
