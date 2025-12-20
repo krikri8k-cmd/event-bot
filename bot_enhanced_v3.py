@@ -1567,7 +1567,7 @@ def make_counts(groups):
     return counts
 
 
-def render_header(counts, radius_km: int = None, show_map_note: bool = True) -> str:
+def render_header(counts, radius_km: int = None) -> str:
     """Рендерит заголовок с счетчиками (только ненулевые)"""
     if radius_km:
         lines = [f"🗺 В радиусе {radius_km} км найдено: <b>{counts['all']}</b>"]
@@ -1578,11 +1578,6 @@ def render_header(counts, radius_km: int = None, show_map_note: bool = True) -> 
         lines.append(f"• 👥 От пользователей: {counts['user']}")
     if counts["sources"]:
         lines.append(f"• 🌐 Из источников: {counts['sources']}")
-
-    # Добавляем пояснение о количестве меток на карте, если событий больше 12
-    if show_map_note and counts["all"] > 12:
-        lines.append("<i>📍 На карте показано до 12 ближайших событий</i>")
-
     return "\n".join(lines)
 
 
