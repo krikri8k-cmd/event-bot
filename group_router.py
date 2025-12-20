@@ -2753,9 +2753,29 @@ async def group_next_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
     is_admin = await is_chat_admin(bot, chat_id, user_id)
     manageable_events = await _get_manageable_community_events(session, chat_id, user_id, is_admin)
 
-    if target_index >= len(manageable_events):
-        await callback.answer("Больше событий нет")
+    total = len(manageable_events)
+
+    # Проверяем, что индекс не выходит за границы
+    if target_index >= total:
+        await callback.answer("⚠️ Это последнее событие", show_alert=True)
         return
+
+    # Проверяем, не пытаемся ли мы перейти вперед с последней страницы
+    # Если target_index равен последнему индексу (total-1), проверяем, не находимся ли мы уже на этой странице
+    if target_index == total - 1:
+        # Извлекаем текущий индекс из текста сообщения (формат: "({current}/{total})")
+        current_text = callback.message.text or callback.message.caption or ""
+        # Ищем паттерн "(X/total)" где X - текущий номер события
+        import re
+
+        match = re.search(r"\((\d+)/(\d+)\)", current_text)
+        if match:
+            current_num = int(match.group(1))
+            total_num = int(match.group(2))
+            # Если текущий номер равен общему количеству, значит мы уже на последней странице
+            if current_num == total_num and total_num == total:
+                await callback.answer("⚠️ Это последнее событие", show_alert=True)
+                return
 
     await _show_community_manage_event(
         callback, bot, session, manageable_events, target_index, chat_id, user_id, is_admin
@@ -2778,9 +2798,28 @@ async def group_prev_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
     is_admin = await is_chat_admin(bot, chat_id, user_id)
     manageable_events = await _get_manageable_community_events(session, chat_id, user_id, is_admin)
 
-    if target_index < 0 or target_index >= len(manageable_events):
-        await callback.answer("Это первое событие")
+    total = len(manageable_events)
+
+    # Проверяем, что индекс не выходит за границы
+    if target_index < 0 or target_index >= total:
+        await callback.answer("⚠️ Это первое событие", show_alert=True)
         return
+
+    # Проверяем, не пытаемся ли мы перейти назад с первой страницы
+    # Если target_index равен 0, проверяем, не находимся ли мы уже на этой странице
+    if target_index == 0:
+        # Извлекаем текущий индекс из текста сообщения (формат: "({current}/{total})")
+        current_text = callback.message.text or callback.message.caption or ""
+        # Ищем паттерн "(X/total)" где X - текущий номер события
+        import re
+
+        match = re.search(r"\((\d+)/(\d+)\)", current_text)
+        if match:
+            current_num = int(match.group(1))
+            # Если текущий номер равен 1, значит мы уже на первой странице
+            if current_num == 1:
+                await callback.answer("⚠️ Это первое событие", show_alert=True)
+                return
 
     await _show_community_manage_event(
         callback, bot, session, manageable_events, target_index, chat_id, user_id, is_admin
