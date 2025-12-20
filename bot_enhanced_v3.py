@@ -7915,9 +7915,10 @@ async def show_tasks_for_category(
     text += f"📍 Найдено мест: {len(all_places)}\n\n"
 
     # Получаем username бота для создания deep links
-    await message_or_callback.bot.get_me() if hasattr(message_or_callback, "bot") else None
+    bot_info = await message_or_callback.bot.get_me() if hasattr(message_or_callback, "bot") else None
+    bot_username = bot_info.username if bot_info else "EventAroundBot"
 
-    # Добавляем каждое место с кнопкой в том же порядке
+    # Добавляем каждое место с ссылкой "Забрать квест" в тексте
     for idx, place in enumerate(page_places, start=start_idx + 1):
         # Название места (кликабельная ссылка на Google Maps, если есть)
         if place.google_maps_url:
@@ -7940,21 +7941,15 @@ async def show_tasks_for_category(
         if place.task_hint:
             text += f"💡 {place.task_hint}\n"
 
-        # Добавляем скрытую ссылку "Забрать квест" под каждым местом
-        # Используем callback_data через inline кнопку (не deep link, чтобы не показывать /start)
-        # Кнопка будет добавлена в клавиатуру отдельно
-        pass  # Кнопка будет добавлена в клавиатуру ниже
+        # Добавляем скрытую ссылку "Забрать квест" под каждым местом в тексте
+        # Используем deep link (будет показывать /start, но это особенность Telegram)
+        deep_link = f"https://t.me/{bot_username}?start=add_quest_{place.id}"
+        text += f"[🎯 Забрать квест]({deep_link})\n"
 
         text += "\n"
 
-    # Создаем клавиатуру с кнопками "Забрать квест" для каждого места
+    # Создаем клавиатуру только с кнопками пагинации (без кнопок мест)
     keyboard = []
-
-    # Добавляем кнопки "Забрать квест" для каждого места (по одной на место)
-    for idx, place in enumerate(page_places, start=start_idx + 1):
-        keyboard.append(
-            [InlineKeyboardButton(text="🎯 Забрать квест", callback_data=f"add_place_to_quests:{place.id}")]
-        )
 
     # Кнопки пагинации
     nav_buttons = []
