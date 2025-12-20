@@ -2000,6 +2000,7 @@ async def perform_nearby_search(
 
                 # Сохраняем message_id списка событий в состоянии для последующего редактирования
                 if message.chat.id in user_state:
+                    update_user_state_timestamp(message.chat.id)
                     user_state[message.chat.id]["list_message_id"] = list_message.message_id
             else:
                 await message.answer(
@@ -7783,6 +7784,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
                         parse_mode="HTML",
                     )
                     # Обновляем message_id в состоянии
+                    update_user_state_timestamp(chat_id)
                     user_state[chat_id]["list_message_id"] = new_msg.message_id
                     logger.info("✅ Создан новый список событий (не удалось отредактировать)")
                     current_message = new_msg
@@ -7825,6 +7827,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
                         parse_mode="HTML",
                     )
                     # Обновляем message_id в состоянии
+                    update_user_state_timestamp(chat_id)
                     user_state[chat_id]["list_message_id"] = new_msg.message_id
                     logger.info("✅ Создан новый список событий (не удалось отредактировать)")
             else:
