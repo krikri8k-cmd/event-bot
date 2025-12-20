@@ -5720,9 +5720,15 @@ async def on_location(message: types.Message, state: FSMContext):
                     # Сохраняем message_id карты в состоянии для последующего редактирования
                     if message.chat.id in user_state:
                         user_state[message.chat.id]["map_message_id"] = map_message.message_id
+                        logger.info(
+                            f"🗺️ [ПЕРВЫЙ ПОИСК] map_message_id={map_message.message_id} сохранен в существующем состоянии"
+                        )
                     else:
                         # Если состояния еще нет, создаем его
                         user_state[message.chat.id] = {"map_message_id": map_message.message_id}
+                        logger.info(
+                            f"🗺️ [ПЕРВЫЙ ПОИСК] map_message_id={map_message.message_id} сохранен в новом состоянии"
+                        )
 
                     # 7.2) Отправляем список событий отдельным текстовым сообщением
                     await message.answer(
@@ -7508,6 +7514,10 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     groups = group_by_type(prepared)
     counts = make_counts(groups)
 
+    # Сохраняем map_message_id ДО обновления состояния, чтобы использовать его для редактирования карты
+    map_message_id = state_data.get("map_message_id")
+    logger.info(f"🗺️ [РАСШИРЕНИЕ РАДИУСА] map_message_id из состояния: {map_message_id}")
+
     # Обновляем состояние (сохраняем map_message_id для редактирования карты)
     user_state[chat_id] = {
         "prepared": prepared,
@@ -7519,11 +7529,11 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         "date_filter": date_filter,  # Сохраняем текущий фильтр даты
         "diag": {"kept": len(prepared), "dropped": 0, "reasons_top3": []},
         "region": region,
-        "map_message_id": state_data.get("map_message_id"),  # Сохраняем message_id карты для редактирования
+        "map_message_id": map_message_id,  # Сохраняем message_id карты для редактирования
     }
     logger.info(
         f"✅ РАДИУС РАСШИРЕН: новый радиус={new_radius} км, найдено событий={len(prepared)}, "
-        f"date_filter={date_filter} сохранен в состоянии"
+        f"date_filter={date_filter}, map_message_id={map_message_id} сохранен в состоянии"
     )
 
     # Обогащаем события reverse geocoding для названий локаций
@@ -7580,14 +7590,20 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             map_file = BufferedInputFile(map_bytes, filename="map.png")
             map_caption = "📍 Карта событий"
 
-            # Проверяем, есть ли сохраненное сообщение с картой
-            map_message_id = state_data.get("map_message_id")
+            # Используем сохраненный map_message_id (получен ДО обновления состояния)
+            # map_message_id уже получен выше, перед обновлением user_state
+            logger.info(
+                f"🗺️ [РЕДАКТИРОВАНИЕ КАРТЫ] map_message_id={map_message_id}, chat_id={chat_id}, map_bytes={'есть' if map_bytes else 'нет'}"
+            )
 
             if map_message_id:
                 # Редактируем существующее сообщение с картой
                 try:
                     # Используем bot из callback для редактирования
                     bot = callback.bot
+                    logger.info(
+                        f"🗺️ [РЕДАКТИРОВАНИЕ] Пытаемся отредактировать карту message_id={map_message_id} в chat_id={chat_id}"
+                    )
 
                     await bot.edit_message_media(
                         chat_id=chat_id,
