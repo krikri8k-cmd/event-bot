@@ -59,12 +59,16 @@
 - `add_test_events.py`
 
 ### 6. Устаревшие модули (DEPRECATED)
-- `storage/simple_events_service.py` - заменен на `utils/unified_events_service.py`
-- `utils/simple_events.py` - не используется
-- `utils/community_events_service_old.py` - заменен на `community_events_service.py`
-- `utils/port_manager.py` - не используется
-- `web/server.py` - не используется (есть `web/health.py`)
-- `api/services/user_prefs.py` - не используется
+- `storage/simple_events_service.py` - заменен на `utils/unified_events_service.py` ✅
+- `utils/simple_events.py` - не используется ✅
+- `utils/community_events_service_old.py` - заменен на `community_events_service.py` ✅
+- `utils/port_manager.py` - не используется ✅
+- `web/server.py` - не используется (есть `web/health.py`) ✅
+- `api/services/user_prefs.py` - не используется ✅
+
+**⚠️ НЕ УДАЛЯТЬ:**
+- `storage/events_service.py` - используется в `sources/kudago_source.py`
+- `storage/region_router.py` - используется в `storage/events_service.py`
 
 ### 7. Замененные файлы
 - `deploy.py` - заменен на `.bat/.ps1` скрипты
