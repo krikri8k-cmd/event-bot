@@ -7386,21 +7386,9 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     else:
         logger.info(f"🌍 Определен city={city} по координатам ({lat}, {lng}) для временных границ")
 
-    # Показываем сообщение загрузки
+    # НЕ показываем сообщение загрузки - сразу редактируем карту и отправляем список
+    # Это убирает лишнее сообщение между картой и списком
     current_message = callback.message  # Сохраняем ссылку на текущее сообщение
-    try:
-        # Пытаемся отредактировать текст (для старых сообщений)
-        await callback.message.edit_text("🔍 Ищу события в расширенном радиусе...")
-    except Exception:
-        # Если не получается (фото сообщение), отправляем новое
-        loading_msg = await callback.message.answer("🔍 Ищу события в расширенном радиусе...")
-        # Удаляем старое сообщение
-        try:
-            await callback.message.delete()
-        except Exception:
-            pass
-        # Используем новое сообщение для дальнейших операций
-        current_message = loading_msg
 
     # Выполняем поиск с новым радиусом
     from database import get_engine
@@ -7610,10 +7598,6 @@ async def handle_expand_radius(callback: types.CallbackQuery):
                 except Exception as edit_error:
                     logger.warning(f"⚠️ Не удалось отредактировать карту: {edit_error}, создаем новую")
                     # Если не удалось отредактировать, создаем новое сообщение
-                    try:
-                        await current_message.delete()  # Удаляем сообщение загрузки
-                    except Exception:
-                        pass
                     new_map_msg = await callback.message.answer_photo(
                         map_file,
                         caption=map_caption,
@@ -7624,8 +7608,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
                     logger.info("✅ Создана новая карта (не удалось отредактировать)")
             else:
                 # Если карты еще не было, создаем новое сообщение
-                await current_message.delete()  # Удаляем сообщение загрузки
-                new_map_msg = await current_message.answer_photo(
+                new_map_msg = await callback.message.answer_photo(
                     map_file,
                     caption=map_caption,
                     parse_mode="HTML",
@@ -7635,11 +7618,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
                 logger.info("✅ Карта создана (первый раз)")
 
             # Отправляем список событий отдельным текстовым сообщением
-            try:
-                await current_message.delete()  # Удаляем сообщение загрузки (если еще не удалено)
-            except Exception:
-                pass  # Может быть уже удалено
-            new_msg = await current_message.answer(
+            new_msg = await callback.message.answer(
                 text,
                 reply_markup=keyboard,
                 parse_mode="HTML",
