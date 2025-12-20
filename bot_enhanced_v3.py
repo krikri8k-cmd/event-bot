@@ -1917,7 +1917,7 @@ async def perform_nearby_search(
             if map_bytes:
                 # Отправляем карту отдельным сообщением
                 map_file = BufferedInputFile(map_bytes, filename="map.jpg")
-                map_caption = f"📍 Карта событий в радиусе {int(radius)} км"
+                map_caption = "📍 Карта событий"  # Единая подпись без указания радиуса
                 await message.answer_photo(
                     map_file,
                     caption=map_caption,
@@ -5703,7 +5703,7 @@ async def on_location(message: types.Message, state: FSMContext):
                     from aiogram.types import BufferedInputFile
 
                     map_file = BufferedInputFile(map_bytes, filename="map.png")
-                    map_caption = f"📍 Карта событий в радиусе {int(radius)} км"
+                    map_caption = "📍 Карта событий"  # Единая подпись без указания радиуса
                     await message.answer_photo(
                         map_file,
                         caption=map_caption,
