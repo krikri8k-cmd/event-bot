@@ -359,7 +359,7 @@ def create_task_from_place(
 
     except Exception as e:
         logger.error(f"Ошибка создания задания из места {place_id} для пользователя {user_id}: {e}")
-        return False, "❌ Произошла ошибка при добавлении квеста"
+        return False, "🙈 Квест уже добавлен"
 
 
 def get_user_active_tasks(user_id: int) -> list[dict]:
