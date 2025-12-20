@@ -1930,12 +1930,16 @@ async def perform_nearby_search(
                     user_state[message.chat.id]["map_message_id"] = map_message.message_id
 
                 # Отправляем список событий отдельным текстовым сообщением
-                await message.answer(
+                list_message = await message.answer(
                     short_caption,
                     parse_mode="HTML",
                     reply_markup=combined_keyboard,
                 )
                 logger.info("✅ Список событий отправлен отдельным сообщением (send_compact_events_list)")
+
+                # Сохраняем message_id списка событий в состоянии для последующего редактирования
+                if message.chat.id in user_state:
+                    user_state[message.chat.id]["list_message_id"] = list_message.message_id
             else:
                 await message.answer(
                     short_caption,
@@ -5731,20 +5735,47 @@ async def on_location(message: types.Message, state: FSMContext):
                         )
 
                     # 7.2) Отправляем список событий отдельным текстовым сообщением
-                    await message.answer(
+                    list_message = await message.answer(
                         events_text,
                         reply_markup=combined_keyboard,
                         parse_mode="HTML",
                     )
                     logger.info("✅ Список событий отправлен отдельным сообщением")
+
+                    # Сохраняем message_id списка событий в состоянии для последующего редактирования
+                    if message.chat.id in user_state:
+                        user_state[message.chat.id]["list_message_id"] = list_message.message_id
+                        logger.info(
+                            f"📋 [ПЕРВЫЙ ПОИСК] list_message_id={list_message.message_id} сохранен в существующем состоянии"
+                        )
+                    else:
+                        # Если состояния еще нет, создаем его
+                        if not user_state.get(message.chat.id):
+                            user_state[message.chat.id] = {}
+                        user_state[message.chat.id]["list_message_id"] = list_message.message_id
+                        logger.info(
+                            f"📋 [ПЕРВЫЙ ПОИСК] list_message_id={list_message.message_id} сохранен в новом состоянии"
+                        )
                 else:
                     # Отправляем без карты, но с полным списком событий
-                    await message.answer(
+                    list_message = await message.answer(
                         events_text,
                         reply_markup=combined_keyboard,
                         parse_mode="HTML",
                     )
                     logger.info("✅ События отправлены в одном сообщении без карты")
+
+                    # Сохраняем message_id списка событий в состоянии для последующего редактирования
+                    if message.chat.id in user_state:
+                        user_state[message.chat.id]["list_message_id"] = list_message.message_id
+                        logger.info(f"📋 [ПЕРВЫЙ ПОИСК БЕЗ КАРТЫ] list_message_id={list_message.message_id} сохранен")
+                    else:
+                        if not user_state.get(message.chat.id):
+                            user_state[message.chat.id] = {}
+                        user_state[message.chat.id]["list_message_id"] = list_message.message_id
+                        logger.info(
+                            f"📋 [ПЕРВЫЙ ПОИСК БЕЗ КАРТЫ] list_message_id={list_message.message_id} сохранен в новом состоянии"
+                        )
 
                 # Отправляем главное меню после объединенного сообщения
                 await send_spinning_menu(message)
@@ -7514,11 +7545,14 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     groups = group_by_type(prepared)
     counts = make_counts(groups)
 
-    # Сохраняем map_message_id ДО обновления состояния, чтобы использовать его для редактирования карты
+    # Сохраняем map_message_id и list_message_id ДО обновления состояния, чтобы использовать их для редактирования
     map_message_id = state_data.get("map_message_id")
-    logger.info(f"🗺️ [РАСШИРЕНИЕ РАДИУСА] map_message_id из состояния: {map_message_id}")
+    list_message_id = state_data.get("list_message_id")
+    logger.info(
+        f"🗺️ [РАСШИРЕНИЕ РАДИУСА] map_message_id из состояния: {map_message_id}, list_message_id: {list_message_id}"
+    )
 
-    # Обновляем состояние (сохраняем map_message_id для редактирования карты)
+    # Обновляем состояние (сохраняем map_message_id и list_message_id для редактирования)
     user_state[chat_id] = {
         "prepared": prepared,
         "counts": counts,
@@ -7530,6 +7564,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         "diag": {"kept": len(prepared), "dropped": 0, "reasons_top3": []},
         "region": region,
         "map_message_id": map_message_id,  # Сохраняем message_id карты для редактирования
+        "list_message_id": list_message_id,  # Сохраняем message_id списка событий для редактирования
     }
     logger.info(
         f"✅ РАДИУС РАСШИРЕН: новый радиус={new_radius} км, найдено событий={len(prepared)}, "
@@ -7633,22 +7668,88 @@ async def handle_expand_radius(callback: types.CallbackQuery):
                 user_state[chat_id]["map_message_id"] = new_map_msg.message_id
                 logger.info("✅ Карта создана (первый раз)")
 
-            # Отправляем список событий отдельным текстовым сообщением
-            new_msg = await callback.message.answer(
-                text,
-                reply_markup=keyboard,
-                parse_mode="HTML",
-            )
-            logger.info("✅ Список событий отправлен отдельным сообщением (расширение радиуса)")
-            current_message = new_msg
+            # Редактируем существующее сообщение со списком событий или создаем новое
+            if list_message_id:
+                # Редактируем существующее сообщение со списком событий
+                try:
+                    bot = callback.bot
+                    logger.info(
+                        f"📋 [РЕДАКТИРОВАНИЕ СПИСКА] Пытаемся отредактировать список message_id={list_message_id} в chat_id={chat_id}"
+                    )
+
+                    await bot.edit_message_text(
+                        chat_id=chat_id,
+                        message_id=list_message_id,
+                        text=text,
+                        reply_markup=keyboard,
+                        parse_mode="HTML",
+                        disable_web_page_preview=True,
+                    )
+                    logger.info(f"✅ Список событий отредактирован на месте (message_id={list_message_id})")
+                    current_message = callback.message  # Используем исходное сообщение для дальнейших операций
+                except Exception as edit_error:
+                    logger.warning(f"⚠️ Не удалось отредактировать список событий: {edit_error}, создаем новое")
+                    # Если не удалось отредактировать, создаем новое сообщение
+                    new_msg = await callback.message.answer(
+                        text,
+                        reply_markup=keyboard,
+                        parse_mode="HTML",
+                    )
+                    # Обновляем message_id в состоянии
+                    user_state[chat_id]["list_message_id"] = new_msg.message_id
+                    logger.info("✅ Создан новый список событий (не удалось отредактировать)")
+                    current_message = new_msg
+            else:
+                # Если списка еще не было, создаем новое сообщение
+                new_msg = await callback.message.answer(
+                    text,
+                    reply_markup=keyboard,
+                    parse_mode="HTML",
+                )
+                # Сохраняем message_id списка в состоянии
+                user_state[chat_id]["list_message_id"] = new_msg.message_id
+                logger.info("✅ Список событий создан (первый раз)")
+                current_message = new_msg
         else:
-            # Отправляем без карты
-            await current_message.edit_text(
-                text,
-                reply_markup=keyboard,
-                parse_mode="HTML",
-                disable_web_page_preview=True,
-            )
+            # Отправляем без карты - редактируем существующее сообщение со списком или создаем новое
+            if list_message_id:
+                # Редактируем существующее сообщение со списком событий
+                try:
+                    bot = callback.bot
+                    logger.info(
+                        f"📋 [РЕДАКТИРОВАНИЕ СПИСКА БЕЗ КАРТЫ] Пытаемся отредактировать список message_id={list_message_id} в chat_id={chat_id}"
+                    )
+
+                    await bot.edit_message_text(
+                        chat_id=chat_id,
+                        message_id=list_message_id,
+                        text=text,
+                        reply_markup=keyboard,
+                        parse_mode="HTML",
+                        disable_web_page_preview=True,
+                    )
+                    logger.info(f"✅ Список событий отредактирован на месте (message_id={list_message_id})")
+                except Exception as edit_error:
+                    logger.warning(f"⚠️ Не удалось отредактировать список событий: {edit_error}, создаем новое")
+                    # Если не удалось отредактировать, создаем новое сообщение
+                    new_msg = await callback.message.answer(
+                        text,
+                        reply_markup=keyboard,
+                        parse_mode="HTML",
+                    )
+                    # Обновляем message_id в состоянии
+                    user_state[chat_id]["list_message_id"] = new_msg.message_id
+                    logger.info("✅ Создан новый список событий (не удалось отредактировать)")
+            else:
+                # Если списка еще не было, создаем новое сообщение
+                new_msg = await callback.message.answer(
+                    text,
+                    reply_markup=keyboard,
+                    parse_mode="HTML",
+                )
+                # Сохраняем message_id списка в состоянии
+                user_state[chat_id]["list_message_id"] = new_msg.message_id
+                logger.info("✅ Список событий создан (первый раз, без карты)")
     except Exception as e:
         logger.error(f"❌ Ошибка отправки результатов расширенного поиска: {e}")
         # Fallback - простое текстовое сообщение
