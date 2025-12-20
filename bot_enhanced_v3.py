@@ -1594,8 +1594,8 @@ settings = load_settings(require_bot=True)
 # ВАЖНО: Очищаем старые записи для предотвращения утечек памяти
 user_state = {}
 _user_state_timestamps = {}  # Время последнего использования для каждого chat_id
-USER_STATE_MAX_SIZE = 1000  # Максимальное количество пользователей в памяти
-USER_STATE_TTL_SECONDS = 3600  # Время жизни состояния: 1 час
+USER_STATE_MAX_SIZE = 500  # Максимальное количество пользователей в памяти (уменьшено для экономии памяти)
+USER_STATE_TTL_SECONDS = 1800  # Время жизни состояния: 30 минут (уменьшено для более агрессивной очистки)
 
 
 def cleanup_user_state():
@@ -1638,12 +1638,31 @@ def update_user_state_timestamp(chat_id: int):
         cleanup_user_state()
 
 
+def cleanup_large_prepared_events():
+    """Очищает большие списки prepared_events из user_state для экономии памяти"""
+    global user_state
+    MAX_PREPARED_EVENTS = 50  # Максимальное количество событий в prepared
+
+    for chat_id, state in list(user_state.items()):
+        if "prepared" in state and isinstance(state["prepared"], list):
+            if len(state["prepared"]) > MAX_PREPARED_EVENTS:
+                # Оставляем только последние MAX_PREPARED_EVENTS событий
+                original_count = len(state["prepared"])
+                state["prepared"] = state["prepared"][-MAX_PREPARED_EVENTS:]
+                logger.debug(
+                    f"🧹 Очищены prepared_events для chat_id {chat_id}: "
+                    f"оставлено {MAX_PREPARED_EVENTS} из {original_count}"
+                )
+
+
 async def periodic_cleanup_user_state():
-    """Периодическая очистка user_state каждые 30 минут"""
+    """Периодическая очистка user_state каждые 15 минут (более агрессивная очистка)"""
     while True:
-        await asyncio.sleep(1800)  # 30 минут
+        await asyncio.sleep(900)  # 15 минут (уменьшено для более частой очистки)
         try:
             cleanup_user_state()
+            # Также очищаем большие prepared_events списки для экономии памяти
+            cleanup_large_prepared_events()
             logger.debug("🧹 Периодическая очистка user_state выполнена")
         except Exception as e:
             logger.error(f"Ошибка при периодической очистке user_state: {e}")
@@ -11200,6 +11219,14 @@ async def main():
     # Запускаем фоновую задачу для периодической очистки user_state
     asyncio.create_task(periodic_cleanup_user_state())
     logger.info("✅ Запущена фоновая задача для очистки user_state")
+
+    # Вызываем очистку вручную при старте, чтобы удалить накопившиеся данные
+    try:
+        cleanup_user_state()
+        cleanup_large_prepared_events()
+        logger.info(f"🧹 При старте очищено user_state: осталось {len(user_state)} записей")
+    except Exception as e:
+        logger.error(f"Ошибка при очистке user_state при старте: {e}")
 
     # Запускаем фоновую задачу для очистки моментов
     from config import load_settings
