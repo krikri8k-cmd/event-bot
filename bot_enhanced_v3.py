@@ -1918,12 +1918,16 @@ async def perform_nearby_search(
                 # Отправляем карту отдельным сообщением
                 map_file = BufferedInputFile(map_bytes, filename="map.jpg")
                 map_caption = "📍 Карта событий"  # Единая подпись без указания радиуса
-                await message.answer_photo(
+                map_message = await message.answer_photo(
                     map_file,
                     caption=map_caption,
                     parse_mode="HTML",
                 )
                 logger.info("✅ Карта отправлена отдельным сообщением (send_compact_events_list)")
+
+                # Сохраняем message_id карты в состоянии для последующего редактирования
+                if message.chat.id in user_state:
+                    user_state[message.chat.id]["map_message_id"] = map_message.message_id
 
                 # Отправляем список событий отдельным текстовым сообщением
                 await message.answer(
@@ -5543,7 +5547,8 @@ async def on_location(message: types.Message, state: FSMContext):
                 return
 
             # Сохраняем состояние для пагинации и расширения радиуса
-            user_state[message.chat.id] = {
+            # map_message_id будет добавлен после отправки карты
+            state_dict = {
                 "prepared": prepared,
                 "counts": counts,
                 "lat": lat,
@@ -5553,6 +5558,7 @@ async def on_location(message: types.Message, state: FSMContext):
                 "date_filter": "today",  # По умолчанию показываем события на сегодня
                 "diag": diag,
             }
+            user_state[message.chat.id] = state_dict
             logger.info(
                 f"💾 Состояние сохранено для пользователя {message.chat.id}: lat={lat}, lng={lng}, radius={radius}"
             )
@@ -5704,12 +5710,19 @@ async def on_location(message: types.Message, state: FSMContext):
 
                     map_file = BufferedInputFile(map_bytes, filename="map.png")
                     map_caption = "📍 Карта событий"  # Единая подпись без указания радиуса
-                    await message.answer_photo(
+                    map_message = await message.answer_photo(
                         map_file,
                         caption=map_caption,
                         parse_mode="HTML",
                     )
                     logger.info("✅ Карта отправлена отдельным сообщением")
+
+                    # Сохраняем message_id карты в состоянии для последующего редактирования
+                    if message.chat.id in user_state:
+                        user_state[message.chat.id]["map_message_id"] = map_message.message_id
+                    else:
+                        # Если состояния еще нет, создаем его
+                        user_state[message.chat.id] = {"map_message_id": map_message.message_id}
 
                     # 7.2) Отправляем список событий отдельным текстовым сообщением
                     await message.answer(
@@ -7507,7 +7520,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     groups = group_by_type(prepared)
     counts = make_counts(groups)
 
-    # Обновляем состояние
+    # Обновляем состояние (сохраняем map_message_id для редактирования карты)
     user_state[chat_id] = {
         "prepared": prepared,
         "counts": counts,
@@ -7518,6 +7531,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         "date_filter": date_filter,  # Сохраняем текущий фильтр даты
         "diag": {"kept": len(prepared), "dropped": 0, "reasons_top3": []},
         "region": region,
+        "map_message_id": state_data.get("map_message_id"),  # Сохраняем message_id карты для редактирования
     }
     logger.info(
         f"✅ РАДИУС РАСШИРЕН: новый радиус={new_radius} км, найдено событий={len(prepared)}, "
@@ -7571,30 +7585,66 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         except Exception as map_error:
             logger.warning(f"⚠️ Не удалось создать карту: {map_error}")
 
-        # ИСПРАВЛЕНИЕ: Отправляем карту и список событий отдельными сообщениями
+        # ИСПРАВЛЕНИЕ: Редактируем существующее сообщение с картой вместо создания нового
         if map_bytes:
-            from aiogram.types import BufferedInputFile
+            from aiogram.types import BufferedInputFile, InputMediaPhoto
 
             map_file = BufferedInputFile(map_bytes, filename="map.png")
-
-            # Отправляем карту отдельным сообщением
-            await current_message.delete()  # Удаляем сообщение загрузки
             map_caption = "📍 Карта событий"
-            await current_message.answer_photo(
-                map_file,
-                caption=map_caption,
-                parse_mode="HTML",
-            )
-            logger.info("✅ Карта отправлена отдельным сообщением (perform_nearby_search)")
+
+            # Проверяем, есть ли сохраненное сообщение с картой
+            map_message_id = state_data.get("map_message_id")
+
+            if map_message_id:
+                # Редактируем существующее сообщение с картой
+                try:
+                    # Используем bot из callback для редактирования
+                    bot = callback.bot
+
+                    await bot.edit_message_media(
+                        chat_id=chat_id,
+                        message_id=map_message_id,
+                        media=InputMediaPhoto(media=map_file, caption=map_caption, parse_mode="HTML"),
+                    )
+                    logger.info(f"✅ Карта отредактирована на месте (message_id={map_message_id})")
+                except Exception as edit_error:
+                    logger.warning(f"⚠️ Не удалось отредактировать карту: {edit_error}, создаем новую")
+                    # Если не удалось отредактировать, создаем новое сообщение
+                    try:
+                        await current_message.delete()  # Удаляем сообщение загрузки
+                    except Exception:
+                        pass
+                    new_map_msg = await callback.message.answer_photo(
+                        map_file,
+                        caption=map_caption,
+                        parse_mode="HTML",
+                    )
+                    # Обновляем message_id в состоянии
+                    user_state[chat_id]["map_message_id"] = new_map_msg.message_id
+                    logger.info("✅ Создана новая карта (не удалось отредактировать)")
+            else:
+                # Если карты еще не было, создаем новое сообщение
+                await current_message.delete()  # Удаляем сообщение загрузки
+                new_map_msg = await current_message.answer_photo(
+                    map_file,
+                    caption=map_caption,
+                    parse_mode="HTML",
+                )
+                # Сохраняем message_id карты в состоянии
+                user_state[chat_id]["map_message_id"] = new_map_msg.message_id
+                logger.info("✅ Карта создана (первый раз)")
 
             # Отправляем список событий отдельным текстовым сообщением
+            try:
+                await current_message.delete()  # Удаляем сообщение загрузки (если еще не удалено)
+            except Exception:
+                pass  # Может быть уже удалено
             new_msg = await current_message.answer(
                 text,
                 reply_markup=keyboard,
                 parse_mode="HTML",
             )
-            logger.info("✅ Список событий отправлен отдельным сообщением (perform_nearby_search)")
-            # Используем новое сообщение для дальнейших операций
+            logger.info("✅ Список событий отправлен отдельным сообщением (расширение радиуса)")
             current_message = new_msg
         else:
             # Отправляем без карты
