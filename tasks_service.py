@@ -196,7 +196,9 @@ def accept_task(user_id: int, task_id: int, user_lat: float = None, user_lng: fl
         return False
 
 
-def create_task_from_place(user_id: int, place_id: int, user_lat: float = None, user_lng: float = None) -> bool:
+def create_task_from_place(
+    user_id: int, place_id: int, user_lat: float = None, user_lng: float = None
+) -> tuple[bool, str]:
     """
     Создает задание на основе места (добавляет место в квесты)
 
@@ -218,26 +220,56 @@ def create_task_from_place(user_id: int, place_id: int, user_lat: float = None, 
 
             if not place:
                 logger.error(f"Место {place_id} не найдено")
-                return False
+                return False, "❌ Место не найдено"
 
             # Проверяем, что у пользователя нет активного задания для этого места
             # Проверяем через Task.location_url, если он содержит ссылку на это место
-            existing_task = (
+            # Также проверяем все активные задания пользователя, чтобы найти дубликаты
+            if place.google_maps_url:
+                existing_task = (
+                    session.query(UserTask)
+                    .join(Task)
+                    .filter(
+                        and_(
+                            UserTask.user_id == user_id,
+                            Task.location_url == place.google_maps_url,
+                            UserTask.status == "active",
+                        )
+                    )
+                    .first()
+                )
+
+                if existing_task:
+                    logger.warning(
+                        f"Пользователь {user_id} уже имеет активное задание для места {place_id} "
+                        f"({place.name}) по URL {place.google_maps_url}"
+                    )
+                    return False, f"⚠️ Квест для места '{place.name}' уже добавлен в Мои квесты"
+
+            # Дополнительная проверка: ищем все активные задания пользователя для этой категории
+            # и проверяем, не используется ли уже это место через другие Task
+            # Это защита от случая, когда Task.location_url еще не установлен
+            all_user_active_tasks = (
                 session.query(UserTask)
                 .join(Task)
                 .filter(
                     and_(
                         UserTask.user_id == user_id,
-                        Task.location_url == place.google_maps_url,
                         UserTask.status == "active",
+                        Task.category == place.category,
                     )
                 )
-                .first()
+                .all()
             )
 
-            if existing_task:
-                logger.warning(f"Пользователь {user_id} уже имеет активное задание для места {place_id}")
-                return False
+            # Проверяем, есть ли среди них задание с таким же location_url
+            for user_task in all_user_active_tasks:
+                if user_task.task.location_url == place.google_maps_url:
+                    logger.warning(
+                        f"Пользователь {user_id} уже имеет активное задание для места {place_id} "
+                        f"({place.name}) - найдено через проверку всех активных заданий"
+                    )
+                    return False, f"⚠️ Квест для места '{place.name}' уже добавлен в Мои квесты"
 
             # Находим подходящее задание для категории места
             task = (
@@ -323,11 +355,11 @@ def create_task_from_place(user_id: int, place_id: int, user_lat: float = None, 
             session.commit()
 
             logger.info(f"Пользователь {user_id} добавил место {place_id} ({place.name}) в квесты")
-            return True
+            return True, f"✅ Квест для места '{place.name}' добавлен в Мои квесты"
 
     except Exception as e:
         logger.error(f"Ошибка создания задания из места {place_id} для пользователя {user_id}: {e}")
-        return False
+        return False, "❌ Произошла ошибка при добавлении квеста"
 
 
 def get_user_active_tasks(user_id: int) -> list[dict]:

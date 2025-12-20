@@ -2951,17 +2951,10 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
             # Создаем задание из места
             from tasks_service import create_task_from_place
 
-            success = create_task_from_place(user_id, place_id, user_lat, user_lng)
+            success, message_text = create_task_from_place(user_id, place_id, user_lat, user_lng)
 
-            if success:
-                # Используем простое сообщение без меню, чтобы не было путаницы
-                await message.answer(
-                    "✅ Место добавлено в квесты! Проверь раздел '🏆 Мои квесты'", reply_markup=main_menu_kb()
-                )
-            else:
-                await message.answer(
-                    "❌ Не удалось добавить место. Возможно, оно уже в квестах.", reply_markup=main_menu_kb()
-                )
+            # Показываем сообщение с результатом
+            await message.answer(message_text, reply_markup=main_menu_kb())
             return
         except (ValueError, Exception) as e:
             logger.warning(f"🎯 cmd_start: неверный параметр add_quest_ {command.args}: {e}")
@@ -8409,14 +8402,11 @@ async def handle_add_place_to_quests(callback: types.CallbackQuery, state: FSMCo
         user_lng = user.last_lng if user else None
 
     # Создаем задание из места
-    success = create_task_from_place(user_id, place_id, user_lat, user_lng)
+    success, message_text = create_task_from_place(user_id, place_id, user_lat, user_lng)
 
-    if success:
-        # Используем простое уведомление вместо отдельного сообщения
-        await callback.answer("✅ Добавлено в Мои квесты", show_alert=False)
-        # НЕ отправляем отдельное сообщение и НЕ обновляем список - просто показываем уведомление
-    else:
-        await callback.answer("❌ Не удалось добавить. Возможно, уже в квестах.", show_alert=True)
+    # Показываем уведомление с результатом
+    # Если квест уже добавлен (success=False), показываем alert, иначе просто toast
+    await callback.answer(message_text, show_alert=not success)
 
 
 @main_router.callback_query(F.data.startswith("task_manage:"))
