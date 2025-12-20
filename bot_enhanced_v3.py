@@ -1084,7 +1084,8 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     # Приоритет: venue.name (из источника) > venue_name (из источника) > location_name (может быть из reverse geocoding)
     # Это важно, чтобы названия из источника (например "Valle Canggu") имели приоритет над адресами из reverse geocoding
     venue = e.get("venue", {})
-    venue_name = venue.get("name") or e.get("venue_name") or e.get("location_name")
+    # НЕ включаем location_name в venue_name, так как location_name может быть обогащен через reverse geocoding позже
+    venue_name = venue.get("name") or e.get("venue_name")
     venue_address = venue.get("address") or e.get("address") or e.get("location_url")
 
     logger.info(f"🔍 DEBUG VENUE: venue={venue}, venue_name='{venue_name}', venue_address='{venue_address}'")
@@ -1124,7 +1125,12 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
 
     # Приоритет: venue_name → address → location_name (может быть из reverse geocoding) → coords → description
     # Проверяем location_name из события (может быть обогащено через reverse geocoding)
-    location_name_from_event = e.get("location_name", "").strip()
+    location_name_from_event = e.get("location_name", "").strip() if e.get("location_name") else ""
+
+    logger.info(
+        f"🔍 DEBUG LOCATION: venue_name='{venue_name}', venue_address='{venue_address}', "
+        f"location_name_from_event='{location_name_from_event}', lat={e.get('lat')}, lng={e.get('lng')}"
+    )
 
     if venue_name:
         venue_display = html.escape(venue_name)
@@ -1362,7 +1368,9 @@ async def enrich_events_with_reverse_geocoding(events: list[dict]) -> list[dict]
 
                     if not is_address:
                         event["location_name"] = reverse_name
-                        logger.debug(f"✅ Обогащено: location_name={reverse_name}")
+                        logger.info(
+                            f"✅ Обогащено через reverse geocoding: location_name={reverse_name} для события '{event.get('title', 'Без названия')[:30]}'"
+                        )
                     else:
                         logger.debug(f"⚠️ Reverse geocoding вернул адрес, пропускаем: {reverse_name}")
             except Exception as e:
@@ -1373,7 +1381,15 @@ async def enrich_events_with_reverse_geocoding(events: list[dict]) -> list[dict]
     # Выполняем обогащение параллельно для всех событий (быстрее чем последовательно)
     import asyncio
 
+    logger.info(f"🔄 Начинаем обогащение {len(events)} событий через reverse geocoding")
     enriched_events = await asyncio.gather(*[enrich_single_event(event) for event in events])
+
+    # Логируем результаты обогащения
+    enriched_count = sum(
+        1 for e in enriched_events if e.get("location_name") and e.get("location_name") not in generic_venues
+    )
+    logger.info(f"✅ Обогащение завершено: {enriched_count} из {len(events)} событий получили location_name")
+
     return list(enriched_events)
 
 
@@ -5465,6 +5481,13 @@ async def on_location(message: types.Message, state: FSMContext):
 
             # 5) Обогащаем события reverse geocoding для названий локаций
             prepared = await enrich_events_with_reverse_geocoding(prepared)
+
+            # Логируем результаты обогащения для отладки
+            for i, event in enumerate(prepared[:3], 1):
+                logger.info(
+                    f"🔍 После обогащения событие {i}: '{event.get('title', 'Без названия')[:30]}' - "
+                    f"location_name='{event.get('location_name')}', lat={event.get('lat')}, lng={event.get('lng')}"
+                )
 
             # 6) Рендерим первые 3 события для карты
             page_html, _ = render_page(prepared, page=1, page_size=3, user_id=message.from_user.id)
