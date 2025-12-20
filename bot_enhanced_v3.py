@@ -8,6 +8,7 @@ import html
 import logging
 import os
 import re
+import time
 from datetime import UTC, datetime
 from math import ceil
 from urllib.parse import quote_plus, urlparse
@@ -651,6 +652,7 @@ async def send_compact_events_list_prepared(
         region = "bali"
 
     # Сохраняем состояние для пагинации и расширения радиуса
+    update_user_state_timestamp(message.chat.id)
     user_state[message.chat.id] = {
         "prepared": prepared_events,
         "counts": counts,
@@ -1588,7 +1590,63 @@ def render_header(counts, radius_km: int = None) -> str:
 settings = load_settings(require_bot=True)
 
 # Хранилище состояния для сохранения prepared событий по chat_id
+# ВАЖНО: Очищаем старые записи для предотвращения утечек памяти
 user_state = {}
+_user_state_timestamps = {}  # Время последнего использования для каждого chat_id
+USER_STATE_MAX_SIZE = 1000  # Максимальное количество пользователей в памяти
+USER_STATE_TTL_SECONDS = 3600  # Время жизни состояния: 1 час
+
+
+def cleanup_user_state():
+    """Очищает старые записи из user_state для предотвращения утечек памяти"""
+    global user_state, _user_state_timestamps
+    current_time = time.time()
+    expired_chat_ids = []
+
+    # Находим устаревшие записи
+    for chat_id, timestamp in _user_state_timestamps.items():
+        if current_time - timestamp > USER_STATE_TTL_SECONDS:
+            expired_chat_ids.append(chat_id)
+
+    # Удаляем устаревшие записи
+    for chat_id in expired_chat_ids:
+        user_state.pop(chat_id, None)
+        _user_state_timestamps.pop(chat_id, None)
+
+    # Если все еще слишком много записей, удаляем самые старые
+    if len(user_state) > USER_STATE_MAX_SIZE:
+        # Сортируем по времени последнего использования
+        sorted_chats = sorted(_user_state_timestamps.items(), key=lambda x: x[1])
+        # Удаляем самые старые
+        to_remove = len(user_state) - USER_STATE_MAX_SIZE
+        for chat_id, _ in sorted_chats[:to_remove]:
+            user_state.pop(chat_id, None)
+            _user_state_timestamps.pop(chat_id, None)
+
+    if expired_chat_ids or len(user_state) > USER_STATE_MAX_SIZE:
+        logger.debug(
+            f"🧹 Очистка user_state: удалено {len(expired_chat_ids)} устаревших, осталось {len(user_state)} записей"
+        )
+
+
+def update_user_state_timestamp(chat_id: int):
+    """Обновляет время последнего использования для chat_id"""
+    _user_state_timestamps[chat_id] = time.time()
+    # Периодически очищаем старые записи (каждые 100 обновлений)
+    if len(_user_state_timestamps) % 100 == 0:
+        cleanup_user_state()
+
+
+async def periodic_cleanup_user_state():
+    """Периодическая очистка user_state каждые 30 минут"""
+    while True:
+        await asyncio.sleep(1800)  # 30 минут
+        try:
+            cleanup_user_state()
+            logger.debug("🧹 Периодическая очистка user_state выполнена")
+        except Exception as e:
+            logger.error(f"Ошибка при периодической очистке user_state: {e}")
+
 
 # ---------- Радиус поиска ----------
 RADIUS_OPTIONS = (5, 10, 15, 20)
@@ -2069,10 +2127,13 @@ class DuplicateCallbackMiddleware(BaseMiddleware):
             # Помечаем как обработанный
             self._processed_callbacks.add(callback_id)
 
-            # Очищаем старые записи, если слишком много
+            # Очищаем старые записи, если слишком много (более эффективно)
             if len(self._processed_callbacks) > self._max_size:
-                # Оставляем только последние 5000
-                self._processed_callbacks = set(list(self._processed_callbacks)[-5000:])
+                # Удаляем первые 5000 элементов (старые записи)
+                # Используем более эффективный способ без создания списка
+                items_to_remove = list(self._processed_callbacks)[:5000]
+                for item in items_to_remove:
+                    self._processed_callbacks.discard(item)
 
         return await handler(event, data)
 
@@ -11131,6 +11192,10 @@ async def main():
 
         logger.error(f"❌ Детали ошибки: {traceback.format_exc()}")
 
+    # Запускаем фоновую задачу для периодической очистки user_state
+    asyncio.create_task(periodic_cleanup_user_state())
+    logger.info("✅ Запущена фоновая задача для очистки user_state")
+
     # Запускаем фоновую задачу для очистки моментов
     from config import load_settings
 
@@ -11182,8 +11247,6 @@ async def main():
         await bot.delete_my_commands(scope=BotCommandScopeAllGroupChats(), language_code="ru")
 
         # Ждем дольше, чтобы Telegram точно обработал удаление
-        import asyncio
-
         await asyncio.sleep(3)
 
         from aiogram.types import BotCommandScopeChat
