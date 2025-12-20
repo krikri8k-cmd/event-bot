@@ -2936,6 +2936,7 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
             logger.warning(f"🔥 cmd_start: неверный параметр edit_group_ {command.args}: {e}")
 
     # Проверяем, есть ли параметр add_quest_ (deep-link для добавления места в квесты)
+    # Оставляем поддержку deep link для обратной совместимости, но теперь используем callback
     if command and command.args and command.args.startswith("add_quest_"):
         try:
             place_id = int(command.args.replace("add_quest_", ""))
@@ -2953,6 +2954,7 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
             success = create_task_from_place(user_id, place_id, user_lat, user_lng)
 
             if success:
+                # Используем простое сообщение без меню, чтобы не было путаницы
                 await message.answer(
                     "✅ Место добавлено в квесты! Проверь раздел '🏆 Мои квесты'", reply_markup=main_menu_kb()
                 )
@@ -7913,8 +7915,7 @@ async def show_tasks_for_category(
     text += f"📍 Найдено мест: {len(all_places)}\n\n"
 
     # Получаем username бота для создания deep links
-    bot_info = await message_or_callback.bot.get_me() if hasattr(message_or_callback, "bot") else None
-    bot_username = bot_info.username if bot_info else "EventAroundBot"
+    await message_or_callback.bot.get_me() if hasattr(message_or_callback, "bot") else None
 
     # Добавляем каждое место с кнопкой в том же порядке
     for idx, place in enumerate(page_places, start=start_idx + 1):
@@ -7940,14 +7941,20 @@ async def show_tasks_for_category(
             text += f"💡 {place.task_hint}\n"
 
         # Добавляем скрытую ссылку "Забрать квест" под каждым местом
-        # Используем deep link через команду /start с параметром
-        deep_link = f"https://t.me/{bot_username}?start=add_quest_{place.id}"
-        text += f"[🎯 Забрать квест]({deep_link})\n"
+        # Используем callback_data через inline кнопку (не deep link, чтобы не показывать /start)
+        # Кнопка будет добавлена в клавиатуру отдельно
+        pass  # Кнопка будет добавлена в клавиатуру ниже
 
         text += "\n"
 
-    # Создаем клавиатуру только с кнопками пагинации (без кнопок мест)
+    # Создаем клавиатуру с кнопками "Забрать квест" для каждого места
     keyboard = []
+
+    # Добавляем кнопки "Забрать квест" для каждого места (по одной на место)
+    for idx, place in enumerate(page_places, start=start_idx + 1):
+        keyboard.append(
+            [InlineKeyboardButton(text="🎯 Забрать квест", callback_data=f"add_place_to_quests:{place.id}")]
+        )
 
     # Кнопки пагинации
     nav_buttons = []
@@ -8410,21 +8417,11 @@ async def handle_add_place_to_quests(callback: types.CallbackQuery, state: FSMCo
     success = create_task_from_place(user_id, place_id, user_lat, user_lng)
 
     if success:
-        await callback.answer("✅ Место добавлено в квесты!", show_alert=False)
-
-        # Получаем категорию места для возврата к списку
-        from database import TaskPlace
-
-        with get_session() as session:
-            place = session.query(TaskPlace).filter(TaskPlace.id == place_id).first()
-            if place and user_lat and user_lng:
-                # Получаем текущую страницу из состояния или callback
-                # Пока просто возвращаемся на первую страницу
-                await show_tasks_for_category(
-                    callback.message, place.category, user_id, user_lat, user_lng, state, page=1
-                )
+        # Используем простое уведомление вместо отдельного сообщения
+        await callback.answer("✅ Добавлено в Мои квесты", show_alert=False)
+        # НЕ отправляем отдельное сообщение и НЕ обновляем список - просто показываем уведомление
     else:
-        await callback.answer("❌ Не удалось добавить место. Возможно, оно уже в квестах.", show_alert=True)
+        await callback.answer("❌ Не удалось добавить. Возможно, уже в квестах.", show_alert=True)
 
 
 @main_router.callback_query(F.data.startswith("task_manage:"))
