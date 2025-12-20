@@ -863,17 +863,35 @@ def build_maps_url(e: dict) -> str:
 
     logger = logging.getLogger(__name__)
 
-    # Приоритизируем location_url для ВСЕХ типов событий (если есть ссылка, используем её)
-    # Это важно, так как события от парсеров тоже могут иметь location_url (например, "ZAI cafe")
+    # Приоритизируем location_url для событий с валидным URL источника
+    # Исключение: для ai_generated/ai_parsed без валидного URL источника не используем location_url
+    # (так как это может быть небезопасно или неправильно)
+    event_type = e.get("type", "")
     location_url = e.get("location_url", "").strip() if e.get("location_url") else ""
-    if location_url:
-        if location_url.startswith(("http://", "https://", "www.")):
+
+    if location_url and location_url.startswith(("http://", "https://", "www.")):
+        # Для ai_generated/ai_parsed проверяем наличие валидного URL источника
+        # (source_url, url, original_url), но НЕ location_url
+        if event_type in ("ai_generated", "ai_parsed", "ai"):
+            # Проверяем наличие валидного URL источника (не location_url)
+            has_valid_source = bool(e.get("source_url") or e.get("url") or e.get("original_url"))
+            if has_valid_source:
+                # Есть валидный URL источника - можно использовать location_url
+                logger.info(
+                    f"🚗 Используем location_url для маршрута: '{location_url[:50]}...' для события '{e.get('title', 'Без названия')[:30]}'"
+                )
+                return location_url
+            else:
+                # Нет валидного URL источника - пропускаем location_url для безопасности
+                logger.debug(
+                    f"⚠️ Пропускаем location_url для ai-события без валидного URL источника: '{e.get('title', 'Без названия')[:30]}'"
+                )
+        else:
+            # Для других типов событий (source, user) используем location_url
             logger.info(
                 f"🚗 Используем location_url для маршрута: '{location_url[:50]}...' для события '{e.get('title', 'Без названия')[:30]}'"
             )
             return location_url
-        else:
-            logger.debug(f"⚠️ location_url не является валидной ссылкой: '{location_url[:50]}'")
 
     # Поддерживаем новую структуру venue и старую
     # Приоритет: venue.name (из источника) > venue_name (из источника) > location_name (может быть из reverse geocoding)
