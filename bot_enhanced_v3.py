@@ -739,6 +739,7 @@ async def send_compact_events_list(
         region = "bali"
 
     # 4) Сохраняем состояние для пагинации и расширения радиуса
+    update_user_state_timestamp(message.chat.id)
     user_state[message.chat.id] = {
         "prepared": prepared,
         "counts": counts,
@@ -1901,6 +1902,7 @@ async def perform_nearby_search(
                 await state.clear()
                 return
 
+            update_user_state_timestamp(message.chat.id)
             user_state[message.chat.id] = {
                 "prepared": prepared,
                 "counts": counts,
@@ -2465,8 +2467,6 @@ def update_event_field(event_id: int, field: str, value: str, user_id: int) -> b
 
 async def send_spinning_menu(message):
     """Отправляет анимированное меню с эпической ракетой"""
-    import asyncio
-
     # Последовательность для эффекта эпического полета ракеты с взрывами
     rocket_frames = ["🚀", "🔥", "💥", "⚡", "🎯"]
 
