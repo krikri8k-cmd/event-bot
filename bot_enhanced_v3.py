@@ -44,7 +44,6 @@ from tasks_service import (
     complete_task,
     create_task_from_place,
     get_user_active_tasks,
-    get_user_places_in_quests,
 )
 from utils.geo_utils import get_timezone, haversine_km
 from utils.static_map import build_static_map_url, fetch_static_map
@@ -7908,10 +7907,11 @@ async def show_tasks_for_category(
     text = f"🎯 **{category_name}**\n\n"
     text += f"📍 Найдено мест: {len(all_places)}\n\n"
 
-    # Проверяем, какие места уже в квестах пользователя
-    user_places_in_quests = get_user_places_in_quests(user_id)
+    # Получаем username бота для создания deep links
+    bot_info = await message_or_callback.bot.get_me() if hasattr(message_or_callback, "bot") else None
+    bot_username = bot_info.username if bot_info else "EventAroundBot"
 
-    # Добавляем каждое место (без ссылки "Забрать квест" в тексте - будет кнопка)
+    # Добавляем каждое место с ссылкой "Забрать квест" в тексте
     for idx, place in enumerate(page_places, start=start_idx + 1):
         # Название места (кликабельная ссылка на Google Maps, если есть)
         if place.google_maps_url:
@@ -7934,28 +7934,15 @@ async def show_tasks_for_category(
         if place.task_hint:
             text += f"💡 {place.task_hint}\n"
 
-        # НЕ добавляем ссылку в тексте - будет inline кнопка под каждым заданием
+        # Добавляем скрытую ссылку "Забрать квест" под каждым местом в тексте
+        # Используем deep link (будет показывать /start, но это особенность Telegram)
+        deep_link = f"https://t.me/{bot_username}?start=add_quest_{place.id}"
+        text += f"[🎯 Забрать квест]({deep_link})\n"
+
         text += "\n"
 
-    # Создаем клавиатуру с кнопками "Забрать квест" под каждым заданием
+    # Создаем клавиатуру только с кнопками пагинации (без кнопок мест)
     keyboard = []
-
-    # Добавляем кнопки "Забрать квест" для каждого места (по одной на место, под каждым местом)
-    # Это метод "Умного переключателя" - кнопки можно редактировать
-    for place in page_places:
-        # Проверяем, есть ли уже это место в квестах пользователя
-        is_in_quests = place.google_maps_url and place.google_maps_url in user_places_in_quests
-
-        if is_in_quests:
-            # Место уже в квестах - показываем неактивную кнопку
-            keyboard.append(
-                [InlineKeyboardButton(text="✅ В моих квестах", callback_data=f"place_already_in_quests:{place.id}")]
-            )
-        else:
-            # Место еще не в квестах - показываем активную кнопку
-            keyboard.append(
-                [InlineKeyboardButton(text="🎯 Забрать квест", callback_data=f"add_place_to_quests:{place.id}")]
-            )
 
     # Кнопки пагинации
     nav_buttons = []
@@ -8404,7 +8391,7 @@ async def handle_places_page(callback: types.CallbackQuery, state: FSMContext):
 
 @main_router.callback_query(F.data.startswith("add_place_to_quests:"))
 async def handle_add_place_to_quests(callback: types.CallbackQuery, state: FSMContext):
-    """Обработчик добавления места в квесты (метод "Умного переключателя")"""
+    """Обработчик добавления места в квесты"""
     place_id = int(callback.data.split(":")[1])
     user_id = callback.from_user.id
 
@@ -8417,52 +8404,9 @@ async def handle_add_place_to_quests(callback: types.CallbackQuery, state: FSMCo
     # Создаем задание из места
     success, message_text = create_task_from_place(user_id, place_id, user_lat, user_lng)
 
-    if success:
-        # Метод "Умного переключателя": редактируем сообщение, меняя только нужную кнопку
-        # Получаем текущий текст и клавиатуру сообщения
-        current_markup = callback.message.reply_markup
-
-        if current_markup and current_markup.inline_keyboard:
-            # Создаем новую клавиатуру, заменяя кнопку "🎯 Забрать квест" на "✅ В моих квестах"
-            new_keyboard = []
-            for row in current_markup.inline_keyboard:
-                new_row = []
-                for button in row:
-                    if button.callback_data == f"add_place_to_quests:{place_id}":
-                        # Заменяем эту кнопку на "✅ В моих квестах"
-                        new_row.append(
-                            InlineKeyboardButton(
-                                text="✅ В моих квестах", callback_data=f"place_already_in_quests:{place_id}"
-                            )
-                        )
-                    else:
-                        # Оставляем остальные кнопки как есть
-                        new_row.append(button)
-                new_keyboard.append(new_row)
-
-            # Редактируем сообщение с новой клавиатурой
-            try:
-                await callback.message.edit_reply_markup(
-                    reply_markup=InlineKeyboardMarkup(inline_keyboard=new_keyboard)
-                )
-                # Показываем toast-уведомление
-                await callback.answer("✅ Добавлено в Мои квесты", show_alert=False)
-            except Exception as e:
-                logger.error(f"Ошибка редактирования сообщения при добавлении квеста: {e}")
-                # Fallback: просто показываем уведомление
-                await callback.answer("✅ Добавлено в Мои квесты", show_alert=False)
-        else:
-            # Если нет клавиатуры, просто показываем уведомление
-            await callback.answer("✅ Добавлено в Мои квесты", show_alert=False)
-    else:
-        # Если не удалось добавить (например, уже в квестах), показываем alert
-        await callback.answer(message_text, show_alert=True)
-
-
-@main_router.callback_query(F.data.startswith("place_already_in_quests:"))
-async def handle_place_already_in_quests(callback: types.CallbackQuery):
-    """Обработчик нажатия на кнопку "✅ В моих квестах" (место уже добавлено)"""
-    await callback.answer("✅ Это место уже в ваших квестах", show_alert=False)
+    # Показываем уведомление с результатом
+    # Если квест уже добавлен (success=False), показываем alert, иначе просто toast
+    await callback.answer(message_text, show_alert=not success)
 
 
 @main_router.callback_query(F.data.startswith("task_manage:"))

@@ -362,37 +362,6 @@ def create_task_from_place(
         return False, "❌ Произошла ошибка при добавлении квеста"
 
 
-def get_user_places_in_quests(user_id: int) -> set[str]:
-    """
-    Получает множество google_maps_url мест, которые уже добавлены в активные квесты пользователя
-
-    Args:
-        user_id: ID пользователя
-
-    Returns:
-        Множество google_maps_url мест, которые уже в квестах
-    """
-    with get_session() as session:
-        user_tasks = (
-            session.query(UserTask)
-            .join(Task)
-            .filter(
-                and_(
-                    UserTask.user_id == user_id,
-                    UserTask.status == "active",
-                )
-            )
-            .all()
-        )
-
-        places_urls = set()
-        for user_task in user_tasks:
-            if user_task.task.location_url:
-                places_urls.add(user_task.task.location_url)
-
-        return places_urls
-
-
 def get_user_active_tasks(user_id: int) -> list[dict]:
     """
     Получает активные задания пользователя с конвертацией времени в местный часовой пояс
