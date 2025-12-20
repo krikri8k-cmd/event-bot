@@ -269,13 +269,6 @@ def enrich_venue_name(e: dict) -> dict:
     return e
 
 
-def create_google_maps_url(event: dict) -> str:
-    """
-    Создает ссылку на Google Maps с названием места (устаревшая функция)
-    """
-    return build_maps_url(event)
-
-
 def get_venue_name(event: dict) -> str:
     """
     Возвращает название места для события
@@ -321,17 +314,6 @@ def get_event_type_info(event: dict) -> tuple[str, str]:
         return "📱", "Социальные сети"
     else:
         return "📌", "Другие"
-
-
-def create_event_links(event: dict) -> str:
-    """
-    Создает кликабельные ссылки для события (устаревшая функция, используется для совместимости)
-    """
-    maps_url = create_google_maps_url(event)
-    source_url = get_source_url(event)
-
-    links = [f"🗺️ [Маршрут]({maps_url})", f"🔗 [Источник]({source_url})"]
-    return " | ".join(links)
 
 
 def group_events_by_type(events: list) -> dict[str, list]:
@@ -833,24 +815,6 @@ async def edit_events_list_message(
         logger.info(f"✅ Страница {page + 1} событий отредактирована (HTML)")
     except Exception as e:
         logger.error(f"❌ Ошибка редактирования страницы {page + 1}: {e}")
-
-
-async def send_detailed_events_list(message: types.Message, events: list, user_lat: float, user_lng: float):
-    """
-    Отправляет детальный список событий отдельным сообщением
-
-    DEPRECATED: Use send_compact_events_list directly
-    """
-    import warnings
-
-    warnings.warn(
-        "send_detailed_events_list is deprecated. Use send_compact_events_list directly.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-
-    # Используем новую компактную функцию
-    await send_compact_events_list(message, events, user_lat, user_lng, page=0)
 
 
 # Настройка логирования
