@@ -1424,7 +1424,12 @@ async def enrich_events_with_reverse_geocoding(events: list[dict]) -> list[dict]
 
 
 def render_page(
-    events: list[dict], page: int, page_size: int = 8, user_id: int = None, is_caption: bool = False
+    events: list[dict],
+    page: int,
+    page_size: int = 8,
+    user_id: int = None,
+    is_caption: bool = False,
+    first_page_was_photo: bool = False,
 ) -> tuple[str, int]:
     """
     Рендерит страницу событий
@@ -1440,10 +1445,44 @@ def render_page(
     if not events:
         return "Поблизости пока ничего не нашли.", 1
 
-    total_pages = max(1, ceil(len(events) / page_size))
+    # ВАЖНО: Правильный расчет total_pages с учетом смешанного размера страниц
+    # Первая страница (с картой) имеет page_size=1, остальные - page_size=8
+    # Если page_size=1 (первая страница с картой), то total_pages рассчитывается так:
+    # - Первая страница: 1 событие
+    # - Остальные страницы: по 8 событий
+    if page_size == 1:
+        # Первая страница с картой: 1 событие на первой странице, остальные по 8
+        if len(events) <= 1:
+            total_pages = 1
+        else:
+            # 1 событие на первой странице + остальные по 8
+            total_pages = 1 + ceil((len(events) - 1) / 8)
+    else:
+        # Обычные страницы: все по page_size
+        total_pages = max(1, ceil(len(events) / page_size))
+
     page = max(1, min(page, total_pages))
-    start = (page - 1) * page_size
-    end = start + page_size
+
+    # Правильный расчет start/end с учетом смешанного размера страниц
+    if page == 1:
+        if page_size == 1:
+            # Первая страница с картой: только первое событие
+            start = 0
+            end = 1
+        else:
+            # Первая страница без карты: обычная логика
+            start = 0
+            end = page_size
+    else:
+        # Страницы 2+: учитываем, была ли первая страница с картой
+        if first_page_was_photo:
+            # Первая страница была с картой (1 событие), остальные по 8
+            start = 1 + (page - 2) * 8
+            end = start + 8
+        else:
+            # Обычная пагинация: все страницы по page_size
+            start = (page - 1) * page_size
+            end = start + page_size
 
     parts = []
     for idx, e in enumerate(events[start:end], start=start + 1):
@@ -10643,14 +10682,27 @@ async def handle_pagination(callback: types.CallbackQuery):
         else:
             page_size = 8  # Текстовые сообщения - 8 событий
 
+        # Правильный расчет total_pages с учетом смешанного размера страниц
+        # Первая страница (с картой) имеет page_size=1, остальные - page_size=8
+        if is_photo_message:
+            # Есть карта: первая страница = 1 событие, остальные по 8
+            if len(prepared) <= 1:
+                total_pages = 1
+            else:
+                total_pages = 1 + ceil((len(prepared) - 1) / 8)
+        else:
+            # Нет карты: все страницы по 8 событий
+            total_pages = max(1, ceil(len(prepared) / 8))
+
         # Рендерим страницу
         # Для первой страницы с картой передаем is_caption=True для агрессивной обрезки описаний
-        page_html, total_pages = render_page(
+        page_html, _ = render_page(
             prepared,
             page,
             page_size=page_size,
             user_id=callback.from_user.id,
             is_caption=(is_first_page and is_photo_message),
+            first_page_was_photo=is_photo_message,  # Передаем информацию о том, была ли первая страница с картой
         )
 
         # Логируем показ событий в списке при пагинации (list_view)
@@ -10665,7 +10717,20 @@ async def handle_pagination(callback: types.CallbackQuery):
             group_chat_id = callback.message.chat.id
 
         # Логируем каждое показанное событие на текущей странице
-        start_idx = (page - 1) * page_size
+        # Правильный расчет start_idx с учетом смешанного размера страниц
+        if page == 1:
+            if page_size == 1:
+                start_idx = 0
+            else:
+                start_idx = 0
+        else:
+            if is_photo_message:
+                # Первая страница была с картой (1 событие), остальные по 8
+                start_idx = 1 + (page - 2) * 8
+            else:
+                # Обычная пагинация
+                start_idx = (page - 1) * page_size
+
         shown_events = prepared[start_idx : start_idx + page_size]
         for event in shown_events:
             event_id = event.get("id")
