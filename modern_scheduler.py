@@ -617,8 +617,17 @@ class ModernEventScheduler:
                 # Если loop уже запущен, используем ThreadPoolExecutor
                 import concurrent.futures
 
+                def run_reminders():
+                    # Создаем новый event loop в отдельном потоке
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        return loop.run_until_complete(send_24h_reminders_sync(bot_token))
+                    finally:
+                        loop.close()
+
                 with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(asyncio.run, send_24h_reminders_sync(bot_token))
+                    future = executor.submit(run_reminders)
                     future.result(timeout=300)  # 5 минут таймаут
             except RuntimeError:
                 # Нет запущенного loop, используем asyncio.run
