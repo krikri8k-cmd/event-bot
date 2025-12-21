@@ -12378,10 +12378,27 @@ async def handle_next_event(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     target_index = _extract_index(callback.data, prefix="next_event_")
     active_events = _get_active_user_events(user_id)
+    total = len(active_events)
 
-    if target_index is None or target_index >= len(active_events):
-        await callback.answer("Больше событий нет")
+    if target_index is None or target_index >= total:
+        await callback.answer("⚠️ Это последнее событие", show_alert=True)
         return
+
+    # Проверяем, не пытаемся ли мы перейти вперед с последней страницы
+    # Извлекаем текущий индекс из текста сообщения (формат: "({current}/{total})")
+    current_text = callback.message.text or callback.message.caption or ""
+    match = re.search(r"\((\d+)/(\d+)\)", current_text)
+    if match:
+        current_num = int(match.group(1))
+        total_num = int(match.group(2))
+        # Если текущий номер равен общему количеству, значит мы уже на последней странице
+        if current_num == total_num and total_num == total:
+            await callback.answer("⚠️ Это последнее событие", show_alert=True)
+            return
+        # Если target_index совпадает с текущим индексом (current_num - 1), значит мы уже на этой странице
+        if target_index == current_num - 1:
+            await callback.answer("⚠️ Это последнее событие", show_alert=True)
+            return
 
     await _show_manage_event(callback, active_events, target_index)
     await callback.answer()
@@ -12566,10 +12583,26 @@ async def handle_prev_event(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     target_index = _extract_index(callback.data, prefix="prev_event_")
     active_events = _get_active_user_events(user_id)
+    total = len(active_events)
 
-    if target_index is None or target_index >= len(active_events):
-        await callback.answer("Это единственное событие")
+    if target_index is None or target_index < 0 or target_index >= total:
+        await callback.answer("⚠️ Это первое событие", show_alert=True)
         return
+
+    # Проверяем, не пытаемся ли мы перейти назад с первой страницы
+    # Извлекаем текущий индекс из текста сообщения (формат: "({current}/{total})")
+    current_text = callback.message.text or callback.message.caption or ""
+    match = re.search(r"\((\d+)/(\d+)\)", current_text)
+    if match:
+        current_num = int(match.group(1))
+        # Если текущий номер равен 1, значит мы уже на первой странице
+        if current_num == 1:
+            await callback.answer("⚠️ Это первое событие", show_alert=True)
+            return
+        # Если target_index совпадает с текущим индексом (current_num - 1), значит мы уже на этой странице
+        if target_index == current_num - 1:
+            await callback.answer("⚠️ Это первое событие", show_alert=True)
+            return
 
     await _show_manage_event(callback, active_events, target_index)
     await callback.answer()
