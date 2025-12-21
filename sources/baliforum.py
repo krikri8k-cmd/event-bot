@@ -376,12 +376,6 @@ def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> 
         try:
             detail = _fetch(url)
             ds = BeautifulSoup(detail, "html.parser")
-            v = ds.select_one(".event-venue, .place, .location, .event-meta .place")
-            venue = v.get_text(strip=True) if v else None
-
-            # Если venue не найдено, но есть название места из Google Maps, используем его
-            if not venue and place_name_from_maps:
-                venue = place_name_from_maps
 
             # Ищем координаты на детальной странице
             # 1. В ссылках на Google Maps
@@ -406,6 +400,14 @@ def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> 
                             f"ссылка: {location_url[:80] if location_url else None}"
                         )
                         break
+
+            # Извлекаем venue из HTML страницы
+            v = ds.select_one(".event-venue, .place, .location, .event-meta .place")
+            venue = v.get_text(strip=True) if v else None
+
+            # Если venue не найдено, но есть название места из Google Maps, используем его
+            if not venue and place_name_from_maps:
+                venue = place_name_from_maps
 
             # 2. В data-атрибутах элементов
             if not lat or not lng:
