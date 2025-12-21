@@ -1667,10 +1667,10 @@ def force_memory_cleanup():
         f"выполняю принудительную очистку"
     )
 
-    # Агрессивная очистка user_state (удаляем 50% самых старых)
+    # Агрессивная очистка user_state (удаляем 70% самых старых для более радикальной очистки)
     if len(user_state) > 0:
         sorted_chats = sorted(_user_state_timestamps.items(), key=lambda x: x[1])
-        to_remove = max(1, len(user_state) // 2)  # Удаляем половину
+        to_remove = max(1, int(len(user_state) * 0.7))  # Удаляем 70% самых старых
         removed_count = 0
         for chat_id, _ in sorted_chats[:to_remove]:
             if chat_id in user_state:
@@ -1705,7 +1705,7 @@ async def periodic_cleanup_user_state():
     last_cleanup = time.time()
 
     while True:
-        await asyncio.sleep(60)  # Проверяем каждую минуту
+        await asyncio.sleep(30)  # Проверяем каждые 30 секунд для более частой проверки
         current_time = time.time()
 
         try:
@@ -2193,7 +2193,8 @@ class DuplicateCallbackMiddleware(BaseMiddleware):
     def __init__(self):
         # Храним обработанные callback_query ID (очищаем старые периодически)
         self._processed_callbacks: set[str] = set()
-        self._max_size = 10000  # Максимальное количество хранимых ID
+        # СНИЖЕНО для более агрессивной защиты от OOM
+        self._max_size = 5000  # Максимальное количество хранимых ID (было 10000)
 
     async def __call__(
         self, handler: Callable[[Any, dict[str, Any]], Awaitable[Any]], event: Any, data: dict[str, Any]
@@ -7795,6 +7796,8 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             from aiogram.types import BufferedInputFile, InputMediaPhoto
 
             map_file = BufferedInputFile(map_bytes, filename="map.png")
+            # Освобождаем память после создания файла
+            del map_bytes
             map_caption = "📍 Карта событий"
 
             # Используем сохраненный map_message_id (получен ДО обновления состояния)
