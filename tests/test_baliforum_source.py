@@ -15,19 +15,34 @@ def test_parse_time():
 def test_extract_latlng_from_maps():
     """Тест извлечения координат из Google Maps URL"""
     # Формат /@lat,lng
-    lat, lng = _extract_latlng_from_maps("https://maps.google.com/@-8.70,115.22,15z")
+    lat, lng, place_name, maps_url = _extract_latlng_from_maps("https://maps.google.com/@-8.70,115.22,15z")
     assert lat == -8.70
     assert lng == 115.22
+    assert place_name is None  # В этом формате нет названия места
+    assert maps_url == "https://maps.google.com/@-8.70,115.22,15z"
 
     # Формат query=lat%2Clng
-    lat, lng = _extract_latlng_from_maps("https://maps.google.com/maps?query=-8.70%2C115.22")
+    lat, lng, place_name, maps_url = _extract_latlng_from_maps("https://maps.google.com/maps?query=-8.70%2C115.22")
     assert lat == -8.70
     assert lng == 115.22
+    assert place_name is None  # В этом формате нет названия места
+    assert maps_url == "https://maps.google.com/maps?query=-8.70%2C115.22"
+
+    # Формат /place/name/@lat,lng (с названием места)
+    lat, lng, place_name, maps_url = _extract_latlng_from_maps(
+        "https://www.google.com/maps/place/Canggu+Beach/@-8.70,115.22,15z"
+    )
+    assert lat == -8.70
+    assert lng == 115.22
+    assert place_name == "Canggu Beach"  # Название места извлечено
+    assert "Canggu+Beach" in maps_url or "Canggu Beach" in maps_url
 
     # Невалидный URL
-    lat, lng = _extract_latlng_from_maps("https://example.com")
+    lat, lng, place_name, maps_url = _extract_latlng_from_maps("https://example.com")
     assert lat is None
     assert lng is None
+    assert place_name is None
+    assert maps_url is None
 
 
 def test_ru_date_to_dt():
