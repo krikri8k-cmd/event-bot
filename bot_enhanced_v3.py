@@ -11309,6 +11309,15 @@ async def main():
     except Exception as e:
         logger.error(f"Ошибка при очистке user_state при старте: {e}")
 
+    # Восстанавливаем автоудаление сообщений после перезапуска
+    try:
+        from utils.messaging_utils import restore_auto_delete_on_startup
+
+        asyncio.create_task(restore_auto_delete_on_startup(bot))
+        logger.info("✅ Запущено восстановление автоудаления сообщений после перезапуска")
+    except Exception as e:
+        logger.error(f"❌ Ошибка при восстановлении автоудаления: {e}")
+
     # Запускаем фоновую задачу для очистки моментов
     from config import load_settings
 

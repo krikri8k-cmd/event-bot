@@ -5,15 +5,17 @@
 
 import asyncio
 import logging
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.types import InlineKeyboardMarkup
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from database import BotMessage, ChatSettings
+from database import BotMessage, ChatSettings, get_async_session
 
 logger = logging.getLogger(__name__)
 
@@ -680,3 +682,85 @@ async def get_chat_creator(bot: Bot, chat_id: int) -> dict | None:
     except Exception as e:
         logger.error(f"❌ Ошибка получения создателя чата {chat_id}: {e}")
         return None
+
+
+async def restore_auto_delete_on_startup(bot: Bot):
+    """
+    Восстанавливает автоудаление для сообщений после перезапуска бота.
+    Удаляет старые сообщения (старше 210 секунд) и запускает автоудаление для новых.
+    """
+    AUTO_DELETE_DELAY = 210  # 3.5 минуты
+    TAGS_TO_AUTO_DELETE = ["service", "panel", "list"]
+
+    try:
+        logger.info("🔄 Восстановление автоудаления после перезапуска бота...")
+
+        async with get_async_session() as session:
+            # Находим все неудаленные сообщения с нужными тегами
+            cutoff_time = datetime.now(UTC) - timedelta(seconds=AUTO_DELETE_DELAY)
+
+            result = await session.execute(
+                select(BotMessage).where(
+                    BotMessage.deleted.is_(False),
+                    BotMessage.tag.in_(TAGS_TO_AUTO_DELETE),
+                    BotMessage.created_at < cutoff_time,
+                )
+            )
+            old_messages = result.scalars().all()
+
+            # Удаляем старые сообщения сразу
+            deleted_count = 0
+            for bot_msg in old_messages:
+                try:
+                    await bot.delete_message(chat_id=bot_msg.chat_id, message_id=bot_msg.message_id)
+                    bot_msg.deleted = True
+                    deleted_count += 1
+                    logger.debug(f"✅ Удалено старое сообщение {bot_msg.message_id} (tag: {bot_msg.tag})")
+                except Exception as e:
+                    # Если сообщение уже удалено или недоступно, помечаем как удаленное
+                    logger.debug(f"ℹ️ Не удалось удалить старое сообщение {bot_msg.message_id}: {e}")
+                    bot_msg.deleted = True
+
+            if deleted_count > 0:
+                await session.commit()
+                logger.info(f"✅ Удалено {deleted_count} старых сообщений при восстановлении автоудаления")
+
+            # Находим новые сообщения (созданные менее 210 секунд назад) и запускаем для них автоудаление
+            now = datetime.now(UTC)
+            result = await session.execute(
+                select(BotMessage).where(
+                    BotMessage.deleted.is_(False),
+                    BotMessage.tag.in_(TAGS_TO_AUTO_DELETE),
+                    BotMessage.created_at >= cutoff_time,
+                )
+            )
+            new_messages = result.scalars().all()
+
+            restored_count = 0
+            for bot_msg in new_messages:
+                # Вычисляем оставшееся время до автоудаления
+                elapsed = (now - bot_msg.created_at).total_seconds()
+                remaining_seconds = max(1, int(AUTO_DELETE_DELAY - elapsed))
+
+                # Запускаем автоудаление с оставшимся временем
+                async def safe_auto_delete_for_msg(chat_id: int, message_id: int, delay: int):
+                    try:
+                        await auto_delete_message(bot, chat_id, message_id, delay)
+                    except Exception as e:
+                        logger.error(f"❌ Ошибка автоудаления для сообщения {message_id}: {e}")
+
+                asyncio.create_task(safe_auto_delete_for_msg(bot_msg.chat_id, bot_msg.message_id, remaining_seconds))
+                restored_count += 1
+
+            if restored_count > 0:
+                logger.info(f"✅ Восстановлено автоудаление для {restored_count} сообщений")
+
+            total_processed = deleted_count + restored_count
+            if total_processed == 0:
+                logger.info("ℹ️ Нет сообщений, требующих восстановления автоудаления")
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка при восстановлении автоудаления: {e}")
+        import traceback
+
+        logger.error(traceback.format_exc())
