@@ -2738,8 +2738,8 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
 
     keyboard = [
         [KeyboardButton(text="📍 Что рядом"), KeyboardButton(text="➕ Создать")],
-        [KeyboardButton(text="🎯 Чем заняться"), KeyboardButton(text="🏆 Мои квесты")],
-        [KeyboardButton(text="🔗 Добавить бота в чат"), KeyboardButton(text="📋 Мои события")],
+        [KeyboardButton(text="🎯 Чем заняться"), KeyboardButton(text="📝 Мои активности")],
+        [KeyboardButton(text="🔗 Добавить бота в чат")],
         [KeyboardButton(text="🚀 Старт")],
     ]
 
@@ -6913,6 +6913,102 @@ async def on_tasks_goal(message: types.Message, state: FSMContext):
 
     # Если фото нет или произошла ошибка, отправляем только текст
     await message.answer(quest_text, parse_mode="Markdown", reply_markup=location_keyboard)
+
+
+@main_router.message(F.text == "📝 Мои активности")
+async def on_my_activities(message: types.Message):
+    """Обработчик кнопки 'Мои активности' - показывает выбор между событиями и квестами"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📋 Мои события", callback_data="show_my_events")],
+            [InlineKeyboardButton(text="🏆 Мои квесты", callback_data="show_my_tasks")],
+        ]
+    )
+    await message.answer("Выберите раздел:", reply_markup=keyboard)
+
+
+@main_router.callback_query(F.data == "show_my_events")
+async def show_my_events_callback(callback: types.CallbackQuery):
+    """Callback обработчик для показа событий"""
+    await callback.answer()
+
+    # Удаляем сообщение с выбором
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+
+    # Создаем новый Message через bot для имитации сообщения от пользователя
+    # Используем временное сообщение как основу
+    from datetime import datetime
+
+    from aiogram.types import Message as MessageType
+
+    # Создаем Message объект с правильными атрибутами
+    message = MessageType(
+        message_id=0,  # Будет установлено при отправке
+        date=datetime.now(),
+        chat=callback.message.chat,
+        from_user=callback.from_user,
+        text="📋 Мои события",
+        bot=callback.bot,
+    )
+
+    # Устанавливаем message_id через отправку временного сообщения
+    temp_msg = await callback.bot.send_message(
+        chat_id=callback.message.chat.id,
+        text="Загрузка...",
+    )
+
+    # Обновляем message_id
+    object.__setattr__(message, "message_id", temp_msg.message_id)
+
+    # Удаляем временное сообщение
+    try:
+        await temp_msg.delete()
+    except Exception:
+        pass
+
+    await on_my_events(message)
+
+
+@main_router.callback_query(F.data == "show_my_tasks")
+async def show_my_tasks_callback(callback: types.CallbackQuery):
+    """Callback обработчик для показа квестов"""
+    await callback.answer()
+
+    # Удаляем сообщение с выбором
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+
+    from datetime import datetime
+
+    from aiogram.types import Message as MessageType
+
+    message = MessageType(
+        message_id=0,
+        date=datetime.now(),
+        chat=callback.message.chat,
+        from_user=callback.from_user,
+        text="🏆 Мои квесты",
+        bot=callback.bot,
+    )
+
+    temp_msg = await callback.bot.send_message(
+        chat_id=callback.message.chat.id,
+        text="Загрузка...",
+    )
+
+    object.__setattr__(message, "message_id", temp_msg.message_id)
+
+    try:
+        await temp_msg.delete()
+    except Exception:
+        pass
+
+    await on_my_tasks(message)
 
 
 @main_router.message(F.text == "🏆 Мои квесты")
