@@ -134,7 +134,7 @@ async def reverse_geocode(lat: float, lng: float) -> str | None:
         try:
             places_params = {
                 "location": f"{lat:.6f},{lng:.6f}",
-                "radius": "50",  # 50 метров
+                "radius": "100",  # 100 метров - увеличиваем радиус для лучшего покрытия
                 "key": settings.google_maps_api_key,
                 "type": "establishment|point_of_interest",
             }
@@ -215,10 +215,10 @@ async def reverse_geocode(lat: float, lng: float) -> str | None:
                         # Более мягкая проверка - принимаем, если не явный адрес и не слишком длинный
                         if name and len(name) > 5 and len(name) < 50 and not _is_address(name):
                             return name
-                        # Если это короткий адрес без "No.", принимаем его (лучше чем ничего)
-                        elif name and len(name) > 5 and len(name) < 40 and " no." not in name.lower():
-                            # Проверяем, что это не Plus Code
-                            if not (len(name) <= 10 and "+" in name):
+                        # Если это короткий адрес без "No.", принимаем его (лучше чем координаты)
+                        elif name and len(name) > 5 and len(name) < 40:
+                            # Проверяем, что это не Plus Code и не содержит номер дома
+                            if not (len(name) <= 10 and "+" in name) and " no." not in name.lower():
                                 return name
 
     except Exception as e:

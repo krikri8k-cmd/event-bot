@@ -24,6 +24,7 @@ async def update_events_location_names():
 
     with engine.connect() as conn:
         # Находим события с пустым location_name, но с координатами
+        # Приоритет на события от baliforum
         query = text("""
             SELECT id, lat, lng, title, source, location_name
             FROM events
@@ -35,8 +36,9 @@ async def update_events_location_names():
             )
             AND lat IS NOT NULL AND lng IS NOT NULL
             AND status NOT IN ('closed', 'canceled')
+            AND source = 'baliforum'
             ORDER BY created_at_utc DESC
-            LIMIT 100
+            LIMIT 50
         """)
 
         result = conn.execute(query)
