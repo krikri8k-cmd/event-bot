@@ -189,6 +189,32 @@ def attach_bot_to_app(app: FastAPI) -> None:
             except Exception as e:
                 logger.warning(f"Не удалось запустить периодическое обновление команд: {e}")
 
+            # Запускаем планировщик для автоматических задач (парсинг событий, напоминания)
+            try:
+                # Запускаем планировщик в отдельном потоке, чтобы не блокировать основной поток
+                import threading
+
+                from modern_scheduler import start_modern_scheduler
+
+                def start_scheduler_thread():
+                    try:
+                        start_modern_scheduler()
+                        logger.info("✅ Планировщик запущен в отдельном потоке")
+                    except Exception as e:
+                        logger.error(f"❌ Ошибка запуска планировщика: {e}")
+                        import traceback
+
+                        logger.error(traceback.format_exc())
+
+                scheduler_thread = threading.Thread(target=start_scheduler_thread, daemon=True)
+                scheduler_thread.start()
+                logger.info("✅ Поток планировщика запущен")
+            except Exception as e:
+                logger.error(f"❌ Ошибка инициализации планировщика: {e}")
+                import traceback
+
+                logger.error(traceback.format_exc())
+
             # Помечаем как готов
             app.state.ready = True
             logger.info("✅ Бот инициализирован и готов к работе")
