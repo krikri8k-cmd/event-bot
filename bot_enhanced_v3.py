@@ -6017,6 +6017,291 @@ async def cancel_creation(message: types.Message, state: FSMContext):
     await message.answer("Создание отменено.", reply_markup=main_menu_kb())
 
 
+async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_private: bool):
+    """Вспомогательная функция для обработки 'Мои события' через bot напрямую"""
+    logger.info(f"🔍 _handle_my_events_via_bot: запрос от пользователя {user_id}")
+
+    # Инкрементируем сессию World (с проверкой времени)
+    if is_private:
+        from utils.user_analytics import UserAnalytics
+
+        UserAnalytics.maybe_increment_sessions_world(user_id, min_interval_minutes=6)
+
+    # Автомодерация: закрываем прошедшие события
+    closed_count = auto_close_events()
+    if closed_count > 0:
+        await bot.send_message(chat_id=chat_id, text=f"🤖 Автоматически закрыто {closed_count} прошедших событий")
+
+    # Получаем события пользователя
+    events = get_user_events(user_id)
+    logger.info(
+        f"🔍 _handle_my_events_via_bot: найдено {len(events) if events else 0} событий для пользователя {user_id}"
+    )
+
+    # Получаем события с участием (все добавленные события)
+    all_participations = []
+
+    # Получаем баланс ракет пользователя
+    from rockets_service import get_user_rockets
+
+    rocket_balance = get_user_rockets(user_id)
+
+    # Формируем текст сообщения (та же логика, что и в on_my_events)
+    text_parts = ["📋 **Мои события:**\n", f"**Баланс {rocket_balance} 🚀**\n"]
+
+    # Созданные события
+    if events:
+        active_events = [e for e in events if e.get("status") == "open"]
+
+        # Показываем также недавно закрытые события (за последние 24 часа)
+        from datetime import datetime, timedelta
+
+        import pytz
+
+        tz_bali = pytz.timezone("Asia/Makassar")
+        now_bali = datetime.now(tz_bali)
+        day_ago = now_bali - timedelta(hours=24)
+
+        recent_closed_events = []
+        for e in events:
+            if e.get("status") == "closed":
+                updated_at = e.get("updated_at_utc")
+                if updated_at:
+                    local_time = updated_at.astimezone(tz_bali)
+                    if local_time >= day_ago:
+                        recent_closed_events.append(e)
+
+        if active_events:
+            text_parts.append("📝 **Созданные мной:**")
+            for i, event in enumerate(active_events[:3], 1):
+                title = event.get("title", "Без названия")
+                location = event.get("location_name", "Место уточняется")
+                starts_at = event.get("starts_at")
+
+                if starts_at:
+                    local_time = starts_at.astimezone(tz_bali)
+                    time_str = local_time.strftime("%d.%m.%Y %H:%M")
+                else:
+                    time_str = "Время уточняется"
+
+                escaped_title = (
+                    title.replace("\\", "\\\\")
+                    .replace("*", "\\*")
+                    .replace("_", "\\_")
+                    .replace("`", "\\`")
+                    .replace("[", "\\[")
+                )
+                escaped_location = (
+                    location.replace("\\", "\\\\")
+                    .replace("*", "\\*")
+                    .replace("_", "\\_")
+                    .replace("`", "\\`")
+                    .replace("[", "\\[")
+                )
+
+                text_parts.append(f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location}\n")
+
+            if len(active_events) > 3:
+                text_parts.append(f"... и еще {len(active_events) - 3} событий")
+
+        if recent_closed_events:
+            text_parts.append(f"\n🔴 **Недавно закрытые ({len(recent_closed_events)}):**")
+            for i, event in enumerate(recent_closed_events[:3], 1):
+                title = event.get("title", "Без названия")
+                location = event.get("location_name", "Место уточняется")
+                starts_at = event.get("starts_at")
+
+                if starts_at:
+                    local_time = starts_at.astimezone(tz_bali)
+                    time_str = local_time.strftime("%d.%m.%Y %H:%M")
+                else:
+                    time_str = "Время уточняется"
+
+                escaped_title = (
+                    title.replace("\\", "\\\\")
+                    .replace("*", "\\*")
+                    .replace("_", "\\_")
+                    .replace("`", "\\`")
+                    .replace("[", "\\[")
+                )
+                escaped_location = (
+                    location.replace("\\", "\\\\")
+                    .replace("*", "\\*")
+                    .replace("_", "\\_")
+                    .replace("`", "\\`")
+                    .replace("[", "\\[")
+                )
+
+                text_parts.append(f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location} (закрыто)\n")
+
+            if len(recent_closed_events) > 3:
+                text_parts.append(f"... и еще {len(recent_closed_events) - 3} закрытых событий")
+
+    # Добавленные события
+    if all_participations:
+        text_parts.append(f"\n➕ **Добавленные ({len(all_participations)}):**")
+        for i, event in enumerate(all_participations[:3], 1):
+            title = event.get("title", "Без названия")
+            starts_at = event.get("starts_at")
+            if starts_at:
+                import pytz
+
+                tz_bali = pytz.timezone("Asia/Makassar")
+                local_time = starts_at.astimezone(tz_bali)
+                time_str = local_time.strftime("%H:%M")
+            else:
+                time_str = "Время уточняется"
+            escaped_title = (
+                title.replace("\\", "\\\\")
+                .replace("*", "\\*")
+                .replace("_", "\\_")
+                .replace("`", "\\`")
+                .replace("[", "\\[")
+            )
+            text_parts.append(f"{i}) {escaped_title} – {time_str}")
+
+        if len(all_participations) > 3:
+            text_parts.append(f"... и еще {len(all_participations) - 3} событий")
+
+    if events or all_participations:
+        text_parts.append("\nℹ️ События в версии Community и World удаляются отдельно")
+
+    if not events and not all_participations:
+        rocket_balance = get_user_rockets(user_id)
+        text_parts = [
+            "📋 **Мои события:**\n",
+            "У вас пока нет событий.\n",
+            f"**Баланс {rocket_balance} 🚀**",
+        ]
+
+    text = "\n".join(text_parts)
+
+    # Создаем клавиатуру
+    keyboard_buttons = []
+    if events:
+        keyboard_buttons.append([InlineKeyboardButton(text="🔧 Управление событиями", callback_data="manage_events")])
+    if all_participations:
+        keyboard_buttons.append(
+            [InlineKeyboardButton(text="📋 Все добавленные события", callback_data="view_participations")]
+        )
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons) if keyboard_buttons else main_menu_kb()
+
+    # Отправляем сообщение через bot
+    import os
+    from pathlib import Path
+
+    photo_path = Path(__file__).parent / "images" / "my_events.png"
+
+    if os.path.exists(photo_path):
+        try:
+            from aiogram.types import FSInputFile
+
+            photo = FSInputFile(photo_path)
+            await bot.send_photo(
+                chat_id=chat_id, photo=photo, caption=text, reply_markup=keyboard, parse_mode="Markdown"
+            )
+            return
+        except Exception as e:
+            logger.error(f"❌ Ошибка отправки фото: {e}", exc_info=True)
+
+    try:
+        await bot.send_message(chat_id=chat_id, text=text, reply_markup=keyboard, parse_mode="Markdown")
+    except Exception as e:
+        logger.error(f"❌ Ошибка отправки сообщения: {e}")
+        await bot.send_message(chat_id=chat_id, text=text, reply_markup=keyboard)
+
+
+async def _handle_my_tasks_via_bot(bot: Bot, chat_id: int, user_id: int, is_private: bool):
+    """Вспомогательная функция для обработки 'Мои квесты' через bot напрямую"""
+    # Инкрементируем сессию World (с проверкой времени)
+    if is_private:
+        from utils.user_analytics import UserAnalytics
+
+        UserAnalytics.maybe_increment_sessions_world(user_id, min_interval_minutes=6)
+
+    # Получаем активные задания пользователя
+    active_tasks = get_user_active_tasks(user_id)
+
+    # Получаем баланс ракет пользователя
+    from rockets_service import get_user_rockets
+
+    rocket_balance = get_user_rockets(user_id)
+
+    # Формируем текст сообщения
+    if not active_tasks:
+        message_text = (
+            "🏆 **Мои квесты**\n\n"
+            "У вас пока нет активных заданий.\n\n"
+            f"**Баланс {rocket_balance} 🚀**\n\n"
+            "🎯 Нажмите 'Чем заняться' чтобы получить новые задания!"
+        )
+        keyboard = None
+    else:
+        message_text = "📋 **Ваши активные задания:**\n\n"
+        message_text += "Прохождение + 3 🚀\n\n"
+        message_text += f"**Баланс {rocket_balance} 🚀**\n\n"
+
+        for i, task in enumerate(active_tasks, 1):
+            category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
+            category_emoji = category_emojis.get(task["category"], "📋")
+
+            message_text += f"{i}) {category_emoji} **{task['title']}**\n"
+
+            if task.get("place_name") or task.get("place_url"):
+                place_name = task.get("place_name", "Место на карте")
+                place_url = task.get("place_url")
+                distance = task.get("distance_km")
+
+                if place_url:
+                    if distance:
+                        message_text += f"📍 **Место:** [{place_name} ({distance:.1f} км)]({place_url})\n"
+                    else:
+                        message_text += f"📍 **Место:** [{place_name}]({place_url})\n"
+                else:
+                    if distance:
+                        message_text += f"📍 **Место:** {place_name} ({distance:.1f} км)\n"
+                    else:
+                        message_text += f"📍 **Место:** {place_name}\n"
+
+            if task.get("promo_code"):
+                message_text += f"🎁 **Промокод:** `{task['promo_code']}`\n"
+
+            message_text += "\n"
+
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🔧 Управление заданиями", callback_data="manage_tasks")],
+                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+            ]
+        )
+
+    # Отправляем сообщение через bot
+    import os
+    from pathlib import Path
+
+    photo_path = Path(__file__).parent / "images" / "my_quests.png"
+
+    if os.path.exists(photo_path):
+        try:
+            from aiogram.types import FSInputFile
+
+            photo = FSInputFile(photo_path)
+            if keyboard:
+                await bot.send_photo(
+                    chat_id=chat_id, photo=photo, caption=message_text, reply_markup=keyboard, parse_mode="Markdown"
+                )
+            else:
+                await bot.send_photo(chat_id=chat_id, photo=photo, caption=message_text, parse_mode="Markdown")
+            return
+        except Exception as e:
+            logger.error(f"❌ Ошибка отправки фото: {e}", exc_info=True)
+
+    if keyboard:
+        await bot.send_message(chat_id=chat_id, text=message_text, parse_mode="Markdown", reply_markup=keyboard)
+    else:
+        await bot.send_message(chat_id=chat_id, text=message_text, parse_mode="Markdown")
+
+
 @main_router.message(Command("myevents"))
 @main_router.message(F.text == "📋 Мои события")
 async def on_my_events(message: types.Message):
@@ -6937,38 +7222,13 @@ async def show_my_events_callback(callback: types.CallbackQuery):
     except Exception:
         pass
 
-    # Создаем новый Message через bot для имитации сообщения от пользователя
-    # Используем временное сообщение как основу
-    from datetime import datetime
+    # Вызываем логику напрямую через bot
+    user_id = callback.from_user.id
+    chat_id = callback.message.chat.id
+    bot = callback.bot
+    is_private = callback.message.chat.type == "private"
 
-    from aiogram.types import Message as MessageType
-
-    # Создаем Message объект с правильными атрибутами
-    message = MessageType(
-        message_id=0,  # Будет установлено при отправке
-        date=datetime.now(),
-        chat=callback.message.chat,
-        from_user=callback.from_user,
-        text="📋 Мои события",
-        bot=callback.bot,
-    )
-
-    # Устанавливаем message_id через отправку временного сообщения
-    temp_msg = await callback.bot.send_message(
-        chat_id=callback.message.chat.id,
-        text="Загрузка...",
-    )
-
-    # Обновляем message_id
-    object.__setattr__(message, "message_id", temp_msg.message_id)
-
-    # Удаляем временное сообщение
-    try:
-        await temp_msg.delete()
-    except Exception:
-        pass
-
-    await on_my_events(message)
+    await _handle_my_events_via_bot(bot, chat_id, user_id, is_private)
 
 
 @main_router.callback_query(F.data == "show_my_tasks")
@@ -6982,32 +7242,13 @@ async def show_my_tasks_callback(callback: types.CallbackQuery):
     except Exception:
         pass
 
-    from datetime import datetime
+    # Вызываем логику напрямую через bot
+    user_id = callback.from_user.id
+    chat_id = callback.message.chat.id
+    bot = callback.bot
+    is_private = callback.message.chat.type == "private"
 
-    from aiogram.types import Message as MessageType
-
-    message = MessageType(
-        message_id=0,
-        date=datetime.now(),
-        chat=callback.message.chat,
-        from_user=callback.from_user,
-        text="🏆 Мои квесты",
-        bot=callback.bot,
-    )
-
-    temp_msg = await callback.bot.send_message(
-        chat_id=callback.message.chat.id,
-        text="Загрузка...",
-    )
-
-    object.__setattr__(message, "message_id", temp_msg.message_id)
-
-    try:
-        await temp_msg.delete()
-    except Exception:
-        pass
-
-    await on_my_tasks(message)
+    await _handle_my_tasks_via_bot(bot, chat_id, user_id, is_private)
 
 
 @main_router.message(F.text == "🏆 Мои квесты")
