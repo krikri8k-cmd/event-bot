@@ -200,19 +200,51 @@ def _ru_date_to_dt(label: str, now: datetime, tz: ZoneInfo) -> tuple[datetime | 
         return None, None
 
 
-def _extract_latlng_from_maps(url: str) -> tuple[float | None, float | None]:
-    """Извлекает координаты из Google Maps URL"""
-    m = MAP_RE.search(url or "")
+def _extract_latlng_from_maps(url: str) -> tuple[float | None, float | None, str | None, str | None]:
+    """
+    Извлекает координаты, название места и ссылку из Google Maps URL
+
+    Returns:
+        tuple: (lat, lng, place_name, maps_url) или (None, None, None, None) если не удалось распарсить
+    """
+    if not url:
+        return None, None, None, None
+
+    m = MAP_RE.search(url)
     if not m:
-        return None, None
+        return None, None, None, None
 
     # Проверяем оба формата: /@lat,lng и query=lat%2Clng
     lat = m.group("lat") or m.group("lat2")
     lng = m.group("lng") or m.group("lng2")
 
-    if lat and lng:
-        return float(lat), float(lng)
-    return None, None
+    if not lat or not lng:
+        return None, None, None, None
+
+    lat = float(lat)
+    lng = float(lng)
+
+    # Извлекаем название места из URL
+    place_name = None
+    try:
+        from urllib.parse import unquote
+
+        # Паттерн для /place/name/ или /place/name/data=...
+        place_pattern = r"/place/([^/@]+?)(?:/data=|/|$)"
+        match = re.search(place_pattern, url)
+        if match:
+            name = match.group(1)
+            place_name = unquote(name).replace("+", " ")
+    except Exception:
+        pass
+
+    # Нормализуем ссылку (убираем лишние параметры, но сохраняем основную структуру)
+    url.split("?")[0] if "?" in url else url
+    # Если есть координаты в формате @lat,lng, сохраняем их
+    if "@" in url:
+        url.split("?")[0] if "?" in url else url
+
+    return lat, lng, place_name, url  # Возвращаем оригинальную ссылку
 
 
 def _fetch(url: str, timeout=15) -> str:
@@ -339,20 +371,40 @@ def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> 
         # Детальная страница
         venue = None
         lat = lng = None
+        location_url = None
+        place_name_from_maps = None
         try:
             detail = _fetch(url)
             ds = BeautifulSoup(detail, "html.parser")
             v = ds.select_one(".event-venue, .place, .location, .event-meta .place")
             venue = v.get_text(strip=True) if v else None
 
+            # Если venue не найдено, но есть название места из Google Maps, используем его
+            if not venue and place_name_from_maps:
+                venue = place_name_from_maps
+
             # Ищем координаты на детальной странице
             # 1. В ссылках на Google Maps
+            location_url = None
+            place_name_from_maps = None
             for link in ds.find_all("a", href=True):
                 href = link["href"]
                 if "google.com/maps" in href or "maps.google.com" in href or "/maps" in href:
-                    lat, lng = _extract_latlng_from_maps(href)
+                    # Нормализуем относительные ссылки
+                    if href.startswith("/"):
+                        href = "https://www.google.com" + href
+                    elif not href.startswith("http"):
+                        href = "https://" + href
+
+                    lat, lng, place_name, maps_url = _extract_latlng_from_maps(href)
                     if lat and lng:
-                        print(f"DEBUG: baliforum: найдены координаты на детальной странице: {lat}, {lng} для '{title}'")
+                        location_url = maps_url  # Сохраняем оригинальную ссылку
+                        place_name_from_maps = place_name
+                        print(
+                            f"DEBUG: baliforum: найдены координаты на детальной странице: {lat}, {lng} "
+                            f"для '{title}', место: {place_name_from_maps}, "
+                            f"ссылка: {location_url[:80] if location_url else None}"
+                        )
                         break
 
             # 2. В data-атрибутах элементов
@@ -398,9 +450,21 @@ def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> 
             for link in card.find_all("a", href=True):
                 href = link["href"]
                 if "google.com/maps" in href or "/maps" in href:
-                    lat, lng = _extract_latlng_from_maps(href)
+                    # Нормализуем относительные ссылки
+                    if href.startswith("/"):
+                        href = "https://www.google.com" + href
+                    elif not href.startswith("http"):
+                        href = "https://" + href
+
+                    lat, lng, place_name, maps_url = _extract_latlng_from_maps(href)
                     if lat and lng:
-                        print(f"DEBUG: baliforum: найдены координаты в карточке: {lat}, {lng} для '{title}'")
+                        location_url = maps_url  # Сохраняем оригинальную ссылку
+                        place_name_from_maps = place_name
+                        print(
+                            f"DEBUG: baliforum: найдены координаты в карточке: {lat}, {lng} "
+                            f"для '{title}', место: {place_name_from_maps}, "
+                            f"ссылка: {location_url[:80] if location_url else None}"
+                        )
                         break
 
         # Если координаты все еще не найдены, пробуем геокодинг по адресу/venue
@@ -440,10 +504,11 @@ def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> 
                     "lng": lng,
                     "url": url,
                     "source_url": url,
+                    "location_url": location_url,  # Сохраняем ссылку Google Maps для маршрута
                     "booking_url": None,
                     "ticket_url": None,
                     "external_id": external_id,
-                    "raw": {"date_text": date_text},
+                    "raw": {"date_text": date_text, "place_name_from_maps": place_name_from_maps},
                 }
             )
             parsed_count += 1
@@ -472,6 +537,23 @@ def fetch(limit: int = 100) -> list[RawEvent]:
         # Парсим дату если есть
         starts_at = event["start_time"]
 
+        # Формируем description с venue и location_url для передачи в БД
+        description_parts = []
+        if event.get("description"):
+            description_parts.append(event["description"])
+
+        # Добавляем venue в description, если есть
+        venue = event.get("venue")
+        if venue:
+            description_parts.append(f"\n📍 Место: {venue}")
+
+        # Сохраняем location_url и venue в raw для использования при сохранении
+        raw_data = {
+            "venue": venue,
+            "location_url": event.get("location_url"),
+            "place_name_from_maps": event.get("raw", {}).get("place_name_from_maps"),
+        }
+
         raw_event = RawEvent(
             title=event["title"],
             lat=event["lat"] or 0.0,
@@ -480,8 +562,10 @@ def fetch(limit: int = 100) -> list[RawEvent]:
             source="baliforum",
             external_id=external_id,
             url=event["url"],
-            description=event.get("description"),
+            description="\n".join(description_parts) if description_parts else None,
         )
+        # Сохраняем дополнительные данные в атрибуте raw_event для использования при сохранении
+        raw_event._raw_data = raw_data  # type: ignore
         raw_events.append(raw_event)
 
     return raw_events

@@ -50,6 +50,16 @@ def run_baliforum_ingest():
                         skipped_no_coords += 1
                         continue
 
+                    # Извлекаем venue и location_url из _raw_data если есть
+                    venue = ""
+                    location_url = ""
+                    location_name = ""
+                    if hasattr(event, "_raw_data") and event._raw_data:
+                        venue = event._raw_data.get("venue", "") or ""
+                        location_url = event._raw_data.get("location_url", "") or ""
+                        place_name = event._raw_data.get("place_name_from_maps", "") or ""
+                        location_name = venue or place_name or ""
+
                     # ПРАВИЛЬНАЯ АРХИТЕКТУРА: Сохраняем через UnifiedEventsService
                     # Сначала в events_parser, потом автоматически синхронизируется в events
                     event_id = service.save_parser_event(
@@ -61,8 +71,8 @@ def run_baliforum_ingest():
                         city="bali",
                         lat=event.lat,
                         lng=event.lng,
-                        location_name=event.description or "",
-                        location_url="",
+                        location_name=location_name,
+                        location_url=location_url,
                         url=event.url,
                     )
 

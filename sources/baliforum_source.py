@@ -93,6 +93,13 @@ class BaliForumSource:
                     # и показывать их пользователям с разными радиусами поиска.
                     distance = self._calculate_distance(lat, lng, event.lat, event.lng)
 
+                    # Извлекаем venue и location_url из _raw_data если есть
+                    venue_name = ""
+                    location_url = ""
+                    if hasattr(event, "_raw_data") and event._raw_data:
+                        venue_name = event._raw_data.get("venue", "") or ""
+                        location_url = event._raw_data.get("location_url", "") or ""
+
                     events.append(
                         {
                             "type": "source",
@@ -101,12 +108,13 @@ class BaliForumSource:
                             "time_local": event.starts_at.strftime("%Y-%m-%d %H:%M") if event.starts_at else "",
                             "start_time": event.starts_at,
                             "venue": {
-                                "name": "",  # BaliForum не всегда имеет venue
-                                "address": "",
+                                "name": venue_name,  # Используем venue из парсера
+                                "address": venue_name,  # Используем venue как address
                                 "lat": event.lat,
                                 "lon": event.lng,
                             },
                             "source_url": event.url or "",
+                            "location_url": location_url,  # Сохраняем ссылку Google Maps
                             "lat": event.lat,
                             "lng": event.lng,
                             "source": self.name,
