@@ -596,6 +596,26 @@ class ModernEventScheduler:
         except Exception as e:
             logger.error(f"❌ Ошибка проверки удаленных чатов: {e}")
 
+    def send_community_reminders(self):
+        """Отправка напоминаний о Community событиях за 24 часа"""
+        try:
+            import asyncio
+
+            from utils.community_reminders import send_24h_reminders_sync
+
+            bot_token = self.settings.telegram_token
+            if not bot_token:
+                logger.error("❌ TELEGRAM_TOKEN не установлен, пропускаем напоминания")
+                return
+
+            # Запускаем async функцию в синхронном контексте
+            asyncio.run(send_24h_reminders_sync(bot_token))
+        except Exception as e:
+            logger.error(f"❌ Ошибка отправки напоминаний: {e}")
+            import traceback
+
+            logger.error(traceback.format_exc())
+
     def start(self):
         """Запуск планировщика"""
         if self.scheduler and self.scheduler.running:
@@ -675,6 +695,16 @@ class ModernEventScheduler:
             self.check_removed_chats, "interval", hours=24, id="chat-status-check", max_instances=1, coalesce=True
         )
 
+        # Напоминания о Community событиях за 24 часа - проверяем каждый час
+        self.scheduler.add_job(
+            self.send_community_reminders,
+            "interval",
+            hours=1,
+            id="community-reminders",
+            max_instances=1,
+            coalesce=True,
+        )
+
         self.scheduler.start()
         logger.info("🚀 Современный планировщик запущен!")
         logger.info("   📅 Полный цикл: каждые 12 часов (2 раза в день)")
@@ -683,6 +713,7 @@ class ModernEventScheduler:
         logger.info("   ⏰ Очистка заданий: каждые 2 часа")
         logger.info("   🏘️ Архивация событий сообществ: каждые 6 часов")
         logger.info("   🔍 Проверка удаленных чатов: каждые 24 часа")
+        logger.info("   🔔 Напоминания о событиях: каждый час")
 
         # Запускаем первый цикл сразу
         self.run_full_ingest()
