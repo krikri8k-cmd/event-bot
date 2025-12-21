@@ -10995,6 +10995,11 @@ async def handle_pagination(callback: types.CallbackQuery):
             # Нет карты: все страницы по 8 событий
             total_pages = max(1, ceil(len(prepared) / 8))
 
+        # Проверяем, что запрошенная страница находится в допустимых пределах
+        if page < 1 or page > total_pages:
+            await callback.answer("⚠️ Это крайняя страница", show_alert=True)
+            return
+
         # Рендерим страницу
         # Теперь карта отдельно, поэтому is_caption=False для всех страниц
         page_html, _ = render_page(
