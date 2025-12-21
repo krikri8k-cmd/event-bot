@@ -11085,7 +11085,7 @@ async def on_main_menu_button(message: types.Message, state: FSMContext):
     await send_spinning_menu(message)
 
 
-@main_router.message(~StateFilter(EventCreation, EventEditing, TaskFlow))
+@main_router.message(~StateFilter(EventCreation, EventEditing, TaskFlow, CommunityEventCreation, CommunityEventEditing))
 async def echo_message(message: types.Message, state: FSMContext):
     """Обработчик всех остальных сообщений (кроме FSM состояний)"""
     # Пропускаем геолокацию - она обрабатывается отдельным обработчиком
