@@ -100,3 +100,4 @@
 2. Снизьте MEMORY_THRESHOLD_MB до 128 МБ
 3. Уменьшите USER_STATE_MAX_SIZE до 100
 4. Рассмотрите вынос user_state в Redis
+

@@ -54,6 +54,8 @@ def _stable_key(*parts: str) -> str:
 # lru_cache не умеет TTL — добавим простую прослойку
 _cache = {}
 _cache_lock = Lock()
+# ОГРАНИЧЕНИЕ РАЗМЕРА КЭША для защиты от OOM
+_MAX_CACHE_SIZE = 1000  # Максимум 1000 записей в кэше
 
 
 def _cache_get(k: str):
@@ -70,6 +72,21 @@ def _cache_get(k: str):
 
 def _cache_set(k: str, value):
     with _cache_lock:
+        # Очистка устаревших записей при превышении размера
+        if len(_cache) >= _MAX_CACHE_SIZE:
+            # Удаляем самые старые записи (по timestamp)
+            current_time = time.time()
+            expired_keys = [key for key, (_, ts) in _cache.items() if (current_time - ts) > CACHE_TTL_S]
+            for key in expired_keys:
+                _cache.pop(key, None)
+
+            # Если все еще слишком много, удаляем 50% самых старых
+            if len(_cache) >= _MAX_CACHE_SIZE:
+                sorted_items = sorted(_cache.items(), key=lambda x: x[1][1])  # Сортируем по timestamp
+                to_remove = len(_cache) - _MAX_CACHE_SIZE // 2
+                for key, _ in sorted_items[:to_remove]:
+                    _cache.pop(key, None)
+
         _cache[k] = (value, time.time())
 
 

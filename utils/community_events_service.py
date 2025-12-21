@@ -24,8 +24,10 @@ class CommunityEventsService:
             self.engine = engine
 
         # Кэш для админов групп (chat_id -> (admin_ids, timestamp))
+        # ОГРАНИЧЕНИЕ РАЗМЕРА для защиты от OOM
         self._admin_cache = {}
         self._cache_ttl = 600  # 10 минут
+        self._max_cache_size = 200  # Максимум 200 групп в кэше
 
     def create_community_event(
         self,
@@ -415,6 +417,20 @@ class CommunityEventsService:
 
         # Получаем свежие данные
         admin_ids = await self.get_group_admin_ids_async(bot, group_id)
+
+        # Очистка кэша при превышении размера
+        if len(self._admin_cache) >= self._max_cache_size:
+            # Удаляем устаревшие записи
+            expired_keys = [key for key, (_, ts) in self._admin_cache.items() if (current_time - ts) >= self._cache_ttl]
+            for key in expired_keys:
+                self._admin_cache.pop(key, None)
+
+            # Если все еще слишком много, удаляем 50% самых старых
+            if len(self._admin_cache) >= self._max_cache_size:
+                sorted_items = sorted(self._admin_cache.items(), key=lambda x: x[1][1])
+                to_remove = len(self._admin_cache) - self._max_cache_size // 2
+                for key, _ in sorted_items[:to_remove]:
+                    self._admin_cache.pop(key, None)
 
         # Сохраняем в кэш
         self._admin_cache[group_id] = (admin_ids, current_time)

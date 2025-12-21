@@ -1355,11 +1355,17 @@ async def enrich_events_with_reverse_geocoding(events: list[dict]) -> list[dict]
 
         return event
 
-    # Выполняем обогащение параллельно для всех событий (быстрее чем последовательно)
+    # Выполняем обогащение параллельно, но с ограничением для защиты от OOM
     import asyncio
 
     logger.info(f"🔄 Начинаем обогащение {len(events)} событий через reverse geocoding")
-    enriched_events = await asyncio.gather(*[enrich_single_event(event) for event in events])
+    # ОГРАНИЧЕНИЕ: обрабатываем максимум 10 событий параллельно для защиты от OOM
+    MAX_PARALLEL_GEOCODE = 10
+    enriched_events = []
+    for i in range(0, len(events), MAX_PARALLEL_GEOCODE):
+        batch = events[i : i + MAX_PARALLEL_GEOCODE]
+        batch_results = await asyncio.gather(*[enrich_single_event(event) for event in batch])
+        enriched_events.extend(batch_results)
 
     # Логируем результаты обогащения
     enriched_count = sum(
@@ -6734,7 +6740,8 @@ async def on_diag_all(message: types.Message):
             total_events = session.query(Event).count()
 
             # Получаем список активных источников
-            sources = session.query(Event.source).filter(Event.source.isnot(None)).distinct().all()
+            # ОГРАНИЧЕНИЕ: используем limit для защиты от OOM
+            sources = session.query(Event.source).filter(Event.source.isnot(None)).distinct().limit(50).all()
 
             source_list = [s[0] for s in sources if s[0]]
 
