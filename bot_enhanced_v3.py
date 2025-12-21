@@ -3528,11 +3528,7 @@ async def pm_edit_location_map_choice(callback: types.CallbackQuery, state: FSMC
             )
 
             await callback.message.answer(
-                "🌍 **Найдите место на карте**\n\n"
-                "1. Нажмите кнопку ниже, чтобы открыть Google Maps\n"
-                "2. Найдите нужное место\n"
-                "3. Скопируйте ссылку и отправьте её сюда",
-                parse_mode="Markdown",
+                "🌍 Открой карту, найди место и вставь ссылку сюда 👇",
                 reply_markup=keyboard,
             )
             await callback.answer()

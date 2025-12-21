@@ -3579,8 +3579,17 @@ async def group_edit_location_choice(callback: CallbackQuery, state: FSMContext)
     event_id = int(callback.data.split("_")[-1])
     await state.update_data(event_id=event_id)
     await state.set_state(CommunityEventEditing.waiting_for_location)
+
+    # Показываем кнопку с картой
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🌍 Открыть Google Maps", url="https://www.google.com/maps")],
+        ]
+    )
+
     await callback.message.answer(
-        "📍 Введите новую локацию:\n" "• Название места\n" "• Ссылка Google Maps\n" "• Координаты (широта, долгота)"
+        "🌍 Открой карту, найди место и вставь ссылку сюда 👇",
+        reply_markup=keyboard,
     )
     await callback.answer()
 
