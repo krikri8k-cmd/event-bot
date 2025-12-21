@@ -3011,13 +3011,20 @@ async def group_open_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
         # Проверяем, что событие было закрыто в течение последних 24 часов
         from datetime import timedelta
 
-        # Для Community событий updated_at имеет timezone, но starts_at - нет
+        # Для Community событий updated_at должен иметь timezone, но могут быть старые записи без timezone
         day_ago = datetime.now(UTC) - timedelta(hours=24)
-        if event.updated_at and event.updated_at < day_ago:
-            await callback.answer(
-                "❌ Возобновление возможно только в течение 24 часов после закрытия события", show_alert=True
-            )
-            return
+        if event.updated_at:
+            # Преобразуем updated_at в aware datetime, если он naive
+            updated_at_aware = event.updated_at
+            if updated_at_aware.tzinfo is None:
+                # Если naive, предполагаем что это UTC и добавляем timezone
+                updated_at_aware = updated_at_aware.replace(tzinfo=UTC)
+
+            if updated_at_aware < day_ago:
+                await callback.answer(
+                    "❌ Возобновление возможно только в течение 24 часов после закрытия события", show_alert=True
+                )
+                return
 
         # Проверяем, что событие еще не началось (не прошло по времени)
         # Если событие уже прошло, просто не обрабатываем запрос (событие не должно было попасть в список)
