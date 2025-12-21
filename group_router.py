@@ -914,7 +914,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             ]
         )
 
-        # Отправляем панель Community с трекированием (автоудаление через 4 минуты)
+        # Отправляем панель Community с трекированием (автоудаление через 2 минуты)
         try:
             from utils.messaging_utils import send_tracked
 
@@ -937,7 +937,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                 session,
                 chat_id=message.chat.id,
                 text=panel_text,
-                tag="panel",  # Тег для автоудаления через 4 минуты
+                tag="panel",  # Тег для автоудаления через 2 минуты
                 **send_kwargs,
             )
             logger.info(f"✅ Панель Community отправлена и трекируется в чате {message.chat.id}")
@@ -1884,7 +1884,7 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
 
                     async def safe_auto_delete():
                         try:
-                            await auto_delete_message(bot, chat_id, callback.message.message_id, 210)  # 3.5 минуты
+                            await auto_delete_message(bot, chat_id, callback.message.message_id, 120)  # 2 минуты
                         except Exception as e:
                             logger.error(
                                 f"❌ Ошибка автоудаления для отредактированного сообщения "
@@ -2081,7 +2081,7 @@ async def group_back_to_panel(callback: CallbackQuery, bot: Bot, session: AsyncS
             # Перезапускаем автоудаление
             async def safe_auto_delete():
                 try:
-                    await auto_delete_message(bot, chat_id, message_id, 210)  # 3.5 минуты
+                    await auto_delete_message(bot, chat_id, message_id, 120)  # 2 минуты
                 except Exception as e:
                     logger.error(f"❌ Ошибка автоудаления для сообщения {message_id}: {e}")
 
@@ -2096,7 +2096,7 @@ async def group_back_to_panel(callback: CallbackQuery, bot: Bot, session: AsyncS
             # Запускаем автоудаление
             async def safe_auto_delete():
                 try:
-                    await auto_delete_message(bot, chat_id, message_id, 210)  # 3.5 минуты
+                    await auto_delete_message(bot, chat_id, message_id, 120)  # 2 минуты
                 except Exception as e:
                     logger.error(f"❌ Ошибка автоудаления для сообщения {message_id}: {e}")
 
