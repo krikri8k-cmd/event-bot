@@ -56,7 +56,43 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
         events = []
         for event in all_events:
             # Определяем часовой пояс города события
-            city = event.city
+            # Приоритет: координаты из location_url > название города
+            city = None
+            lat = None
+            lng = None
+
+            # Пытаемся извлечь координаты из location_url (самый надежный способ)
+            if event.location_url:
+                try:
+                    from utils.geo_utils import parse_google_maps_link
+
+                    location_data = await parse_google_maps_link(event.location_url)
+                    if location_data:
+                        lat = location_data.get("lat")
+                        lng = location_data.get("lng")
+                        if lat and lng:
+                            # Определяем город по координатам (самый точный способ)
+                            from utils.simple_timezone import get_city_from_coordinates
+
+                            city = get_city_from_coordinates(lat, lng)
+                            logger.info(
+                                f"🔍 Событие {event.id}: определен город '{city}' "
+                                f"по координатам из location_url ({lat}, {lng})"
+                            )
+                except Exception as e:
+                    logger.warning(f"⚠️ Не удалось извлечь координаты из location_url для события {event.id}: {e}")
+
+            # Если город не определен по координатам, используем название города из БД
+            if not city:
+                city = event.city
+                if city:
+                    logger.info(f"🔍 Событие {event.id}: используем город '{city}' из поля city")
+
+            # Если город все еще не определен, используем UTC
+            if not city:
+                logger.warning(f"⚠️ Событие {event.id}: город не определен, используем UTC")
+                city = None
+
             tz_name = get_city_timezone(city)
             city_tz = ZoneInfo(tz_name)
 
