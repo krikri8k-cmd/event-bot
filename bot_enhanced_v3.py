@@ -4217,21 +4217,38 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
             if "maps.google.com" in location_url or "goo.gl" in location_url or "maps.app.goo.gl" in location_url:
                 from utils.geo_utils import parse_google_maps_link
 
-                location_data = await parse_google_maps_link(location_url)
-                logger.info(f"🌍 parse_google_maps_link (community) ответ: {location_data}")
-                if location_data:
-                    location_name = location_data.get("name") or "Место на карте"
-                    location_lat = location_data.get("lat")
-                    location_lng = location_data.get("lng")
-                else:
+                try:
+                    location_data = await parse_google_maps_link(location_url)
+                    logger.info(f"🌍 parse_google_maps_link (community) ответ: {location_data}")
+                    if location_data:
+                        location_name = location_data.get("name") or "Место на карте"
+                        location_lat = location_data.get("lat")
+                        location_lng = location_data.get("lng")
+                    else:
+                        location_name = "Место на карте"
+                        logger.warning(f"⚠️ parse_google_maps_link вернул None для ссылки: {location_url}")
+                except Exception as parse_error:
+                    logger.error(f"❌ Ошибка при парсинге Google Maps ссылки: {parse_error}")
+                    import traceback
+
+                    logger.error(traceback.format_exc())
+                    # Продолжаем с базовым названием, чтобы не прерывать процесс создания события
                     location_name = "Место на карте"
+                    location_lat = None
+                    location_lng = None
             elif "yandex.ru/maps" in location_url:
                 location_name = "Место на Яндекс.Картах"
             else:
                 location_name = "Место по ссылке"
         except Exception as e:
-            logger.warning(f"Не удалось распарсить ссылку для community события: {e}")
+            logger.error(f"❌ Не удалось обработать ссылку для community события: {e}")
+            import traceback
+
+            logger.error(traceback.format_exc())
+            # Продолжаем с базовым названием, чтобы не прерывать процесс создания события
             location_name = "Место по ссылке"
+            location_lat = None
+            location_lng = None
 
     await state.update_data(
         location_url=location_url,
