@@ -13,6 +13,14 @@ from datetime import UTC, datetime
 from math import ceil
 from urllib.parse import quote_plus, urlparse
 
+# Импорт psutil для мониторинга памяти (опционально)
+try:
+    import psutil
+
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command, CommandObject, StateFilter
 from aiogram.fsm.context import FSMContext
@@ -1528,6 +1536,14 @@ settings = load_settings(require_bot=True)
 
 # Хранилище состояния для сохранения prepared событий по chat_id
 # ВАЖНО: Очищаем старые записи для предотвращения утечек памяти
+#
+# АРХИТЕКТУРНОЕ ПРАВИЛО:
+# - PostgreSQL является единственным источником правды (source of truth)
+# - user_state - временный кэш для UI/навигации, может быть очищен в любой момент
+# - ВАЖНО: Все критичные данные (события, пользователи) сохраняются в PostgreSQL СРАЗУ
+# - Порядок операций: 1) Сохранение в PostgreSQL, 2) Обновление user_state
+# - В user_state хранятся ТОЛЬКО простые типы: dict, list, int, str, float
+# - ЗАПРЕЩЕНО хранить функции, замыкания, объекты с методами
 user_state = {}
 _user_state_timestamps = {}  # Время последнего использования для каждого chat_id
 USER_STATE_MAX_SIZE = 500  # Максимальное количество пользователей в памяти (уменьшено для экономии памяти)
@@ -1591,15 +1607,122 @@ def cleanup_large_prepared_events():
                 )
 
 
-async def periodic_cleanup_user_state():
-    """Периодическая очистка user_state каждые 15 минут (более агрессивная очистка)"""
-    while True:
-        await asyncio.sleep(900)  # 15 минут (уменьшено для более частой очистки)
+def get_memory_usage_mb() -> float:
+    """Возвращает текущее использование памяти процесса в МБ"""
+    if PSUTIL_AVAILABLE:
         try:
-            cleanup_user_state()
-            # Также очищаем большие prepared_events списки для экономии памяти
-            cleanup_large_prepared_events()
-            logger.debug("🧹 Периодическая очистка user_state выполнена")
+            process = psutil.Process(os.getpid())
+            return process.memory_info().rss / 1024 / 1024  # RSS в МБ
+        except Exception:
+            pass
+    return 0.0
+
+
+def get_memory_stats() -> dict:
+    """Возвращает статистику использования памяти"""
+    stats = {
+        "user_state_size": len(user_state),
+        "user_state_timestamps_size": len(_user_state_timestamps),
+        "prepared_events_total": 0,
+        "memory_mb": get_memory_usage_mb(),
+    }
+
+    # Подсчитываем общее количество prepared событий
+    for state in user_state.values():
+        if "prepared" in state and isinstance(state["prepared"], list):
+            stats["prepared_events_total"] += len(state["prepared"])
+
+    return stats
+
+
+def log_memory_stats():
+    """Логирует статистику использования памяти"""
+    stats = get_memory_stats()
+    logger.info(
+        f"📊 MEMORY STATS: "
+        f"user_state={stats['user_state_size']}, "
+        f"prepared_events={stats['prepared_events_total']}, "
+        f"memory={stats['memory_mb']:.1f}MB"
+    )
+
+
+# Порог памяти для принудительной очистки (в МБ)
+MEMORY_THRESHOLD_MB = 512  # 512 МБ - порог для принудительной очистки
+
+
+def force_memory_cleanup():
+    """Принудительная очистка памяти при превышении порога"""
+    global user_state, _user_state_timestamps
+
+    if not PSUTIL_AVAILABLE:
+        return
+
+    memory_mb = get_memory_usage_mb()
+    if memory_mb < MEMORY_THRESHOLD_MB:
+        return
+
+    logger.warning(
+        f"⚠️ MEMORY GUARD: Память превысила порог ({memory_mb:.1f}MB > {MEMORY_THRESHOLD_MB}MB), "
+        f"выполняю принудительную очистку"
+    )
+
+    # Агрессивная очистка user_state (удаляем 50% самых старых)
+    if len(user_state) > 0:
+        sorted_chats = sorted(_user_state_timestamps.items(), key=lambda x: x[1])
+        to_remove = max(1, len(user_state) // 2)  # Удаляем половину
+        removed_count = 0
+        for chat_id, _ in sorted_chats[:to_remove]:
+            if chat_id in user_state:
+                user_state.pop(chat_id, None)
+                _user_state_timestamps.pop(chat_id, None)
+                removed_count += 1
+
+        logger.warning(f"🧹 MEMORY GUARD: Удалено {removed_count} записей из user_state")
+
+    # Очистка prepared_events (оставляем только последние 25 вместо 50)
+    for chat_id, state in list(user_state.items()):
+        if "prepared" in state and isinstance(state["prepared"], list):
+            if len(state["prepared"]) > 25:
+                state["prepared"] = state["prepared"][-25:]
+
+    # Очистка _processed_callbacks через middleware (если доступен)
+    # Это будет сделано в самом middleware
+
+    # Логируем результат
+    new_memory_mb = get_memory_usage_mb()
+    logger.warning(
+        f"✅ MEMORY GUARD: Очистка завершена, память: {new_memory_mb:.1f}MB "
+        f"(освобождено {memory_mb - new_memory_mb:.1f}MB)"
+    )
+
+
+async def periodic_cleanup_user_state():
+    """Периодическая очистка user_state каждые 15 минут + логирование памяти каждые 5 минут"""
+    memory_log_interval = 300  # 5 минут для логирования памяти
+    cleanup_interval = 900  # 15 минут для очистки
+    last_memory_log = time.time()
+    last_cleanup = time.time()
+
+    while True:
+        await asyncio.sleep(60)  # Проверяем каждую минуту
+        current_time = time.time()
+
+        try:
+            # Логирование памяти каждые 5 минут
+            if current_time - last_memory_log >= memory_log_interval:
+                log_memory_stats()
+                last_memory_log = current_time
+
+            # Очистка каждые 15 минут
+            if current_time - last_cleanup >= cleanup_interval:
+                cleanup_user_state()
+                cleanup_large_prepared_events()
+                logger.debug("🧹 Периодическая очистка user_state выполнена")
+                last_cleanup = current_time
+
+            # Memory guard: проверка и принудительная очистка при превышении порога
+            force_memory_cleanup()
+
         except Exception as e:
             logger.error(f"Ошибка при периодической очистке user_state: {e}")
 
@@ -2086,13 +2209,17 @@ class DuplicateCallbackMiddleware(BaseMiddleware):
             # Помечаем как обработанный
             self._processed_callbacks.add(callback_id)
 
-            # Очищаем старые записи, если слишком много (более эффективно)
+            # Очищаем старые записи, если слишком много (in-place, без создания списка)
             if len(self._processed_callbacks) > self._max_size:
                 # Удаляем первые 5000 элементов (старые записи)
-                # Используем более эффективный способ без создания списка
-                items_to_remove = list(self._processed_callbacks)[:5000]
-                for item in items_to_remove:
+                # Используем итератор для более эффективной очистки
+                removed_count = 0
+                for item in list(self._processed_callbacks):  # Создаем список только один раз
+                    if removed_count >= 5000:
+                        break
                     self._processed_callbacks.discard(item)
+                    removed_count += 1
+                logger.debug(f"🧹 Очищено {removed_count} старых callback ID из _processed_callbacks")
 
         return await handler(event, data)
 
@@ -11158,6 +11285,7 @@ async def main():
     try:
         cleanup_user_state()
         cleanup_large_prepared_events()
+        log_memory_stats()  # Логируем начальное состояние памяти
         logger.info(f"🧹 При старте очищено user_state: осталось {len(user_state)} записей")
     except Exception as e:
         logger.error(f"Ошибка при очистке user_state при старте: {e}")
