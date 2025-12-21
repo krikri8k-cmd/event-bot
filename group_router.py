@@ -2045,12 +2045,63 @@ async def group_show_commands(callback: CallbackQuery, bot: Bot, session: AsyncS
 async def group_back_to_panel(callback: CallbackQuery, bot: Bot, session: AsyncSession):
     """Возврат к главной панели"""
     chat_id = callback.message.chat.id
+    message_id = callback.message.message_id
     logger.info(f"🔥 group_back_to_panel: возврат к панели в чате {chat_id}")
 
     await callback.answer()
 
     try:
         await callback.message.edit_text(PANEL_TEXT, reply_markup=group_kb(chat_id), parse_mode="Markdown")
+
+        # Обновляем запись в БД и перезапускаем автоудаление
+        import asyncio
+        from datetime import UTC, datetime
+
+        from sqlalchemy import select
+
+        from database import BotMessage
+        from utils.messaging_utils import auto_delete_message
+
+        result = await session.execute(
+            select(BotMessage).where(
+                BotMessage.chat_id == chat_id,
+                BotMessage.message_id == message_id,
+                BotMessage.deleted.is_(False),
+            )
+        )
+        bot_msg = result.scalar_one_or_none()
+
+        if bot_msg:
+            # Обновляем тег на "panel" и created_at для корректного автоудаления
+            bot_msg.tag = "panel"
+            bot_msg.created_at = datetime.now(UTC)
+            await session.commit()
+            logger.info(f"✅ Обновлена запись сообщения {message_id} для панели, перезапущено автоудаление")
+
+            # Перезапускаем автоудаление
+            async def safe_auto_delete():
+                try:
+                    await auto_delete_message(bot, chat_id, message_id, 210)  # 3.5 минуты
+                except Exception as e:
+                    logger.error(f"❌ Ошибка автоудаления для сообщения {message_id}: {e}")
+
+            asyncio.create_task(safe_auto_delete())
+        else:
+            # Если записи нет, создаем новую
+            bot_msg = BotMessage(chat_id=chat_id, message_id=message_id, tag="panel")
+            session.add(bot_msg)
+            await session.commit()
+            logger.info(f"✅ Создана запись для сообщения {message_id} с тегом 'panel'")
+
+            # Запускаем автоудаление
+            async def safe_auto_delete():
+                try:
+                    await auto_delete_message(bot, chat_id, message_id, 210)  # 3.5 минуты
+                except Exception as e:
+                    logger.error(f"❌ Ошибка автоудаления для сообщения {message_id}: {e}")
+
+            asyncio.create_task(safe_auto_delete())
+
     except Exception as e:
         logger.error(f"❌ Ошибка редактирования сообщения: {e}")
 
