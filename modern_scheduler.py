@@ -608,8 +608,21 @@ class ModernEventScheduler:
                 logger.error("❌ TELEGRAM_TOKEN не установлен, пропускаем напоминания")
                 return
 
+            logger.info("🔔 Запуск проверки напоминаний о Community событиях...")
+
             # Запускаем async функцию в синхронном контексте
-            asyncio.run(send_24h_reminders_sync(bot_token))
+            # Проверяем, есть ли уже запущенный event loop
+            try:
+                asyncio.get_running_loop()
+                # Если loop уже запущен, используем ThreadPoolExecutor
+                import concurrent.futures
+
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, send_24h_reminders_sync(bot_token))
+                    future.result(timeout=300)  # 5 минут таймаут
+            except RuntimeError:
+                # Нет запущенного loop, используем asyncio.run
+                asyncio.run(send_24h_reminders_sync(bot_token))
         except Exception as e:
             logger.error(f"❌ Ошибка отправки напоминаний: {e}")
             import traceback
