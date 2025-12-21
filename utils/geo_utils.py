@@ -56,6 +56,58 @@ async def geocode_address(address: str, region_bias: str = "bali") -> tuple[floa
     return None
 
 
+def _is_address(name: str) -> bool:
+    """
+    Проверяет, является ли строка адресом, а не названием заведения
+    """
+    if not name:
+        return True
+
+    name_lower = name.lower().strip()
+
+    # Plus Codes (формат XXXX+XXX) - точно адрес
+    if len(name) <= 10 and "+" in name and name.replace("+", "").replace(" ", "").isalnum():
+        return True
+
+    # Адреса начинаются с улиц (строгая проверка)
+    address_prefixes = [
+        "jl. ",
+        "jalan ",
+        "gg. ",
+        "gang ",
+        "ул. ",
+        "улица ",
+        "street ",
+        "st. ",
+        "avenue ",
+        "ave. ",
+        "проспект ",
+        "просп. ",
+        "бульвар ",
+        "бул. ",
+        "переулок ",
+        "пер. ",
+    ]
+
+    for prefix in address_prefixes:
+        if name_lower.startswith(prefix):
+            return True
+
+    # Адреса содержат номера домов (строгая проверка)
+    if any(pattern in name_lower for pattern in [" no.", " no ", " номер ", " #", " number "]):
+        return True
+
+    # Слишком короткие
+    if len(name) < 3:
+        return True
+
+    # Слишком длинные (вероятно полный адрес)
+    if len(name) > 80:
+        return True
+
+    return False
+
+
 async def reverse_geocode(lat: float, lng: float) -> str | None:
     """
     Выполняет reverse geocoding для получения названия места по координатам
@@ -78,44 +130,96 @@ async def reverse_geocode(lat: float, lng: float) -> str | None:
     }
 
     try:
+        # Сначала пробуем Places API для получения названия заведения
+        try:
+            places_params = {
+                "location": f"{lat:.6f},{lng:.6f}",
+                "radius": "50",  # 50 метров
+                "key": settings.google_maps_api_key,
+                "type": "establishment|point_of_interest",
+            }
+            async with httpx.AsyncClient(timeout=15) as client:
+                places_r = await client.get(
+                    "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
+                    params=places_params,
+                )
+                places_r.raise_for_status()
+                places_data = places_r.json()
+
+                if places_data.get("status") == "OK" and places_data.get("results"):
+                    # Берем ближайшее заведение
+                    for place in places_data.get("results", [])[:3]:  # Проверяем первые 3
+                        name = place.get("name", "").strip()
+                        if name and not _is_address(name):
+                            return name
+        except Exception:
+            # Если Places API не сработал, продолжаем с Geocoding API
+            pass
+
+        # Используем Geocoding API как fallback
         async with httpx.AsyncClient(timeout=15) as client:
             r = await client.get("https://maps.googleapis.com/maps/api/geocode/json", params=params)
             r.raise_for_status()
             data = r.json()
 
             if data.get("status") == "OK" and data.get("results"):
+                candidates = []
+
                 # Ищем название заведения (establishment)
                 for result in data.get("results", []):
                     # Проверяем типы результатов
                     types = result.get("types", [])
                     # Ищем establishment, premise, point_of_interest
                     if any(t in types for t in ["establishment", "premise", "point_of_interest"]):
-                        # Сначала пробуем найти название в address_components (более точное)
-                        name = None
+                        # 1. Пробуем найти название в address_components (более точное)
                         for component in result.get("address_components", []):
                             if "establishment" in component.get("types", []):
-                                name = component.get("long_name", "")
-                                break
+                                name = component.get("long_name", "").strip()
+                                if name and not _is_address(name):
+                                    candidates.append((name, 3))  # Высокий приоритет
+                                    break
 
-                        # Если не нашли в address_components, используем formatted_address
-                        # Но берем только первую часть (до запятой), чтобы убрать адрес
-                        if not name:
-                            formatted_address = result.get("formatted_address", "")
-                            if formatted_address:
-                                # Берем первую часть до запятой (обычно это название места)
-                                name = formatted_address.split(",")[0].strip()
+                        # 2. Используем name из result (если есть)
+                        if "name" in result:
+                            name = result.get("name", "").strip()
+                            if name and not _is_address(name):
+                                candidates.append((name, 2))  # Средний приоритет
 
-                        if name:
+                        # 3. Используем formatted_address (но фильтруем адреса)
+                        formatted_address = result.get("formatted_address", "")
+                        if formatted_address:
+                            # Берем первую часть до запятой
+                            name = formatted_address.split(",")[0].strip()
+                            if name and not _is_address(name):
+                                candidates.append((name, 1))  # Низкий приоритет
+
+                # Если нашли кандидатов, возвращаем лучший (с наивысшим приоритетом)
+                if candidates:
+                    # Сортируем по приоритету (от большего к меньшему)
+                    candidates.sort(key=lambda x: x[1], reverse=True)
+                    return candidates[0][0]
+
+                # Если не нашли establishment, пробуем все результаты
+                # Но фильтруем только явные адреса
+                for result in data.get("results", []):
+                    # Пробуем name из result
+                    if "name" in result:
+                        name = result.get("name", "").strip()
+                        if name and not _is_address(name):
                             return name
 
-                # Если не нашли establishment, берем первое место
-                # И берем только первую часть адреса (название места)
-                first_result = data.get("results", [{}])[0]
-                formatted_address = first_result.get("formatted_address", "")
-                if formatted_address:
-                    # Берем первую часть до запятой
-                    name = formatted_address.split(",")[0].strip()
-                    return name
+                    # Пробуем formatted_address (но только если не похоже на адрес)
+                    formatted_address = result.get("formatted_address", "")
+                    if formatted_address:
+                        name = formatted_address.split(",")[0].strip()
+                        # Более мягкая проверка - принимаем, если не явный адрес и не слишком длинный
+                        if name and len(name) > 5 and len(name) < 50 and not _is_address(name):
+                            return name
+                        # Если это короткий адрес без "No.", принимаем его (лучше чем ничего)
+                        elif name and len(name) > 5 and len(name) < 40 and " no." not in name.lower():
+                            # Проверяем, что это не Plus Code
+                            if not (len(name) <= 10 and "+" in name):
+                                return name
 
     except Exception as e:
         print(f"❌ Ошибка reverse geocoding: {e}")
