@@ -6184,6 +6184,13 @@ async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_pri
         keyboard_buttons.append(
             [InlineKeyboardButton(text="📋 Все добавленные события", callback_data="view_participations")]
         )
+    # Добавляем кнопки навигации: Главное меню и Мои квесты на одной линии
+    keyboard_buttons.append(
+        [
+            InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
+            InlineKeyboardButton(text="🏆 Мои квесты", callback_data="show_my_tasks"),
+        ]
+    )
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons) if keyboard_buttons else main_menu_kb()
 
     # Отправляем сообщение через bot
@@ -6235,7 +6242,14 @@ async def _handle_my_tasks_via_bot(bot: Bot, chat_id: int, user_id: int, is_priv
             f"**Баланс {rocket_balance} 🚀**\n\n"
             "🎯 Нажмите 'Чем заняться' чтобы получить новые задания!"
         )
-        keyboard = None
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
+                    InlineKeyboardButton(text="📋 Мои события", callback_data="show_my_events"),
+                ],
+            ]
+        )
     else:
         message_text = "📋 **Ваши активные задания:**\n\n"
         message_text += "Прохождение + 3 🚀\n\n"
@@ -6271,7 +6285,10 @@ async def _handle_my_tasks_via_bot(bot: Bot, chat_id: int, user_id: int, is_priv
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="🔧 Управление заданиями", callback_data="manage_tasks")],
-                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+                [
+                    InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
+                    InlineKeyboardButton(text="📋 Мои события", callback_data="show_my_events"),
+                ],
             ]
         )
 
@@ -6488,6 +6505,14 @@ async def on_my_events(message: types.Message):
         keyboard_buttons.append(
             [InlineKeyboardButton(text="📋 Все добавленные события", callback_data="view_participations")]
         )
+
+    # Добавляем кнопки навигации: Главное меню и Мои квесты на одной линии
+    keyboard_buttons.append(
+        [
+            InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
+            InlineKeyboardButton(text="🏆 Мои квесты", callback_data="show_my_tasks"),
+        ]
+    )
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons) if keyboard_buttons else main_menu_kb()
 
@@ -7281,8 +7306,15 @@ async def on_my_tasks(message: types.Message):
             f"**Баланс {rocket_balance} 🚀**\n\n"
             "🎯 Нажмите 'Чем заняться' чтобы получить новые задания!"
         )
-        # Клавиатура не нужна, когда нет заданий
-        keyboard = None
+        # Добавляем кнопки навигации даже когда нет заданий
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
+                    InlineKeyboardButton(text="📋 Мои события", callback_data="show_my_events"),
+                ],
+            ]
+        )
     else:
         # Формируем сообщение со списком активных заданий
         message_text = "📋 **Ваши активные задания:**\n\n"
@@ -7324,7 +7356,10 @@ async def on_my_tasks(message: types.Message):
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="🔧 Управление заданиями", callback_data="manage_tasks")],
-                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+                [
+                    InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
+                    InlineKeyboardButton(text="📋 Мои события", callback_data="show_my_events"),
+                ],
             ]
         )
 
@@ -7492,7 +7527,10 @@ async def cmd_mytasks(message: types.Message):
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="🔧 Управление заданиями", callback_data="manage_tasks")],
-                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+                [
+                    InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
+                    InlineKeyboardButton(text="📋 Мои события", callback_data="show_my_events"),
+                ],
             ]
         )
 
