@@ -60,6 +60,35 @@ def run_baliforum_ingest():
                         place_name = event._raw_data.get("place_name_from_maps", "") or ""
                         location_name = venue or place_name or ""
 
+                    # Если location_name пустое, пробуем reverse geocoding по координатам
+                    if not location_name and event.lat and event.lng:
+                        try:
+                            import asyncio
+
+                            from utils.geo_utils import reverse_geocode
+
+                            # Выполняем reverse geocoding синхронно
+                            try:
+                                asyncio.get_running_loop()
+                                # Если loop уже запущен, используем ThreadPoolExecutor
+                                import concurrent.futures
+
+                                with concurrent.futures.ThreadPoolExecutor() as executor:
+                                    future = executor.submit(asyncio.run, reverse_geocode(event.lat, event.lng))
+                                    reverse_name = future.result(timeout=5)
+                            except RuntimeError:
+                                # Нет запущенного loop, используем asyncio.run
+                                reverse_name = asyncio.run(reverse_geocode(event.lat, event.lng))
+
+                            if reverse_name:
+                                location_name = reverse_name
+                                print(
+                                    f"✅ Получено название места через reverse geocoding: "
+                                    f"{location_name} для '{event.title[:50]}'"
+                                )
+                        except Exception as e:
+                            print(f"⚠️ Ошибка при reverse geocoding для '{event.title[:50]}': {e}")
+
                     # ПРАВИЛЬНАЯ АРХИТЕКТУРА: Сохраняем через UnifiedEventsService
                     # Сначала в events_parser, потом автоматически синхронизируется в events
                     event_id = service.save_parser_event(
