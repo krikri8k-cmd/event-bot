@@ -34,31 +34,46 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
         target_time = now + timedelta(hours=24)
 
         # Диапазон: от 23.5 до 24.5 часов (окно в 1 час)
-        time_min = target_time - timedelta(minutes=30)
-        time_max = target_time + timedelta(minutes=30)
+        time_min_utc = target_time - timedelta(minutes=30)
+        time_max_utc = target_time + timedelta(minutes=30)
 
-        # Для Community событий starts_at - это TIMESTAMP WITHOUT TIME ZONE
-        # Нужно сравнивать без timezone
-        time_min_naive = time_min.replace(tzinfo=None)
-        time_max_naive = time_max.replace(tzinfo=None)
-
-        logger.info(f"🔔 Проверка событий для напоминаний: ищем события между {time_min_naive} и {time_max_naive}")
-
-        # Получаем события, которые начнутся через ~24 часа
-        stmt = (
-            select(CommunityEvent)
-            .where(
-                CommunityEvent.status == "open",
-                CommunityEvent.starts_at >= time_min_naive,
-                CommunityEvent.starts_at <= time_max_naive,
-            )
-            .order_by(CommunityEvent.starts_at)
+        logger.info(
+            f"🔔 Проверка событий для напоминаний: сейчас UTC={now}, "
+            f"ищем события между {time_min_utc} и {time_max_utc} UTC (через ~24 часа)"
         )
 
-        result = await session.execute(stmt)
-        events = result.scalars().all()
+        # Получаем ВСЕ открытые события (фильтруем по времени позже, с учетом timezone)
+        stmt = select(CommunityEvent).where(CommunityEvent.status == "open").order_by(CommunityEvent.starts_at)
 
-        logger.info(f"🔔 Найдено {len(events)} событий для отправки напоминаний")
+        result = await session.execute(stmt)
+        all_events = result.scalars().all()
+
+        # Фильтруем события, учитывая часовой пояс города
+        from zoneinfo import ZoneInfo
+
+        from utils.simple_timezone import get_city_timezone
+
+        events = []
+        for event in all_events:
+            # Определяем часовой пояс города события
+            city = event.city
+            tz_name = get_city_timezone(city)
+            city_tz = ZoneInfo(tz_name)
+
+            # starts_at - это naive datetime в локальном времени города
+            # Преобразуем его в UTC для сравнения
+            starts_at_local = event.starts_at.replace(tzinfo=city_tz)
+            starts_at_utc = starts_at_local.astimezone(UTC)
+
+            # Проверяем, попадает ли событие в диапазон 23.5-24.5 часов от сейчас
+            if time_min_utc <= starts_at_utc <= time_max_utc:
+                events.append(event)
+                logger.info(
+                    f"🔔 Событие {event.id} '{event.title}': starts_at={event.starts_at} ({tz_name}) "
+                    f"= {starts_at_utc} UTC, до начала ~{((starts_at_utc - now).total_seconds() / 3600):.1f} часов"
+                )
+
+        logger.info(f"🔔 Найдено {len(events)} событий для отправки напоминаний (из {len(all_events)} открытых)")
 
         sent_count = 0
         skipped_count = 0
