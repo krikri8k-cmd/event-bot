@@ -1063,7 +1063,8 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     venue = e.get("venue", {})
     # НЕ включаем location_name в venue_name, так как location_name может быть обогащен через reverse geocoding позже
     venue_name = venue.get("name") or e.get("venue_name")
-    venue_address = venue.get("address") or e.get("address") or e.get("location_url")
+    # НЕ используем location_url как venue_address - это ссылка, а не название места
+    venue_address = venue.get("address") or e.get("address")
 
     logger.info(f"🔍 DEBUG VENUE: venue={venue}, venue_name='{venue_name}', venue_address='{venue_address}'")
     logger.info(
