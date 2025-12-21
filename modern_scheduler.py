@@ -346,7 +346,32 @@ class ModernEventScheduler:
         if self.settings.ai_generate_synthetic:
             import asyncio
 
-            asyncio.run(self.ingest_ai_events())
+            # Используем новый event loop с явным закрытием для освобождения ресурсов
+            # ВАЖНО: loop.run_until_complete() уже дожидается завершения всех задач,
+            # поэтому мы просто закрываем loop после завершения
+            loop = None
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                # run_until_complete дожидается полного завершения функции и всех её задач
+                loop.run_until_complete(self.ingest_ai_events())
+            except Exception as e:
+                logger.error(f"❌ Ошибка в ingest_ai_events: {e}")
+            finally:
+                # Закрываем loop только после полного завершения всех операций
+                if loop and not loop.is_closed():
+                    try:
+                        # Даем время на завершение всех pending операций (если есть)
+                        # Но не отменяем их - они должны завершиться естественным образом
+                        pending = [t for t in asyncio.all_tasks(loop) if not t.done()]
+                        if pending:
+                            # Ждем завершения pending задач (но не отменяем их!)
+                            # Это безопасно, т.к. run_until_complete уже завершился
+                            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                    except Exception:
+                        pass
+                    finally:
+                        loop.close()
         else:
             logger.info("🤖 AI генерация пропущена (отключена в настройках)")
 
@@ -364,7 +389,32 @@ class ModernEventScheduler:
         if self.settings.kudago_enabled:
             import asyncio
 
-            asyncio.run(self.ingest_kudago())
+            # Используем новый event loop с явным закрытием для освобождения ресурсов
+            # ВАЖНО: loop.run_until_complete() уже дожидается завершения всех задач,
+            # поэтому мы просто закрываем loop после завершения
+            loop = None
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                # run_until_complete дожидается полного завершения функции и всех её задач
+                loop.run_until_complete(self.ingest_kudago())
+            except Exception as e:
+                logger.error(f"❌ Ошибка в ingest_kudago: {e}")
+            finally:
+                # Закрываем loop только после полного завершения всех операций
+                if loop and not loop.is_closed():
+                    try:
+                        # Даем время на завершение всех pending операций (если есть)
+                        # Но не отменяем их - они должны завершиться естественным образом
+                        pending = [t for t in asyncio.all_tasks(loop) if not t.done()]
+                        if pending:
+                            # Ждем завершения pending задач (но не отменяем их!)
+                            # Это безопасно, т.к. run_until_complete уже завершился
+                            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                    except Exception:
+                        pass
+                    finally:
+                        loop.close()
         else:
             logger.info("🎭 KudaGo пропущен (отключен в настройках)")
 

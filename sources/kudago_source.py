@@ -90,6 +90,8 @@ INTEGRITY_FAIL_STREAK = 0
 
 # ---- Лёгкий in-memory кэш результатов на короткое время ----------
 _CACHE: dict[str, tuple[float, list[dict[str, Any]]]] = {}
+# ОГРАНИЧЕНИЕ РАЗМЕРА КЭША для защиты от OOM
+_MAX_CACHE_SIZE = 500  # Максимум 500 записей в кэше KudaGo
 
 
 class FetchPageError(RuntimeError):
@@ -102,15 +104,32 @@ def _cache_get(key: str) -> list[dict[str, Any]] | None:
     if not rec:
         return None
     ts, data = rec
-    if time.time() - ts <= CACHE_TTL_S:
-        METRICS["cache_hits"] += 1
-        return data
-    return None
+    current_time = time.time()
+    # Удаляем устаревшие записи при чтении
+    if current_time - ts > CACHE_TTL_S:
+        _CACHE.pop(key, None)
+        return None
+    METRICS["cache_hits"] += 1
+    return data
 
 
 def _cache_put(key: str, data: list[dict[str, Any]]) -> None:
-    """Сохраняет данные в кэш"""
-    _CACHE[key] = (time.time(), data)
+    """Сохраняет данные в кэш с ограничением размера"""
+    current_time = time.time()
+
+    # Очистка устаревших записей
+    expired_keys = [k for k, (ts, _) in _CACHE.items() if current_time - ts > CACHE_TTL_S]
+    for k in expired_keys:
+        _CACHE.pop(k, None)
+
+    # Если все еще слишком много, удаляем 50% самых старых
+    if len(_CACHE) >= _MAX_CACHE_SIZE:
+        sorted_items = sorted(_CACHE.items(), key=lambda x: x[1][0])  # Сортируем по timestamp
+        to_remove = len(_CACHE) - _MAX_CACHE_SIZE // 2
+        for k, _ in sorted_items[:to_remove]:
+            _CACHE.pop(k, None)
+
+    _CACHE[key] = (current_time, data)
 
 
 def today_window_utc(

@@ -15,6 +15,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Глобальные метрики (в реальном проекте лучше использовать Redis/DB)
+# ОГРАНИЧЕНИЕ РАЗМЕРА для защиты от OOM
+_MAX_METRICS_SIZE = 1000  # Максимум записей в каждом списке метрик
+_METRICS_CLEANUP_INTERVAL = 100  # Очистка каждые N записей
+
 _metrics_store: dict[str, Any] = {
     "requests": [],
     "errors": [],
@@ -24,7 +28,32 @@ _metrics_store: dict[str, Any] = {
     "latencies": [],
     "last_success_ts": 0,
     "rps_estimate": 0.0,
+    "_record_count": 0,  # Счетчик для периодической очистки
 }
+
+
+def _cleanup_metrics(now: float):
+    """Очищает старые метрики и ограничивает размер списков"""
+    cutoff = now - 3600  # Старше 1 часа
+
+    # Очищаем устаревшие данные
+    _metrics_store["requests"] = [ts for ts in _metrics_store["requests"] if ts > cutoff]
+    _metrics_store["errors"] = [ts for ts in _metrics_store["errors"] if ts > cutoff]
+    _metrics_store["events_received"] = [(ts, count) for ts, count in _metrics_store["events_received"] if ts > cutoff]
+    _metrics_store["events_after_geo"] = [
+        (ts, count) for ts, count in _metrics_store["events_after_geo"] if ts > cutoff
+    ]
+    _metrics_store["cache_hits"] = [ts for ts in _metrics_store["cache_hits"] if ts > cutoff]
+    _metrics_store["latencies"] = [(ts, lat) for ts, lat in _metrics_store["latencies"] if ts > cutoff]
+
+    # Ограничиваем размер списков (оставляем последние N записей)
+    for key in ["requests", "errors", "cache_hits"]:
+        if len(_metrics_store[key]) > _MAX_METRICS_SIZE:
+            _metrics_store[key] = _metrics_store[key][-_MAX_METRICS_SIZE:]
+
+    for key in ["events_received", "events_after_geo", "latencies"]:
+        if len(_metrics_store[key]) > _MAX_METRICS_SIZE:
+            _metrics_store[key] = _metrics_store[key][-_MAX_METRICS_SIZE:]
 
 
 def record_request(
@@ -48,16 +77,13 @@ def record_request(
 
     _metrics_store["latencies"].append((now, latency_ms))
 
-    # Очищаем старые данные (старше 1 часа)
-    cutoff = now - 3600
-    _metrics_store["requests"] = [ts for ts in _metrics_store["requests"] if ts > cutoff]
-    _metrics_store["errors"] = [ts for ts in _metrics_store["errors"] if ts > cutoff]
-    _metrics_store["events_received"] = [(ts, count) for ts, count in _metrics_store["events_received"] if ts > cutoff]
-    _metrics_store["events_after_geo"] = [
-        (ts, count) for ts, count in _metrics_store["events_after_geo"] if ts > cutoff
-    ]
-    _metrics_store["cache_hits"] = [ts for ts in _metrics_store["cache_hits"] if ts > cutoff]
-    _metrics_store["latencies"] = [(ts, lat) for ts, lat in _metrics_store["latencies"] if ts > cutoff]
+    # Периодическая очистка (каждые N записей)
+    _metrics_store["_record_count"] = _metrics_store.get("_record_count", 0) + 1
+    if _metrics_store["_record_count"] % _METRICS_CLEANUP_INTERVAL == 0:
+        _cleanup_metrics(now)
+    elif _metrics_store["_record_count"] == 1:
+        # Первая запись - сразу очищаем
+        _cleanup_metrics(now)
 
     # Обновляем RPS
     recent_requests = [ts for ts in _metrics_store["requests"] if ts > now - 60]

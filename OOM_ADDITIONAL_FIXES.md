@@ -67,3 +67,4 @@
 2. Уменьшите `USER_STATE_MAX_SIZE` до 50
 3. Уменьшите `MAX_PREPARED_EVENTS` до 10
 4. Рассмотрите вынос всех кэшей в Redis
+
