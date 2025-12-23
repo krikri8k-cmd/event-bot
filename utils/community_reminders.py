@@ -104,6 +104,35 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
 
         logger.info(f"🔔 Найдено {len(events)} событий для уведомлений о начале (из {len(all_events)} открытых)")
 
+        # Логируем информацию о всех событиях для отладки
+        if len(all_events) > 0:
+            logger.info(f"📋 Всего открытых событий: {len(all_events)}")
+            for event in all_events[:5]:  # Показываем первые 5 для отладки
+                # Определяем часовой пояс для этого события
+                city = None
+                if event.location_url:
+                    try:
+                        location_data = await parse_google_maps_link(event.location_url)
+                        if location_data:
+                            lat = location_data.get("lat")
+                            lng = location_data.get("lng")
+                            if lat and lng:
+                                city = get_city_from_coordinates(lat, lng)
+                    except Exception:
+                        pass
+                if not city:
+                    city = event.city
+                tz_name = get_city_timezone(city)
+                city_tz = ZoneInfo(tz_name)
+                starts_at_local = event.starts_at.replace(tzinfo=city_tz)
+                starts_at_utc = starts_at_local.astimezone(UTC)
+                time_diff_minutes = (starts_at_utc - now).total_seconds() / 60
+                logger.info(
+                    f"   📅 Событие {event.id} '{event.title[:30]}': "
+                    f"starts_at={event.starts_at} ({tz_name}) = {starts_at_utc} UTC, "
+                    f"разница: {time_diff_minutes:.1f} минут от сейчас"
+                )
+
         sent_count = 0
         skipped_count = 0
 
