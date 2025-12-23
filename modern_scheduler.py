@@ -674,6 +674,44 @@ class ModernEventScheduler:
 
             logger.error(traceback.format_exc())
 
+    def send_event_start_notifications(self):
+        """Отправка уведомлений о начале Community событий"""
+        try:
+            import asyncio
+
+            from utils.community_reminders import send_event_start_notifications_sync
+
+            bot_token = self.settings.telegram_token
+            if not bot_token:
+                logger.error("❌ TELEGRAM_TOKEN не установлен, пропускаем уведомления о начале")
+                return
+
+            logger.info("🔔 Запуск проверки уведомлений о начале Community событий...")
+
+            # Запускаем async функцию в синхронном контексте
+            try:
+                asyncio.get_running_loop()
+                import concurrent.futures
+
+                def run_notifications():
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        return loop.run_until_complete(send_event_start_notifications_sync(bot_token))
+                    finally:
+                        loop.close()
+
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(run_notifications)
+                    future.result(timeout=300)
+            except RuntimeError:
+                asyncio.run(send_event_start_notifications_sync(bot_token))
+        except Exception as e:
+            logger.error(f"❌ Ошибка отправки уведомлений о начале: {e}")
+            import traceback
+
+            logger.error(traceback.format_exc())
+
     def start(self):
         """Запуск планировщика"""
         if self.scheduler and self.scheduler.running:
@@ -759,6 +797,16 @@ class ModernEventScheduler:
             "interval",
             hours=1,
             id="community-reminders",
+            max_instances=1,
+            coalesce=True,
+        )
+
+        # Уведомления о начале события - проверяем каждые 5 минут
+        self.scheduler.add_job(
+            self.send_event_start_notifications,
+            "interval",
+            minutes=5,
+            id="event-start-notifications",
             max_instances=1,
             coalesce=True,
         )
