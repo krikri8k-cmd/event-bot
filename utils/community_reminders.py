@@ -257,17 +257,17 @@ async def send_24h_reminders_sync(bot_token: str):
     Синхронная обертка для отправки напоминаний за 24 часа (для использования в планировщике)
     """
     from aiogram import Bot
-    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import sessionmaker
+
+    from database import make_async_engine
 
     settings = load_settings()
     init_engine(settings.database_url)
 
     # Создаем async engine для работы с async сессиями
-    async_engine = create_async_engine(
-        settings.database_url.replace("postgresql://", "postgresql+asyncpg://"),
-        echo=False,
-    )
+    # Используем функцию из database.py, которая правильно обрабатывает SSL
+    async_engine = make_async_engine(settings.database_url)
 
     async_session = sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
