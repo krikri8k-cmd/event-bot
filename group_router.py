@@ -335,41 +335,7 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
         except Exception as delete_error:
             logger.warning(f"⚠️ Не удалось удалить сообщение пользователя: {delete_error}")
 
-        # Сразу обновляем список событий (удаляем старый и создаем новый с обновленными данными)
-        try:
-            from sqlalchemy import select
-
-            from database import BotMessage
-
-            # Находим все сообщения со списком событий (тег "list" или "service")
-            result = await session.execute(
-                select(BotMessage).where(
-                    BotMessage.chat_id == chat_id,
-                    BotMessage.deleted.is_(False),
-                    BotMessage.tag.in_(["list", "service"]),  # Списки событий и подтверждения
-                )
-            )
-            list_messages = result.scalars().all()
-
-            deleted_count = 0
-            for bot_msg in list_messages:
-                try:
-                    await bot.delete_message(chat_id=chat_id, message_id=bot_msg.message_id)
-                    bot_msg.deleted = True
-                    deleted_count += 1
-                    logger.info(
-                        f"✅ Удалено сообщение со списком событий "
-                        f"(message_id={bot_msg.message_id}, tag={bot_msg.tag})"
-                    )
-                except Exception as delete_error:
-                    logger.warning(f"⚠️ Не удалось удалить сообщение {bot_msg.message_id}: {delete_error}")
-                    bot_msg.deleted = True  # Помечаем как удаленное
-
-            await session.commit()
-            logger.info(f"✅ Удалено {deleted_count} сообщений со списком событий")
-        except Exception as e:
-            logger.error(f"❌ Ошибка при удалении предыдущих списков событий: {e}")
-
+        # Отправляем новый список событий как отдельное сообщение (не удаляем старые, чтобы не трогать напоминания)
         # Создаем новый список событий с обновленными данными
         # Используем send_tracked напрямую, без callback
         from sqlalchemy import select
@@ -608,41 +574,7 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
         except Exception as delete_error:
             logger.warning(f"⚠️ Не удалось удалить сообщение пользователя: {delete_error}")
 
-        # Сразу обновляем список событий (удаляем старый и создаем новый с обновленными данными)
-        try:
-            from sqlalchemy import select
-
-            from database import BotMessage
-
-            # Находим все сообщения со списком событий (тег "list" или "service")
-            result = await session.execute(
-                select(BotMessage).where(
-                    BotMessage.chat_id == chat_id,
-                    BotMessage.deleted.is_(False),
-                    BotMessage.tag.in_(["list", "service"]),  # Списки событий и подтверждения
-                )
-            )
-            list_messages = result.scalars().all()
-
-            deleted_count = 0
-            for bot_msg in list_messages:
-                try:
-                    await bot.delete_message(chat_id=chat_id, message_id=bot_msg.message_id)
-                    bot_msg.deleted = True
-                    deleted_count += 1
-                    logger.info(
-                        f"✅ Удалено сообщение со списком событий "
-                        f"(message_id={bot_msg.message_id}, tag={bot_msg.tag})"
-                    )
-                except Exception as delete_error:
-                    logger.warning(f"⚠️ Не удалось удалить сообщение {bot_msg.message_id}: {delete_error}")
-                    bot_msg.deleted = True  # Помечаем как удаленное
-
-            await session.commit()
-            logger.info(f"✅ Удалено {deleted_count} сообщений со списком событий")
-        except Exception as e:
-            logger.error(f"❌ Ошибка при удалении предыдущих списков событий: {e}")
-
+        # Отправляем новый список событий как отдельное сообщение (не удаляем старые, чтобы не трогать напоминания)
         # Создаем новый список событий с обновленными данными
         # Используем send_tracked напрямую, без callback
         from sqlalchemy import select
@@ -2629,41 +2561,7 @@ async def community_leave_event(callback: CallbackQuery, bot: Bot, session: Asyn
         if removed:
             await callback.answer("✅ Запись отменена")
 
-            # Сразу обновляем список событий (удаляем старый и создаем новый с обновленными данными)
-            try:
-                from sqlalchemy import select
-
-                from database import BotMessage
-
-                # Находим все сообщения со списком событий (тег "list" или "service")
-                result = await session.execute(
-                    select(BotMessage).where(
-                        BotMessage.chat_id == chat_id,
-                        BotMessage.deleted.is_(False),
-                        BotMessage.tag.in_(["list", "service"]),  # Списки событий и подтверждения
-                    )
-                )
-                list_messages = result.scalars().all()
-
-                deleted_count = 0
-                for bot_msg in list_messages:
-                    try:
-                        await bot.delete_message(chat_id=chat_id, message_id=bot_msg.message_id)
-                        bot_msg.deleted = True
-                        deleted_count += 1
-                        logger.info(
-                            f"✅ Удалено сообщение со списком событий "
-                            f"(message_id={bot_msg.message_id}, tag={bot_msg.tag})"
-                        )
-                    except Exception as delete_error:
-                        logger.warning(f"⚠️ Не удалось удалить сообщение {bot_msg.message_id}: {delete_error}")
-                        bot_msg.deleted = True  # Помечаем как удаленное
-
-                await session.commit()
-                logger.info(f"✅ Удалено {deleted_count} сообщений со списком событий")
-            except Exception as e:
-                logger.error(f"❌ Ошибка при удалении предыдущих списков событий: {e}")
-
+            # Отправляем новый список событий как отдельное сообщение (не удаляем старые, чтобы не трогать напоминания)
             # Создаем новый список событий с обновленными данными
             callback._from_group_list = True
             await group_list_events_page(callback, bot, session, page=1)
