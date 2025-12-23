@@ -606,6 +606,7 @@ async def send_24h_reminders_sync(bot_token: str):
     """
     Синхронная обертка для отправки напоминаний за 24 часа (для использования в планировщике)
     """
+    logger.info("🔔 === НАЧАЛО send_24h_reminders_sync ===")
     from aiogram import Bot
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import sessionmaker
@@ -625,7 +626,15 @@ async def send_24h_reminders_sync(bot_token: str):
 
     try:
         async with async_session() as session:
+            logger.info("🔔 Вызываем send_24h_reminders...")
             await send_24h_reminders(bot, session)
+            logger.info("🔔 === КОНЕЦ send_24h_reminders_sync ===")
+    except Exception as e:
+        logger.error(f"❌ Ошибка в send_24h_reminders_sync: {e}")
+        import traceback
+
+        logger.error(traceback.format_exc())
+        raise
     finally:
         await bot.session.close()
         await async_engine.dispose()
