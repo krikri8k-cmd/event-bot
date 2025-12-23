@@ -408,11 +408,13 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
             # Проверяем, попадает ли событие в диапазон 23.75-24.25 часов от сейчас
             # Детальное логирование для отладки
             is_in_range = time_min_utc <= starts_at_utc <= time_max_utc
-            logger.info(
-                f"🔍 Событие {event.id} '{event.title[:30]}': проверка диапазона - "
-                f"starts_at_utc={starts_at_utc}, time_min={time_min_utc}, time_max={time_max_utc}, "
-                f"в диапазоне: {is_in_range}, разница: {time_diff_hours:.2f} часов"
-            )
+            # Логируем ВСЕ события, которые близки к 24-часовой отметке (в пределах 6 часов)
+            if 18 <= time_diff_hours <= 30:
+                logger.info(
+                    f"🔍 Событие {event.id} '{event.title[:30]}': проверка диапазона - "
+                    f"starts_at_utc={starts_at_utc}, time_min={time_min_utc}, time_max={time_max_utc}, "
+                    f"в диапазоне: {is_in_range}, разница: {time_diff_hours:.2f} часов"
+                )
 
             if is_in_range:
                 events.append(event)
