@@ -127,9 +127,52 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
                 # Формируем текст напоминания (похоже на уведомление о новом событии)
                 safe_title = escape_markdown(event.title)
                 safe_description = escape_markdown(event.description or "")
-                safe_location = escape_markdown(event.location_name or "Место не указано")
                 safe_city = escape_markdown(event.city or "")
                 safe_username = escape_markdown(event.organizer_username or "Пользователь")
+
+                # Получаем название места - фильтруем мусорные значения
+                location_name = event.location_name or ""
+                # Фильтруем мусорные названия (кнопки, generic названия)
+                invalid_names = [
+                    "Место проведения",
+                    "Место не указано",
+                    "Локация",
+                    "Место по ссылке",
+                    "Создать",
+                    "+ Создать",
+                    "",
+                ]
+                if (
+                    location_name in invalid_names
+                    or location_name.startswith("+")
+                    or location_name.startswith("Создать")
+                ):
+                    location_name = ""
+
+                # Если location_name пустое, пробуем извлечь из location_url через reverse geocoding
+                if not location_name and event.location_url:
+                    try:
+                        location_data = await parse_google_maps_link(event.location_url)
+                        if location_data and location_data.get("lat") and location_data.get("lng"):
+                            from utils.geo_utils import reverse_geocode
+
+                            reverse_name = await reverse_geocode(location_data["lat"], location_data["lng"])
+                            if reverse_name:
+                                location_name = reverse_name
+                                logger.info(
+                                    f"✅ Получено название места через reverse geocoding "
+                                    f"для события {event.id}: {location_name}"
+                                )
+                    except Exception as e:
+                        logger.warning(
+                            f"⚠️ Не удалось получить название места из location_url для события {event.id}: {e}"
+                        )
+
+                # Если всё ещё пустое, используем fallback
+                if not location_name:
+                    location_name = "Место не указано"
+
+                safe_location = escape_markdown(location_name)
 
                 # Форматируем дату и время
                 event_time = event.starts_at
@@ -167,6 +210,9 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
                 reminder_text += f"\n*Создано пользователем @{safe_username}*\n\n"
                 reminder_text += f"👥 **Участники ({len(participants)}):**\n"
                 reminder_text += mentions_text
+
+                # Добавляем ссылку на запись на событие
+                reminder_text += f"\n\n👉 Нажмите /joinevent{event.id} чтобы записаться"
 
                 # Отправляем в группу
                 try:

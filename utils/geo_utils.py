@@ -177,7 +177,7 @@ async def reverse_geocode(lat: float, lng: float) -> str | None:
                                 name = component.get("long_name", "").strip()
                                 if name and not _is_address(name):
                                     candidates.append((name, 3))  # Высокий приоритет
-                                    break
+                                break
 
                         # 2. Используем name из result (если есть)
                         if "name" in result:
@@ -185,11 +185,11 @@ async def reverse_geocode(lat: float, lng: float) -> str | None:
                             if name and not _is_address(name):
                                 candidates.append((name, 2))  # Средний приоритет
 
-                        # 3. Используем formatted_address (но фильтруем адреса)
-                        formatted_address = result.get("formatted_address", "")
-                        if formatted_address:
-                            # Берем первую часть до запятой
-                            name = formatted_address.split(",")[0].strip()
+                            # 3. Используем formatted_address (но фильтруем адреса)
+                            formatted_address = result.get("formatted_address", "")
+                            if formatted_address:
+                                # Берем первую часть до запятой
+                                name = formatted_address.split(",")[0].strip()
                             if name and not _is_address(name):
                                 candidates.append((name, 1))  # Низкий приоритет
 
@@ -210,16 +210,16 @@ async def reverse_geocode(lat: float, lng: float) -> str | None:
 
                     # Пробуем formatted_address (но только если не похоже на адрес)
                     formatted_address = result.get("formatted_address", "")
-                    if formatted_address:
-                        name = formatted_address.split(",")[0].strip()
-                        # Более мягкая проверка - принимаем, если не явный адрес и не слишком длинный
-                        if name and len(name) > 5 and len(name) < 50 and not _is_address(name):
+                if formatted_address:
+                    name = formatted_address.split(",")[0].strip()
+                    # Более мягкая проверка - принимаем, если не явный адрес и не слишком длинный
+                    if name and len(name) > 5 and len(name) < 50 and not _is_address(name):
+                        return name
+                    # Если это короткий адрес без "No.", принимаем его (лучше чем координаты)
+                    elif name and len(name) > 5 and len(name) < 40:
+                        # Проверяем, что это не Plus Code и не содержит номер дома
+                        if not (len(name) <= 10 and "+" in name) and " no." not in name.lower():
                             return name
-                        # Если это короткий адрес без "No.", принимаем его (лучше чем координаты)
-                        elif name and len(name) > 5 and len(name) < 40:
-                            # Проверяем, что это не Plus Code и не содержит номер дома
-                            if not (len(name) <= 10 and "+" in name) and " no." not in name.lower():
-                                return name
 
     except Exception as e:
         print(f"❌ Ошибка reverse geocoding: {e}")
