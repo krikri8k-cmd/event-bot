@@ -26,7 +26,19 @@ def get_city_timezone(city: str | None) -> str:
     """
     if city is None:
         return "UTC"  # Если регион не определен, используем UTC
-    return CITY_TIMEZONES.get(city.lower(), "UTC")  # По умолчанию UTC, если город неизвестен
+
+    # Нормализуем название города (кириллица -> латиница)
+    city_lower = city.lower()
+    city_mapping = {
+        "бали": "bali",
+        "москва": "moscow",
+        "спб": "spb",
+        "санкт-петербург": "spb",
+        "джакарта": "jakarta",
+    }
+    normalized_city = city_mapping.get(city_lower, city_lower)
+
+    return CITY_TIMEZONES.get(normalized_city, "UTC")  # По умолчанию UTC, если город неизвестен
 
 
 def get_today_start_utc(city: str | None) -> datetime:
