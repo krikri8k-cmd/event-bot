@@ -338,7 +338,9 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
                                 tz_name = get_city_timezone(city)
                                 logger.info(
                                     f"🔍 Событие {event.id}: определен город '{city}' "
-                                    f"по координатам из location_url ({lat}, {lng}) -> tz='{tz_name}'"
+                                    f"(get_city_from_coordinates вернул '{city}') "
+                                    f"по координатам из location_url ({lat}, {lng}) -> tz='{tz_name}' "
+                                    f"(event.city из БД='{event.city}')"
                                 )
                 except Exception as e:
                     logger.warning(f"⚠️ Не удалось извлечь координаты из location_url для события {event.id}: {e}")
