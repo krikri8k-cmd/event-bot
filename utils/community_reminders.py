@@ -534,8 +534,13 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
                     reminder_text += f"\n📝 {safe_description}\n"
 
                 reminder_text += f"\n*Создано пользователем @{safe_username}*\n\n"
-                reminder_text += f"👥 **Участники ({len(participants)}):**\n"
-                reminder_text += mentions_text
+
+                # Добавляем информацию об участниках только если они есть
+                if participants and len(participants) > 0:
+                    reminder_text += f"👥 **Участники ({len(participants)}):**\n"
+                    reminder_text += mentions_text
+                else:
+                    reminder_text += "👥 Пока нет участников\n"
 
                 # Добавляем ссылку на запись на событие
                 reminder_text += f"\n\n👉 Нажмите /joinevent{event.id} чтобы записаться"
