@@ -60,7 +60,8 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
             lat = None
             lng = None
 
-            # Пытаемся извлечь координаты из location_url
+            # ПРИОРИТЕТ: Определяем город по координатам из location_url (Google Maps ссылки)
+            # Это самый точный способ, так как координаты не врут
             if event.location_url:
                 try:
                     from utils.geo_utils import parse_google_maps_link
@@ -71,12 +72,22 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
                         lng = location_data.get("lng")
                         if lat and lng:
                             city = get_city_from_coordinates(lat, lng)
-                except Exception:
-                    pass
+                            if city:
+                                logger.debug(
+                                    f"🔍 Событие {event.id}: определен город '{city}' "
+                                    f"по координатам из location_url ({lat}, {lng})"
+                                )
+                except Exception as e:
+                    logger.debug(f"⚠️ Не удалось извлечь координаты из location_url для события {event.id}: {e}")
 
-            # Если город не определен по координатам, используем название города из БД
+            # ТОЛЬКО если город не определен по координатам, используем название города из БД
+            # (но это менее надежно, так как пользователь мог ошибиться в названии)
             if not city:
                 city = event.city
+                if city:
+                    logger.debug(
+                        f"🔍 Событие {event.id}: используем город '{city}' из поля city (координаты не найдены)"
+                    )
 
             tz_name = get_city_timezone(city)
             city_tz = ZoneInfo(tz_name)
