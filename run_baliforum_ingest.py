@@ -58,10 +58,23 @@ def run_baliforum_ingest():
                         venue = event._raw_data.get("venue", "") or ""
                         location_url = event._raw_data.get("location_url", "") or ""
                         place_name = event._raw_data.get("place_name_from_maps", "") or ""
-                        location_name = venue or place_name or ""
+                        # ПРИОРИТЕТ: place_name_from_maps (из ссылки) > venue (из HTML)
+                        # Если есть название из ссылки - используем его, не нужен reverse geocoding
+                        location_name = place_name or venue or ""
 
-                    # Если location_name пустое, пробуем reverse geocoding по координатам
-                    if not location_name and event.lat and event.lng:
+                    # Reverse geocoding ТОЛЬКО как fallback, если нет названия из ссылки
+                    generic_names = [
+                        "",
+                        "Место не указано",
+                        "Локация",
+                        "Место по ссылке",
+                        "Место проведения",
+                    ]
+                    needs_reverse_geocode = (
+                        (not location_name or location_name in generic_names) and event.lat and event.lng
+                    )
+
+                    if needs_reverse_geocode:
                         try:
                             import asyncio
 

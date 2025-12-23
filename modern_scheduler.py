@@ -113,11 +113,11 @@ class ModernEventScheduler:
                         venue = event._raw_data.get("venue", "") or ""
                         location_url = event._raw_data.get("location_url", "") or ""
                         place_name = event._raw_data.get("place_name_from_maps", "") or ""
-                        # Используем venue или place_name_from_maps для location_name
-                        location_name = venue or place_name or ""
+                        # ПРИОРИТЕТ: place_name_from_maps (из ссылки) > venue (из HTML)
+                        # Если есть название из ссылки - используем его, не нужен reverse geocoding
+                        location_name = place_name or venue or ""
 
-                    # ВСЕГДА пробуем reverse geocoding по координатам, если location_name пустое или generic
-                    # Это гарантирует, что у нас всегда будет название места, а не координаты
+                    # Reverse geocoding ТОЛЬКО как fallback, если нет названия из ссылки
                     generic_names = [
                         "",
                         "Место не указано",
@@ -125,6 +125,10 @@ class ModernEventScheduler:
                         "Место по ссылке",
                         "Место проведения",
                     ]
+                    # Используем reverse geocoding только если:
+                    # 1. Нет названия из ссылки (place_name_from_maps)
+                    # 2. И нет venue из HTML
+                    # 3. И есть координаты
                     needs_reverse_geocode = (
                         (not location_name or location_name in generic_names) and event.lat and event.lng
                     )
