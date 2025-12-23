@@ -224,17 +224,15 @@ def _extract_latlng_from_maps(url: str) -> tuple[float | None, float | None, str
     lat = float(lat)
     lng = float(lng)
 
-    # Извлекаем название места из URL
+    # Извлекаем название места из URL используя функцию из utils/geo_utils
     place_name = None
     try:
-        from urllib.parse import unquote
+        from utils.geo_utils import extract_place_name_from_url
 
-        # Паттерн для /place/name/ или /place/name/data=...
-        place_pattern = r"/place/([^/@]+?)(?:/data=|/|$)"
-        match = re.search(place_pattern, url)
-        if match:
-            name = match.group(1)
-            place_name = unquote(name).replace("+", " ")
+        place_name = extract_place_name_from_url(url)
+        if place_name:
+            # Очищаем название от лишних символов
+            place_name = place_name.strip().replace("+", " ")
     except Exception:
         pass
 
@@ -390,16 +388,58 @@ def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> 
                     elif not href.startswith("http"):
                         href = "https://" + href
 
-                    lat, lng, place_name, maps_url = _extract_latlng_from_maps(href)
-                    if lat and lng:
-                        location_url = maps_url  # Сохраняем оригинальную ссылку
-                        place_name_from_maps = place_name
-                        print(
-                            f"DEBUG: baliforum: найдены координаты на детальной странице: {lat}, {lng} "
-                            f"для '{title}', место: {place_name_from_maps}, "
-                            f"ссылка: {location_url[:80] if location_url else None}"
-                        )
-                        break
+                    # Используем parse_google_maps_link для лучшего извлечения данных
+                    try:
+                        import asyncio
+
+                        from utils.geo_utils import parse_google_maps_link
+
+                        # Выполняем async функцию синхронно
+                        try:
+                            loop = asyncio.get_event_loop()
+                            if loop.is_running():
+                                # Если loop уже запущен, используем ThreadPoolExecutor
+                                import concurrent.futures
+
+                                def run_parse():
+                                    loop = asyncio.new_event_loop()
+                                    asyncio.set_event_loop(loop)
+                                    try:
+                                        return loop.run_until_complete(parse_google_maps_link(href))
+                                    finally:
+                                        loop.close()
+
+                                with concurrent.futures.ThreadPoolExecutor() as executor:
+                                    future = executor.submit(run_parse)
+                                    maps_data = future.result(timeout=5)
+                            else:
+                                maps_data = loop.run_until_complete(parse_google_maps_link(href))
+                        except RuntimeError:
+                            maps_data = asyncio.run(parse_google_maps_link(href))
+
+                        if maps_data and maps_data.get("lat") and maps_data.get("lng"):
+                            lat = maps_data["lat"]
+                            lng = maps_data["lng"]
+                            location_url = maps_data.get("raw_link", href)
+                            place_name_from_maps = maps_data.get("name")
+                            print(
+                                f"DEBUG: baliforum: найдены координаты на детальной странице: {lat}, {lng} "
+                                f"для '{title}', место: {place_name_from_maps}, "
+                                f"ссылка: {location_url[:80] if location_url else None}"
+                            )
+                            break
+                    except Exception as e:
+                        # Fallback на старый метод
+                        print(f"DEBUG: baliforum: ошибка parse_google_maps_link, используем fallback: {e}")
+                        lat, lng, place_name, maps_url = _extract_latlng_from_maps(href)
+                        if lat and lng:
+                            location_url = maps_url
+                            place_name_from_maps = place_name
+                            print(
+                                f"DEBUG: baliforum: найдены координаты (fallback): {lat}, {lng} "
+                                f"для '{title}', место: {place_name_from_maps}"
+                            )
+                            break
 
             # Извлекаем venue из HTML страницы
             v = ds.select_one(".event-venue, .place, .location, .event-meta .place")
