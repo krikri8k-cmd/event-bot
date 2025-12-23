@@ -109,15 +109,20 @@ class ModernEventScheduler:
                     venue = ""
                     location_url = ""
                     location_name = ""
+                    place_name_from_maps = ""
                     if hasattr(event, "_raw_data") and event._raw_data:
                         venue = event._raw_data.get("venue", "") or ""
                         location_url = event._raw_data.get("location_url", "") or ""
-                        place_name = event._raw_data.get("place_name_from_maps", "") or ""
+                        place_name_from_maps = event._raw_data.get("place_name_from_maps", "") or ""
                         # ПРИОРИТЕТ: place_name_from_maps (из ссылки) > venue (из HTML)
-                        # Если есть название из ссылки - используем его, не нужен reverse geocoding
-                        location_name = place_name or venue or ""
+                        location_name = place_name_from_maps or venue or ""
 
-                    # Reverse geocoding ТОЛЬКО как fallback, если нет названия из ссылки
+                    # Reverse geocoding ТОЛЬКО если:
+                    # 1. НЕТ ссылки Google Maps (location_url пустая)
+                    # 2. ИЛИ есть ссылка, но в ней НЕТ названия места (place_name_from_maps пустое)
+                    # 3. И нет venue из HTML
+                    # 4. И есть координаты
+                    # НЕ используем reverse geocoding если есть ссылка с названием - чтобы не было путаницы!
                     generic_names = [
                         "",
                         "Место не указано",
@@ -125,12 +130,14 @@ class ModernEventScheduler:
                         "Место по ссылке",
                         "Место проведения",
                     ]
-                    # Используем reverse geocoding только если:
-                    # 1. Нет названия из ссылки (place_name_from_maps)
-                    # 2. И нет venue из HTML
-                    # 3. И есть координаты
+                    has_maps_link_with_name = (
+                        location_url and place_name_from_maps and place_name_from_maps not in generic_names
+                    )
                     needs_reverse_geocode = (
-                        (not location_name or location_name in generic_names) and event.lat and event.lng
+                        not has_maps_link_with_name  # Нет ссылки с названием
+                        and (not location_name or location_name in generic_names)  # И нет другого названия
+                        and event.lat
+                        and event.lng
                     )
 
                     if needs_reverse_geocode:
