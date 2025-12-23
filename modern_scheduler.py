@@ -731,6 +731,17 @@ class ModernEventScheduler:
                     coalesce=True,
                 )
                 logger.info("✅ Задача 'event-start-notifications' добавлена")
+
+            # Запускаем проверку напоминаний и уведомлений сразу для тестирования
+            logger.info("🔔 Запускаем проверку напоминаний и уведомлений сразу после старта...")
+            try:
+                self.send_community_reminders()
+                self.send_event_start_notifications()
+            except Exception as e:
+                logger.warning(f"⚠️ Ошибка при запуске проверки сразу после старта: {e}")
+                import traceback
+
+                logger.error(traceback.format_exc())
             return
 
         self.scheduler = BackgroundScheduler(timezone="UTC")
