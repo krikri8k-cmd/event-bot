@@ -92,9 +92,9 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
                     f"разница: {time_diff_minutes:.1f} минут от сейчас)"
                 )
             else:
-                # Логируем только события, которые близки к началу (в пределах часа)
-                if abs(time_diff_minutes) < 60:
-                    logger.debug(
+                # Логируем события, которые близки к началу (в пределах 2 часов) для отладки
+                if abs(time_diff_minutes) < 120:
+                    logger.info(
                         f"⏭️ Событие {event.id} '{event.title}': не в диапазоне "
                         f"(starts_at={event.starts_at} ({tz_name}) = {starts_at_utc} UTC, "
                         f"разница: {time_diff_minutes:.1f} минут от сейчас, "
