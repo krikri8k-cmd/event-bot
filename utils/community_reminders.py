@@ -87,8 +87,10 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
             if not city:
                 city = event.city
                 if city:
-                    logger.debug(
-                        f"🔍 Событие {event.id}: используем город '{city}' из поля city (координаты не найдены)"
+                    tz_name = get_city_timezone(city)
+                    logger.info(
+                        f"🔍 Событие {event.id}: используем город '{city}' из поля city "
+                        f"(координаты не найдены) -> tz='{tz_name}'"
                     )
 
             tz_name = get_city_timezone(city)
