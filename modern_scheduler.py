@@ -715,7 +715,22 @@ class ModernEventScheduler:
     def start(self):
         """Запуск планировщика"""
         if self.scheduler and self.scheduler.running:
-            logger.warning("⚠️ Планировщик уже запущен")
+            logger.warning("⚠️ Планировщик уже запущен, пропускаем повторный запуск")
+            # Проверяем, что все задачи зарегистрированы
+            jobs = self.scheduler.get_jobs()
+            job_ids = [job.id for job in jobs]
+            logger.info(f"📋 Зарегистрированные задачи: {job_ids}")
+            if "event-start-notifications" not in job_ids:
+                logger.warning("⚠️ Задача 'event-start-notifications' не найдена! Добавляем...")
+                self.scheduler.add_job(
+                    self.send_event_start_notifications,
+                    "interval",
+                    minutes=5,
+                    id="event-start-notifications",
+                    max_instances=1,
+                    coalesce=True,
+                )
+                logger.info("✅ Задача 'event-start-notifications' добавлена")
             return
 
         self.scheduler = BackgroundScheduler(timezone="UTC")
