@@ -846,10 +846,24 @@ class ModernEventScheduler:
             if job.id in ["community-reminders", "event-start-notifications"]:
                 next_run = job.next_run_time
                 if next_run:
-                    logger.info(f"   ⏰ Следующий запуск '{job.id}': {next_run}")
+                    from datetime import UTC, datetime
+
+                    now = datetime.now(UTC)
+                    time_until = (next_run - now).total_seconds() / 60
+                    logger.info(f"   ⏰ Следующий запуск '{job.id}': {next_run} " f"(через {time_until:.1f} минут)")
+                else:
+                    logger.warning(f"   ⚠️ Задача '{job.id}' не имеет следующего времени запуска")
 
         # Запускаем первый цикл сразу
         self.run_full_ingest()
+
+        # Запускаем проверку напоминаний и уведомлений сразу для тестирования
+        logger.info("🔔 Запускаем проверку напоминаний и уведомлений сразу после старта...")
+        try:
+            self.send_community_reminders()
+            self.send_event_start_notifications()
+        except Exception as e:
+            logger.warning(f"⚠️ Ошибка при запуске проверки сразу после старта: {e}")
 
     def stop(self):
         """Остановка планировщика"""
