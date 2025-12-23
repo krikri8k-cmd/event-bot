@@ -321,11 +321,12 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
         )
 
         # Получаем ВСЕ открытые Community события (из таблицы events_community)
+        logger.info("🔔 Выполняем запрос к БД для получения открытых Community событий...")
         stmt = select(CommunityEvent).where(CommunityEvent.status == "open").order_by(CommunityEvent.starts_at)
 
         result = await session.execute(stmt)
+        logger.info("🔔 Запрос к БД выполнен, получаем результаты...")
         all_events = result.scalars().all()
-
         logger.info(f"📊 Запрос к таблице events_community: найдено {len(all_events)} открытых Community событий")
 
         # Фильтруем события, учитывая часовой пояс города
