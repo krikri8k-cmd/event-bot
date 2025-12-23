@@ -155,9 +155,16 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
                                 city = get_city_from_coordinates(lat, lng)
                     except Exception:
                         pass
+                # ВАЖНО: Определяем timezone ТОЛЬКО по координатам из location_url
+                # Если не удалось определить город по координатам, используем UTC
                 if not city:
-                    city = event.city
-                tz_name = get_city_timezone(city)
+                    logger.warning(
+                        f"⚠️ Событие {event.id}: не удалось определить город по координатам из location_url "
+                        f"для логирования, используем UTC (event.city из БД='{event.city}', "
+                        f"location_url={bool(event.location_url)})"
+                    )
+                    city = None
+                tz_name = get_city_timezone(city) if city else "UTC"
                 city_tz = ZoneInfo(tz_name)
                 starts_at_local = event.starts_at.replace(tzinfo=city_tz)
                 starts_at_utc = starts_at_local.astimezone(UTC)
