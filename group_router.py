@@ -293,7 +293,29 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
 
         is_participant = await is_participant_optimized(session, event_id, user_id)
         if is_participant:
-            await message.answer("ℹ️ Вы уже записаны на это событие")
+            # Отправляем сообщение и удаляем его вместе с сообщением пользователя через 5 секунд
+            import asyncio
+
+            bot_msg = await message.answer("ℹ️ Вы уже записаны на это событие")
+
+            # Удаляем оба сообщения через 5 секунд
+            async def delete_both_messages():
+                try:
+                    await asyncio.sleep(5)
+                    # Удаляем сообщение бота
+                    try:
+                        await bot.delete_message(chat_id=chat_id, message_id=bot_msg.message_id)
+                    except Exception:
+                        pass
+                    # Удаляем сообщение пользователя
+                    try:
+                        await bot.delete_message(chat_id=chat_id, message_id=message.message_id)
+                    except Exception:
+                        pass
+                except Exception as e:
+                    logger.warning(f"⚠️ Ошибка при автоудалении сообщений: {e}")
+
+            asyncio.create_task(delete_both_messages())
             return
 
         # Сразу записываем пользователя на событие (без промежуточного подтверждения)
@@ -544,7 +566,29 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
 
         is_participant = await is_participant_optimized(session, event_id, user_id)
         if is_participant:
-            await message.answer("ℹ️ Вы уже записаны на это событие")
+            # Отправляем сообщение и удаляем его вместе с сообщением пользователя через 5 секунд
+            import asyncio
+
+            bot_msg = await message.answer("ℹ️ Вы уже записаны на это событие")
+
+            # Удаляем оба сообщения через 5 секунд
+            async def delete_both_messages():
+                try:
+                    await asyncio.sleep(5)
+                    # Удаляем сообщение бота
+                    try:
+                        await bot.delete_message(chat_id=chat_id, message_id=bot_msg.message_id)
+                    except Exception:
+                        pass
+                    # Удаляем сообщение пользователя
+                    try:
+                        await bot.delete_message(chat_id=chat_id, message_id=message.message_id)
+                    except Exception:
+                        pass
+                except Exception as e:
+                    logger.warning(f"⚠️ Ошибка при автоудалении сообщений: {e}")
+
+            asyncio.create_task(delete_both_messages())
             return
 
         # Сразу записываем пользователя на событие (без промежуточного подтверждения)
