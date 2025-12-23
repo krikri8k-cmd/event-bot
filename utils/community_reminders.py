@@ -362,9 +362,21 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
             city_tz = ZoneInfo(tz_name)
 
             # starts_at - это naive datetime в локальном времени города
+            # ВАЖНО: event.starts_at - это TIMESTAMP WITHOUT TIME ZONE (naive datetime)
+            # Мы интерпретируем его как local time в часовом поясе города
             # Преобразуем его в UTC для сравнения
-            starts_at_local = event.starts_at.replace(tzinfo=city_tz)
-            starts_at_utc = starts_at_local.astimezone(UTC)
+            if event.starts_at.tzinfo is not None:
+                # Если по какой-то причине starts_at уже имеет timezone, логируем предупреждение
+                logger.warning(
+                    f"⚠️ Событие {event.id}: starts_at уже имеет timezone: {event.starts_at.tzinfo}, "
+                    f"ожидался naive datetime"
+                )
+                # Используем как есть, если уже aware
+                starts_at_utc = event.starts_at.astimezone(UTC)
+            else:
+                # Naive datetime - интерпретируем как local time в часовом поясе города
+                starts_at_local = event.starts_at.replace(tzinfo=city_tz)
+                starts_at_utc = starts_at_local.astimezone(UTC)
 
             # Логируем для отладки определения часового пояса
             time_diff_hours = (starts_at_utc - now).total_seconds() / 3600
