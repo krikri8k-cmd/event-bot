@@ -364,13 +364,31 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
             starts_at_local = event.starts_at.replace(tzinfo=city_tz)
             starts_at_utc = starts_at_local.astimezone(UTC)
 
-            # Проверяем, попадает ли событие в диапазон 23.9-24.1 часов от сейчас
+            # Логируем для отладки определения часового пояса
+            time_diff_hours = (starts_at_utc - now).total_seconds() / 3600
+            logger.info(
+                f"🔍 Событие {event.id} '{event.title[:30]}': city='{city}' -> tz='{tz_name}', "
+                f"starts_at={event.starts_at} (local {tz_name}) -> {starts_at_utc} (UTC), "
+                f"до начала: {time_diff_hours:.1f} часов"
+            )
+
+            # Проверяем, попадает ли событие в диапазон 23.75-24.25 часов от сейчас
             if time_min_utc <= starts_at_utc <= time_max_utc:
                 events.append(event)
                 logger.info(
-                    f"🔔 Событие {event.id} '{event.title}': starts_at={event.starts_at} ({tz_name}) "
-                    f"= {starts_at_utc} UTC, до начала ~{((starts_at_utc - now).total_seconds() / 3600):.1f} часов"
+                    f"✅ Событие {event.id} '{event.title}': попадает в окно напоминаний "
+                    f"(starts_at={event.starts_at} ({tz_name}) = {starts_at_utc} UTC, "
+                    f"до начала: {time_diff_hours:.1f} часов)"
                 )
+            else:
+                # Логируем события, которые близки к 24-часовой отметке (в пределах 2 часов) для отладки
+                if 22 <= time_diff_hours <= 26:
+                    logger.info(
+                        f"⏭️ Событие {event.id} '{event.title}': не в диапазоне напоминаний "
+                        f"(starts_at={event.starts_at} ({tz_name}) = {starts_at_utc} UTC, "
+                        f"до начала: {time_diff_hours:.1f} часов, "
+                        f"диапазон: {time_min_utc} - {time_max_utc})"
+                    )
 
         logger.info(f"🔔 Найдено {len(events)} событий для отправки напоминаний (из {len(all_events)} открытых)")
 
