@@ -134,7 +134,7 @@ async def reverse_geocode(lat: float, lng: float) -> str | None:
         try:
             places_params = {
                 "location": f"{lat:.6f},{lng:.6f}",
-                "radius": "100",  # 100 метров - увеличиваем радиус для лучшего покрытия
+                "radius": "500",  # 500 метров - увеличили радиус для лучшего покрытия (было 100м)
                 "key": settings.google_maps_api_key,
                 "type": "establishment|point_of_interest",
             }
