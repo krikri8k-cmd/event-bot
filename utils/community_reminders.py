@@ -73,9 +73,11 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
                         if lat and lng:
                             city = get_city_from_coordinates(lat, lng)
                             if city:
-                                logger.debug(
+                                tz_name = get_city_timezone(city)
+                                logger.info(
                                     f"🔍 Событие {event.id}: определен город '{city}' "
-                                    f"по координатам из location_url ({lat}, {lng})"
+                                    f"по координатам из location_url ({lat}, {lng}) -> tz='{tz_name}' "
+                                    f"(event.city из БД='{event.city}')"
                                 )
                 except Exception as e:
                     logger.debug(f"⚠️ Не удалось извлечь координаты из location_url для события {event.id}: {e}")
