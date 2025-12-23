@@ -136,6 +136,13 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
                         f"разница: {time_diff_minutes:.1f} минут от сейчас, "
                         f"диапазон: {time_min_utc} - {time_max_utc})"
                     )
+                # Для событий в пределах 24 часов логируем более подробно
+                elif abs(time_diff_minutes) < 1440:
+                    logger.debug(
+                        f"📅 Событие {event.id} '{event.title[:30]}': "
+                        f"starts_at={event.starts_at} ({tz_name}) = {starts_at_utc} UTC, "
+                        f"разница: {time_diff_minutes:.1f} минут ({time_diff_minutes/60:.1f} часов) от сейчас"
+                    )
 
         logger.info(f"🔔 Найдено {len(events)} событий для уведомлений о начале (из {len(all_events)} открытых)")
 
