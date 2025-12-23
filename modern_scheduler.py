@@ -840,6 +840,14 @@ class ModernEventScheduler:
         logger.info("   🔔 Напоминания о событиях: каждые 30 минут")
         logger.info("   🎉 Уведомления о начале событий: каждые 5 минут")
 
+        # Показываем следующее время выполнения задач
+        jobs = self.scheduler.get_jobs()
+        for job in jobs:
+            if job.id in ["community-reminders", "event-start-notifications"]:
+                next_run = job.next_run_time
+                if next_run:
+                    logger.info(f"   ⏰ Следующий запуск '{job.id}': {next_run}")
+
         # Запускаем первый цикл сразу
         self.run_full_ingest()
 
