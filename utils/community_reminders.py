@@ -381,8 +381,8 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
                     f"до начала: {time_diff_hours:.1f} часов)"
                 )
             else:
-                # Логируем события, которые близки к 24-часовой отметке (в пределах 2 часов) для отладки
-                if 22 <= time_diff_hours <= 26:
+                # Логируем события, которые близки к 24-часовой отметке (в пределах 4 часов) для отладки
+                if 20 <= time_diff_hours <= 28:
                     logger.info(
                         f"⏭️ Событие {event.id} '{event.title}': не в диапазоне напоминаний "
                         f"(starts_at={event.starts_at} ({tz_name}) = {starts_at_utc} UTC, "
