@@ -96,13 +96,8 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
 
         for event in events:
             try:
-                # Получаем участников
+                # Получаем участников (для уведомлений о начале - отправляем даже если нет участников)
                 participants = await get_participants_optimized(session, event.id)
-
-                if not participants or len(participants) == 0:
-                    logger.info(f"⏭️ Пропускаем событие {event.id} '{event.title}': нет участников")
-                    skipped_count += 1
-                    continue
 
                 # Формируем текст уведомления
                 safe_title = escape_markdown(event.title)
@@ -169,8 +164,14 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
                     notification_text += f"\n📝 {safe_description}\n"
 
                 notification_text += f"\n*Создано пользователем @{safe_username}*\n\n"
-                notification_text += f"👥 **Участники ({len(participants)}):**\n"
-                notification_text += mentions_text
+
+                # Добавляем информацию об участниках только если они есть
+                if participants and len(participants) > 0:
+                    notification_text += f"👥 **Участники ({len(participants)}):**\n"
+                    notification_text += mentions_text
+                else:
+                    notification_text += "👥 Пока нет участников\n"
+                    notification_text += f"\n👉 Нажмите /joinevent{event.id} чтобы записаться"
 
                 # Отправляем в группу
                 try:
