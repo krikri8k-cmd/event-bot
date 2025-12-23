@@ -1110,6 +1110,41 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         f"location_name_from_event='{location_name_from_event}', lat={e.get('lat')}, lng={e.get('lng')}"
     )
 
+    # Если нет названия места, но есть координаты - пробуем reverse geocoding прямо здесь
+    if (
+        not venue_name
+        and not (venue_address and venue_address not in generic_venues)
+        and not (location_name_from_event and location_name_from_event not in generic_venues)
+        and e.get("lat")
+        and e.get("lng")
+    ):
+        try:
+            import asyncio
+
+            from utils.geo_utils import reverse_geocode
+
+            # Пробуем синхронно выполнить reverse geocoding (если есть event loop)
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # Если loop уже запущен, создаем задачу, но не ждем её
+                    # В этом случае покажем координаты, но в фоне попробуем получить название
+                    logger.debug("⚠️ Event loop уже запущен, пропускаем reverse geocoding в render_event_html")
+                else:
+                    # Если loop не запущен, можем запустить
+                    reverse_name = loop.run_until_complete(reverse_geocode(e["lat"], e["lng"]))
+                    if reverse_name and reverse_name not in generic_venues:
+                        location_name_from_event = reverse_name
+                        logger.info(f"✅ Получено название места через reverse geocoding в render: {reverse_name}")
+            except RuntimeError:
+                # Нет event loop, создаем новый
+                reverse_name = asyncio.run(reverse_geocode(e["lat"], e["lng"]))
+                if reverse_name and reverse_name not in generic_venues:
+                    location_name_from_event = reverse_name
+                    logger.info(f"✅ Получено название места через reverse geocoding в render: {reverse_name}")
+        except Exception as geocode_error:
+            logger.debug(f"⚠️ Не удалось выполнить reverse geocoding в render_event_html: {geocode_error}")
+
     if venue_name:
         venue_display = html.escape(venue_name)
         logger.info(f"🔍 DEBUG: Используем venue_name: '{venue_display}'")

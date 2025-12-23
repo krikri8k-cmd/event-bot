@@ -116,8 +116,20 @@ class ModernEventScheduler:
                         # Используем venue или place_name_from_maps для location_name
                         location_name = venue or place_name or ""
 
-                    # Если location_name пустое, пробуем reverse geocoding по координатам
-                    if not location_name and event.lat and event.lng:
+                    # ВСЕГДА пробуем reverse geocoding по координатам, если location_name пустое или generic
+                    # Это гарантирует, что у нас всегда будет название места, а не координаты
+                    generic_names = [
+                        "",
+                        "Место не указано",
+                        "Локация",
+                        "Место по ссылке",
+                        "Место проведения",
+                    ]
+                    needs_reverse_geocode = (
+                        (not location_name or location_name in generic_names) and event.lat and event.lng
+                    )
+
+                    if needs_reverse_geocode:
                         try:
                             import asyncio
 
@@ -130,21 +142,34 @@ class ModernEventScheduler:
                                 # Если loop уже запущен, используем ThreadPoolExecutor
                                 import concurrent.futures
 
+                                def run_reverse_geocode():
+                                    loop = asyncio.new_event_loop()
+                                    asyncio.set_event_loop(loop)
+                                    try:
+                                        return loop.run_until_complete(reverse_geocode(event.lat, event.lng))
+                                    finally:
+                                        loop.close()
+
                                 with concurrent.futures.ThreadPoolExecutor() as executor:
-                                    future = executor.submit(asyncio.run, reverse_geocode(event.lat, event.lng))
-                                    reverse_name = future.result(timeout=5)
+                                    future = executor.submit(run_reverse_geocode)
+                                    reverse_name = future.result(timeout=10)
                             except RuntimeError:
                                 # Нет запущенного loop, используем asyncio.run
                                 reverse_name = asyncio.run(reverse_geocode(event.lat, event.lng))
 
-                            if reverse_name:
+                            if reverse_name and reverse_name not in generic_names:
                                 location_name = reverse_name
                                 logger.info(
                                     f"✅ Получено название места через reverse geocoding: "
                                     f"{location_name} для '{event.title[:50]}'"
                                 )
+                            elif reverse_name:
+                                logger.debug(
+                                    f"⚠️ Reverse geocoding вернул generic название '{reverse_name}', "
+                                    f"пропускаем для '{event.title[:50]}'"
+                                )
                         except Exception as e:
-                            logger.debug(f"⚠️ Ошибка при reverse geocoding для '{event.title[:50]}': {e}")
+                            logger.warning(f"⚠️ Ошибка при reverse geocoding для '{event.title[:50]}': {e}")
 
                     # ПРАВИЛЬНАЯ АРХИТЕКТУРА: Сохраняем через UnifiedEventsService
                     # Сначала в events_parser, потом автоматически синхронизируется в events
