@@ -96,10 +96,10 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
             starts_at_local = event.starts_at.replace(tzinfo=city_tz)
             starts_at_utc = starts_at_local.astimezone(UTC)
 
-            # Логируем для отладки определения часового пояса
-            logger.debug(
-                f"🔍 Событие {event.id}: city='{city}' -> tz='{tz_name}', "
-                f"starts_at={event.starts_at} (local) -> {starts_at_utc} (UTC)"
+            # Логируем для отладки определения часового пояса (INFO уровень для важных событий)
+            logger.info(
+                f"🔍 Событие {event.id} '{event.title[:30]}': city='{city}' -> tz='{tz_name}', "
+                f"starts_at={event.starts_at} (local {tz_name}) -> {starts_at_utc} (UTC)"
             )
 
             # Проверяем, попадает ли событие в диапазон начала
