@@ -40,11 +40,13 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
             f"ищем события между {time_min_utc} и {time_max_utc} UTC"
         )
 
-        # Получаем ВСЕ открытые события
+        # Получаем ВСЕ открытые Community события (из таблицы events_community)
         stmt = select(CommunityEvent).where(CommunityEvent.status == "open").order_by(CommunityEvent.starts_at)
 
         result = await session.execute(stmt)
         all_events = result.scalars().all()
+
+        logger.info(f"📊 Запрос к таблице events_community: найдено {len(all_events)} открытых Community событий")
 
         # Фильтруем события, учитывая часовой пояс города
         from zoneinfo import ZoneInfo
@@ -276,11 +278,13 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
             f"ищем события между {time_min_utc} и {time_max_utc} UTC (через ~24 часа)"
         )
 
-        # Получаем ВСЕ открытые события (фильтруем по времени позже, с учетом timezone)
+        # Получаем ВСЕ открытые Community события (из таблицы events_community)
         stmt = select(CommunityEvent).where(CommunityEvent.status == "open").order_by(CommunityEvent.starts_at)
 
         result = await session.execute(stmt)
         all_events = result.scalars().all()
+
+        logger.info(f"📊 Запрос к таблице events_community: найдено {len(all_events)} открытых Community событий")
 
         # Фильтруем события, учитывая часовой пояс города
         from zoneinfo import ZoneInfo
