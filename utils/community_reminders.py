@@ -235,9 +235,10 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
         now = datetime.now(UTC)
         target_time = now + timedelta(hours=24)
 
-        # Диапазон: от 23.9 до 24.1 часов (окно в 12 минут) - ближе к ровно 24 часам
-        time_min_utc = target_time - timedelta(minutes=6)
-        time_max_utc = target_time + timedelta(minutes=6)
+        # Диапазон: от 23.5 до 24.5 часов (окно в 1 час) - расширено для надежности
+        # При проверке каждый час это гарантирует, что событие не будет пропущено
+        time_min_utc = target_time - timedelta(minutes=30)
+        time_max_utc = target_time + timedelta(minutes=30)
 
         logger.info(
             f"🔔 Проверка событий для напоминаний: сейчас UTC={now}, "

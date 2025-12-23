@@ -806,11 +806,12 @@ class ModernEventScheduler:
             self.check_removed_chats, "interval", hours=24, id="chat-status-check", max_instances=1, coalesce=True
         )
 
-        # Напоминания о Community событиях за 24 часа - проверяем каждый час
+        # Напоминания о Community событиях за 24 часа - проверяем каждые 15 минут
+        # Это гарантирует, что события не будут пропущены из-за узкого окна времени
         self.scheduler.add_job(
             self.send_community_reminders,
             "interval",
-            hours=1,
+            minutes=15,
             id="community-reminders",
             max_instances=1,
             coalesce=True,
