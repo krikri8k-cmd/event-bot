@@ -83,12 +83,23 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
             starts_at_utc = starts_at_local.astimezone(UTC)
 
             # Проверяем, попадает ли событие в диапазон начала
+            time_diff_minutes = (starts_at_utc - now).total_seconds() / 60
             if time_min_utc <= starts_at_utc <= time_max_utc:
                 events.append(event)
                 logger.info(
                     f"🔔 Событие {event.id} '{event.title}': начинается сейчас "
-                    f"(starts_at={event.starts_at} ({tz_name}) = {starts_at_utc} UTC)"
+                    f"(starts_at={event.starts_at} ({tz_name}) = {starts_at_utc} UTC, "
+                    f"разница: {time_diff_minutes:.1f} минут от сейчас)"
                 )
+            else:
+                # Логируем только события, которые близки к началу (в пределах часа)
+                if abs(time_diff_minutes) < 60:
+                    logger.debug(
+                        f"⏭️ Событие {event.id} '{event.title}': не в диапазоне "
+                        f"(starts_at={event.starts_at} ({tz_name}) = {starts_at_utc} UTC, "
+                        f"разница: {time_diff_minutes:.1f} минут от сейчас, "
+                        f"диапазон: {time_min_utc} - {time_max_utc})"
+                    )
 
         logger.info(f"🔔 Найдено {len(events)} событий для уведомлений о начале (из {len(all_events)} открытых)")
 
