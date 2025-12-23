@@ -498,16 +498,57 @@ def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> 
                     elif not href.startswith("http"):
                         href = "https://" + href
 
-                    lat, lng, place_name, maps_url = _extract_latlng_from_maps(href)
-                    if lat and lng:
-                        location_url = maps_url  # Сохраняем оригинальную ссылку
-                        place_name_from_maps = place_name
-                        print(
-                            f"DEBUG: baliforum: найдены координаты в карточке: {lat}, {lng} "
-                            f"для '{title}', место: {place_name_from_maps}, "
-                            f"ссылка: {location_url[:80] if location_url else None}"
-                        )
-                        break
+                    # Используем parse_google_maps_link для лучшего извлечения данных
+                    try:
+                        import asyncio
+
+                        from utils.geo_utils import parse_google_maps_link
+
+                        # Выполняем async функцию синхронно
+                        try:
+                            loop = asyncio.get_event_loop()
+                            if loop.is_running():
+                                import concurrent.futures
+
+                                def run_parse():
+                                    loop = asyncio.new_event_loop()
+                                    asyncio.set_event_loop(loop)
+                                    try:
+                                        return loop.run_until_complete(parse_google_maps_link(href))
+                                    finally:
+                                        loop.close()
+
+                                with concurrent.futures.ThreadPoolExecutor() as executor:
+                                    future = executor.submit(run_parse)
+                                    maps_data = future.result(timeout=5)
+                            else:
+                                maps_data = loop.run_until_complete(parse_google_maps_link(href))
+                        except RuntimeError:
+                            maps_data = asyncio.run(parse_google_maps_link(href))
+
+                        if maps_data and maps_data.get("lat") and maps_data.get("lng"):
+                            lat = maps_data["lat"]
+                            lng = maps_data["lng"]
+                            location_url = maps_data.get("raw_link", href)
+                            place_name_from_maps = maps_data.get("name")
+                            print(
+                                f"DEBUG: baliforum: найдены координаты в карточке: {lat}, {lng} "
+                                f"для '{title}', место: {place_name_from_maps}, "
+                                f"ссылка: {location_url[:80] if location_url else None}"
+                            )
+                            break
+                    except Exception as e:
+                        # Fallback на старый метод
+                        print(f"DEBUG: baliforum: ошибка parse_google_maps_link в карточке, используем fallback: {e}")
+                        lat, lng, place_name, maps_url = _extract_latlng_from_maps(href)
+                        if lat and lng:
+                            location_url = maps_url
+                            place_name_from_maps = place_name
+                            print(
+                                f"DEBUG: baliforum: найдены координаты в карточке (fallback): {lat}, {lng} "
+                                f"для '{title}', место: {place_name_from_maps}"
+                            )
+                            break
 
         # Если координаты все еще не найдены, пробуем геокодинг по адресу/venue
         if (not lat or not lng) and venue:
