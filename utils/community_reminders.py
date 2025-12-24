@@ -272,6 +272,7 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
                         chat_id=event.chat_id,
                         text=notification_text,
                         tag="event_start",
+                        event_id=event.id,
                         parse_mode="Markdown",
                     )
                     logger.info(
@@ -447,32 +448,29 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
 
         for event in events:
             try:
-                # Проверяем, не было ли уже отправлено напоминание для этого события
-                # Проверяем наличие напоминания в последние 30 минут для этого чата
-                # (чтобы избежать дубликатов при повторных запусках планировщика каждые 5 минут)
-                # Если событие попадает в окно 24 часов и есть недавнее напоминание в этом чате,
-                # то скорее всего это уже было отправлено для этого или другого события
+                # Проверяем, не было ли уже отправлено напоминание для этого конкретного события
+                # Теперь проверяем по event_id, чтобы каждое событие могло получить свое напоминание
                 from database import BotMessage
 
-                # Проверяем напоминания за последние 30 минут (больше чем интервал запуска планировщика)
-                recent_cutoff = now - timedelta(minutes=30)
+                # Проверяем, есть ли уже напоминание для этого события за последние 25 часов
+                # (чтобы избежать дубликатов при повторных запусках планировщика)
+                reminder_cutoff = now - timedelta(hours=25)
                 existing_reminder_check = await session.execute(
                     select(BotMessage).where(
                         BotMessage.chat_id == event.chat_id,
                         BotMessage.deleted.is_(False),
                         BotMessage.tag == "reminder",
-                        BotMessage.created_at >= recent_cutoff,
+                        BotMessage.event_id == event.id,
+                        BotMessage.created_at >= reminder_cutoff,
                     )
                 )
-                recent_reminders = existing_reminder_check.scalars().all()
+                existing_reminder = existing_reminder_check.scalar_one_or_none()
 
-                if recent_reminders:
-                    # Если есть недавние напоминания (за последние 30 минут), пропускаем
-                    # Это защита от дубликатов при повторных запусках планировщика
+                if existing_reminder:
+                    # Если уже есть напоминание для этого события, пропускаем
                     logger.info(
                         f"⏭️ Пропускаем событие {event.id} '{event.title}': "
-                        f"уже есть недавнее напоминание в чате {event.chat_id} "
-                        f"(найдено {len(recent_reminders)} напоминаний за последние 30 минут)"
+                        f"уже есть напоминание для этого события (отправлено {existing_reminder.created_at})"
                     )
                     skipped_count += 1
                     continue
@@ -583,6 +581,7 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
                         chat_id=event.chat_id,
                         text=reminder_text,
                         tag="reminder",
+                        event_id=event.id,
                         parse_mode="Markdown",
                     )
                     logger.info(f"✅ Отправлено напоминание о событии {event.id} '{event.title}' в чат {event.chat_id}")

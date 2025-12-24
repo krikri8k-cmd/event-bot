@@ -248,6 +248,9 @@ class BotMessage(Base):
     chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
     message_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     tag: Mapped[str] = mapped_column(String(50), default="service", index=True)  # panel, service, notification
+    event_id: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, index=True
+    )  # ID события для reminder/event_start
     deleted: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

@@ -430,7 +430,14 @@ async def ensure_panel(bot: Bot, session: AsyncSession, *, chat_id: int, text: s
 
 
 async def send_tracked(
-    bot: Bot, session: AsyncSession, *, chat_id: int, text: str, tag: str = "service", **kwargs
+    bot: Bot,
+    session: AsyncSession,
+    *,
+    chat_id: int,
+    text: str,
+    tag: str = "service",
+    event_id: int | None = None,
+    **kwargs,
 ) -> Any:
     """
     Отправляет сообщение и сохраняет его ID для последующего удаления (ASYNC версия)
@@ -440,7 +447,8 @@ async def send_tracked(
         session: SQLAlchemy сессия
         chat_id: ID чата
         text: Текст сообщения
-        tag: Тег сообщения (panel, service, notification)
+        tag: Тег сообщения (panel, service, notification, reminder, event_start)
+        event_id: ID события (для reminder и event_start)
         **kwargs: Дополнительные параметры для send_message
 
     Returns:
@@ -468,7 +476,7 @@ async def send_tracked(
         raise
 
     # Трекаем сообщение
-    bot_msg = BotMessage(chat_id=chat_id, message_id=msg.message_id, tag=tag)
+    bot_msg = BotMessage(chat_id=chat_id, message_id=msg.message_id, tag=tag, event_id=event_id)
     session.add(bot_msg)
     await session.commit()
 
