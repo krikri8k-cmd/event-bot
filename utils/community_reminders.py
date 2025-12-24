@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import load_settings
-from database import CommunityEvent, init_engine
+from database import BotMessage, CommunityEvent, init_engine
 from utils.community_participants_service_optimized import get_participants_optimized
 from utils.messaging_utils import send_tracked
 
@@ -189,8 +189,6 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
             try:
                 # Проверяем, не было ли уже отправлено уведомление для этого события
                 # Проверяем по event_id, чтобы каждое событие могло получить свое уведомление только один раз
-                from database import BotMessage
-
                 # Проверяем, есть ли уже уведомление о начале для этого события
                 # Используем окно в 2 часа (120 минут) - если уведомление было отправлено в последние 2 часа, пропускаем
                 notification_cutoff = now - timedelta(hours=2)
