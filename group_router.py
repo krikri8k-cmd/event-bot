@@ -689,71 +689,8 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
             except Exception as e:
                 logger.error(f"❌ Ошибка при удалении предыдущих списков событий: {e}")
         else:
-            # Если списков нет - проверяем, есть ли недавние напоминания для этого события
-            # Если есть - показываем одно событие с навигацией (не трогаем напоминания)
-            cutoff_time = datetime.now(UTC) - timedelta(hours=24)
-            reminder_check = await session.execute(
-                select(BotMessage).where(
-                    BotMessage.chat_id == chat_id,
-                    BotMessage.deleted.is_(False),
-                    BotMessage.tag.in_(["reminder", "event_start"]),
-                    BotMessage.created_at >= cutoff_time,
-                    BotMessage.event_id == event_id,  # Проверяем, что напоминание для этого события
-                )
-            )
-            has_recent_reminder_for_this_event = reminder_check.scalar_one_or_none() is not None
-
-            if has_recent_reminder_for_this_event:
-                # Если есть недавнее напоминание для этого события - показываем одно событие с навигацией
-                logger.info(f"📌 Найдено недавнее напоминание для события {event_id}, показываем событие с навигацией")
-
-                # Получаем все активные события для навигации
-                all_events = await _get_all_active_community_events(session, chat_id)
-
-                # Находим индекс текущего события
-                event_index = next((i for i, e in enumerate(all_events) if e.id == event_id), None)
-
-                if event_index is not None:
-                    # Показываем событие с навигацией
-                    await _show_community_view_event(message, bot, session, all_events, event_index, chat_id, user_id)
-                    return
-                else:
-                    # Если событие не найдено в списке активных, показываем его отдельно
-                    logger.warning(f"⚠️ Событие {event_id} не найдено в списке активных событий")
-                    # Показываем событие без навигации
-                    text = f"📅 **Событие:**\n\n{format_community_event_for_display(event)}"
-
-                    from utils.community_participants_service_optimized import (
-                        get_participants_count_optimized,
-                        is_participant_optimized,
-                    )
-
-                    participants_count = await get_participants_count_optimized(session, event.id)
-                    is_user_participant = await is_participant_optimized(session, event.id, user_id)
-
-                    text += f"\n👥 Участников: {participants_count}\n"
-
-                    if is_user_participant:
-                        text += f"✅ Вы записаны | Нажмите 👉 /leaveevent{event.id} чтобы отменить\n"
-                    else:
-                        text += f"Нажмите 👉 /joinevent{event.id} чтобы записаться\n"
-
-                    keyboard = InlineKeyboardMarkup(
-                        inline_keyboard=[[InlineKeyboardButton(text="📋 Меню", callback_data="group_back_to_panel")]]
-                    )
-
-                    is_forum = getattr(message.chat, "is_forum", False)
-                    thread_id = getattr(message, "message_thread_id", None)
-
-                    send_kwargs = {"text": text, "parse_mode": "Markdown", "reply_markup": keyboard}
-                    if is_forum and thread_id:
-                        send_kwargs["message_thread_id"] = thread_id
-
-                    await message.answer(**send_kwargs)
-                    return
-            else:
-                # Если нет напоминания для этого события - создаем список событий
-                logger.info("📋 Напоминания для этого события не найдено, создаем список событий")
+            # Если списков нет - просто создаем список событий
+            logger.info("📋 Списков не найдено, создаем список событий")
 
         # Создаем новый список событий с обновленными данными
         # Используем send_tracked напрямую, без callback
