@@ -689,8 +689,8 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
             except Exception as e:
                 logger.error(f"❌ Ошибка при удалении предыдущих списков событий: {e}")
         else:
-            # Если списков нет - проверяем, есть ли недавние напоминания
-            # Если есть - создаем новое сообщение (не трогаем напоминания)
+            # Если списков нет - проверяем, есть ли недавние напоминания для этого события
+            # Если есть - показываем одно событие с навигацией (не трогаем напоминания)
             cutoff_time = datetime.now(UTC) - timedelta(hours=24)
             reminder_check = await session.execute(
                 select(BotMessage).where(
@@ -698,16 +698,62 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
                     BotMessage.deleted.is_(False),
                     BotMessage.tag.in_(["reminder", "event_start"]),
                     BotMessage.created_at >= cutoff_time,
+                    BotMessage.event_id == event_id,  # Проверяем, что напоминание для этого события
                 )
             )
-            has_recent_reminders = reminder_check.scalars().first() is not None
+            has_recent_reminder_for_this_event = reminder_check.scalar_one_or_none() is not None
 
-            if has_recent_reminders:
-                # Если есть недавние напоминания - создаем новое сообщение (не трогаем старые)
-                logger.info("📌 Найдены недавние напоминания, создаем новое сообщение со списком событий")
+            if has_recent_reminder_for_this_event:
+                # Если есть недавнее напоминание для этого события - показываем одно событие с навигацией
+                logger.info(f"📌 Найдено недавнее напоминание для события {event_id}, показываем событие с навигацией")
+
+                # Получаем все активные события для навигации
+                all_events = await _get_all_active_community_events(session, chat_id)
+
+                # Находим индекс текущего события
+                event_index = next((i for i, e in enumerate(all_events) if e.id == event_id), None)
+
+                if event_index is not None:
+                    # Показываем событие с навигацией
+                    await _show_community_view_event(message, bot, session, all_events, event_index, chat_id, user_id)
+                    return
+                else:
+                    # Если событие не найдено в списке активных, показываем его отдельно
+                    logger.warning(f"⚠️ Событие {event_id} не найдено в списке активных событий")
+                    # Показываем событие без навигации
+                    text = f"📅 **Событие:**\n\n{format_community_event_for_display(event)}"
+
+                    from utils.community_participants_service_optimized import (
+                        get_participants_count_optimized,
+                        is_participant_optimized,
+                    )
+
+                    participants_count = await get_participants_count_optimized(session, event.id)
+                    is_user_participant = await is_participant_optimized(session, event.id, user_id)
+
+                    text += f"\n👥 Участников: {participants_count}\n"
+
+                    if is_user_participant:
+                        text += f"✅ Вы записаны | Нажмите 👉 /leaveevent{event.id} чтобы отменить\n"
+                    else:
+                        text += f"Нажмите 👉 /joinevent{event.id} чтобы записаться\n"
+
+                    keyboard = InlineKeyboardMarkup(
+                        inline_keyboard=[[InlineKeyboardButton(text="📋 Меню", callback_data="group_back_to_panel")]]
+                    )
+
+                    is_forum = getattr(message.chat, "is_forum", False)
+                    thread_id = getattr(message, "message_thread_id", None)
+
+                    send_kwargs = {"text": text, "parse_mode": "Markdown", "reply_markup": keyboard}
+                    if is_forum and thread_id:
+                        send_kwargs["message_thread_id"] = thread_id
+
+                    await message.answer(**send_kwargs)
+                    return
             else:
-                # Если нет ни списков, ни напоминаний - просто создаем новое сообщение
-                logger.info("📋 Списков и напоминаний не найдено, создаем новое сообщение со списком событий")
+                # Если нет напоминания для этого события - создаем список событий
+                logger.info("📋 Напоминания для этого события не найдено, создаем список событий")
 
         # Создаем новый список событий с обновленными данными
         # Используем send_tracked напрямую, без callback
@@ -1731,6 +1777,8 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
         f"🔥 group_list_events_page: запрос списка событий в чате {chat_id}, страница {page}, thread_id={thread_id}"
     )
 
+    # ВАЖНО: Не вызываем callback.answer() здесь, так как это нужно сделать в проверке границ
+
     # Пытаемся ответить на callback (только если это реальный callback, не фейковый)
     try:
         await callback.answer()  # Тост, не спамим
@@ -1761,22 +1809,26 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
         # Сначала вычисляем total_pages для проверки границ
         total_pages = (total_events + events_per_page - 1) // events_per_page if total_events > 0 else 1
 
+        logger.info(f"🔥 Проверка границ: page={page}, total_pages={total_pages}, total_events={total_events}")
+
         # Проверяем границы страниц и показываем предупреждение, если запрашивается несуществующая страница
         # Если страница вне диапазона - показываем alert и выходим, не создавая новое сообщение
         if page < 1:
+            logger.info(f"🔥 Страница {page} < 1, показываем предупреждение")
             try:
                 await callback.answer("⚠️ Это первая страница", show_alert=True)
-                logger.info(f"🔥 Показано предупреждение: первая страница (page={page}, total_pages={total_pages})")
-            except (RuntimeError, AttributeError) as e:
-                logger.debug(f"⚠️ Не удалось показать alert: {e}")
+                logger.info("✅ Предупреждение показано: первая страница")
+            except Exception as e:
+                logger.error(f"❌ Ошибка при показе alert: {e}")
             return  # Не создаем новое сообщение
 
         if page > total_pages:
+            logger.info(f"🔥 Страница {page} > total_pages {total_pages}, показываем предупреждение")
             try:
                 await callback.answer("⚠️ Это последняя страница", show_alert=True)
-                logger.info(f"🔥 Показано предупреждение: последняя страница (page={page}, total_pages={total_pages})")
-            except (RuntimeError, AttributeError) as e:
-                logger.debug(f"⚠️ Не удалось показать alert: {e}")
+                logger.info("✅ Предупреждение показано: последняя страница")
+            except Exception as e:
+                logger.error(f"❌ Ошибка при показе alert: {e}")
             return  # Не создаем новое сообщение
 
         # Вычисляем offset для валидной страницы
@@ -2955,6 +3007,133 @@ async def _show_community_manage_event(
             logger.error(f"❌ Не удалось отправить новое сообщение: {type(e).__name__}: {e}")
 
 
+async def _get_all_active_community_events(session: AsyncSession, chat_id: int) -> list[CommunityEvent]:
+    """Получает все активные события для просмотра (не только управляемые)"""
+    from sqlalchemy import select
+
+    # Для Community событий starts_at теперь TIMESTAMP WITHOUT TIME ZONE, поэтому убираем timezone
+    now_utc = datetime.now(UTC)
+    now_naive = now_utc.replace(tzinfo=None)
+
+    # Получаем все активные события (которые еще не начались)
+    stmt = (
+        select(CommunityEvent)
+        .where(
+            CommunityEvent.chat_id == chat_id,
+            CommunityEvent.status == "open",
+            CommunityEvent.starts_at >= now_naive,
+        )
+        .order_by(CommunityEvent.starts_at)
+    )
+
+    result = await session.execute(stmt)
+    events = list(result.scalars().all())
+
+    return events
+
+
+async def _show_community_view_event(
+    message_or_callback: Message | CallbackQuery,
+    bot: Bot,
+    session: AsyncSession,
+    events: list[CommunityEvent],
+    index: int,
+    chat_id: int,
+    user_id: int,
+):
+    """Показывает событие под нужным индексом с навигацией для просмотра (не для управления)"""
+    if not events:
+        return
+
+    total = len(events)
+    if index < 0 or index >= total:
+        index = 0
+
+    event = events[index]
+
+    # Формируем текст события
+    header = f"📅 Событие ({index + 1}/{total}):\n\n"
+    text = f"{header}{format_community_event_for_display(event)}"
+
+    # Добавляем информацию об участниках
+    from utils.community_participants_service_optimized import (
+        get_participants_count_optimized,
+        is_participant_optimized,
+    )
+
+    participants_count = await get_participants_count_optimized(session, event.id)
+    is_user_participant = await is_participant_optimized(session, event.id, user_id)
+
+    text += f"\n👥 Участников: {participants_count}\n"
+
+    if is_user_participant:
+        text += f"✅ Вы записаны | Нажмите 👉 /leaveevent{event.id} чтобы отменить\n"
+    else:
+        text += f"Нажмите 👉 /joinevent{event.id} чтобы записаться\n"
+
+    # Создаем клавиатуру с кнопками навигации
+    keyboard_buttons = []
+
+    # Кнопки навигации: всегда показываем 3 кнопки (Меню, Назад, Вперед)
+    nav_row = [
+        InlineKeyboardButton(text="📋 Меню", callback_data="group_back_to_panel"),
+        InlineKeyboardButton(text="◀️ Назад", callback_data=f"view_prev_event_{max(0, index-1)}"),
+        InlineKeyboardButton(text="▶️ Вперед", callback_data=f"view_next_event_{min(total-1, index+1)}"),
+    ]
+    keyboard_buttons.append(nav_row)
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+
+    # Отправляем или редактируем сообщение
+    is_forum = (
+        getattr(message_or_callback.message.chat, "is_forum", False)
+        if isinstance(message_or_callback, CallbackQuery)
+        else getattr(message_or_callback.chat, "is_forum", False)
+    )
+    thread_id = (
+        getattr(message_or_callback.message, "message_thread_id", None)
+        if isinstance(message_or_callback, CallbackQuery)
+        else getattr(message_or_callback, "message_thread_id", None)
+    )
+
+    send_kwargs = {
+        "text": text,
+        "parse_mode": "Markdown",
+        "reply_markup": keyboard,
+    }
+    if is_forum and thread_id:
+        send_kwargs["message_thread_id"] = thread_id
+
+    # Если это CallbackQuery, пытаемся отредактировать сообщение
+    if isinstance(message_or_callback, CallbackQuery):
+        bot_info = await bot.get_me()
+        is_bot_message = (
+            message_or_callback.message.from_user is not None
+            and message_or_callback.message.from_user.id == bot_info.id
+        )
+
+        if is_bot_message and (message_or_callback.message.text or message_or_callback.message.caption):
+            try:
+                await message_or_callback.message.edit_text(**send_kwargs)
+            except Exception as e:
+                logger.warning(f"⚠️ Не удалось отредактировать сообщение: {type(e).__name__}: {e}")
+                try:
+                    await message_or_callback.message.answer(**send_kwargs)
+                except Exception as e2:
+                    logger.error(f"❌ Не удалось отправить новое сообщение: {type(e2).__name__}: {e2}")
+        else:
+            try:
+                await message_or_callback.message.answer(**send_kwargs)
+            except Exception as e:
+                logger.error(f"❌ Не удалось отправить новое сообщение: {type(e).__name__}: {e}")
+    else:
+        # Если это Message, отправляем новое сообщение
+        try:
+            await message_or_callback.answer(**send_kwargs)
+        except Exception as e:
+            logger.error(f"❌ Не удалось отправить сообщение: {type(e).__name__}: {e}")
+
+
 @group_router.callback_query(F.data.startswith("group_next_event_"))
 async def group_next_event(callback: CallbackQuery, bot: Bot, session: AsyncSession):
     """Переход к следующему событию"""
@@ -3041,6 +3220,64 @@ async def group_prev_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
     await _show_community_manage_event(
         callback, bot, session, manageable_events, target_index, chat_id, user_id, is_admin
     )
+    await callback.answer()
+
+
+@group_router.callback_query(F.data.startswith("view_next_event_"))
+async def view_next_event(callback: CallbackQuery, bot: Bot, session: AsyncSession):
+    """Переход к следующему событию при просмотре"""
+    chat_id = callback.message.chat.id
+    user_id = callback.from_user.id
+
+    try:
+        target_index = int(callback.data.split("_")[-1])
+    except ValueError:
+        await callback.answer("❌ Неверный индекс", show_alert=True)
+        return
+
+    # Получаем все активные события
+    events = await _get_all_active_community_events(session, chat_id)
+
+    total = len(events)
+    if total == 0:
+        await callback.answer("❌ Нет активных событий", show_alert=True)
+        return
+
+    # Проверяем, что индекс не выходит за границы
+    if target_index >= total:
+        await callback.answer("⚠️ Это последнее событие", show_alert=True)
+        return
+
+    await _show_community_view_event(callback, bot, session, events, target_index, chat_id, user_id)
+    await callback.answer()
+
+
+@group_router.callback_query(F.data.startswith("view_prev_event_"))
+async def view_prev_event(callback: CallbackQuery, bot: Bot, session: AsyncSession):
+    """Переход к предыдущему событию при просмотре"""
+    chat_id = callback.message.chat.id
+    user_id = callback.from_user.id
+
+    try:
+        target_index = int(callback.data.split("_")[-1])
+    except ValueError:
+        await callback.answer("❌ Неверный индекс", show_alert=True)
+        return
+
+    # Получаем все активные события
+    events = await _get_all_active_community_events(session, chat_id)
+
+    total = len(events)
+    if total == 0:
+        await callback.answer("❌ Нет активных событий", show_alert=True)
+        return
+
+    # Проверяем, что индекс не выходит за границы
+    if target_index < 0 or target_index >= total:
+        await callback.answer("⚠️ Это первое событие", show_alert=True)
+        return
+
+    await _show_community_view_event(callback, bot, session, events, target_index, chat_id, user_id)
     await callback.answer()
 
 
