@@ -447,6 +447,36 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
 
         for event in events:
             try:
+                # Проверяем, не было ли уже отправлено напоминание для этого события
+                # Проверяем наличие напоминания в последние 30 минут для этого чата
+                # (чтобы избежать дубликатов при повторных запусках планировщика каждые 5 минут)
+                # Если событие попадает в окно 24 часов и есть недавнее напоминание в этом чате,
+                # то скорее всего это уже было отправлено для этого или другого события
+                from database import BotMessage
+
+                # Проверяем напоминания за последние 30 минут (больше чем интервал запуска планировщика)
+                recent_cutoff = now - timedelta(minutes=30)
+                existing_reminder_check = await session.execute(
+                    select(BotMessage).where(
+                        BotMessage.chat_id == event.chat_id,
+                        BotMessage.deleted.is_(False),
+                        BotMessage.tag == "reminder",
+                        BotMessage.created_at >= recent_cutoff,
+                    )
+                )
+                recent_reminders = existing_reminder_check.scalars().all()
+
+                if recent_reminders:
+                    # Если есть недавние напоминания (за последние 30 минут), пропускаем
+                    # Это защита от дубликатов при повторных запусках планировщика
+                    logger.info(
+                        f"⏭️ Пропускаем событие {event.id} '{event.title}': "
+                        f"уже есть недавнее напоминание в чате {event.chat_id} "
+                        f"(найдено {len(recent_reminders)} напоминаний за последние 30 минут)"
+                    )
+                    skipped_count += 1
+                    continue
+
                 # Получаем участников (для напоминаний отправляем даже если нет участников)
                 participants = await get_participants_optimized(session, event.id)
 
