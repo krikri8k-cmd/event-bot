@@ -642,7 +642,6 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
 
         # Проверяем, есть ли активные сообщения со списком событий (тег "list")
         # Если есть - обновляем их (удаляем и создаем новый), если нет - проверяем напоминания
-        from datetime import timedelta
 
         from database import BotMessage
 
@@ -689,130 +688,23 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
             except Exception as e:
                 logger.error(f"❌ Ошибка при удалении предыдущих списков событий: {e}")
         else:
-            # Если списков нет - просто создаем стандартный список событий
-            logger.info("📋 Списков не найдено, создаем стандартный список событий")
+            # Если списков нет - используем стандартную функцию group_list_events_page
+            logger.info("📋 Списков не найдено, используем стандартный формат списка событий")
 
-        # Создаем новый список событий с обновленными данными
-        # Используем send_tracked напрямую, без callback
-        from utils.messaging_utils import send_tracked
+            # Создаем фейковый callback для вызова group_list_events_page из Message
+            class FakeCallback:
+                def __init__(self, msg, user):
+                    self.message = msg
+                    self.from_user = user
+                    self.data = "group_list_page_1"
+                    self.bot = bot
 
-        # Получаем события для списка
-        # Для Community событий starts_at теперь TIMESTAMP WITHOUT TIME ZONE, поэтому убираем timezone
-        now_utc = (datetime.now(UTC) - timedelta(hours=3)).replace(tzinfo=None)
-        stmt = (
-            select(CommunityEvent)
-            .where(
-                CommunityEvent.chat_id == chat_id,
-                CommunityEvent.status == "open",
-                CommunityEvent.starts_at >= now_utc,
-            )
-            .order_by(CommunityEvent.starts_at)
-            .limit(10)
-        )
-        result = await session.execute(stmt)
-        events = result.scalars().all()
+                async def answer(self, *args, **kwargs):
+                    pass  # Игнорируем ответ на callback
 
-        # Формируем текст списка (используем существующую логику из group_list_events_page)
-        if not events:
-            text = (
-                "📋 **События этого чата**\n\n"
-                "📭 **0 событий**\n\n"
-                "В этом чате пока нет активных событий.\n\n"
-                "💡 Создайте первое событие, нажав кнопку **➕ Создать событие**!"
-            )
-        else:
-            text = f"📋 **События этого чата** ({len(events)} событий)\n\n"
-            for i, event in enumerate(events, 1):
-                date_str = format_community_event_time(event, "%d.%m.%Y %H:%M")
-                safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
-                text += f"{i}. {safe_title}\n"
-                text += f"   📅 {date_str}\n"
-
-                city_to_show = event.city or (
-                    extract_city_from_location_url(event.location_url) if event.location_url else None
-                )
-                if city_to_show:
-                    safe_city = city_to_show.replace("*", "").replace("_", "").replace("`", "'")
-                    text += f"   🏙️ {safe_city}\n"
-
-                if event.description:
-                    desc = event.description[:80] + "..." if len(event.description) > 80 else event.description
-                    safe_desc = desc.replace("*", "").replace("_", "").replace("`", "'")
-                    text += f"   📝 {safe_desc}\n"
-
-                if event.location_name:
-                    safe_location = event.location_name.replace("*", "").replace("_", "").replace("`", "'")
-                    if event.location_url:
-                        safe_url = event.location_url.replace("(", "").replace(")", "")
-                        text += f"   📍 [{safe_location}]({safe_url})\n"
-                    else:
-                        text += f"   📍 {safe_location}\n"
-                elif event.location_url:
-                    safe_url = event.location_url.replace("(", "").replace(")", "")
-                    text += f"   📍 [Место на карте]({safe_url})\n"
-
-                if event.organizer_username:
-                    text += f"   👤 Организатор: @{event.organizer_username}\n"
-
-                from utils.community_participants_service_optimized import (
-                    get_participants_count_optimized,
-                    is_participant_optimized,
-                )
-
-                participants_count = await get_participants_count_optimized(session, event.id)
-                is_user_participant = await is_participant_optimized(session, event.id, user_id)
-
-                text += f"   👥 Участников: {participants_count}\n"
-
-                if is_user_participant:
-                    text += f"   ✅ Вы записаны | Нажмите 👉 /leaveevent{event.id} чтобы отменить\n"
-                else:
-                    text += f"   Нажмите 👉 /joinevent{event.id} чтобы записаться\n"
-
-                text += "\n"
-
-            # Проверяем, является ли пользователь админом
-            is_admin = await is_chat_admin(bot, chat_id, user_id)
-            if is_admin:
-                text += "🔧 Админ-панель: Вы можете управлять любым событием кнопками ниже!\n"
-                text += "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
-            else:
-                text += "🔧 Ваши события: Вы можете управлять своими событиями кнопками ниже!\n"
-                text += "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
-
-        # Создаем клавиатуру с кнопками управления событиями
-        keyboard_buttons = []
-
-        # Всегда показываем кнопку "Управление событиями", даже если активных событий нет
-        # Это позволяет возобновлять закрытые события (в течение 24 часов после закрытия)
-        keyboard_buttons.append(
-            [
-                InlineKeyboardButton(
-                    text="🔧 Управление событиями",
-                    callback_data="group_manage_events",
-                )
-            ]
-        )
-
-        keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel")])
-        back_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-
-        # Отправляем список через send_tracked
-        is_forum = getattr(message.chat, "is_forum", False)
-        thread_id = getattr(message, "message_thread_id", None)
-
-        send_kwargs = {"reply_markup": back_kb, "parse_mode": "Markdown"}
-        if is_forum and thread_id:
-            send_kwargs["message_thread_id"] = thread_id
-
-        await send_tracked(
-            bot,
-            session,
-            chat_id=chat_id,
-            text=text,
-            tag="list",  # Тег для списка событий
-            **send_kwargs,
-        )
+            fake_callback = FakeCallback(message, message.from_user)
+            await group_list_events_page(fake_callback, bot, session, page=1)
+            return
 
     except Exception as e:
         logger.error(f"❌ Ошибка показа подтверждения: {e}")
