@@ -395,7 +395,7 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
                     BotMessage.created_at >= cutoff_time,
                 )
             )
-            has_recent_reminders = reminder_check.scalar_one_or_none() is not None
+            has_recent_reminders = reminder_check.scalars().first() is not None
 
             if has_recent_reminders:
                 # Если есть недавние напоминания - создаем новое сообщение (не трогаем старые)
@@ -700,7 +700,7 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
                     BotMessage.created_at >= cutoff_time,
                 )
             )
-            has_recent_reminders = reminder_check.scalar_one_or_none() is not None
+            has_recent_reminders = reminder_check.scalars().first() is not None
 
             if has_recent_reminders:
                 # Если есть недавние напоминания - создаем новое сообщение (не трогаем старые)
