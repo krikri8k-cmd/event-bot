@@ -1883,17 +1883,10 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
             ]
         )
 
-        # Добавляем навигационные кнопки в один ряд: Список, Вперед, Назад
+        # Добавляем навигационные кнопки в один ряд: Список, Назад, Вперед
         nav_row = [
             InlineKeyboardButton(text="📋 Список", callback_data="group_list"),
         ]
-
-        # Кнопка "Вперед" (следующая страница)
-        if total_pages > 1 and page < total_pages:
-            nav_row.append(InlineKeyboardButton(text="▶️ Вперед", callback_data=f"group_list_page_{page + 1}"))
-        else:
-            # Если нет следующей страницы, показываем кнопку, которая ведет на текущую страницу (для единообразия)
-            nav_row.append(InlineKeyboardButton(text="▶️ Вперед", callback_data=f"group_list_page_{page}"))
 
         # Кнопка "Назад" (предыдущая страница или назад к панели)
         if total_pages > 1 and page > 1:
@@ -1901,6 +1894,13 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
         else:
             # Если нет предыдущей страницы, ведем к панели
             nav_row.append(InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel"))
+
+        # Кнопка "Вперед" (следующая страница)
+        if total_pages > 1 and page < total_pages:
+            nav_row.append(InlineKeyboardButton(text="▶️ Вперед", callback_data=f"group_list_page_{page + 1}"))
+        else:
+            # Если нет следующей страницы, показываем кнопку, которая ведет на текущую страницу (для единообразия)
+            nav_row.append(InlineKeyboardButton(text="▶️ Вперед", callback_data=f"group_list_page_{page}"))
 
         keyboard_buttons.append(nav_row)
 
