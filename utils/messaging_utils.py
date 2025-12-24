@@ -286,13 +286,15 @@ def delete_all_tracked_sync(bot: Bot, session: Session, *, chat_id: int) -> int:
     """
     import asyncio
 
-    # Получаем все неудаленные сообщения (кроме "notification")
+    # Получаем все неудаленные сообщения (кроме важных уведомлений)
+    # НЕ удаляем: "notification" (новые события), "reminder" (24ч напоминания), "event_start" (уведомления о начале)
+
     messages = (
         session.query(BotMessage)
         .filter(
             BotMessage.chat_id == chat_id,
             BotMessage.deleted is False,
-            BotMessage.tag != "notification",  # НЕ удаляем сообщения "Новое событие!"
+            ~BotMessage.tag.in_(["notification", "reminder", "event_start"]),
         )
         .all()
     )
@@ -512,13 +514,14 @@ async def delete_all_tracked(bot: Bot, session: AsyncSession, *, chat_id: int) -
     logger.info(f"🔥 delete_all_tracked: начинаем удаление для чата {chat_id}")
 
     # Получаем все неудаленные сообщения
+    # НЕ удаляем: "notification" (новые события), "reminder" (24ч напоминания), "event_start" (уведомления о начале)
     from sqlalchemy import select
 
     result = await session.execute(
         select(BotMessage).where(
             BotMessage.chat_id == chat_id,
             BotMessage.deleted.is_(False),
-            BotMessage.tag != "notification",  # НЕ удаляем сообщения "Новое событие!"
+            ~BotMessage.tag.in_(["notification", "reminder", "event_start"]),
         )
     )
     messages = result.scalars().all()
