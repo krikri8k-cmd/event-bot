@@ -1883,22 +1883,22 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
             ]
         )
 
-        # Добавляем кнопки навигации по страницам
-        navigation_buttons = []
-        if total_pages > 1:
-            if page > 1:
-                navigation_buttons.append(
-                    InlineKeyboardButton(text="◀️ Предыдущая", callback_data=f"group_list_page_{page - 1}")
-                )
-            if page < total_pages:
-                navigation_buttons.append(
-                    InlineKeyboardButton(text="▶️ Следующая", callback_data=f"group_list_page_{page + 1}")
-                )
-            if navigation_buttons:
-                keyboard_buttons.append(navigation_buttons)
+        # Добавляем навигационные кнопки в один ряд: Список, Вперед, Назад
+        nav_row = [
+            InlineKeyboardButton(text="📋 Список", callback_data="group_list"),
+        ]
 
-        # Кнопка "Назад"
-        keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel")])
+        # Добавляем кнопки навигации по страницам
+        if total_pages > 1:
+            if page < total_pages:
+                nav_row.append(InlineKeyboardButton(text="▶️ Вперед", callback_data=f"group_list_page_{page + 1}"))
+            if page > 1:
+                nav_row.append(InlineKeyboardButton(text="◀️ Назад", callback_data=f"group_list_page_{page - 1}"))
+        else:
+            # Если страница одна, все равно показываем кнопку "Назад" для возврата к панели
+            nav_row.append(InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel"))
+
+        keyboard_buttons.append(nav_row)
 
         back_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
