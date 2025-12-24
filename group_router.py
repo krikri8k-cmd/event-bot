@@ -2866,11 +2866,11 @@ async def _show_community_manage_event(
         ]
     )
 
-    # Добавляем навигацию: всегда показываем 3 кнопки (Список, Назад, Вперед)
+    # Добавляем навигацию: всегда показываем 3 кнопки (Список, Вперед, Назад)
     nav_row = [
         InlineKeyboardButton(text="📋 Список", callback_data="group_list"),
-        InlineKeyboardButton(text="◀️ Назад", callback_data=f"group_prev_event_{max(0, index-1)}"),
         InlineKeyboardButton(text="▶️ Вперед", callback_data=f"group_next_event_{min(total-1, index+1)}"),
+        InlineKeyboardButton(text="◀️ Назад", callback_data=f"group_prev_event_{max(0, index-1)}"),
     ]
     keyboard.inline_keyboard.append(nav_row)
 
