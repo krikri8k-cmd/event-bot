@@ -239,7 +239,9 @@ def ensure_panel_sync(bot: Bot, session: Session, *, chat_id: int, text: str, kb
     return msg.message_id
 
 
-def send_tracked_sync(bot: Bot, session: Session, *, chat_id: int, text: str, tag: str = "service", **kwargs) -> Any:
+def send_tracked_sync(
+    bot: Bot, session: Session, *, chat_id: int, text: str, tag: str = "service", event_id: int | None = None, **kwargs
+) -> Any:
     """
     Отправляет сообщение и сохраняет его ID для последующего удаления (синхронная версия)
 
@@ -248,7 +250,8 @@ def send_tracked_sync(bot: Bot, session: Session, *, chat_id: int, text: str, ta
         session: SQLAlchemy сессия (синхронная)
         chat_id: ID чата
         text: Текст сообщения
-        tag: Тег сообщения (panel, service, notification)
+        tag: Тег сообщения (panel, service, notification, reminder, event_start)
+        event_id: ID события (для reminder и event_start)
         **kwargs: Дополнительные параметры для send_message
 
     Returns:
@@ -259,7 +262,7 @@ def send_tracked_sync(bot: Bot, session: Session, *, chat_id: int, text: str, ta
     msg = asyncio.run(bot.send_message(chat_id, text, **kwargs))
 
     # Трекаем сообщение
-    bot_msg = BotMessage(chat_id=chat_id, message_id=msg.message_id, tag=tag)
+    bot_msg = BotMessage(chat_id=chat_id, message_id=msg.message_id, tag=tag, event_id=event_id)
     session.add(bot_msg)
     session.commit()
 
