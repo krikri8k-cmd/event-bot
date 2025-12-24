@@ -1762,6 +1762,30 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
         offset = (page - 1) * events_per_page
         total_pages = (total_events + events_per_page - 1) // events_per_page if total_events > 0 else 1
 
+        # Проверяем границы страниц и показываем предупреждение, если запрашивается несуществующая страница
+        if page < 1:
+            try:
+                await callback.answer("⚠️ Это первая страница", show_alert=True)
+            except (RuntimeError, AttributeError):
+                pass
+            page = 1
+        elif page > total_pages and total_pages > 0:
+            try:
+                await callback.answer("⚠️ Это последняя страница", show_alert=True)
+            except (RuntimeError, AttributeError):
+                pass
+            page = total_pages
+
+        # Если это переход на несуществующую страницу, пересчитываем offset
+        offset = (page - 1) * events_per_page
+
+        # Пытаемся ответить на callback (только если это реальный callback, не фейковый)
+        try:
+            await callback.answer()  # Тост, не спамим
+        except (RuntimeError, AttributeError) as e:
+            # Игнорируем ошибки для фейковых callback (например, из команд)
+            logger.debug(f"⚠️ Не удалось ответить на callback (возможно, фейковый): {e}")
+
         # Получаем события для текущей страницы
         stmt = (
             select(CommunityEvent)
@@ -1884,17 +1908,12 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
         )
 
         # Добавляем навигационные кнопки в один ряд: Меню, Назад, Вперед
+        # Всегда показываем все три кнопки
         nav_row = [
             InlineKeyboardButton(text="📋 Меню", callback_data="group_back_to_panel"),
+            InlineKeyboardButton(text="◀️ Назад", callback_data=f"group_list_page_{max(1, page - 1)}"),
+            InlineKeyboardButton(text="▶️ Вперед", callback_data=f"group_list_page_{min(total_pages, page + 1)}"),
         ]
-
-        # Кнопка "Назад" - только для предыдущей страницы (если есть)
-        if total_pages > 1 and page > 1:
-            nav_row.append(InlineKeyboardButton(text="◀️ Назад", callback_data=f"group_list_page_{page - 1}"))
-
-        # Кнопка "Вперед" - только для следующей страницы (если есть)
-        if total_pages > 1 and page < total_pages:
-            nav_row.append(InlineKeyboardButton(text="▶️ Вперед", callback_data=f"group_list_page_{page + 1}"))
 
         keyboard_buttons.append(nav_row)
 
