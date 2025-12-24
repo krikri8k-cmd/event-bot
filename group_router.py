@@ -3106,7 +3106,31 @@ async def _show_community_view_event(
 
     # Если это CallbackQuery, пытаемся отредактировать сообщение
     if isinstance(message_or_callback, CallbackQuery):
-        # Всегда пытаемся отредактировать сообщение, если оно имеет текст или подпись
+        # Проверяем, есть ли фото в сообщении (если есть preview карты, edit_text не сработает)
+        if message_or_callback.message.photo:
+            # Если есть фото, удаляем старое сообщение и отправляем новое
+            try:
+                await bot.delete_message(
+                    chat_id=message_or_callback.message.chat.id,
+                    message_id=message_or_callback.message.message_id,
+                )
+            except Exception as delete_error:
+                logger.warning(f"⚠️ Не удалось удалить старое сообщение с фото: {delete_error}")
+
+            # Отправляем новое сообщение
+            try:
+                await bot.send_message(
+                    chat_id=message_or_callback.message.chat.id,
+                    **send_kwargs,
+                )
+                await message_or_callback.answer()
+                return
+            except Exception as e:
+                logger.error(f"❌ Не удалось отправить новое сообщение: {type(e).__name__}: {e}")
+                await message_or_callback.answer("❌ Ошибка при обновлении сообщения", show_alert=True)
+                return
+
+        # Если нет фото, пытаемся отредактировать текстовое сообщение
         if message_or_callback.message.text or message_or_callback.message.caption:
             try:
                 await message_or_callback.message.edit_text(**send_kwargs)
@@ -3125,7 +3149,10 @@ async def _show_community_view_event(
 
         # Если не удалось отредактировать или нет текста/подписи, отправляем новое сообщение
         try:
-            await message_or_callback.message.answer(**send_kwargs)
+            await bot.send_message(
+                chat_id=message_or_callback.message.chat.id,
+                **send_kwargs,
+            )
             await message_or_callback.answer()
         except Exception as e:
             logger.error(f"❌ Не удалось отправить новое сообщение: {type(e).__name__}: {e}")
@@ -3252,6 +3279,8 @@ async def view_next_event(callback: CallbackQuery, bot: Bot, session: AsyncSessi
         await callback.answer("⚠️ Это последнее событие", show_alert=True)
         return
 
+    event_id = events[target_index].id if target_index < len(events) else "N/A"
+    logger.info(f"🔥 view_next_event: переходим к событию {target_index + 1}/{total}, событие ID: {event_id}")
     await _show_community_view_event(callback, bot, session, events, target_index, chat_id, user_id)
 
 
@@ -3280,6 +3309,8 @@ async def view_prev_event(callback: CallbackQuery, bot: Bot, session: AsyncSessi
         await callback.answer("⚠️ Это первое событие", show_alert=True)
         return
 
+    event_id = events[target_index].id if target_index < len(events) else "N/A"
+    logger.info(f"🔥 view_prev_event: переходим к событию {target_index + 1}/{total}, событие ID: {event_id}")
     await _show_community_view_event(callback, bot, session, events, target_index, chat_id, user_id)
 
 
