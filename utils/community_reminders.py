@@ -187,6 +187,33 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
 
         for event in events:
             try:
+                # Проверяем, не было ли уже отправлено уведомление для этого события
+                # Проверяем по event_id, чтобы каждое событие могло получить свое уведомление только один раз
+                from database import BotMessage
+
+                # Проверяем, есть ли уже уведомление о начале для этого события
+                # Используем окно в 2 часа (120 минут) - если уведомление было отправлено в последние 2 часа, пропускаем
+                notification_cutoff = now - timedelta(hours=2)
+                existing_notification_check = await session.execute(
+                    select(BotMessage).where(
+                        BotMessage.chat_id == event.chat_id,
+                        BotMessage.deleted.is_(False),
+                        BotMessage.tag == "event_start",
+                        BotMessage.event_id == event.id,
+                        BotMessage.created_at >= notification_cutoff,
+                    )
+                )
+                existing_notification = existing_notification_check.scalar_one_or_none()
+
+                if existing_notification:
+                    # Если уже есть уведомление для этого события, пропускаем
+                    logger.info(
+                        f"⏭️ Пропускаем событие {event.id} '{event.title}': "
+                        f"уже есть уведомление о начале (отправлено {existing_notification.created_at})"
+                    )
+                    skipped_count += 1
+                    continue
+
                 # Получаем участников (для уведомлений о начале - отправляем даже если нет участников)
                 participants = await get_participants_optimized(session, event.id)
 
