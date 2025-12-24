@@ -1758,8 +1758,7 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
         total_result = await session.execute(count_stmt)
         total_events = total_result.scalar() or 0
 
-        # Вычисляем offset для текущей страницы
-        offset = (page - 1) * events_per_page
+        # Сначала вычисляем total_pages для проверки границ
         total_pages = (total_events + events_per_page - 1) // events_per_page if total_events > 0 else 1
 
         # Проверяем границы страниц и показываем предупреждение, если запрашивается несуществующая страница
@@ -1767,15 +1766,21 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
         if page < 1:
             try:
                 await callback.answer("⚠️ Это первая страница", show_alert=True)
-            except (RuntimeError, AttributeError):
-                pass
+                logger.info(f"🔥 Показано предупреждение: первая страница (page={page}, total_pages={total_pages})")
+            except (RuntimeError, AttributeError) as e:
+                logger.debug(f"⚠️ Не удалось показать alert: {e}")
             return  # Не создаем новое сообщение
-        elif page > total_pages and total_pages > 0:
+
+        if page > total_pages:
             try:
                 await callback.answer("⚠️ Это последняя страница", show_alert=True)
-            except (RuntimeError, AttributeError):
-                pass
+                logger.info(f"🔥 Показано предупреждение: последняя страница (page={page}, total_pages={total_pages})")
+            except (RuntimeError, AttributeError) as e:
+                logger.debug(f"⚠️ Не удалось показать alert: {e}")
             return  # Не создаем новое сообщение
+
+        # Вычисляем offset для валидной страницы
+        offset = (page - 1) * events_per_page
 
         # Пытаемся ответить на callback (только если это реальный callback, не фейковый)
         try:
