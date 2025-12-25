@@ -42,7 +42,21 @@ def ensure_events_table(api_engine):
               updated_at TIMESTAMPTZ,
               source TEXT,
               external_id TEXT,
-              url TEXT
+              url TEXT,
+              city VARCHAR(64),
+              country VARCHAR(8),
+              location_name TEXT,
+              location_url TEXT,
+              description TEXT,
+              organizer_id INTEGER,
+              organizer_username TEXT,
+              max_participants INTEGER,
+              current_participants INTEGER,
+              status VARCHAR(50) DEFAULT 'open',
+              created_at_utc TIMESTAMPTZ,
+              community_name TEXT,
+              venue_name VARCHAR(255),
+              address TEXT
             );
         """)
         with api_engine.begin() as c:

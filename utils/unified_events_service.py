@@ -74,10 +74,9 @@ class UnifiedEventsService:
             # (для долгих событий: вечеринки, выставки)
             if user_lat and user_lng:
                 # Поиск с координатами и радиусом
-                # Используем COALESCE для совместимости со старыми схемами БД
                 query = text("""
                     SELECT source, id, title, description, starts_at,
-                           COALESCE(city, NULL) as city, lat, lng, location_name,
+                           city, lat, lng, location_name,
                            location_url, url as event_url,
                            organizer_id, organizer_username, max_participants,
                            current_participants, status, created_at_utc,
