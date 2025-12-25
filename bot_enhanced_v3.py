@@ -4715,6 +4715,7 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
             "\n"
             f"📝 {safe_description}\n\n"
             f"*Создано пользователем @{safe_username}*\n\n"
+            f"👉 Нажмите /joinevent{event_id} чтобы записаться\n\n"
             f"💡 **Создавай через команду /start**"
         )
 
