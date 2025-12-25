@@ -18,7 +18,7 @@ CREATE TABLE user_participation (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     event_id INTEGER NOT NULL,
     group_chat_id BIGINT, -- NULL для World, значение для Community
-    list_view BOOLEAN DEFAULT FALSE, -- Показано ли событие в списке "Что рядом"
+    list_view BOOLEAN DEFAULT FALSE, -- Показано ли событие в списке "События рядом"
     click_source BOOLEAN DEFAULT FALSE, -- Нажал ли на источник/автора
     click_route BOOLEAN DEFAULT FALSE, -- Нажал ли на маршрут
     participation_type VARCHAR(50), -- Заготовка для будущего функционала участия (пока NULL, потом going/maybe и т.д.)
@@ -46,7 +46,7 @@ COMMENT ON COLUMN user_participation.created_at IS 'Дата и время пе�
 COMMENT ON COLUMN user_participation.updated_at IS 'Дата и время последнего обновления записи';
 COMMENT ON COLUMN user_participation.event_id IS 'ID события из таблицы events';
 COMMENT ON COLUMN user_participation.group_chat_id IS 'ID группового чата (для Community). NULL если событие из World';
-COMMENT ON COLUMN user_participation.list_view IS 'Показано ли событие в списке при поиске "Что рядом"';
+COMMENT ON COLUMN user_participation.list_view IS 'Показано ли событие в списке при поиске "События рядом"';
 COMMENT ON COLUMN user_participation.click_source IS 'Нажал ли пользователь на источник или автора события';
 COMMENT ON COLUMN user_participation.click_route IS 'Нажал ли пользователь на кнопку маршрута';
 COMMENT ON COLUMN user_participation.participation_type IS 'Заготовка для будущего функционала участия (пока NULL, потом going/maybe и т.д.)';

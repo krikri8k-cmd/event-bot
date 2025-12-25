@@ -19,7 +19,7 @@ class UserParticipationAnalytics:
 
     def record_list_view(self, user_id: int, event_id: int, group_chat_id: int | None = None) -> bool:
         """
-        Записать, что событие было показано пользователю в списке "Что рядом"
+        Записать, что событие было показано пользователю в списке "События рядом"
 
         Args:
             user_id: ID пользователя
