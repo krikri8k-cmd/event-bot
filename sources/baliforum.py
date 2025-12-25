@@ -654,7 +654,19 @@ def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> 
         time.sleep(0.3)
 
     # Логируем сводку
-    print(f"INFO baliforum: parsed={parsed_count}, skipped_no_time={skipped_no_time}, errors={errors}")
+    total_cards = len(cards)
+    print(
+        f"INFO baliforum: найдено карточек={total_cards}, "
+        f"обработано={min(total_cards, limit)}, "
+        f"успешно распарсено={parsed_count}, "
+        f"пропущено без времени={skipped_no_time}, "
+        f"ошибок={errors}"
+    )
+    if skipped_no_time > 0:
+        print(
+            f"WARNING baliforum: пропущено {skipped_no_time} событий без времени "
+            f"({skipped_no_time / min(total_cards, limit) * 100:.1f}% от обработанных)"
+        )
     return events
 
 

@@ -77,13 +77,24 @@ class ModernEventScheduler:
 
             saved_count = 0
             skipped_no_coords = 0
+            skipped_no_time = 0
             error_count = 0
 
             for event in raw_events:
                 try:
+                    # Проверяем время начала
+                    if not event.starts_at:
+                        skipped_no_time += 1
+                        logger.debug(f"⏭️ Пропущено событие '{event.title}' - нет времени начала")
+                        continue
+
                     # Проверяем координаты (как в оригинальном парсере)
                     if not event.lat or not event.lng:
                         skipped_no_coords += 1
+                        logger.debug(
+                            f"⏭️ Пропущено событие '{event.title}' - нет координат "
+                            f"(lat={event.lat}, lng={event.lng})"
+                        )
                         continue
 
                     # Логируем дату события для отладки
@@ -224,9 +235,16 @@ class ModernEventScheduler:
             duration = (time.time() - start_time) * 1000
             logger.info(
                 f"   ✅ BaliForum: сохранено={saved_count}, "
+                f"пропущено без времени={skipped_no_time}, "
                 f"пропущено без координат={skipped_no_coords}, "
                 f"ошибок={error_count}, время={duration:.0f}мс"
             )
+            if skipped_no_time > 0 or skipped_no_coords > 0:
+                logger.warning(
+                    f"   ⚠️ BaliForum: пропущено {skipped_no_time + skipped_no_coords} событий "
+                    f"из {len(raw_events)} найденных "
+                    f"({skipped_no_time} без времени, {skipped_no_coords} без координат)"
+                )
 
         except Exception as e:
             logger.error(f"   ❌ Ошибка парсинга BaliForum: {e}")
