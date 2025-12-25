@@ -74,7 +74,20 @@ class UnifiedEventsService:
             # (для долгих событий: вечеринки, выставки)
             if user_lat and user_lng:
                 # Поиск с координатами и радиусом
-                query = text("""
+                # Добавляем фильтр по city, если указан
+                city_filter = ""
+                params = {
+                    "start_utc": start_utc,
+                    "end_utc": end_utc,
+                    "user_lat": user_lat,
+                    "user_lng": user_lng,
+                    "radius_km": radius_km,
+                }
+                if city:
+                    city_filter = "AND city = :city"
+                    params["city"] = city
+
+                query = text(f"""
                     SELECT source, id, title, description, starts_at,
                            city, lat, lng, location_name,
                            location_url, url as event_url,
@@ -89,6 +102,7 @@ class UnifiedEventsService:
                     AND starts_at >= NOW() - INTERVAL '3 hours'
                     AND lat IS NOT NULL AND lng IS NOT NULL
                     AND status NOT IN ('closed', 'canceled')
+                    {city_filter}
                     AND 6371 * acos(
                         GREATEST(-1, LEAST(1,
                             cos(radians(:user_lat)) * cos(radians(lat)) *
@@ -99,19 +113,20 @@ class UnifiedEventsService:
                     ORDER BY starts_at
                 """)
 
-                result = conn.execute(
-                    query,
-                    {
-                        "start_utc": start_utc,
-                        "end_utc": end_utc,
-                        "user_lat": user_lat,
-                        "user_lng": user_lng,
-                        "radius_km": radius_km,
-                    },
-                )
+                result = conn.execute(query, params)
             else:
                 # Поиск без координат
-                query = text("""
+                # Добавляем фильтр по city, если указан
+                city_filter = ""
+                params = {
+                    "start_utc": start_utc,
+                    "end_utc": end_utc,
+                }
+                if city:
+                    city_filter = "AND city = :city"
+                    params["city"] = city
+
+                query = text(f"""
                     SELECT source, id, title, description, starts_at,
                            city, lat, lng, location_name,
                            location_url, url as event_url,
@@ -125,16 +140,11 @@ class UnifiedEventsService:
                     AND starts_at < :end_utc
                     AND starts_at >= NOW() - INTERVAL '3 hours'
                     AND status NOT IN ('closed', 'canceled')
+                    {city_filter}
                     ORDER BY starts_at
                 """)
 
-                result = conn.execute(
-                    query,
-                    {
-                        "start_utc": start_utc,
-                        "end_utc": end_utc,
-                    },
-                )
+                result = conn.execute(query, params)
 
             events = []
             found_user = 0
