@@ -93,7 +93,7 @@ class UnifiedEventsService:
                            location_url, url as event_url,
                            organizer_id, organizer_username, max_participants,
                            current_participants, status, created_at_utc,
-                           community_name as country, community_name as venue_name,
+                           community_name as country, location_name as venue_name,
                            location_name as address, place_id,
                            '' as geo_hash, starts_at as starts_at_normalized
                     FROM events
@@ -132,7 +132,7 @@ class UnifiedEventsService:
                            location_url, url as event_url,
                            organizer_id, organizer_username, max_participants,
                            current_participants, status, created_at_utc,
-                           community_name as country, community_name as venue_name,
+                           community_name as country, location_name as venue_name,
                            location_name as address, place_id,
                            '' as geo_hash, starts_at as starts_at_normalized
                     FROM events
@@ -210,8 +210,8 @@ class UnifiedEventsService:
                                location_url, url as event_url,
                                organizer_id, organizer_username, max_participants,
                                current_participants, status, created_at_utc,
-                               community_name as country, community_name as venue_name,
-                               location_name as address,
+                               community_name as country, location_name as venue_name,
+                               location_name as address, place_id,
                                '' as geo_hash, starts_at as starts_at_normalized
                         FROM events
                         WHERE starts_at >= :start_utc
