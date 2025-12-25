@@ -94,7 +94,7 @@ class UnifiedEventsService:
                            organizer_id, organizer_username, max_participants,
                            current_participants, status, created_at_utc,
                            community_name as country, community_name as venue_name,
-                           location_name as address,
+                           location_name as address, place_id,
                            '' as geo_hash, starts_at as starts_at_normalized
                     FROM events
                     WHERE starts_at >= :start_utc
@@ -133,7 +133,7 @@ class UnifiedEventsService:
                            organizer_id, organizer_username, max_participants,
                            current_participants, status, created_at_utc,
                            community_name as country, community_name as venue_name,
-                           location_name as address,
+                           location_name as address, place_id,
                            '' as geo_hash, starts_at as starts_at_normalized
                     FROM events
                     WHERE starts_at >= :start_utc
@@ -179,6 +179,7 @@ class UnifiedEventsService:
                     "current_participants": row[14],
                     "status": row[15],
                     "created_at_utc": row[16],
+                    "place_id": row[17] if len(row) > 17 else None,
                 }
 
                 # Логируем пользовательские события
@@ -249,6 +250,7 @@ class UnifiedEventsService:
                             "current_participants": row[14],
                             "status": row[15],
                             "created_at_utc": row[16],
+                            "place_id": row[17] if len(row) > 17 else None,
                         }
                         events.append(event_data)
                     if events:

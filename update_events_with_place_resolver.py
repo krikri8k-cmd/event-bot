@@ -49,7 +49,7 @@ async def update_event_location_name(event_id: int, place_id: str, lat: float, l
                 update_query = text(
                     """
                     UPDATE events
-                    SET location_name = :location_name, place_id = :place_id, updated_at = NOW()
+                    SET location_name = :location_name, place_id = :place_id, updated_at_utc = NOW()
                     WHERE id = :event_id
                     """
                 )

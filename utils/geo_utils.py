@@ -247,7 +247,15 @@ async def get_timezone(lat: float, lng: float, timestamp: int | None = None) -> 
     return None
 
 
-def to_google_maps_link(lat: float, lng: float) -> str:
+def to_google_maps_link(lat: float, lng: float, place_id: str | None = None) -> str:
+    """
+    Создает ссылку на Google Maps.
+    Если есть place_id, использует ссылку на конкретное место.
+    Иначе использует координаты.
+    """
+    if place_id:
+        # Используем ссылку на конкретное место с place_id
+        return f"https://www.google.com/maps/place/?q=place_id:{place_id}"
     return f"https://www.google.com/maps/search/?api=1&query={lat:.6f},{lng:.6f}"
 
 

@@ -843,6 +843,16 @@ def build_maps_url(e: dict) -> str:
     # Поддерживаем новую структуру venue и старую
     # Приоритет: venue.name (из источника) > venue_name (из источника) > location_name (может быть из reverse geocoding)
     # Это важно, чтобы названия из источника имели приоритет над адресами
+    # ПРИОРИТЕТ 1: Если есть place_id, используем ссылку на конкретное место
+    place_id = e.get("place_id")
+    if place_id:
+        from utils.geo_utils import to_google_maps_link
+
+        lat = e.get("lat")
+        lng = e.get("lng")
+        if lat and lng:
+            return to_google_maps_link(lat, lng, place_id)
+
     venue = e.get("venue", {})
     name = (venue.get("name") or e.get("venue_name") or e.get("location_name") or "").strip()
     addr = (venue.get("address") or e.get("address") or "").strip()
@@ -887,7 +897,9 @@ def build_maps_url(e: dict) -> str:
     if addr and addr not in generic_venues:
         return f"https://www.google.com/maps/search/?api=1&query={quote_plus(addr)}"
     if lat and lng:
-        return f"https://www.google.com/maps/search/?api=1&query={lat},{lng}"
+        from utils.geo_utils import to_google_maps_link
+
+        return to_google_maps_link(lat, lng)
     return "https://www.google.com/maps"
 
 
@@ -1909,6 +1921,7 @@ async def perform_nearby_search(
                     "community_link": "",
                     "organizer_id": event.get("organizer_id"),
                     "organizer_username": event.get("organizer_username"),
+                    "place_id": event.get("place_id"),
                 }
                 formatted_events.append(formatted_event)
 
