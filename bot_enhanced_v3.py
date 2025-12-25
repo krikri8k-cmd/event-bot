@@ -850,8 +850,15 @@ def build_maps_url(e: dict) -> str:
 
         lat = e.get("lat")
         lng = e.get("lng")
-        if lat and lng:
+        if lat is not None and lng is not None:
+            logger.info(
+                f"🚗 Используем place_id для маршрута: '{place_id}' для события '{e.get('title', 'Без названия')[:30]}'"
+            )
             return to_google_maps_link(lat, lng, place_id)
+        else:
+            logger.warning(
+                f"⚠️ place_id есть, но нет координат для события '{e.get('title', 'Без названия')[:30]}': lat={lat}, lng={lng}"
+            )
 
     venue = e.get("venue", {})
     name = (venue.get("name") or e.get("venue_name") or e.get("location_name") or "").strip()
