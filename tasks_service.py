@@ -519,74 +519,108 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                             task_dict["place_name"] = "Ближайшее место"
                     else:
                         # Для известных регионов ищем конкретные места в БД
-                        # Пробуем разные типы мест для категории
-                        place = None
-                        category_place_types = {
-                            "food": ["cafe", "restaurant", "street_food", "market", "bakery"],
-                            "health": ["gym", "spa", "lab", "clinic", "nature"],
-                            "places": [
-                                "park",
-                                "exhibition",
-                                "temple",
-                                "trail",
-                                "viewpoint",
-                                "beach",
-                                "cliff",
-                                "beach_club",
-                                "culture",
-                            ],
-                        }
-                        place_types = category_place_types.get(task.category, ["park"])
+                        # Сначала проверяем, есть ли уже location_url в задании
+                        if task.location_url:
+                            # У задания уже есть место - используем его
+                            task_dict["place_url"] = task.location_url
+                            # Пытаемся найти название места по URL в БД
+                            from database import TaskPlace
 
-                        for place_type in place_types:
-                            logger.info(
-                                f"Попытка найти место: category={task.category}, "
-                                f"place_type={place_type}, task_type={task_type}"
+                            place_from_db = (
+                                session.query(TaskPlace).filter(TaskPlace.google_maps_url == task.location_url).first()
                             )
-                            place = find_nearest_available_place(
-                                category=task.category,
-                                place_type=place_type,
-                                task_type=task_type,
-                                user_lat=user.last_lat,
-                                user_lng=user.last_lng,
-                                user_id=user_id,
-                                exclude_days=0,  # Не исключаем места, которые уже показывались
-                            )
-                            if place:
-                                logger.info(f"✅ Найдено место: {place.name} (ID: {place.id})")
-                                break
+                            if place_from_db:
+                                task_dict["place_name"] = place_from_db.name
+                                task_dict["promo_code"] = place_from_db.promo_code
+                                if user.last_lat and user.last_lng:
+                                    from utils.haversine import haversine_distance
 
-                        # Если не нашли по типу места, пробуем без фильтра по типу
-                        if not place:
-                            from tasks_location_service import find_oldest_unshown_place_in_region
+                                    distance = haversine_distance(
+                                        user.last_lat,
+                                        user.last_lng,
+                                        place_from_db.lat,
+                                        place_from_db.lng,
+                                    )
+                                    task_dict["distance_km"] = round(distance, 1)
+                            else:
+                                # Если место не найдено в БД, используем общее название
+                                task_dict["place_name"] = "Место на карте"
+                            logger.debug(f"✅ Используем существующее место для задания {task.id}: {task.location_url}")
+                        else:
+                            # У задания нет места - ищем новое
+                            # Пробуем разные типы мест для категории
+                            place = None
+                            category_place_types = {
+                                "food": ["cafe", "restaurant", "street_food", "market", "bakery"],
+                                "health": ["gym", "spa", "lab", "clinic", "nature"],
+                                "places": [
+                                    "park",
+                                    "exhibition",
+                                    "temple",
+                                    "trail",
+                                    "viewpoint",
+                                    "beach",
+                                    "cliff",
+                                    "beach_club",
+                                    "culture",
+                                ],
+                            }
+                            place_types = category_place_types.get(task.category, ["park"])
 
                             for place_type in place_types:
-                                place = find_oldest_unshown_place_in_region(
+                                logger.info(
+                                    f"Попытка найти место: category={task.category}, "
+                                    f"place_type={place_type}, task_type={task_type}"
+                                )
+                                place = find_nearest_available_place(
                                     category=task.category,
                                     place_type=place_type,
-                                    region=region,
-                                    user_id=user_id,
                                     task_type=task_type,
                                     user_lat=user.last_lat,
                                     user_lng=user.last_lng,
+                                    user_id=user_id,
+                                    exclude_days=0,  # Не исключаем места, которые уже показывались
                                 )
                                 if place:
+                                    logger.info(f"✅ Найдено место: {place.name} (ID: {place.id})")
                                     break
 
-                        if place:
-                            task_dict["place_name"] = place.name
-                            task_dict["place_url"] = place.google_maps_url
-                            task_dict["promo_code"] = place.promo_code
-                            if hasattr(place, "distance_km"):
-                                task_dict["distance_km"] = place.distance_km
-                            logger.info(
-                                f"✅ Место добавлено к заданию {task.id}: {place.name}, " f"промокод={place.promo_code}"
-                            )
-                        else:
-                            logger.warning(
-                                f"⚠️ Место не найдено для задания {task.id}: "
-                                f"category={task.category}, task_type={task_type}"
-                            )
+                            # Если не нашли по типу места, пробуем без фильтра по типу
+                            if not place:
+                                from tasks_location_service import find_oldest_unshown_place_in_region
+
+                                for place_type in place_types:
+                                    place = find_oldest_unshown_place_in_region(
+                                        category=task.category,
+                                        place_type=place_type,
+                                        region=region,
+                                        user_id=user_id,
+                                        task_type=task_type,
+                                        user_lat=user.last_lat,
+                                        user_lng=user.last_lng,
+                                    )
+                                    if place:
+                                        break
+
+                            if place:
+                                task_dict["place_name"] = place.name
+                                task_dict["place_url"] = place.google_maps_url
+                                task_dict["promo_code"] = place.promo_code
+                                if hasattr(place, "distance_km"):
+                                    task_dict["distance_km"] = place.distance_km
+                                # Сохраняем место в задание, чтобы не искать его повторно
+                                if not task.location_url and place.google_maps_url:
+                                    task.location_url = place.google_maps_url
+                                    session.commit()
+                                logger.info(
+                                    f"✅ Место добавлено к заданию {task.id}: {place.name}, "
+                                    f"промокод={place.promo_code}"
+                                )
+                            else:
+                                logger.warning(
+                                    f"⚠️ Место не найдено для задания {task.id}: "
+                                    f"category={task.category}, task_type={task_type}"
+                                )
                 except Exception as e:
                     logger.error(f"❌ Ошибка получения информации о месте для задания {task.id}: {e}", exc_info=True)
 
