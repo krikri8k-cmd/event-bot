@@ -40,7 +40,7 @@ async def update_event_location_name(event_id: int, place_id: str, lat: float, l
     try:
         # Если есть place_id, используем get_place_details напрямую
         # Иначе используем resolve (nearby_search)
-        if place_id:
+        if place_id and place_id.strip():
             place_data = await resolver.get_place_details(place_id)
         else:
             place_data = await resolver.resolve(place_id=None, lat=lat, lng=lng)
@@ -114,8 +114,10 @@ async def main():
                 ))
             )
             AND lat IS NOT NULL AND lng IS NOT NULL
-            ORDER BY id DESC
-            LIMIT 100
+            ORDER BY
+                CASE WHEN place_id IS NOT NULL THEN 0 ELSE 1 END,
+                id DESC
+            LIMIT 200
             """
         )
         events_to_update = conn.execute(select_query).fetchall()
