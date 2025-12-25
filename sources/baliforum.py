@@ -252,7 +252,7 @@ def _fetch(url: str, timeout=15) -> str:
     return r.text
 
 
-def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> list[dict]:
+def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> list[dict]:
     """
     Основная функция парсинга событий с baliforum.ru
 
@@ -670,7 +670,7 @@ def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> 
     return events
 
 
-def fetch(limit: int = 100) -> list[RawEvent]:
+def fetch(limit: int = 200) -> list[RawEvent]:
     """Главная точка входа для инжеста - возвращает RawEvent объекты"""
     events = fetch_baliforum_events(limit)
 
