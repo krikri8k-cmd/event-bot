@@ -2773,7 +2773,7 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
     load_settings()
 
     keyboard = [
-        [KeyboardButton(text="📍 Что рядом"), KeyboardButton(text="➕ Создать")],
+        [KeyboardButton(text="📍 События рядом"), KeyboardButton(text="➕ Создать")],
         [KeyboardButton(text="🎯 Чем заняться"), KeyboardButton(text="📝 Мои активности")],
         [KeyboardButton(text="🔗 Добавить бота в чат"), KeyboardButton(text="🚀 Старт")],
     ]
@@ -2794,7 +2794,7 @@ async def setup_bot_commands():
         # Публичные команды для личных чатов (полный набор)
         public_commands = [
             types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
-            types.BotCommand(command="nearby", description="📍 Что рядом - найти события поблизости"),
+            types.BotCommand(command="nearby", description="📍 События рядом - найти события поблизости"),
             types.BotCommand(command="create", description="➕ Создать новое событие"),
             types.BotCommand(command="myevents", description="📋 Мои события - просмотр созданных событий"),
             types.BotCommand(command="tasks", description="🎯 Чем заняться - найти задания поблизости"),
@@ -2896,7 +2896,7 @@ async def ensure_commands(bot):
         # Команды для личных чатов - полный набор
         PRIVATE_CMDS = [
             types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
-            types.BotCommand(command="nearby", description="📍 Что рядом - найти события поблизости"),
+            types.BotCommand(command="nearby", description="📍 События рядом - найти события поблизости"),
             types.BotCommand(command="create", description="➕ Создать новое событие"),
             types.BotCommand(command="myevents", description="📋 Мои события - просмотр созданных событий"),
             types.BotCommand(command="tasks", description="🎯 Чем заняться - найти задания поблизости"),
@@ -2962,7 +2962,7 @@ async def dump_commands_healthcheck(bot):
         # Публичные команды для личных чатов (полный набор)
         public_commands = [
             types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
-            types.BotCommand(command="nearby", description="📍 Что рядом - найти события поблизости"),
+            types.BotCommand(command="nearby", description="📍 События рядом - найти события поблизости"),
             types.BotCommand(command="create", description="➕ Создать новое событие"),
             types.BotCommand(command="myevents", description="📋 Мои события - просмотр созданных событий"),
             types.BotCommand(command="tasks", description="🎯 Чем заняться - найти задания поблизости"),
@@ -3185,7 +3185,7 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
         # Упрощенная логика - всегда показываем полное меню
         welcome_text = (
             'Привет! @EventAroundBot версия "World" - твой цифровой помощник по активностям.\n\n'
-            "📍 Что рядом: находи события в радиусе 5–20 км\n"
+            "📍 События рядом: находи события в радиусе 5–20 км\n"
             "🎯 Чем заняться: автоматизированный подбор заданий с наградами 🚀\n\n"
             "➕ Создать: организуй встречи и приглашай друзей\n"
             '🔗 Добавить бота в чат: добавь бота версия "Community" в чат — появится лента встреч и планов только для участников сообщества.\n\n'
@@ -4912,11 +4912,11 @@ async def cancel_community_event(callback: types.CallbackQuery, state: FSMContex
     if group_id:
         cancel_text += "Вы можете вернуться в группу или остаться в боте:"
 
-        # Создаем кнопки "Что рядом" и "Старт (все функции)"
+        # Создаем кнопки "События рядом" и "Старт (все функции)"
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton(text="📍 Что рядом", callback_data="nearby_events"),
+                    InlineKeyboardButton(text="📍 События рядом", callback_data="nearby_events"),
                     InlineKeyboardButton(text="🚀 Старт", callback_data="start_menu"),
                 ]
             ]
@@ -4998,7 +4998,7 @@ async def on_start_menu_callback(callback: types.CallbackQuery, state: FSMContex
 
 @main_router.callback_query(F.data == "nearby_events")
 async def on_nearby_events_callback(callback: types.CallbackQuery, state: FSMContext):
-    """Обработчик кнопки 'Что рядом' из callback"""
+    """Обработчик кнопки 'События рядом' из callback"""
     await callback.answer()
 
     # Устанавливаем состояние для поиска событий
@@ -5059,9 +5059,9 @@ async def on_test_location(callback: types.CallbackQuery, state: FSMContext):
 
 
 @main_router.message(Command("nearby"))
-@main_router.message(F.text == "📍 Что рядом")
+@main_router.message(F.text == "📍 События рядом")
 async def on_what_nearby(message: types.Message, state: FSMContext):
-    """Обработчик кнопки 'Что рядом'"""
+    """Обработчик кнопки 'События рядом'"""
     user_id = message.from_user.id
     logger.info(f"📍 [DEBUG] Команда /nearby от пользователя {user_id}")
 
@@ -5195,9 +5195,11 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
         )
         return
 
-    # Специальная обработка для MacBook: если пользователь нажал кнопку "📍 Что рядом" повторно
-    if text == "📍 Что рядом":
-        logger.info(f"📍 [TEXT_INPUT] Обнаружен повторный запрос '📍 Что рядом' от пользователя {user_id} (MacBook)")
+    # Специальная обработка для MacBook: если пользователь нажал кнопку "📍 События рядом" повторно
+    if text == "📍 События рядом":
+        logger.info(
+            f"📍 [TEXT_INPUT] Обнаружен повторный запрос '📍 События рядом' от пользователя {user_id} (MacBook)"
+        )
         # Создаем inline-кнопку для открытия Google Maps (для MacBook)
         maps_keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
