@@ -38,12 +38,17 @@ async def update_event_location_name(event_id: int, place_id: str, lat: float, l
     Обновляет location_name для одного события через PlaceResolver
     """
     try:
-        # Пробуем получить название через PlaceResolver
-        place_data = await resolver.resolve(place_id=place_id, lat=lat, lng=lng)
+        # Если есть place_id, используем get_place_details напрямую
+        # Иначе используем resolve (nearby_search)
+        if place_id:
+            place_data = await resolver.get_place_details(place_id)
+        else:
+            place_data = await resolver.resolve(place_id=None, lat=lat, lng=lng)
 
         if place_data and place_data.get("name"):
             new_location_name = place_data["name"]
             new_place_id = place_data.get("place_id") or place_id
+            method = "get_place_details" if place_id else "nearby_search"
 
             with engine.begin() as conn:
                 update_query = text(
@@ -61,7 +66,10 @@ async def update_event_location_name(event_id: int, place_id: str, lat: float, l
                         "event_id": event_id,
                     },
                 )
-            logger.info(f"  ✅ Событие {event_id}: обновлено '{new_location_name}' " f"(place_id: {new_place_id})")
+            logger.info(
+                f"  ✅ Событие {event_id}: обновлено '{new_location_name}' "
+                f"(place_id: {new_place_id}, метод: {method})"
+            )
             return True
         else:
             logger.warning(f"  ⚠️ Событие {event_id}: PlaceResolver не вернул название")

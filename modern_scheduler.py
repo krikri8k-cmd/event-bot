@@ -130,11 +130,9 @@ class ModernEventScheduler:
                         # ПРИОРИТЕТ: place_name_from_maps (из ссылки) > venue (из HTML)
                         location_name = place_name_from_maps or venue or ""
 
-                    # Используем PlaceResolver для получения названия места ТОЛЬКО если:
-                    # 1. НЕТ ссылки Google Maps (location_url пустая)
-                    # 2. ИЛИ есть ссылка, но в ней НЕТ названия места (place_name_from_maps пустое)
-                    # 3. И нет venue из HTML
-                    # 4. И есть координаты
+                    # Используем PlaceResolver для получения названия места:
+                    # 1. Если есть place_id, но нет названия или название generic → используем get_place_details
+                    # 2. Если нет place_id, но есть координаты и нет названия → используем nearby_search
                     generic_names = [
                         "",
                         "Место не указано",
@@ -145,12 +143,22 @@ class ModernEventScheduler:
                     has_maps_link_with_name = (
                         location_url and place_name_from_maps and place_name_from_maps not in generic_names
                     )
-                    needs_place_resolver = (
-                        not has_maps_link_with_name  # Нет ссылки с названием
-                        and (not location_name or location_name in generic_names)  # И нет другого названия
+
+                    # Если есть place_id, но нет названия или название generic → используем get_place_details
+                    needs_place_resolver_by_place_id = place_id_from_maps and (
+                        not location_name or location_name in generic_names
+                    )
+
+                    # Если нет place_id, но есть координаты и нет названия → используем nearby_search
+                    needs_place_resolver_by_coords = (
+                        not place_id_from_maps
+                        and not has_maps_link_with_name
+                        and (not location_name or location_name in generic_names)
                         and event.lat
                         and event.lng
                     )
+
+                    needs_place_resolver = needs_place_resolver_by_place_id or needs_place_resolver_by_coords
 
                     if needs_place_resolver:
                         try:
@@ -173,10 +181,15 @@ class ModernEventScheduler:
                                     loop = asyncio.new_event_loop()
                                     asyncio.set_event_loop(loop)
                                     try:
-                                        # Пробуем сначала по place_id, потом по координатам
+                                        # Если есть place_id, используем get_place_details напрямую
+                                        if place_id_from_maps:
+                                            return loop.run_until_complete(
+                                                resolver.get_place_details(place_id_from_maps)
+                                            )
+                                        # Иначе используем resolve (nearby_search)
                                         return loop.run_until_complete(
                                             resolver.resolve(
-                                                place_id=place_id_from_maps,
+                                                place_id=None,
                                                 lat=event.lat,
                                                 lng=event.lng,
                                             )
@@ -189,16 +202,22 @@ class ModernEventScheduler:
                                     place_data = future.result(timeout=15)
                             except RuntimeError:
                                 # Нет запущенного loop, используем asyncio.run
-                                place_data = asyncio.run(
-                                    resolver.resolve(place_id=place_id_from_maps, lat=event.lat, lng=event.lng)
-                                )
+                                if place_id_from_maps:
+                                    place_data = asyncio.run(resolver.get_place_details(place_id_from_maps))
+                                else:
+                                    place_data = asyncio.run(
+                                        resolver.resolve(place_id=None, lat=event.lat, lng=event.lng)
+                                    )
 
                             if place_data and place_data.get("name") and place_data["name"] not in generic_names:
                                 location_name = place_data["name"]
-                                place_id_from_maps = place_data.get("place_id") or place_id_from_maps
+                                # Обновляем place_id если его не было или если получили новый
+                                if place_data.get("place_id"):
+                                    place_id_from_maps = place_data["place_id"]
+                                method = "get_place_details" if place_id_from_maps else "nearby_search"
                                 logger.info(
-                                    f"✅ Получено название места через PlaceResolver: "
-                                    f"{location_name} для '{event.title[:50]}'"
+                                    f"✅ Получено название места через PlaceResolver.{method}: "
+                                    f"{location_name} (place_id: {place_id_from_maps}) для '{event.title[:50]}'"
                                 )
                             elif place_data:
                                 logger.debug(
