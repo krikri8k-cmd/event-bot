@@ -4563,9 +4563,9 @@ async def handle_group_hide_bot(callback: types.CallbackQuery, bot: Bot, session
     # ВОССТАНАВЛИВАЕМ КОМАНДЫ ПОСЛЕ СКРЫТИЯ БОТА (НАДЕЖНО)
     await ensure_group_start_command(bot, chat_id)
 
-    # Удаляем уведомление через 5 секунд
+    # Удаляем уведомление через 4 секунды
     try:
-        await asyncio.sleep(5)
+        await asyncio.sleep(4)
         await note.delete()
     except Exception:
         pass  # Игнорируем ошибки удаления уведомления

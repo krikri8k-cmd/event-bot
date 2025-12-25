@@ -293,15 +293,15 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
 
         is_participant = await is_participant_optimized(session, event_id, user_id)
         if is_participant:
-            # Отправляем сообщение и удаляем его вместе с сообщением пользователя через 5 секунд
+            # Отправляем сообщение и удаляем его вместе с сообщением пользователя через 4 секунды
             import asyncio
 
             bot_msg = await message.answer("ℹ️ Вы уже записаны на это событие")
 
-            # Удаляем оба сообщения через 5 секунд
+            # Удаляем оба сообщения через 4 секунды
             async def delete_both_messages():
                 try:
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(4)
                     # Удаляем сообщение бота
                     try:
                         await bot.delete_message(chat_id=chat_id, message_id=bot_msg.message_id)
@@ -598,15 +598,15 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
 
         is_participant = await is_participant_optimized(session, event_id, user_id)
         if is_participant:
-            # Отправляем сообщение и удаляем его вместе с сообщением пользователя через 5 секунд
+            # Отправляем сообщение и удаляем его вместе с сообщением пользователя через 4 секунды
             import asyncio
 
             bot_msg = await message.answer("ℹ️ Вы уже записаны на это событие")
 
-            # Удаляем оба сообщения через 5 секунд
+            # Удаляем оба сообщения через 4 секунды
             async def delete_both_messages():
                 try:
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(4)
                     # Удаляем сообщение бота
                     try:
                         await bot.delete_message(chat_id=chat_id, message_id=bot_msg.message_id)
