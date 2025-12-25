@@ -76,7 +76,7 @@ class UnifiedEventsService:
                 # Поиск с координатами и радиусом
                 query = text("""
                     SELECT source, id, title, description, starts_at,
-                           location_name as city, lat, lng, location_name,
+                           city, lat, lng, location_name,
                            location_url, url as event_url,
                            organizer_id, organizer_username, max_participants,
                            current_participants, status, created_at_utc,
@@ -113,7 +113,7 @@ class UnifiedEventsService:
                 # Поиск без координат
                 query = text("""
                     SELECT source, id, title, description, starts_at,
-                           location_name as city, lat, lng, location_name,
+                           city, lat, lng, location_name,
                            location_url, url as event_url,
                            organizer_id, organizer_username, max_participants,
                            current_participants, status, created_at_utc,
@@ -195,7 +195,7 @@ class UnifiedEventsService:
                     # Fallback: поиск без радиуса по временным границам региона
                     fallback_query = text("""
                         SELECT source, id, title, description, starts_at,
-                               location_name as city, lat, lng, location_name,
+                               city, lat, lng, location_name,
                                location_url, url as event_url,
                                organizer_id, organizer_username, max_participants,
                                current_participants, status, created_at_utc,
