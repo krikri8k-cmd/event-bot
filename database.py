@@ -87,6 +87,11 @@ class UserTask(Base):
     accepted_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     expires_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
     completed_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+    # Поля для хранения информации о конкретном месте (если задание связано с местом)
+    place_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("task_places.id"), nullable=True)
+    place_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    place_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    promo_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
 
 class Event(Base):

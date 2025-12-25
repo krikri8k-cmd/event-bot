@@ -336,16 +336,21 @@ def create_task_from_place(
             # Устанавливаем очень большое время истечения (10 лет) - ограничение по времени отключено
             expires_at = accepted_at + timedelta(days=3650)
 
-            # Создаем UserTask
+            # Создаем UserTask с информацией о конкретном месте
             user_task = UserTask(
                 user_id=user_id,
                 task_id=task.id,
                 status="active",
                 accepted_at=accepted_at,
                 expires_at=expires_at,
+                place_id=place.id,  # Сохраняем ID места
+                place_name=place.name,  # Сохраняем название места
+                place_url=place.google_maps_url,  # Сохраняем URL места
+                promo_code=place.promo_code,  # Сохраняем промокод
             )
 
             # Сохраняем информацию о месте в Task.location_url (если еще не сохранена)
+            # Это нужно для обратной совместимости и для заданий без конкретного места
             if not task.location_url and place.google_maps_url:
                 task.location_url = place.google_maps_url
 
@@ -450,8 +455,31 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                 "task_type": task.task_type,
             }
 
-            # Получаем информацию о месте и промокоде, если есть координаты пользователя
-            if user and user.last_lat is not None and user.last_lng is not None:
+            # Получаем информацию о месте и промокоде
+            # ПРИОРИТЕТ 1: Если у UserTask уже есть информация о месте (пользователь добавил конкретное место)
+            if user_task.place_name and user_task.place_url:
+                task_dict["place_name"] = user_task.place_name
+                task_dict["place_url"] = user_task.place_url
+                if user_task.promo_code:
+                    task_dict["promo_code"] = user_task.promo_code
+                # Вычисляем расстояние, если есть координаты пользователя и места
+                if user and user.last_lat is not None and user.last_lng is not None:
+                    from database import TaskPlace
+
+                    place_from_db = session.query(TaskPlace).filter(TaskPlace.id == user_task.place_id).first()
+                    if place_from_db:
+                        from utils.haversine import haversine_distance
+
+                        distance = haversine_distance(
+                            user.last_lat,
+                            user.last_lng,
+                            place_from_db.lat,
+                            place_from_db.lng,
+                        )
+                        task_dict["distance_km"] = round(distance, 1)
+                logger.debug(f"✅ Используем место из UserTask для задания {task.id}: {user_task.place_name}")
+            # ПРИОРИТЕТ 2: Если есть координаты пользователя, ищем место
+            elif user and user.last_lat is not None and user.last_lng is not None:
                 try:
                     from tasks_location_service import (
                         find_nearest_available_place,
