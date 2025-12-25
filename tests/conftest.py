@@ -57,7 +57,8 @@ def ensure_events_table(api_engine):
               created_at_utc TIMESTAMPTZ,
               community_name TEXT,
               venue_name VARCHAR(255),
-              address TEXT
+              address TEXT,
+              place_id TEXT
             );
         """)
         with api_engine.begin() as c:
@@ -164,6 +165,13 @@ def ensure_events_table(api_engine):
                         WHERE table_name = 'events' AND column_name = 'address'
                     ) THEN
                         ALTER TABLE events ADD COLUMN address TEXT;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'place_id'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN place_id TEXT;
                     END IF;
                 END $$;
             """)

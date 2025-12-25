@@ -62,7 +62,7 @@ class TestRenderEventCardRoute:
         # Проверяем что в HTML есть кнопка Маршрут с координатами
         assert "🚗" in html
         assert "Маршрут" in html
-        assert "-8.67,115.25" in html
+        assert "-8.670000,115.250000" in html
         assert "https://www.google.com/maps/search/?api=1&query=" in html
 
     def test_route_with_no_location(self):
@@ -152,7 +152,7 @@ class TestRenderEventCardRoute:
         # С coords
         event = {"lat": -8.67, "lng": 115.25}
         url = build_maps_url(event)
-        assert "-8.67,115.25" in url
+        assert "-8.670000,115.250000" in url
 
         # Без ничего
         event = {}

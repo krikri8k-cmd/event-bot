@@ -127,7 +127,7 @@ def test_build_maps_url_prefers_venue_name_then_address_then_coords():
 
     assert "query=Dojo+Bali" in u1
     assert "query=Sanur+Beach" in u2
-    assert "query=-8.5,115.2" in u3
+    assert "query=-8.500000,115.200000" in u3
 
 
 def test_counts_and_grouping_on_prepared():
