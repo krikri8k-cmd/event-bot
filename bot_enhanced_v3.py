@@ -9001,6 +9001,8 @@ async def handle_add_place_to_quests(callback: types.CallbackQuery, state: FSMCo
     place_id = int(callback.data.split(":")[1])
     user_id = callback.from_user.id
 
+    logger.info(f"🎯 handle_add_place_to_quests: user_id={user_id}, place_id={place_id}")
+
     # Получаем координаты пользователя из БД
     with get_session() as session:
         user = session.query(User).filter(User.id == user_id).first()
@@ -9009,6 +9011,11 @@ async def handle_add_place_to_quests(callback: types.CallbackQuery, state: FSMCo
 
     # Создаем задание из места
     success, message_text = create_task_from_place(user_id, place_id, user_lat, user_lng)
+
+    logger.info(
+        f"🎯 handle_add_place_to_quests: user_id={user_id}, place_id={place_id}, "
+        f"success={success}, message='{message_text[:50]}'"
+    )
 
     # Показываем уведомление с результатом
     # Если квест уже добавлен (success=False), показываем alert, иначе просто toast
