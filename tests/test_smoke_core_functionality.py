@@ -10,6 +10,8 @@ import pytz
 # Smoke test 1: Поиск событий
 def test_search_events_today():
     """Тест поиска событий на сегодня"""
+    from sqlalchemy import text
+
     from config import load_settings
     from database import get_engine, init_engine
     from utils.unified_events_service import UnifiedEventsService
@@ -17,6 +19,16 @@ def test_search_events_today():
     settings = load_settings()
     init_engine(settings.database_url)
     engine = get_engine()
+
+    # Убеждаемся, что колонка city существует в таблице events
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS city VARCHAR(64)"))
+            conn.commit()
+        except Exception:
+            # Колонка уже существует или другая ошибка - игнорируем
+            pass
+
     service = UnifiedEventsService(engine)
 
     # Тестируем поиск для Бали
