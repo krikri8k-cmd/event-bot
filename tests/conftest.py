@@ -64,28 +64,110 @@ def ensure_events_table(api_engine):
             c.execute(ddl)
 
             # Добавляем колонки, если таблица уже существовала без них
-            alter_statements = [
-                "ALTER TABLE events ADD COLUMN IF NOT EXISTS city VARCHAR(64)",
-                "ALTER TABLE events ADD COLUMN IF NOT EXISTS country VARCHAR(8)",
-                "ALTER TABLE events ADD COLUMN IF NOT EXISTS location_name TEXT",
-                "ALTER TABLE events ADD COLUMN IF NOT EXISTS location_url TEXT",
-                "ALTER TABLE events ADD COLUMN IF NOT EXISTS description TEXT",
-                "ALTER TABLE events ADD COLUMN IF NOT EXISTS organizer_id INTEGER",
-                "ALTER TABLE events ADD COLUMN IF NOT EXISTS organizer_username TEXT",
-                "ALTER TABLE events ADD COLUMN IF NOT EXISTS max_participants INTEGER",
-                "ALTER TABLE events ADD COLUMN IF NOT EXISTS current_participants INTEGER",
-                "ALTER TABLE events ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'open'",
-                "ALTER TABLE events ADD COLUMN IF NOT EXISTS created_at_utc TIMESTAMPTZ",
-                "ALTER TABLE events ADD COLUMN IF NOT EXISTS community_name TEXT",
-                "ALTER TABLE events ADD COLUMN IF NOT EXISTS venue_name VARCHAR(255)",
-                "ALTER TABLE events ADD COLUMN IF NOT EXISTS address TEXT",
-            ]
-            for alter_stmt in alter_statements:
-                try:
-                    c.execute(text(alter_stmt))
-                except Exception:
-                    # Игнорируем ошибки, если колонка уже существует
-                    pass
+            # Используем DO блок для проверки существования колонок
+            add_columns_script = text("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'city'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN city VARCHAR(64);
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'country'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN country VARCHAR(8);
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'location_name'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN location_name TEXT;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'location_url'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN location_url TEXT;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'description'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN description TEXT;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'organizer_id'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN organizer_id INTEGER;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'organizer_username'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN organizer_username TEXT;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'max_participants'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN max_participants INTEGER;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'current_participants'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN current_participants INTEGER;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'status'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN status VARCHAR(50) DEFAULT 'open';
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'created_at_utc'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN created_at_utc TIMESTAMPTZ;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'community_name'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN community_name TEXT;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'venue_name'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN venue_name VARCHAR(255);
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'address'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN address TEXT;
+                    END IF;
+                END $$;
+            """)
+            c.execute(add_columns_script)
         yield  # ничего не дропаем
     except Exception as e:
         pytest.skip(f"Failed to create table: {e}")
