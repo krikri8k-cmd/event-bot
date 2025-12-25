@@ -504,6 +504,8 @@ def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> 
 
                         from utils.geo_utils import parse_google_maps_link
 
+                        print(f"DEBUG: baliforum: пытаемся извлечь координаты из ссылки в карточке: {href[:100]}")
+
                         # Выполняем async функцию синхронно
                         try:
                             loop = asyncio.get_event_loop()
@@ -520,11 +522,13 @@ def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> 
 
                                 with concurrent.futures.ThreadPoolExecutor() as executor:
                                     future = executor.submit(run_parse)
-                                    maps_data = future.result(timeout=5)
+                                    maps_data = future.result(timeout=10)
                             else:
                                 maps_data = loop.run_until_complete(parse_google_maps_link(href))
                         except RuntimeError:
                             maps_data = asyncio.run(parse_google_maps_link(href))
+
+                        print(f"DEBUG: baliforum: parse_google_maps_link (карточка) вернул: {maps_data}")
 
                         if maps_data and maps_data.get("lat") and maps_data.get("lng"):
                             lat = maps_data["lat"]
@@ -537,9 +541,20 @@ def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> 
                                 f"ссылка: {location_url[:80] if location_url else None}"
                             )
                             break
+                        else:
+                            print(
+                                f"DEBUG: baliforum: parse_google_maps_link (карточка) "
+                                f"не нашел координаты в ссылке: {href[:100]}"
+                            )
                     except Exception as e:
                         # Fallback на старый метод
-                        print(f"DEBUG: baliforum: ошибка parse_google_maps_link в карточке, используем fallback: {e}")
+                        print(
+                            f"DEBUG: baliforum: ошибка parse_google_maps_link в карточке, "
+                            f"используем fallback: {type(e).__name__}: {e}"
+                        )
+                        import traceback
+
+                        traceback.print_exc()
                         lat, lng, place_name, maps_url = _extract_latlng_from_maps(href)
                         if lat and lng:
                             location_url = maps_url
@@ -549,16 +564,44 @@ def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> 
                                 f"для '{title}', место: {place_name_from_maps}"
                             )
                             break
+                        else:
+                            print(
+                                f"DEBUG: baliforum: fallback (карточка) тоже не нашел координаты в ссылке: {href[:100]}"
+                            )
 
         # Если координаты все еще не найдены, пробуем геокодинг по адресу/venue
         if (not lat or not lng) and venue:
             try:
-                from utils.geo_utils import geocode
+                import asyncio
+
+                from utils.geo_utils import geocode_address
 
                 # Пробуем геокодинг по venue/address
                 address = venue.strip()
                 if address and len(address) > 5:  # Минимальная длина адреса
-                    coords = geocode(address)
+                    # Выполняем async функцию синхронно
+                    try:
+                        loop = asyncio.get_event_loop()
+                        if loop.is_running():
+                            # Если loop уже запущен, используем ThreadPoolExecutor
+                            import concurrent.futures
+
+                            def run_geocode():
+                                loop = asyncio.new_event_loop()
+                                asyncio.set_event_loop(loop)
+                                try:
+                                    return loop.run_until_complete(geocode_address(address, region_bias="bali"))
+                                finally:
+                                    loop.close()
+
+                            with concurrent.futures.ThreadPoolExecutor() as executor:
+                                future = executor.submit(run_geocode)
+                                coords = future.result(timeout=10)
+                        else:
+                            coords = loop.run_until_complete(geocode_address(address, region_bias="bali"))
+                    except RuntimeError:
+                        coords = asyncio.run(geocode_address(address, region_bias="bali"))
+
                     if coords:
                         lat, lng = coords
                         print(
