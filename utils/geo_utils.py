@@ -574,27 +574,24 @@ async def parse_google_maps_link(link: str) -> dict | None:
 
             # Если есть place_id, но нет названия, получаем название через Places API
             if place_id and not name:
-                coords_from_place_id = await get_coordinates_from_place_id(place_id)
-                if coords_from_place_id:
-                    # Получаем название через Places API Details
-                    settings = load_settings()
-                    if settings.google_maps_api_key:
-                        try:
-                            params = {
-                                "place_id": place_id,
-                                "fields": "name",
-                                "key": settings.google_maps_api_key,
-                            }
-                            async with httpx.AsyncClient(timeout=15) as client:
-                                r = await client.get(
-                                    "https://maps.googleapis.com/maps/api/place/details/json", params=params
-                                )
-                                r.raise_for_status()
-                                data = r.json()
-                                if data.get("status") == "OK" and data.get("result"):
-                                    name = data["result"].get("name", "")
-                        except Exception:
-                            pass
+                settings = load_settings()
+                if settings.google_maps_api_key:
+                    try:
+                        params = {
+                            "place_id": place_id,
+                            "fields": "name",
+                            "key": settings.google_maps_api_key,
+                        }
+                        async with httpx.AsyncClient(timeout=15) as client:
+                            r = await client.get(
+                                "https://maps.googleapis.com/maps/api/place/details/json", params=params
+                            )
+                            r.raise_for_status()
+                            data = r.json()
+                            if data.get("status") == "OK" and data.get("result"):
+                                name = data["result"].get("name", "")
+                    except Exception:
+                        pass
 
             result = {"lat": lat, "lng": lng, "name": name, "raw_link": link}
             if place_id:
@@ -613,27 +610,24 @@ async def parse_google_maps_link(link: str) -> dict | None:
 
             # Если есть place_id, но нет названия, получаем название через Places API
             if place_id and not name:
-                coords_from_place_id = await get_coordinates_from_place_id(place_id)
-                if coords_from_place_id:
-                    # Получаем название через Places API Details
-                    settings = load_settings()
-                    if settings.google_maps_api_key:
-                        try:
-                            params = {
-                                "place_id": place_id,
-                                "fields": "name",
-                                "key": settings.google_maps_api_key,
-                            }
-                            async with httpx.AsyncClient(timeout=15) as client:
-                                r = await client.get(
-                                    "https://maps.googleapis.com/maps/api/place/details/json", params=params
-                                )
-                                r.raise_for_status()
-                                data = r.json()
-                                if data.get("status") == "OK" and data.get("result"):
-                                    name = data["result"].get("name", "")
-                        except Exception:
-                            pass
+                settings = load_settings()
+                if settings.google_maps_api_key:
+                    try:
+                        params = {
+                            "place_id": place_id,
+                            "fields": "name",
+                            "key": settings.google_maps_api_key,
+                        }
+                        async with httpx.AsyncClient(timeout=15) as client:
+                            r = await client.get(
+                                "https://maps.googleapis.com/maps/api/place/details/json", params=params
+                            )
+                            r.raise_for_status()
+                            data = r.json()
+                            if data.get("status") == "OK" and data.get("result"):
+                                name = data["result"].get("name", "")
+                    except Exception:
+                        pass
 
             result = {"lat": lat, "lng": lng, "name": name, "raw_link": link}
             if place_id:
