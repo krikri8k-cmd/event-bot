@@ -557,9 +557,29 @@ async def parse_google_maps_link(link: str) -> dict | None:
         return None
 
     # Очищаем ссылку от пробелов и скрытых символов
-    link = unquote(_cleanup_link(link))
+    link_cleaned = _cleanup_link(link)
+    link = unquote(link_cleaned)
 
     try:
+        # Сначала проверяем паттерн query=lat,lng (после декодирования)
+        # Это нужно делать ДО проверки коротких ссылок, так как короткие ссылки могут расширяться
+        pattern_query_decoded = r"[?&]query=(-?\d+\.?\d*),(-?\d+\.?\d*)"
+        match_query = re.search(pattern_query_decoded, link)
+        if match_query:
+            lat = float(match_query.group(1))
+            lng = float(match_query.group(2))
+            name = extract_place_name_from_url(link)
+            return {"lat": lat, "lng": lng, "name": name, "raw_link": link}
+
+        # Также проверяем паттерн query=lat%2Clng (до декодирования, если еще не декодировано)
+        pattern_query_encoded = r"[?&]query=(-?\d+\.?\d*)%2C(-?\d+\.?\d*)"
+        match_query_encoded = re.search(pattern_query_encoded, link_cleaned)
+        if match_query_encoded:
+            lat = float(match_query_encoded.group(1))
+            lng = float(match_query_encoded.group(2))
+            name = extract_place_name_from_url(link)
+            return {"lat": lat, "lng": lng, "name": name, "raw_link": link}
+
         # Сначала проверяем, не короткая ли это ссылка
         if "goo.gl/maps" in link or "maps.app.goo.gl" in link:
             # Для коротких ссылок пытаемся получить полную ссылку
@@ -590,6 +610,17 @@ async def parse_google_maps_link(link: str) -> dict | None:
         if match2:
             lat = float(match2.group(1))
             lng = float(match2.group(2))
+
+            name = extract_place_name_from_url(link)
+
+            return {"lat": lat, "lng": lng, "name": name, "raw_link": link}
+
+        # Паттерн 2a: query=lat%2Clng (URL-encoded запятая) - новый формат Google Maps
+        pattern2a = r"[?&]query=(-?\d+\.?\d*)%2C(-?\d+\.?\d*)"
+        match2a = re.search(pattern2a, link)
+        if match2a:
+            lat = float(match2a.group(1))
+            lng = float(match2a.group(2))
 
             name = extract_place_name_from_url(link)
 
