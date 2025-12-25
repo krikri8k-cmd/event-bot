@@ -457,8 +457,8 @@ def _extract_place_id(url: str) -> str | None:
     parsed = urlparse(url)
     query = parse_qs(parsed.query)
 
-    # Ищем в query параметрах
-    for key in ("place_id", "placeid", "ftid"):
+    # Ищем в query параметрах (включая query_place_id для нового формата)
+    for key in ("place_id", "placeid", "ftid", "query_place_id"):
         values = query.get(key)
         if values:
             return values[0]
@@ -568,8 +568,38 @@ async def parse_google_maps_link(link: str) -> dict | None:
         if match_query:
             lat = float(match_query.group(1))
             lng = float(match_query.group(2))
+            # Пытаемся извлечь place_id из ссылки для получения названия
+            place_id = _extract_place_id(link) or _extract_place_id(link_cleaned)
             name = extract_place_name_from_url(link)
-            return {"lat": lat, "lng": lng, "name": name, "raw_link": link}
+
+            # Если есть place_id, но нет названия, получаем название через Places API
+            if place_id and not name:
+                coords_from_place_id = await get_coordinates_from_place_id(place_id)
+                if coords_from_place_id:
+                    # Получаем название через Places API Details
+                    settings = load_settings()
+                    if settings.google_maps_api_key:
+                        try:
+                            params = {
+                                "place_id": place_id,
+                                "fields": "name",
+                                "key": settings.google_maps_api_key,
+                            }
+                            async with httpx.AsyncClient(timeout=15) as client:
+                                r = await client.get(
+                                    "https://maps.googleapis.com/maps/api/place/details/json", params=params
+                                )
+                                r.raise_for_status()
+                                data = r.json()
+                                if data.get("status") == "OK" and data.get("result"):
+                                    name = data["result"].get("name", "")
+                        except Exception:
+                            pass
+
+            result = {"lat": lat, "lng": lng, "name": name, "raw_link": link}
+            if place_id:
+                result["place_id"] = place_id
+            return result
 
         # Также проверяем паттерн query=lat%2Clng (до декодирования, если еще не декодировано)
         pattern_query_encoded = r"[?&]query=(-?\d+\.?\d*)%2C(-?\d+\.?\d*)"
@@ -577,8 +607,38 @@ async def parse_google_maps_link(link: str) -> dict | None:
         if match_query_encoded:
             lat = float(match_query_encoded.group(1))
             lng = float(match_query_encoded.group(2))
+            # Пытаемся извлечь place_id из ссылки для получения названия
+            place_id = _extract_place_id(link) or _extract_place_id(link_cleaned)
             name = extract_place_name_from_url(link)
-            return {"lat": lat, "lng": lng, "name": name, "raw_link": link}
+
+            # Если есть place_id, но нет названия, получаем название через Places API
+            if place_id and not name:
+                coords_from_place_id = await get_coordinates_from_place_id(place_id)
+                if coords_from_place_id:
+                    # Получаем название через Places API Details
+                    settings = load_settings()
+                    if settings.google_maps_api_key:
+                        try:
+                            params = {
+                                "place_id": place_id,
+                                "fields": "name",
+                                "key": settings.google_maps_api_key,
+                            }
+                            async with httpx.AsyncClient(timeout=15) as client:
+                                r = await client.get(
+                                    "https://maps.googleapis.com/maps/api/place/details/json", params=params
+                                )
+                                r.raise_for_status()
+                                data = r.json()
+                                if data.get("status") == "OK" and data.get("result"):
+                                    name = data["result"].get("name", "")
+                        except Exception:
+                            pass
+
+            result = {"lat": lat, "lng": lng, "name": name, "raw_link": link}
+            if place_id:
+                result["place_id"] = place_id
+            return result
 
         # Сначала проверяем, не короткая ли это ссылка
         if "goo.gl/maps" in link or "maps.app.goo.gl" in link:
