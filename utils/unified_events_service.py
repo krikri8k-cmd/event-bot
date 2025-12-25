@@ -437,6 +437,7 @@ class UnifiedEventsService:
         location_name: str = None,
         location_url: str = None,
         url: str = None,
+        place_id: str = None,
     ) -> int:
         """
         Сохранение парсерного события в единую таблицу events
@@ -462,7 +463,7 @@ class UnifiedEventsService:
                     SET title = :title, description = :description, starts_at = :starts_at,
                         city = :city, lat = :lat, lng = :lng, location_name = :location_name,
                         location_url = :location_url, url = :url, country = :country,
-                        updated_at_utc = NOW()
+                        place_id = :place_id, updated_at_utc = NOW()
                     WHERE source = :source AND external_id = :external_id
                 """),
                     {
@@ -476,6 +477,7 @@ class UnifiedEventsService:
                         "location_url": location_url,
                         "url": url,
                         "country": country,
+                        "place_id": place_id,
                         "source": source,
                         "external_id": external_id,
                     },
@@ -489,10 +491,11 @@ class UnifiedEventsService:
                     text("""
                     INSERT INTO events
                     (source, external_id, title, description, starts_at, city, lat, lng,
-                     location_name, location_url, url, country, is_generated_by_ai, status, current_participants)
+                     location_name, location_url, url, country, is_generated_by_ai, status,
+                     current_participants, place_id)
                     VALUES
                     (:source, :external_id, :title, :description, :starts_at, :city, :lat, :lng,
-                     :location_name, :location_url, :url, :country, :is_ai, 'open', 0)
+                     :location_name, :location_url, :url, :country, :is_ai, 'open', 0, :place_id)
                     ON CONFLICT (source, external_id) DO UPDATE SET
                         title = EXCLUDED.title,
                         description = EXCLUDED.description,
@@ -503,7 +506,8 @@ class UnifiedEventsService:
                         location_name = EXCLUDED.location_name,
                         location_url = EXCLUDED.location_url,
                         url = EXCLUDED.url,
-                        country = EXCLUDED.country
+                        country = EXCLUDED.country,
+                        place_id = EXCLUDED.place_id
                     RETURNING id
                 """),
                     {
@@ -520,6 +524,7 @@ class UnifiedEventsService:
                         "url": url,
                         "country": country,
                         "is_ai": is_ai,
+                        "place_id": place_id,
                     },
                 )
 

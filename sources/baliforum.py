@@ -422,9 +422,11 @@ def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> 
                             lng = maps_data["lng"]
                             location_url = maps_data.get("raw_link", href)
                             place_name_from_maps = maps_data.get("name")
+                            place_id = maps_data.get("place_id")
                             print(
                                 f"DEBUG: baliforum: найдены координаты на детальной странице: {lat}, {lng} "
                                 f"для '{title}', место: {place_name_from_maps}, "
+                                f"place_id: {place_id}, "
                                 f"ссылка: {location_url[:80] if location_url else None}"
                             )
                             break
@@ -535,9 +537,11 @@ def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> 
                             lng = maps_data["lng"]
                             location_url = maps_data.get("raw_link", href)
                             place_name_from_maps = maps_data.get("name")
+                            place_id = maps_data.get("place_id")
                             print(
                                 f"DEBUG: baliforum: найдены координаты в карточке: {lat}, {lng} "
                                 f"для '{title}', место: {place_name_from_maps}, "
+                                f"place_id: {place_id}, "
                                 f"ссылка: {location_url[:80] if location_url else None}"
                             )
                             break
@@ -634,7 +638,11 @@ def fetch_baliforum_events(limit: int = 100, date_filter: str | None = None) -> 
                     "booking_url": None,
                     "ticket_url": None,
                     "external_id": external_id,
-                    "raw": {"date_text": date_text, "place_name_from_maps": place_name_from_maps},
+                    "raw": {
+                        "date_text": date_text,
+                        "place_name_from_maps": place_name_from_maps,
+                        "place_id": place_id,
+                    },
                 }
             )
             parsed_count += 1
@@ -678,6 +686,7 @@ def fetch(limit: int = 100) -> list[RawEvent]:
             "venue": venue,
             "location_url": event.get("location_url"),
             "place_name_from_maps": event.get("raw", {}).get("place_name_from_maps"),
+            "place_id": event.get("raw", {}).get("place_id"),
         }
 
         raw_event = RawEvent(

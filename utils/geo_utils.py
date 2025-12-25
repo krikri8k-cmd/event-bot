@@ -572,26 +572,20 @@ async def parse_google_maps_link(link: str) -> dict | None:
             place_id = _extract_place_id(link) or _extract_place_id(link_cleaned)
             name = extract_place_name_from_url(link)
 
-            # Если есть place_id, но нет названия, получаем название через Places API
+            # Если есть place_id, но нет названия, получаем название через PlaceResolver
             if place_id and not name:
-                settings = load_settings()
-                if settings.google_maps_api_key:
-                    try:
-                        params = {
-                            "place_id": place_id,
-                            "fields": "name",
-                            "key": settings.google_maps_api_key,
-                        }
-                        async with httpx.AsyncClient(timeout=15) as client:
-                            r = await client.get(
-                                "https://maps.googleapis.com/maps/api/place/details/json", params=params
-                            )
-                            r.raise_for_status()
-                            data = r.json()
-                            if data.get("status") == "OK" and data.get("result"):
-                                name = data["result"].get("name", "")
-                    except Exception:
-                        pass
+                try:
+                    from database import get_engine
+                    from utils.place_resolver import PlaceResolver
+
+                    engine = get_engine()
+                    resolver = PlaceResolver(engine=engine)
+                    place_data = await resolver.get_place_details(place_id)
+                    if place_data and place_data.get("name"):
+                        name = place_data["name"]
+                except Exception:
+                    # Если PlaceResolver не доступен, продолжаем без названия
+                    pass
 
             result = {"lat": lat, "lng": lng, "name": name, "raw_link": link}
             if place_id:
@@ -608,26 +602,20 @@ async def parse_google_maps_link(link: str) -> dict | None:
             place_id = _extract_place_id(link) or _extract_place_id(link_cleaned)
             name = extract_place_name_from_url(link)
 
-            # Если есть place_id, но нет названия, получаем название через Places API
+            # Если есть place_id, но нет названия, получаем название через PlaceResolver
             if place_id and not name:
-                settings = load_settings()
-                if settings.google_maps_api_key:
-                    try:
-                        params = {
-                            "place_id": place_id,
-                            "fields": "name",
-                            "key": settings.google_maps_api_key,
-                        }
-                        async with httpx.AsyncClient(timeout=15) as client:
-                            r = await client.get(
-                                "https://maps.googleapis.com/maps/api/place/details/json", params=params
-                            )
-                            r.raise_for_status()
-                            data = r.json()
-                            if data.get("status") == "OK" and data.get("result"):
-                                name = data["result"].get("name", "")
-                    except Exception:
-                        pass
+                try:
+                    from database import get_engine
+                    from utils.place_resolver import PlaceResolver
+
+                    engine = get_engine()
+                    resolver = PlaceResolver(engine=engine)
+                    place_data = await resolver.get_place_details(place_id)
+                    if place_data and place_data.get("name"):
+                        name = place_data["name"]
+                except Exception:
+                    # Если PlaceResolver не доступен, продолжаем без названия
+                    pass
 
             result = {"lat": lat, "lng": lng, "name": name, "raw_link": link}
             if place_id:

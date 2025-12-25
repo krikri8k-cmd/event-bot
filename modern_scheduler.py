@@ -110,19 +110,20 @@ class ModernEventScheduler:
                     location_url = ""
                     location_name = ""
                     place_name_from_maps = ""
+                    place_id_from_maps = None
                     if hasattr(event, "_raw_data") and event._raw_data:
                         venue = event._raw_data.get("venue", "") or ""
                         location_url = event._raw_data.get("location_url", "") or ""
                         place_name_from_maps = event._raw_data.get("place_name_from_maps", "") or ""
+                        place_id_from_maps = event._raw_data.get("place_id")
                         # ПРИОРИТЕТ: place_name_from_maps (из ссылки) > venue (из HTML)
                         location_name = place_name_from_maps or venue or ""
 
-                    # Reverse geocoding ТОЛЬКО если:
+                    # Используем PlaceResolver для получения названия места ТОЛЬКО если:
                     # 1. НЕТ ссылки Google Maps (location_url пустая)
                     # 2. ИЛИ есть ссылка, но в ней НЕТ названия места (place_name_from_maps пустое)
                     # 3. И нет venue из HTML
                     # 4. И есть координаты
-                    # НЕ используем reverse geocoding если есть ссылка с названием - чтобы не было путаницы!
                     generic_names = [
                         "",
                         "Место не указано",
@@ -133,54 +134,68 @@ class ModernEventScheduler:
                     has_maps_link_with_name = (
                         location_url and place_name_from_maps and place_name_from_maps not in generic_names
                     )
-                    needs_reverse_geocode = (
+                    needs_place_resolver = (
                         not has_maps_link_with_name  # Нет ссылки с названием
                         and (not location_name or location_name in generic_names)  # И нет другого названия
                         and event.lat
                         and event.lng
                     )
 
-                    if needs_reverse_geocode:
+                    if needs_place_resolver:
                         try:
                             import asyncio
 
-                            from utils.geo_utils import reverse_geocode
+                            from database import get_engine
+                            from utils.place_resolver import PlaceResolver
 
-                            # Выполняем reverse geocoding синхронно
+                            engine = get_engine()
+                            resolver = PlaceResolver(engine=engine)
+
+                            # Выполняем PlaceResolver синхронно
                             try:
                                 # Пробуем получить текущий loop
                                 asyncio.get_running_loop()
                                 # Если loop уже запущен, используем ThreadPoolExecutor
                                 import concurrent.futures
 
-                                def run_reverse_geocode():
+                                def run_place_resolver():
                                     loop = asyncio.new_event_loop()
                                     asyncio.set_event_loop(loop)
                                     try:
-                                        return loop.run_until_complete(reverse_geocode(event.lat, event.lng))
+                                        # Пробуем сначала по place_id, потом по координатам
+                                        return loop.run_until_complete(
+                                            resolver.resolve(
+                                                place_id=place_id_from_maps,
+                                                lat=event.lat,
+                                                lng=event.lng,
+                                            )
+                                        )
                                     finally:
                                         loop.close()
 
                                 with concurrent.futures.ThreadPoolExecutor() as executor:
-                                    future = executor.submit(run_reverse_geocode)
-                                    reverse_name = future.result(timeout=10)
+                                    future = executor.submit(run_place_resolver)
+                                    place_data = future.result(timeout=15)
                             except RuntimeError:
                                 # Нет запущенного loop, используем asyncio.run
-                                reverse_name = asyncio.run(reverse_geocode(event.lat, event.lng))
+                                place_data = asyncio.run(
+                                    resolver.resolve(place_id=place_id_from_maps, lat=event.lat, lng=event.lng)
+                                )
 
-                            if reverse_name and reverse_name not in generic_names:
-                                location_name = reverse_name
+                            if place_data and place_data.get("name") and place_data["name"] not in generic_names:
+                                location_name = place_data["name"]
+                                place_id_from_maps = place_data.get("place_id") or place_id_from_maps
                                 logger.info(
-                                    f"✅ Получено название места через reverse geocoding: "
+                                    f"✅ Получено название места через PlaceResolver: "
                                     f"{location_name} для '{event.title[:50]}'"
                                 )
-                            elif reverse_name:
+                            elif place_data:
                                 logger.debug(
-                                    f"⚠️ Reverse geocoding вернул generic название '{reverse_name}', "
+                                    f"⚠️ PlaceResolver вернул generic название '{place_data.get('name')}', "
                                     f"пропускаем для '{event.title[:50]}'"
                                 )
                         except Exception as e:
-                            logger.warning(f"⚠️ Ошибка при reverse geocoding для '{event.title[:50]}': {e}")
+                            logger.warning(f"⚠️ Ошибка при PlaceResolver для '{event.title[:50]}': {e}")
 
                     # ПРАВИЛЬНАЯ АРХИТЕКТУРА: Сохраняем через UnifiedEventsService
                     # Сначала в events_parser, потом автоматически синхронизируется в events
@@ -196,6 +211,7 @@ class ModernEventScheduler:
                         location_name=location_name,
                         location_url=location_url,
                         url=event.url,
+                        place_id=place_id_from_maps,
                     )
 
                     if event_id:
