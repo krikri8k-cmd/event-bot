@@ -8567,7 +8567,7 @@ async def show_tasks_for_category(
     # Кнопки управления
     keyboard.append(
         [
-            InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_tasks"),
+            InlineKeyboardButton(text="📋 Список", callback_data="back_to_tasks"),
             InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
         ]
     )
