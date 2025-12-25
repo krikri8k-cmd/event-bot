@@ -251,9 +251,10 @@ def create_task_from_place(
             # Это защита от случая, когда Task.location_url еще не установлен
             # ВАЖНО: проверяем только если place.google_maps_url не пустой
             if place.google_maps_url:
+                # Используем query с кортежами (UserTask, Task) для доступа к Task
                 all_user_active_tasks = (
-                    session.query(UserTask)
-                    .join(Task)
+                    session.query(UserTask, Task)
+                    .join(Task, UserTask.task_id == Task.id)
                     .filter(
                         and_(
                             UserTask.user_id == user_id,
@@ -266,12 +267,8 @@ def create_task_from_place(
 
                 # Проверяем, есть ли среди них задание с таким же location_url
                 # ВАЖНО: сравниваем только если оба URL не пустые
-                for user_task in all_user_active_tasks:
-                    if (
-                        user_task.task.location_url
-                        and place.google_maps_url
-                        and user_task.task.location_url == place.google_maps_url
-                    ):
+                for user_task, task in all_user_active_tasks:
+                    if task.location_url and place.google_maps_url and task.location_url == place.google_maps_url:
                         logger.warning(
                             f"Пользователь {user_id} уже имеет активное задание для места {place_id} "
                             f"({place.name}) - найдено через проверку всех активных заданий"
