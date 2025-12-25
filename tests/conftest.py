@@ -31,6 +31,7 @@ def ensure_events_table(api_engine):
     try:
         from sqlalchemy import text
 
+        # Создаем таблицу, если её нет
         ddl = text("""
             CREATE TABLE IF NOT EXISTS events (
               id SERIAL PRIMARY KEY,
@@ -61,6 +62,30 @@ def ensure_events_table(api_engine):
         """)
         with api_engine.begin() as c:
             c.execute(ddl)
+
+            # Добавляем колонки, если таблица уже существовала без них
+            alter_statements = [
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS city VARCHAR(64)",
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS country VARCHAR(8)",
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS location_name TEXT",
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS location_url TEXT",
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS description TEXT",
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS organizer_id INTEGER",
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS organizer_username TEXT",
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS max_participants INTEGER",
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS current_participants INTEGER",
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'open'",
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS created_at_utc TIMESTAMPTZ",
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS community_name TEXT",
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS venue_name VARCHAR(255)",
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS address TEXT",
+            ]
+            for alter_stmt in alter_statements:
+                try:
+                    c.execute(text(alter_stmt))
+                except Exception:
+                    # Игнорируем ошибки, если колонка уже существует
+                    pass
         yield  # ничего не дропаем
     except Exception as e:
         pytest.skip(f"Failed to create table: {e}")
