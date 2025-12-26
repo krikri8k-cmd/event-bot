@@ -429,18 +429,28 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
             }
 
             # Получаем информацию о месте и промокоде
-            # ПРИОРИТЕТ 1: Если у UserTask уже есть информация о месте (пользователь добавил конкретное место)
-            if user_task.place_name and user_task.place_url:
-                task_dict["place_name"] = user_task.place_name
-                task_dict["place_url"] = user_task.place_url
-                if user_task.promo_code:
-                    task_dict["promo_code"] = user_task.promo_code
-                # Вычисляем расстояние, если есть координаты пользователя и места
-                if user and user.last_lat is not None and user.last_lng is not None:
-                    from database import TaskPlace
+            # ПРИОРИТЕТ 1: Если у UserTask уже есть place_id, загружаем место из базы
+            if user_task.place_id:
+                from database import TaskPlace
 
-                    place_from_db = session.query(TaskPlace).filter(TaskPlace.id == user_task.place_id).first()
-                    if place_from_db:
+                place_from_db = session.query(TaskPlace).filter(TaskPlace.id == user_task.place_id).first()
+                if place_from_db:
+                    # Используем место из базы (самый надежный источник)
+                    task_dict["place_name"] = place_from_db.name
+                    task_dict["place_url"] = place_from_db.google_maps_url
+                    task_dict["promo_code"] = place_from_db.promo_code
+
+                    # Обновляем поля в UserTask, если они отсутствуют или изменились
+                    if not user_task.place_name or user_task.place_name != place_from_db.name:
+                        user_task.place_name = place_from_db.name
+                    if not user_task.place_url or user_task.place_url != place_from_db.google_maps_url:
+                        user_task.place_url = place_from_db.google_maps_url
+                    if place_from_db.promo_code and user_task.promo_code != place_from_db.promo_code:
+                        user_task.promo_code = place_from_db.promo_code
+                    session.commit()
+
+                    # Вычисляем расстояние, если есть координаты пользователя
+                    if user and user.last_lat is not None and user.last_lng is not None:
                         from utils.radius_calc import haversine_distance
 
                         distance = haversine_distance(
@@ -450,7 +460,29 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                             place_from_db.lng,
                         )
                         task_dict["distance_km"] = round(distance, 1)
-                logger.debug(f"✅ Используем место из UserTask для задания {task.id}: {user_task.place_name}")
+                    logger.debug(
+                        f"✅ Используем место из базы для задания {task.id}: "
+                        f"{place_from_db.name} (ID: {user_task.place_id})"
+                    )
+                else:
+                    # Место удалено из базы, но есть place_id - очищаем его
+                    logger.warning(
+                        f"⚠️ Место {user_task.place_id} не найдено в базе для задания {task.id}, очищаем place_id"
+                    )
+                    user_task.place_id = None
+                    user_task.place_name = None
+                    user_task.place_url = None
+                    user_task.promo_code = None
+                    session.commit()
+            # ПРИОРИТЕТ 2: Если есть place_name и place_url, но нет place_id (старые данные)
+            elif user_task.place_name and user_task.place_url:
+                task_dict["place_name"] = user_task.place_name
+                task_dict["place_url"] = user_task.place_url
+                if user_task.promo_code:
+                    task_dict["promo_code"] = user_task.promo_code
+                logger.debug(
+                    f"✅ Используем место из UserTask (без place_id) для задания {task.id}: {user_task.place_name}"
+                )
             # ПРИОРИТЕТ 2: Если есть координаты пользователя, ищем место
             elif user and user.last_lat is not None and user.last_lng is not None:
                 try:
