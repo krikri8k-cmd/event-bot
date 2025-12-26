@@ -93,13 +93,13 @@ class UserTask(Base):
     place_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     promo_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     # Поля для хранения "замороженных" GPT-данных (гарантируют неизменность задания)
-    # ВАЖНО: Эти поля могут отсутствовать в БД до применения миграции 035
-    # Временно закомментированы, чтобы код работал без миграции
-    # Раскомментировать после применения миграции migrations/035_add_frozen_fields_to_user_tasks.sql
-    # frozen_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    # frozen_description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # frozen_task_hint: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    # frozen_category: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # ВАЖНО: Эти поля требуют применения миграции 035
+    # Если миграция не применена, код будет падать с ошибкой "column does not exist"
+    # Применить миграцию: migrations/035_add_frozen_fields_to_user_tasks.sql
+    frozen_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    frozen_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    frozen_task_hint: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    frozen_category: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
 
 class Event(Base):
