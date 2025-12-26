@@ -311,7 +311,21 @@ def create_task_from_place(
             # Устанавливаем очень большое время истечения (10 лет) - ограничение по времени отключено
             expires_at = accepted_at + timedelta(days=3650)
 
-            # Создаем UserTask с информацией о конкретном месте
+            # КРИТИЧЕСКИ ВАЖНО: Сохраняем "замороженные" данные задания
+            # Это гарантирует, что задание всегда показывает то же описание, которое видел пользователь
+            # Используем task_hint из места как основу для описания, если есть
+            frozen_title = task.title  # Базовое название из шаблона
+            frozen_description = task.description  # Базовое описание из шаблона
+
+            # Если у места есть task_hint, используем его как основу для описания
+            if place.task_hint:
+                # Комбинируем базовое описание с конкретной подсказкой для места
+                frozen_description = f"{task.description}\n\n💡 {place.task_hint}"
+                frozen_task_hint = place.task_hint
+            else:
+                frozen_task_hint = None
+
+            # Создаем UserTask с информацией о конкретном месте и замороженными данными
             user_task = UserTask(
                 user_id=user_id,
                 task_id=task.id,
@@ -322,6 +336,11 @@ def create_task_from_place(
                 place_name=place.name,  # Сохраняем название места
                 place_url=place.google_maps_url,  # Сохраняем URL места
                 promo_code=place.promo_code,  # Сохраняем промокод
+                # ЗАМОРОЖЕННЫЕ ДАННЫЕ - гарантируют неизменность задания
+                frozen_title=frozen_title,
+                frozen_description=frozen_description,
+                frozen_task_hint=frozen_task_hint,
+                frozen_category=place.category,
             )
 
             # НЕ сохраняем location_url в Task, так как одно задание может быть для разных мест
@@ -415,17 +434,37 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                 accepted_at = accepted_at.astimezone(user_tz)
                 expires_at = expires_at.astimezone(user_tz)
 
+            # КРИТИЧЕСКИ ВАЖНО: Используем замороженные данные, если они есть
+            # Это гарантирует, что задание всегда показывает то же описание, которое видел пользователь
+            if user_task.frozen_title and user_task.frozen_description:
+                # Используем замороженные данные (GPT-генерированные или из task_hint)
+                task_title = user_task.frozen_title
+                task_description = user_task.frozen_description
+                task_category = user_task.frozen_category or task.category
+                task_hint = user_task.frozen_task_hint
+                logger.debug(
+                    f"✅ Используем замороженные данные для задания {task.id}: " f"title='{task_title[:50]}...'"
+                )
+            else:
+                # Fallback: используем данные из шаблона (для старых заданий)
+                task_title = task.title
+                task_description = task.description
+                task_category = task.category
+                task_hint = None
+                logger.debug(f"⚠️ Используем шаблон для задания {task.id} (нет замороженных данных)")
+
             task_dict = {
                 "id": user_task.id,
                 "task_id": task.id,
-                "title": task.title,
-                "description": task.description,
-                "category": task.category,
+                "title": task_title,
+                "description": task_description,
+                "category": task_category,
                 "location_url": task.location_url,
                 "accepted_at": accepted_at,
                 "expires_at": expires_at,
                 "status": user_task.status,
                 "task_type": task.task_type,
+                "task_hint": task_hint,  # Добавляем подсказку, если есть
             }
 
             # Получаем информацию о месте и промокоде
@@ -483,7 +522,9 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                 logger.debug(
                     f"✅ Используем место из UserTask (без place_id) для задания {task.id}: {user_task.place_name}"
                 )
-            # ПРИОРИТЕТ 2: Если есть координаты пользователя, ищем место
+            # ПРИОРИТЕТ 3: Если есть координаты пользователя, но нет места - НЕ ИЩЕМ ДИНАМИЧЕСКИ
+            # По рекомендации: задание должно быть зафиксировано при создании
+            # Если места нет - показываем задание без места
             elif user and user.last_lat is not None and user.last_lng is not None:
                 try:
                     from tasks_location_service import (
@@ -644,11 +685,22 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
 
                                 # ВАЖНО: Сохраняем найденное место в UserTask, чтобы оно не менялось каждый раз
                                 # Это нужно для заданий, которые были приняты без конкретного места
+                                # НО: по рекомендации консультанта, динамический поиск места должен быть отключен
+                                # Оставляем только для обратной совместимости со старыми заданиями
                                 if not user_task.place_id and place.id:
                                     user_task.place_id = place.id
                                     user_task.place_name = place.name
                                     user_task.place_url = place.google_maps_url
                                     user_task.promo_code = place.promo_code
+                                    # Также сохраняем замороженные данные, если их еще нет
+                                    if not user_task.frozen_title:
+                                        user_task.frozen_title = task.title
+                                    if not user_task.frozen_description:
+                                        user_task.frozen_description = task.description
+                                    if not user_task.frozen_category:
+                                        user_task.frozen_category = task.category
+                                    if place.task_hint and not user_task.frozen_task_hint:
+                                        user_task.frozen_task_hint = place.task_hint
                                     session.commit()
                                     logger.info(
                                         f"💾 Сохранено место в UserTask {user_task.id}: {place.name} (ID: {place.id})"
