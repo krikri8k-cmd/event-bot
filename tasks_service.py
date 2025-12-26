@@ -609,8 +609,19 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                                 task_dict["promo_code"] = place.promo_code
                                 if hasattr(place, "distance_km"):
                                     task_dict["distance_km"] = place.distance_km
-                                # НЕ сохраняем location_url в Task, так как одно задание может быть для разных мест
-                                # Информация о месте хранится в UserTask.place_id и UserTask.place_url
+
+                                # ВАЖНО: Сохраняем найденное место в UserTask, чтобы оно не менялось каждый раз
+                                # Это нужно для заданий, которые были приняты без конкретного места
+                                if not user_task.place_id and place.id:
+                                    user_task.place_id = place.id
+                                    user_task.place_name = place.name
+                                    user_task.place_url = place.google_maps_url
+                                    user_task.promo_code = place.promo_code
+                                    session.commit()
+                                    logger.info(
+                                        f"💾 Сохранено место в UserTask {user_task.id}: {place.name} (ID: {place.id})"
+                                    )
+
                                 logger.info(
                                     f"✅ Место найдено для задания {task.id}: {place.name}, "
                                     f"промокод={place.promo_code}"
