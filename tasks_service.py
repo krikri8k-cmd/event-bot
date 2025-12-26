@@ -462,10 +462,11 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
             # ПРАВИЛО: user_tasks - единственный источник правды для UI
             # tasks используется ТОЛЬКО для XP/наград/аналитики, НЕ для отображения
 
-            # Проверяем наличие frozen полей в модели и в данных
+            # Проверяем наличие frozen данных
+            # Поля теперь всегда есть в модели (раскомментированы)
             has_frozen_fields = (
-                hasattr(user_task, "frozen_title")
-                and hasattr(user_task, "frozen_description")
+                user_task.frozen_title is not None
+                and user_task.frozen_description is not None
                 and user_task.frozen_title
                 and user_task.frozen_description
             )
