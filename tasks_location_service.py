@@ -487,19 +487,39 @@ def get_all_places_for_category(
         return []
 
     with get_session() as session:
-        # Получаем все места категории в регионе
-        places = (
-            session.query(TaskPlace)
+        # Получаем ID мест, которые уже приняты пользователем в активные квесты
+        from database import UserTask
+
+        active_place_ids = (
+            session.query(UserTask.place_id)
             .filter(
                 and_(
-                    TaskPlace.category == category,
-                    TaskPlace.task_type == task_type,
-                    TaskPlace.is_active == True,  # noqa: E712
-                    TaskPlace.region == region,
+                    UserTask.user_id == user_id,
+                    UserTask.status == "active",
+                    UserTask.place_id.isnot(None),  # Только задания с конкретным местом
                 )
             )
+            .distinct()
             .all()
         )
+        active_place_ids_list = [place_id[0] for place_id in active_place_ids if place_id[0] is not None]
+
+        # Получаем все места категории в регионе, исключая уже принятые
+        places_query = session.query(TaskPlace).filter(
+            and_(
+                TaskPlace.category == category,
+                TaskPlace.task_type == task_type,
+                TaskPlace.is_active == True,  # noqa: E712
+                TaskPlace.region == region,
+            )
+        )
+
+        # Исключаем места, которые уже приняты в квесты
+        if active_place_ids_list:
+            places_query = places_query.filter(~TaskPlace.id.in_(active_place_ids_list))
+            logger.info(f"get_all_places_for_category: исключаем {len(active_place_ids_list)} уже принятых мест")
+
+        places = places_query.all()
 
         logger.info(
             f"get_all_places_for_category: category={category}, region={region}, "
