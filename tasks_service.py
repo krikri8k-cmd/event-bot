@@ -468,7 +468,7 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
 
                     place_from_db = session.query(TaskPlace).filter(TaskPlace.id == user_task.place_id).first()
                     if place_from_db:
-                        from utils.haversine import haversine_distance
+                        from utils.radius_calc import haversine_distance
 
                         distance = haversine_distance(
                             user.last_lat,
@@ -561,7 +561,7 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                                 task_dict["place_name"] = place_from_db.name
                                 task_dict["promo_code"] = place_from_db.promo_code
                                 if user.last_lat and user.last_lng:
-                                    from utils.haversine import haversine_distance
+                                    from utils.radius_calc import haversine_distance
 
                                     distance = haversine_distance(
                                         user.last_lat,
