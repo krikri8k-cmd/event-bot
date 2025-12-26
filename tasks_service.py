@@ -348,20 +348,17 @@ def create_task_from_place(
                 "promo_code": place.promo_code,
             }
 
-            # Добавляем замороженные данные (после применения миграции 035)
-            # Проверяем наличие полей в модели перед добавлением
-            if hasattr(UserTask, "frozen_title"):
-                user_task_kwargs.update(
-                    {
-                        "frozen_title": frozen_title,
-                        "frozen_description": frozen_description,
-                        "frozen_task_hint": frozen_task_hint,
-                        "frozen_category": place.category,
-                    }
-                )
-                logger.debug(f"✅ Добавлены замороженные данные для места {place.id}")
-            else:
-                logger.warning("⚠️ Поля frozen_* отсутствуют в модели (миграция 035 не применена?)")
+            # Добавляем замороженные данные
+            # ВАЖНО: Требуется применение миграции 035
+            user_task_kwargs.update(
+                {
+                    "frozen_title": frozen_title,
+                    "frozen_description": frozen_description,
+                    "frozen_task_hint": frozen_task_hint,
+                    "frozen_category": place.category,
+                }
+            )
+            logger.debug(f"✅ Добавлены замороженные данные для места {place.id}")
 
             user_task = UserTask(**user_task_kwargs)
 
