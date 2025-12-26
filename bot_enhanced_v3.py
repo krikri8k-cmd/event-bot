@@ -7751,8 +7751,8 @@ async def show_task_detail(callback_or_message, tasks: list, task_index: int, us
     # Кнопки управления заданием
     keyboard.append(
         [
-            InlineKeyboardButton(text="✅ Выполнено", callback_data=f"task_complete:{task['id']}"),
-            InlineKeyboardButton(text="❌ Отменить", callback_data=f"task_cancel:{task['id']}"),
+            InlineKeyboardButton(text="✅ Выполнено", callback_data=f"task_complete:{task['id']}:{task_index}"),
+            InlineKeyboardButton(text="❌ Отменить", callback_data=f"task_cancel:{task['id']}:{task_index}"),
         ]
     )
 
@@ -8428,23 +8428,51 @@ async def handle_task_complete(callback: types.CallbackQuery, state: FSMContext)
 @main_router.callback_query(F.data.startswith("task_cancel:"))
 async def handle_task_cancel(callback: types.CallbackQuery):
     """Обработчик отмены задания"""
-    user_task_id = int(callback.data.split(":")[1])
+    parts = callback.data.split(":")
+    user_task_id = int(parts[1])
+    task_index = int(parts[2]) if len(parts) > 2 else None
+    user_id = callback.from_user.id
 
     # Отменяем задание
     success = cancel_task(user_task_id)
 
-    if success:
-        await callback.message.edit_text(
-            "❌ **Задание отменено**\n\n" "Задание удалено из вашего списка активных заданий.",
-            parse_mode="Markdown",
-        )
-    else:
+    if not success:
         await callback.message.edit_text(
             "❌ **Ошибка отмены задания**\n\n" "Не удалось отменить задание. Попробуйте позже.",
             parse_mode="Markdown",
         )
+        await callback.answer()
+        return
 
-    await callback.answer()
+    # Получаем обновленный список заданий (без удаленного)
+    active_tasks = get_user_active_tasks(user_id)
+
+    if not active_tasks:
+        # Нет активных заданий
+        await callback.message.edit_text(
+            "🏆 **Мои квесты**\n\n" "У вас нет активных заданий.",
+            parse_mode="Markdown",
+        )
+        await callback.answer("✅ Задание отменено")
+        return
+
+    # Определяем, какое задание показать после удаления
+    # Если удалили не последнее, показываем задание с тем же индексом
+    # Если удалили последнее, показываем предыдущее
+    if task_index is not None:
+        if task_index >= len(active_tasks):
+            # Удалили последнее задание, показываем предыдущее
+            new_index = len(active_tasks) - 1
+        else:
+            # Показываем задание с тем же индексом (которое теперь на месте удаленного)
+            new_index = task_index
+    else:
+        # Если индекс не передан, показываем первое задание
+        new_index = 0
+
+    # Показываем следующее задание
+    await show_task_detail(callback, active_tasks, new_index, user_id)
+    await callback.answer("✅ Задание отменено")
 
 
 async def show_tasks_for_category(
@@ -9073,10 +9101,18 @@ async def handle_task_manage(callback: types.CallbackQuery):
     if task_info.get("promo_code"):
         message += f"🎁 **Промокод:** `{task_info['promo_code']}`\n\n"
 
+    # Находим индекс текущего задания в списке для навигации после отмены
+    task_index = next((i for i, t in enumerate(active_tasks) if t["id"] == user_task_id), None)
+
     # Создаем клавиатуру
     keyboard = [
         [InlineKeyboardButton(text="✅ Выполнено", callback_data=f"task_complete:{user_task_id}")],
-        [InlineKeyboardButton(text="❌ Отменить", callback_data=f"task_cancel:{user_task_id}")],
+        [
+            InlineKeyboardButton(
+                text="❌ Отменить",
+                callback_data=f"task_cancel:{user_task_id}:{task_index if task_index is not None else 0}",
+            )
+        ],
         [InlineKeyboardButton(text="◀️ Назад", callback_data="my_tasks")],
     ]
 

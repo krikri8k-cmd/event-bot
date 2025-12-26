@@ -134,15 +134,25 @@ def accept_task(user_id: int, task_id: int, user_lat: float = None, user_lng: fl
                 logger.error(f"Задание {task_id} не найдено или неактивно")
                 return False
 
-            # Проверяем, что у пользователя нет активных заданий этого типа
+            # Проверяем дубликаты: для заданий без конкретного места (place_id is None)
+            # разрешаем только одно активное задание с таким task_id
+            # Для заданий с местами (place_id is not None) разрешаем несколько заданий
+            # с одним task_id, но разными place_id
             existing_task = (
                 session.query(UserTask)
-                .filter(and_(UserTask.user_id == user_id, UserTask.task_id == task_id, UserTask.status == "active"))
+                .filter(
+                    and_(
+                        UserTask.user_id == user_id,
+                        UserTask.task_id == task_id,
+                        UserTask.status == "active",
+                        UserTask.place_id.is_(None),  # Проверяем только задания без конкретного места
+                    )
+                )
                 .first()
             )
 
             if existing_task:
-                logger.warning(f"Пользователь {user_id} уже имеет активное задание {task_id}")
+                logger.warning(f"Пользователь {user_id} уже имеет активное задание {task_id} без конкретного места")
                 return False
 
             # Определяем часовой пояс пользователя
@@ -223,57 +233,22 @@ def create_task_from_place(
                 return False, "❌ Место не найдено"
 
             # Проверяем, что у пользователя нет активного задания для этого места
-            # Проверяем через Task.location_url, если он содержит ссылку на это место
-            # Также проверяем все активные задания пользователя, чтобы найти дубликаты
-            if place.google_maps_url:
-                existing_task = (
-                    session.query(UserTask)
-                    .join(Task)
-                    .filter(
-                        and_(
-                            UserTask.user_id == user_id,
-                            Task.location_url == place.google_maps_url,
-                            UserTask.status == "active",
-                        )
+            # Проверяем напрямую по place_id в UserTask - это самый надежный способ
+            existing_task = (
+                session.query(UserTask)
+                .filter(
+                    and_(
+                        UserTask.user_id == user_id,
+                        UserTask.place_id == place.id,
+                        UserTask.status == "active",
                     )
-                    .first()
                 )
+                .first()
+            )
 
-                if existing_task:
-                    logger.warning(
-                        f"Пользователь {user_id} уже имеет активное задание для места {place_id} "
-                        f"({place.name}) по URL {place.google_maps_url}"
-                    )
-                    return False, f"⚠️ Квест для места '{place.name}' уже добавлен в Мои квесты"
-
-            # Дополнительная проверка: ищем все активные задания пользователя для этой категории
-            # и проверяем, не используется ли уже это место через другие Task
-            # Это защита от случая, когда Task.location_url еще не установлен
-            # ВАЖНО: проверяем только если place.google_maps_url не пустой
-            if place.google_maps_url:
-                # Используем query с кортежами (UserTask, Task) для доступа к Task
-                all_user_active_tasks = (
-                    session.query(UserTask, Task)
-                    .join(Task, UserTask.task_id == Task.id)
-                    .filter(
-                        and_(
-                            UserTask.user_id == user_id,
-                            UserTask.status == "active",
-                            Task.category == place.category,
-                        )
-                    )
-                    .all()
-                )
-
-                # Проверяем, есть ли среди них задание с таким же location_url
-                # ВАЖНО: сравниваем только если оба URL не пустые
-                for user_task, task in all_user_active_tasks:
-                    if task.location_url and place.google_maps_url and task.location_url == place.google_maps_url:
-                        logger.warning(
-                            f"Пользователь {user_id} уже имеет активное задание для места {place_id} "
-                            f"({place.name}) - найдено через проверку всех активных заданий"
-                        )
-                        return False, f"⚠️ Квест для места '{place.name}' уже добавлен в Мои квесты"
+            if existing_task:
+                logger.warning(f"Пользователь {user_id} уже имеет активное задание для места {place_id} ({place.name})")
+                return False, f"⚠️ Квест для места '{place.name}' уже добавлен в Мои квесты"
 
             # Находим подходящее задание для категории места
             task = (
@@ -349,10 +324,8 @@ def create_task_from_place(
                 promo_code=place.promo_code,  # Сохраняем промокод
             )
 
-            # Сохраняем информацию о месте в Task.location_url (если еще не сохранена)
-            # Это нужно для обратной совместимости и для заданий без конкретного места
-            if not task.location_url and place.google_maps_url:
-                task.location_url = place.google_maps_url
+            # НЕ сохраняем location_url в Task, так как одно задание может быть для разных мест
+            # Информация о месте хранится в UserTask.place_url
 
             session.add(user_task)
 
@@ -636,12 +609,10 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                                 task_dict["promo_code"] = place.promo_code
                                 if hasattr(place, "distance_km"):
                                     task_dict["distance_km"] = place.distance_km
-                                # Сохраняем место в задание, чтобы не искать его повторно
-                                if not task.location_url and place.google_maps_url:
-                                    task.location_url = place.google_maps_url
-                                    session.commit()
+                                # НЕ сохраняем location_url в Task, так как одно задание может быть для разных мест
+                                # Информация о месте хранится в UserTask.place_id и UserTask.place_url
                                 logger.info(
-                                    f"✅ Место добавлено к заданию {task.id}: {place.name}, "
+                                    f"✅ Место найдено для задания {task.id}: {place.name}, "
                                     f"промокод={place.promo_code}"
                                 )
                             else:
