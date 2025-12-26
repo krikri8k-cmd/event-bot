@@ -314,18 +314,17 @@ def create_task_from_place(
             # КРИТИЧЕСКИ ВАЖНО: Сохраняем "замороженные" данные задания
             # Это гарантирует, что задание всегда показывает то же описание, которое видел пользователь
             # Используем task_hint из места как основу для описания, если есть
-            frozen_title = task.title  # Базовое название из шаблона
-            frozen_description = task.description  # Базовое описание из шаблона
 
             # Если у места есть task_hint, используем его как основу для описания
             if place.task_hint:
                 # Комбинируем базовое описание с конкретной подсказкой для места
-                frozen_description = f"{task.description}\n\n💡 {place.task_hint}"
-                frozen_task_hint = place.task_hint
+                pass
             else:
-                frozen_task_hint = None
+                pass
 
-            # Создаем UserTask с информацией о конкретном месте и замороженными данными
+            # Создаем UserTask с информацией о конкретном месте
+            # ВАЖНО: Замороженные данные будут добавлены после применения миграции 035
+            # Пока миграция не применена, создаем задание без frozen полей
             user_task = UserTask(
                 user_id=user_id,
                 task_id=task.id,
@@ -336,11 +335,12 @@ def create_task_from_place(
                 place_name=place.name,  # Сохраняем название места
                 place_url=place.google_maps_url,  # Сохраняем URL места
                 promo_code=place.promo_code,  # Сохраняем промокод
-                # ЗАМОРОЖЕННЫЕ ДАННЫЕ - гарантируют неизменность задания
-                frozen_title=frozen_title,
-                frozen_description=frozen_description,
-                frozen_task_hint=frozen_task_hint,
-                frozen_category=place.category,
+                # ЗАМОРОЖЕННЫЕ ДАННЫЕ - будут добавлены после применения миграции 035
+                # Раскомментировать после применения миграции:
+                # frozen_title=frozen_title,
+                # frozen_description=frozen_description,
+                # frozen_task_hint=frozen_task_hint,
+                # frozen_category=place.category,
             )
 
             # НЕ сохраняем location_url в Task, так как одно задание может быть для разных мест
@@ -436,22 +436,32 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
 
             # КРИТИЧЕСКИ ВАЖНО: Используем замороженные данные, если они есть
             # Это гарантирует, что задание всегда показывает то же описание, которое видел пользователь
-            if user_task.frozen_title and user_task.frozen_description:
-                # Используем замороженные данные (GPT-генерированные или из task_hint)
-                task_title = user_task.frozen_title
-                task_description = user_task.frozen_description
-                task_category = user_task.frozen_category or task.category
-                task_hint = user_task.frozen_task_hint
-                logger.debug(
-                    f"✅ Используем замороженные данные для задания {task.id}: " f"title='{task_title[:50]}...'"
-                )
-            else:
-                # Fallback: используем данные из шаблона (для старых заданий)
-                task_title = task.title
-                task_description = task.description
-                task_category = task.category
-                task_hint = None
-                logger.debug(f"⚠️ Используем шаблон для задания {task.id} (нет замороженных данных)")
+            # ВАЖНО: Пока миграция 035 не применена, используем данные из шаблона
+            # После применения миграции раскомментировать код ниже и использовать замороженные данные
+
+            # Временно используем данные из шаблона (до применения миграции)
+            task_title = task.title
+            task_description = task.description
+            task_category = task.category
+            task_hint = None
+
+            # TODO: После применения миграции 035 раскомментировать:
+            # has_frozen_fields = (
+            #     hasattr(user_task, "frozen_title")
+            #     and hasattr(user_task, "frozen_description")
+            #     and user_task.frozen_title
+            #     and user_task.frozen_description
+            # )
+            # if has_frozen_fields:
+            #     task_title = user_task.frozen_title
+            #     task_description = user_task.frozen_description
+            #     task_category = user_task.frozen_category or task.category
+            #     task_hint = user_task.frozen_task_hint
+            # else:
+            #     task_title = task.title
+            #     task_description = task.description
+            #     task_category = task.category
+            #     task_hint = None
 
             task_dict = {
                 "id": user_task.id,
@@ -692,15 +702,16 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                                     user_task.place_name = place.name
                                     user_task.place_url = place.google_maps_url
                                     user_task.promo_code = place.promo_code
-                                    # Также сохраняем замороженные данные, если их еще нет
-                                    if not user_task.frozen_title:
-                                        user_task.frozen_title = task.title
-                                    if not user_task.frozen_description:
-                                        user_task.frozen_description = task.description
-                                    if not user_task.frozen_category:
-                                        user_task.frozen_category = task.category
-                                    if place.task_hint and not user_task.frozen_task_hint:
-                                        user_task.frozen_task_hint = place.task_hint
+                                    # ВАЖНО: Замороженные данные будут добавлены после применения миграции 035
+                                    # TODO: После применения миграции раскомментировать:
+                                    # if not user_task.frozen_title:
+                                    #     user_task.frozen_title = task.title
+                                    # if not user_task.frozen_description:
+                                    #     user_task.frozen_description = task.description
+                                    # if not user_task.frozen_category:
+                                    #     user_task.frozen_category = task.category
+                                    # if place.task_hint and not user_task.frozen_task_hint:
+                                    #     user_task.frozen_task_hint = place.task_hint
                                     session.commit()
                                     logger.info(
                                         f"💾 Сохранено место в UserTask {user_task.id}: {place.name} (ID: {place.id})"
