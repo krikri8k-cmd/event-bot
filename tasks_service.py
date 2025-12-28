@@ -250,31 +250,26 @@ def create_task_from_place(
                 logger.warning(f"Пользователь {user_id} уже имеет активное задание для места {place_id} ({place.name})")
                 return False, f"⚠️ Квест для места '{place.name}' уже добавлен в Мои квесты"
 
-            # Находим подходящее задание для категории места
-            task = (
-                session.query(Task)
-                .filter(
-                    and_(
-                        Task.category == place.category,
-                        Task.task_type == place.task_type,
-                        Task.is_active == True,  # noqa: E712
-                    )
-                )
-                .order_by(Task.order_index)
-                .first()
-            )
+            # ИЕРАРХИЯ ИСТОЧНИКОВ (по совету друга):
+            # 1. GPT Hint (place.task_hint) - приоритет
+            # 2. Шаблон (tasks) - fallback для старых мест
+            # 3. Default - если ничего нет
 
-            # Если нет задания для нужного типа, пробуем найти любое задание для категории (fallback)
-            if not task:
-                logger.warning(
-                    f"Задание не найдено для места {place_id} с типом {place.task_type}, "
-                    f"ищем любое задание для категории {place.category}"
-                )
+            task = None
+            task_id_for_db = None
+
+            if place.task_hint:
+                # У места есть GPT-подсказка - это динамическое задание
+                # task_id = NULL (не привязываем к шаблону)
+                logger.info(f"✅ GPT-задание для места {place.id} ({place.name}): task_id будет NULL")
+            else:
+                # Нет GPT-подсказки - ищем шаблон (fallback для старых мест)
                 task = (
                     session.query(Task)
                     .filter(
                         and_(
                             Task.category == place.category,
+                            Task.task_type == place.task_type,
                             Task.is_active == True,  # noqa: E712
                         )
                     )
@@ -282,13 +277,32 @@ def create_task_from_place(
                     .first()
                 )
 
-            # Если все еще нет задания, возвращаем ошибку
-            if not task:
-                logger.error(
-                    f"Задание не найдено для места {place_id}: "
-                    f"category={place.category}, task_type={place.task_type}"
-                )
-                return False
+                # Если нет задания для нужного типа, пробуем найти любое задание для категории
+                if not task:
+                    logger.warning(
+                        f"Задание не найдено для места {place_id} с типом {place.task_type}, "
+                        f"ищем любое задание для категории {place.category}"
+                    )
+                    task = (
+                        session.query(Task)
+                        .filter(
+                            and_(
+                                Task.category == place.category,
+                                Task.is_active == True,  # noqa: E712
+                            )
+                        )
+                        .order_by(Task.order_index)
+                        .first()
+                    )
+
+                if task:
+                    task_id_for_db = task.id
+                    logger.info(f"✅ Найден шаблон {task.id} для места {place.id} (fallback)")
+                else:
+                    # Если даже шаблона нет - используем default текст
+                    logger.warning(
+                        f"⚠️ Нет ни GPT-подсказки, ни шаблона для места {place_id}. " f"Используем default текст."
+                    )
 
             # Определяем часовой пояс пользователя
             if user_lat is not None and user_lng is not None:
@@ -311,34 +325,37 @@ def create_task_from_place(
             # Устанавливаем очень большое время истечения (10 лет) - ограничение по времени отключено
             expires_at = accepted_at + timedelta(days=3650)
 
-            # КРИТИЧЕСКИ ВАЖНО: Сохраняем "замороженные" данные задания
-            # Это гарантирует, что задание всегда показывает то же описание, которое видел пользователь
-            #
-            # ПРАВИЛО: frozen_description НЕ смешиваем с шаблоном
-            # Если есть task_hint - используем ТОЛЬКО его (это уже готовый квест от GPT)
-            # Если нет task_hint - используем шаблон как fallback (для обратной совместимости)
+            # ИЕРАРХИЯ ИСТОЧНИКОВ: Определяем frozen данные
+            # 1. GPT Hint (place.task_hint) - приоритет
+            # 2. Шаблон (task) - fallback
+            # 3. Default - если ничего нет
 
             if place.task_hint:
-                # У места есть GPT-генерированная подсказка - это уже готовый квест
-                # Используем task_hint как основное описание, НЕ смешиваем с шаблоном
-                frozen_title = place.task_hint  # Используем подсказку как заголовок
-                frozen_description = place.task_hint  # И как описание
+                # 1. GPT-подсказка (приоритет)
+                frozen_title = place.task_hint
+                frozen_description = place.task_hint
                 frozen_task_hint = place.task_hint
-                logger.info(f"✅ Используем task_hint из места {place.id} ({place.name}): '{place.task_hint[:50]}...'")
-            else:
-                # Нет task_hint - используем шаблон (fallback для старых мест)
+                logger.info(
+                    f"✅ Используем GPT task_hint из места {place.id} ({place.name}): " f"'{place.task_hint[:50]}...'"
+                )
+            elif task:
+                # 2. Шаблон (fallback для старых мест)
                 frozen_title = task.title
                 frozen_description = task.description
                 frozen_task_hint = None
-                logger.warning(
-                    f"⚠️ У места {place.id} ({place.name}) нет task_hint, используем шаблон задания {task.id}"
-                )
+                logger.info(f"✅ Используем шаблон {task.id} для места {place.id} ({place.name})")
+            else:
+                # 3. Default текст (если ничего нет)
+                frozen_title = f"Посети {place.name}"
+                frozen_description = "Посети это место и сделай фото"
+                frozen_task_hint = None
+                logger.warning(f"⚠️ Используем default текст для места {place.id} ({place.name})")
 
             # Создаем UserTask с информацией о конкретном месте и замороженными данными
-            # ВАЖНО: После применения миграции 035 раскомментировать frozen поля
+            # task_id может быть NULL для GPT-генерированных заданий
             user_task_kwargs = {
                 "user_id": user_id,
-                "task_id": task.id,
+                "task_id": task_id_for_db,  # NULL для GPT-заданий, ID шаблона для fallback
                 "status": "active",
                 "accepted_at": accepted_at,
                 "expires_at": expires_at,
@@ -428,9 +445,10 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
             except Exception as e:
                 logger.warning(f"Не удалось определить часовой пояс для пользователя {user_id}: {e}")
 
+        # LEFT JOIN, так как task_id может быть NULL для GPT-генерированных заданий
         user_tasks = (
             session.query(UserTask, Task)
-            .join(Task)
+            .outerjoin(Task)  # LEFT JOIN вместо JOIN
             .filter(and_(UserTask.user_id == user_id, UserTask.status == "active"))
             .all()
         )
@@ -468,38 +486,52 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                 and user_task.frozen_description
             )
 
+            # ИЕРАРХИЯ ИСТОЧНИКОВ (как в совете друга):
+            # 1. Frozen данные (display_text) - приоритет
+            # 2. Шаблон (task) - fallback
+            # 3. Default - если ничего нет
+
             if has_frozen_fields:
-                # Используем замороженные данные (единственный источник правды)
+                # 1. Frozen данные (единственный источник правды)
                 task_title = user_task.frozen_title
                 task_description = user_task.frozen_description
-                task_category = user_task.frozen_category or task.category
+                task_category = user_task.frozen_category or (task.category if task else None)
                 task_hint = user_task.frozen_task_hint
+                task_id_for_dict = user_task.task_id  # Может быть NULL
                 logger.debug(
-                    f"✅ Используем замороженные данные для задания {task.id}: " f"title='{task_title[:50]}...'"
+                    f"✅ Используем frozen данные для UserTask {user_task.id}: " f"title='{task_title[:50]}...'"
                 )
-            else:
-                # Fallback: используем данные из шаблона (только для старых заданий без frozen)
-                # ВАЖНО: После миграции старых заданий этот блок должен стать редкостью
+            elif task:
+                # 2. Шаблон (fallback для старых заданий без frozen)
                 task_title = task.title
                 task_description = task.description
                 task_category = task.category
                 task_hint = None
+                task_id_for_dict = task.id
                 logger.warning(
-                    f"⚠️ Используем шаблон для задания {task.id} (нет замороженных данных). "
+                    f"⚠️ Используем шаблон {task.id} для UserTask {user_task.id} (нет frozen данных). "
                     f"Рекомендуется запустить скрипт миграции старых заданий."
                 )
+            else:
+                # 3. Default (если нет ни frozen, ни task)
+                task_title = user_task.place_name or "Задание"
+                task_description = f"Посети {user_task.place_name or 'это место'} и сделай фото"
+                task_category = user_task.frozen_category
+                task_hint = None
+                task_id_for_dict = None
+                logger.warning(f"⚠️ Используем default текст для UserTask {user_task.id} (нет ни frozen, ни task)")
 
             task_dict = {
                 "id": user_task.id,
-                "task_id": task.id,
+                "task_id": task_id_for_dict,  # Может быть NULL для GPT-заданий
                 "title": task_title,
                 "description": task_description,
                 "category": task_category,
-                "location_url": task.location_url,
+                "location_url": task.location_url if task else None,
                 "accepted_at": accepted_at,
                 "expires_at": expires_at,
                 "status": user_task.status,
-                "task_type": task.task_type,
+                "task_type": task.task_type if task else None,
                 "task_hint": task_hint,  # Добавляем подсказку, если есть
             }
 
@@ -536,13 +568,13 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                         )
                         task_dict["distance_km"] = round(distance, 1)
                     logger.debug(
-                        f"✅ Используем место из базы для задания {task.id}: "
+                        f"✅ Используем место из базы для UserTask {user_task.id}: "
                         f"{place_from_db.name} (ID: {user_task.place_id})"
                     )
                 else:
                     # Место удалено из базы, но есть place_id - очищаем его
                     logger.warning(
-                        f"⚠️ Место {user_task.place_id} не найдено в базе для задания {task.id}, очищаем place_id"
+                        f"⚠️ Место {user_task.place_id} не найдено в базе для UserTask {user_task.id}, очищаем place_id"
                     )
                     user_task.place_id = None
                     user_task.place_name = None
@@ -556,7 +588,8 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                 if user_task.promo_code:
                     task_dict["promo_code"] = user_task.promo_code
                 logger.debug(
-                    f"✅ Используем место из UserTask (без place_id) для задания {task.id}: {user_task.place_name}"
+                    f"✅ Используем место из UserTask (без place_id) для UserTask {user_task.id}: "
+                    f"{user_task.place_name}"
                 )
             # ПРИОРИТЕТ 3: Если есть координаты пользователя, но нет места - НЕ ИЩЕМ ДИНАМИЧЕСКИ
             # По рекомендации: задание должно быть зафиксировано при создании

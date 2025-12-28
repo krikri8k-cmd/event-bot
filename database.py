@@ -81,7 +81,7 @@ class UserTask(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    task_id: Mapped[int] = mapped_column(Integer, ForeignKey("tasks.id"), nullable=False)
+    task_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("tasks.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="active")  # 'active', 'completed', 'cancelled', 'expired'
     feedback: Mapped[str | None] = mapped_column(Text)
     accepted_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
