@@ -6,13 +6,25 @@
 """
 
 import logging
+import os
 import sys
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Устанавливаем UTF-8 для вывода в Windows
+if sys.platform == "win32":
+    os.environ["PYTHONIOENCODING"] = "utf-8"
 
 # Добавляем корневую директорию в путь
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from database import Task, TaskPlace, UserTask, get_session
+from database import Task, TaskPlace, UserTask, get_session, init_engine
+
+# Загружаем переменные окружения
+env_path = Path(__file__).parent.parent / "app.local.env"
+if env_path.exists():
+    load_dotenv(env_path)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -43,7 +55,7 @@ def migrate_old_tasks():
                 # Получаем связанное задание (шаблон)
                 task = session.get(Task, user_task.task_id)
                 if not task:
-                    logger.warning(f"⚠️ Задание {user_task.task_id} не найдено для UserTask {user_task.id}")
+                    logger.warning(f"[WARN] Task {user_task.task_id} not found for UserTask {user_task.id}")
                     skipped_count += 1
                     continue
 
@@ -59,9 +71,7 @@ def migrate_old_tasks():
                     frozen_description = place.task_hint
                     frozen_task_hint = place.task_hint
                     frozen_category = place.category
-                    logger.debug(
-                        f"✅ UserTask {user_task.id}: используем task_hint из места {place.id} " f"({place.name})"
-                    )
+                    logger.debug(f"[OK] UserTask {user_task.id}: using task_hint from place {place.id} ({place.name})")
                 else:
                     # Нет места или нет task_hint - используем шаблон
                     frozen_title = task.title
@@ -69,8 +79,8 @@ def migrate_old_tasks():
                     frozen_task_hint = None
                     frozen_category = task.category
                     logger.debug(
-                        f"⚠️ UserTask {user_task.id}: используем шаблон задания {task.id} "
-                        f"(место: {place.name if place else 'нет'})"
+                        f"[WARN] UserTask {user_task.id}: using task template {task.id} "
+                        f"(place: {place.name if place else 'none'})"
                     )
 
                 # Обновляем UserTask
@@ -83,10 +93,10 @@ def migrate_old_tasks():
 
                 if migrated_count % 10 == 0:
                     session.commit()
-                    logger.info(f"💾 Сохранено {migrated_count} заданий...")
+                    logger.info(f"[SAVE] Saved {migrated_count} tasks...")
 
             except Exception as e:
-                logger.error(f"❌ Ошибка при миграции UserTask {user_task.id}: {e}", exc_info=True)
+                logger.error(f"[ERROR] Error migrating UserTask {user_task.id}: {e}", exc_info=True)
                 skipped_count += 1
                 continue
 
@@ -94,22 +104,30 @@ def migrate_old_tasks():
         session.commit()
 
         logger.info("=" * 60)
-        logger.info("✅ Миграция завершена:")
-        logger.info(f"   - Мигрировано: {migrated_count}")
-        logger.info(f"   - Пропущено: {skipped_count}")
-        logger.info(f"   - Всего обработано: {len(tasks_to_migrate)}")
+        logger.info("[OK] Migration completed:")
+        logger.info(f"   - Migrated: {migrated_count}")
+        logger.info(f"   - Skipped: {skipped_count}")
+        logger.info(f"   - Total processed: {len(tasks_to_migrate)}")
         logger.info("=" * 60)
 
 
 if __name__ == "__main__":
-    print("🚀 Миграция старых заданий в frozen формат")
+    print("Migration of old tasks to frozen format")
     print("=" * 60)
-    print("ВАЖНО: Убедитесь, что миграция 035 применена к БД!")
+    print("IMPORTANT: Make sure migration 035 is applied to DB!")
     print("=" * 60)
 
+    # Инициализируем базу данных
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        print("[ERROR] DATABASE_URL not found in environment variables")
+        sys.exit(1)
+
     try:
+        init_engine(db_url)
+        print("[OK] Database connection initialized\n")
         migrate_old_tasks()
-        print("\n✅ Миграция успешно завершена!")
+        print("\n[OK] Migration completed successfully!")
     except Exception as e:
-        logger.error(f"❌ Критическая ошибка: {e}", exc_info=True)
+        logger.error(f"[ERROR] Critical error: {e}", exc_info=True)
         sys.exit(1)

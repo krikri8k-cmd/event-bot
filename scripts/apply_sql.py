@@ -1,8 +1,15 @@
 # scripts/apply_sql.py
 import os
 import sys
+from pathlib import Path
 
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
+
+# Загружаем переменные окружения
+env_path = Path(__file__).parent.parent / "app.local.env"
+if env_path.exists():
+    load_dotenv(env_path)
 
 
 def main():
