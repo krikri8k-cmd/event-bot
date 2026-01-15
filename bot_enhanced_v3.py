@@ -2793,8 +2793,8 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
     load_settings()
 
     keyboard = [
-        [KeyboardButton(text="📍 События рядом"), KeyboardButton(text="➕ Создать")],
-        [KeyboardButton(text="🎯 Интересные места"), KeyboardButton(text="📝 Мои активности")],
+        [KeyboardButton(text="📍 События рядом"), KeyboardButton(text="🎯 Интересные места")],
+        [KeyboardButton(text="➕ Создать"), KeyboardButton(text="📝 Мои активности")],
         [KeyboardButton(text="🔗 Добавить бота в чат"), KeyboardButton(text="🚀 Старт")],
     ]
 
