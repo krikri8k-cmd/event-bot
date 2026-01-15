@@ -358,7 +358,7 @@ def prepare_events_for_feed(
     settings = load_settings()
     drop = DropStats()
     kept = []
-    kept_by_type = {"source": 0, "user": 0, "ai_parsed": 0}
+    kept_by_type = {"source": 0, "user": 0, "community": 0, "ai_parsed": 0}
 
     logger.info(f"🔍 PROCESSING {len(events)} events for filtering")
     for e in events:
@@ -373,8 +373,11 @@ def prepare_events_for_feed(
         input_type = e.get("type", "")
         event_type = "source"  # по умолчанию
 
-        # Проверяем, является ли это моментом пользователя
-        if input_type == "user" or source in ["user_created", "user", "community"]:
+        # Проверяем, является ли это событием от группы (community)
+        if source == "community" or input_type == "community":
+            event_type = "community"
+        # Проверяем, является ли это событием от пользователя (но не от группы)
+        elif input_type == "user" or source in ["user_created", "user"]:
             event_type = "user"
         # Проверяем, является ли это AI-парсингом
         elif input_type in ["ai", "ai_parsed", "ai_generated"] or e.get("ai_parsed") or source == "ai_parsed":
@@ -396,9 +399,9 @@ def prepare_events_for_feed(
             drop.add("no_url", title)
             continue
 
-        # Для user URL не обязателен
-        if event_type == "user" and not url:
-            # Пользовательские события могут не иметь URL
+        # Для user и community URL не обязателен
+        if event_type in ["user", "community"] and not url:
+            # Пользовательские события и события от групп могут не иметь URL
             pass
 
         # 2) Проверяем наличие локации (venue_name ИЛИ address ИЛИ coords)
@@ -563,6 +566,7 @@ def create_events_summary(events: list) -> str:
     source_count = sum(1 for e in events if e.get("type") == "source")
     ai_parsed_count = sum(1 for e in events if e.get("type") == "ai_parsed")
     user_count = sum(1 for e in events if e.get("type") == "user")
+    community_count = sum(1 for e in events if e.get("type") == "community")
 
     summary_lines = [f"🗺 Найдено {len(events)} событий рядом!"]
 
@@ -573,6 +577,8 @@ def create_events_summary(events: list) -> str:
         summary_lines.append(f"• AI-парсинг: {ai_parsed_count}")
     if user_count > 0:
         summary_lines.append(f"• От пользователей: {user_count}")
+    if community_count > 0:
+        summary_lines.append(f"• От групп: {community_count}")
 
     return "\n".join(summary_lines)
 
@@ -1556,6 +1562,7 @@ def group_by_type(events):
     return {
         "source": [e for e in events if e.get("type") == "source"],
         "user": [e for e in events if e.get("type") == "user"],
+        "community": [e for e in events if e.get("type") == "community"],
         "ai_parsed": [e for e in events if e.get("type") == "ai_parsed"],
         "ai": [e for e in events if e.get("type") == "ai"],
         "ai_generated": [e for e in events if e.get("type") == "ai_generated"],
@@ -1569,6 +1576,7 @@ def make_counts(groups):
     counts = {
         "all": total,
         "user": len(groups.get("user", [])),  # Только пользовательские события
+        "community": len(groups.get("community", [])),  # События от групп
         "sources": len(groups.get("source", [])) + ai_count,  # AI события считаются как источники
     }
     logger.info(f"🔍 make_counts: groups={list(groups.keys())}, counts={counts}")
@@ -1584,6 +1592,8 @@ def render_header(counts, radius_km: int = None) -> str:
 
     if counts["user"]:
         lines.append(f"• 👥 От пользователей: {counts['user']}")
+    if counts.get("community", 0):
+        lines.append(f"• 👥 От групп: {counts['community']}")
     if counts["sources"]:
         lines.append(f"• 🌐 Из источников: {counts['sources']}")
     return "\n".join(lines)
