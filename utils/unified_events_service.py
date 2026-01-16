@@ -93,7 +93,7 @@ class UnifiedEventsService:
                            location_url, url as event_url,
                            organizer_id, organizer_username, max_participants,
                            current_participants, status, created_at_utc,
-                           community_name as country, location_name as venue_name,
+                           community_name, chat_id, location_name as venue_name,
                            location_name as address, place_id,
                            '' as geo_hash, starts_at as starts_at_normalized
                     FROM events
@@ -132,7 +132,7 @@ class UnifiedEventsService:
                            location_url, url as event_url,
                            organizer_id, organizer_username, max_participants,
                            current_participants, status, created_at_utc,
-                           community_name as country, location_name as venue_name,
+                           community_name, chat_id, location_name as venue_name,
                            location_name as address, place_id,
                            '' as geo_hash, starts_at as starts_at_normalized
                     FROM events
@@ -179,7 +179,9 @@ class UnifiedEventsService:
                     "current_participants": row[14],
                     "status": row[15],
                     "created_at_utc": row[16],
-                    "place_id": row[17] if len(row) > 17 else None,
+                    "community_name": row[17] if len(row) > 17 else None,
+                    "chat_id": row[18] if len(row) > 18 else None,
+                    "place_id": row[19] if len(row) > 19 else None,
                 }
 
                 # Логируем пользовательские события
@@ -210,7 +212,7 @@ class UnifiedEventsService:
                                location_url, url as event_url,
                                organizer_id, organizer_username, max_participants,
                                current_participants, status, created_at_utc,
-                               community_name as country, location_name as venue_name,
+                               community_name, chat_id, location_name as venue_name,
                                location_name as address, place_id,
                                '' as geo_hash, starts_at as starts_at_normalized
                         FROM events
@@ -250,7 +252,9 @@ class UnifiedEventsService:
                             "current_participants": row[14],
                             "status": row[15],
                             "created_at_utc": row[16],
-                            "place_id": row[17] if len(row) > 17 else None,
+                            "community_name": row[17] if len(row) > 17 else None,
+                            "chat_id": row[18] if len(row) > 18 else None,
+                            "place_id": row[19] if len(row) > 19 else None,
                         }
                         events.append(event_data)
                     if events:
