@@ -1235,16 +1235,21 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
             f"👤 DEBUG: organizer_id={organizer_id}, organizer_username='{organizer_username}', src_part='{src_part}'"
         )
     elif event_type == "community":
-        # События от групп - показываем автора с пометкой о группе
+        # События от групп - показываем автора отдельно, группу отдельно
         organizer_id = e.get("organizer_id")
         organizer_username = e.get("organizer_username")
+        group_name = e.get("community_name")
 
-        logger.info(f"💬 Событие от группы: organizer_id={organizer_id}, organizer_username={organizer_username}")
+        logger.info(
+            f"💬 Событие от группы: organizer_id={organizer_id}, organizer_username={organizer_username}, group_name={group_name}"
+        )
 
-        # Используем функцию для отображения автора с пометкой о группе
-        from utils.author_display import format_author_with_group
+        # Используем функцию для отображения автора (без группы, группа будет отдельно)
+        from utils.author_display import format_author_display
 
-        src_part = format_author_with_group(organizer_id, organizer_username)
+        src_part = format_author_display(organizer_id, organizer_username)
+        # Заменяем 👤 на 👥 для событий от групп
+        src_part = src_part.replace("👤", "👥")
         logger.info(f"💬 Отображение автора из группы: {src_part}")
     else:
         # Для источников и AI-парсинга показываем источник
@@ -1287,8 +1292,18 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     logger.info(f"🕐 render_event_html ИТОГ: title={title}, when='{when}', dist={dist}")
     logger.info(f"🔍 DEBUG: src_part='{src_part}', map_part='{map_part}'")
 
-    # Формируем строку с автором
-    author_line = f"{src_part}  " if src_part else ""
+    # Формируем строку с автором и группой (для community событий)
+    if event_type == "community":
+        # Для событий от групп: автор → маршрут → группа
+        group_name = e.get("community_name")
+        if group_name:
+            group_part = f"  👥 @{html.escape(group_name)}"
+        else:
+            group_part = "  👥 (из группы)"
+        author_line = f"{src_part}  {map_part}{group_part}" if src_part else f"{map_part}{group_part}"
+    else:
+        # Для остальных событий: автор → маршрут
+        author_line = f"{src_part}  {map_part}" if src_part else map_part
     logger.info(f"🔍 DEBUG: author_line='{author_line}', map_part='{map_part}'")
 
     # Добавляем описание для пользовательских событий и событий от групп
@@ -1310,7 +1325,9 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     test_venue = venue_display
     logger.info(f"🔍 DEBUG: test_venue='{test_venue}'")
 
-    final_html = f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n📍 {test_venue}\n{author_line}{map_part}{description_part}\n"
+    final_html = (
+        f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n📍 {test_venue}\n{author_line}{description_part}\n"
+    )
     logger.info(f"🔍 DEBUG: ПОСЛЕ final_html: venue_display='{venue_display}'")
     logger.info(f"🔍 FINAL HTML: {final_html}")
     return final_html
@@ -4731,6 +4748,7 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
                 organizer_username=callback.from_user.username or callback.from_user.first_name,
                 community_event_id=event_id,
                 normalized_city=normalized_city or (data.get("city") or None),
+                bot=bot,
             )
             logger.info(f"🌍 publish_community_event_to_world результат: {world_publish_status}")
 
@@ -4847,6 +4865,7 @@ async def publish_community_event_to_world(
     organizer_username: str | None,
     community_event_id: int,
     normalized_city: str | None,
+    bot: Bot = None,
 ) -> dict:
     """
     Публикует событие из Community в основную таблицу events.
@@ -4901,6 +4920,16 @@ async def publish_community_event_to_world(
         location_url = event_data.get("location_url")
         chat_id = event_data.get("group_id")
 
+        # Получаем название группы
+        community_name = None
+        if bot and chat_id:
+            try:
+                chat = await bot.get_chat(chat_id)
+                community_name = chat.title
+                logger.info(f"🌍 Получено название группы: {community_name}")
+            except Exception as e:
+                logger.warning(f"⚠️ Не удалось получить название группы {chat_id}: {e}")
+
         external_id = f"community:{chat_id}:{community_event_id}"
 
         world_event_id = events_service.create_user_event(
@@ -4918,6 +4947,7 @@ async def publish_community_event_to_world(
             organizer_username=organizer_username,
             source="community",
             external_id=external_id,
+            community_name=community_name,
         )
 
         return {"success": True, "world_event_id": world_event_id}

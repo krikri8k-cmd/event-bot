@@ -353,6 +353,7 @@ class UnifiedEventsService:
         organizer_username: str = None,
         source: str = "user",
         external_id: str | None = None,
+        community_name: str | None = None,
     ) -> int:
         """
         Создание пользовательского события в единую таблицу events
@@ -364,13 +365,14 @@ class UnifiedEventsService:
                     source, external_id, title, description, starts_at, ends_at,
                     url, location_name, location_url, lat, lng, country, city,
                     organizer_id, organizer_username, max_participants, current_participants,
-                    participants_ids, status, created_at_utc, updated_at_utc, is_generated_by_ai, chat_id
+                    participants_ids, status, created_at_utc, updated_at_utc, is_generated_by_ai, chat_id,
+                    community_name
                 )
                 VALUES (
                     :source, :external_id, :title, :description, :starts_at, NULL,
                     NULL, :location_name, :location_url, :lat, :lng, :country, :city,
                     :organizer_id, :organizer_username, :max_participants, 0,
-                    NULL, 'open', NOW(), NOW(), false, :chat_id
+                    NULL, 'open', NOW(), NOW(), false, :chat_id, :community_name
                 )
                 RETURNING id
             """)
@@ -407,6 +409,7 @@ class UnifiedEventsService:
                     "max_participants": max_participants,
                     "country": country,
                     "chat_id": chat_id,
+                    "community_name": community_name,
                 },
             )
 

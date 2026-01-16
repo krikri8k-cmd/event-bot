@@ -44,26 +44,35 @@ def format_author_simple(organizer_username: str | None) -> str:
         return "Аноним"
 
 
-def format_author_with_group(organizer_id: int | None, organizer_username: str | None) -> str:
+def format_author_with_group(
+    organizer_id: int | None, organizer_username: str | None, group_name: str | None = None
+) -> str:
     """
     Форматирует отображение автора события из группы с пометкой о группе
 
     Args:
         organizer_id: ID организатора
         organizer_username: Username организатора (может быть None)
+        group_name: Название группы (может быть None)
 
     Returns:
         Отформатированная строка для отображения автора с пометкой о группе
     """
+    # Формируем часть с автором
     if organizer_id and organizer_username and organizer_username != "None":
-        # Есть username - показываем @username с пометкой о группе (используем 👥 вместо 👤)
-        return f'👥 <a href="tg://user?id={organizer_id}">@{html.escape(organizer_username)}</a> 👥 (из группы)'
+        author_part = f'👥 <a href="tg://user?id={organizer_id}">@{html.escape(organizer_username)}</a>'
     elif organizer_id:
-        # Есть ID но нет username - показываем "Автор" с пометкой о группе (используем 👥 вместо 👤)
-        return f'👥 <a href="tg://user?id={organizer_id}">Автор</a> 👥 (из группы)'
+        author_part = f'👥 <a href="tg://user?id={organizer_id}">Автор</a>'
     else:
-        # Нет данных - показываем общий "Автор" с пометкой о группе (используем 👥 вместо 👤)
-        return "👥 Автор 👥 (из группы)"
+        author_part = "👥 Автор"
+
+    # Формируем часть с группой
+    if group_name:
+        group_part = f"👥 @{html.escape(group_name)}"
+    else:
+        group_part = "👥 (из группы)"
+
+    return f"{author_part}  {group_part}"
 
 
 def get_organizer_username_from_telegram_user(telegram_user) -> str | None:
