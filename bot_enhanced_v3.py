@@ -1075,7 +1075,9 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     logger.info(f"🔍 DEBUG: event_type={event_type}, source={source}, source_type={source_type}")
 
     if not event_type:
-        if source == "user" or source_type == "user":
+        if source == "community":
+            event_type = "community"
+        elif source == "user" or source_type == "user":
             event_type = "user"
         else:
             event_type = "source"
@@ -1232,6 +1234,18 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         logger.info(
             f"👤 DEBUG: organizer_id={organizer_id}, organizer_username='{organizer_username}', src_part='{src_part}'"
         )
+    elif event_type == "community":
+        # События от групп - показываем автора с пометкой о группе
+        organizer_id = e.get("organizer_id")
+        organizer_username = e.get("organizer_username")
+
+        logger.info(f"💬 Событие от группы: organizer_id={organizer_id}, organizer_username={organizer_username}")
+
+        # Используем функцию для отображения автора с пометкой о группе
+        from utils.author_display import format_author_with_group
+
+        src_part = format_author_with_group(organizer_id, organizer_username)
+        logger.info(f"💬 Отображение автора из группы: {src_part}")
     else:
         # Для источников и AI-парсинга показываем источник
         src = get_source_url(e)
