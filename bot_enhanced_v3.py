@@ -1248,8 +1248,8 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         from utils.author_display import format_author_display
 
         src_part = format_author_display(organizer_id, organizer_username)
-        # Заменяем 👤 на 💥 для событий от групп
-        src_part = src_part.replace("👤", "💥")
+        # Заменяем 👤 на 👥 для событий от групп
+        src_part = src_part.replace("👤", "👥")
         logger.info(f"💬 Отображение автора из группы: {src_part}")
     else:
         # Для источников и AI-парсинга показываем источник

@@ -60,11 +60,11 @@ def format_author_with_group(
     """
     # Формируем часть с автором
     if organizer_id and organizer_username and organizer_username != "None":
-        author_part = f'💥 <a href="tg://user?id={organizer_id}">@{html.escape(organizer_username)}</a>'
+        author_part = f'👥 <a href="tg://user?id={organizer_id}">@{html.escape(organizer_username)}</a>'
     elif organizer_id:
-        author_part = f'💥 <a href="tg://user?id={organizer_id}">Автор</a>'
+        author_part = f'👥 <a href="tg://user?id={organizer_id}">Автор</a>'
     else:
-        author_part = "💥 Автор"
+        author_part = "👥 Автор"
 
     # Формируем часть с группой
     if group_name:
