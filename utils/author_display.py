@@ -57,13 +57,13 @@ def format_author_with_group(organizer_id: int | None, organizer_username: str |
     """
     if organizer_id and organizer_username and organizer_username != "None":
         # Есть username - показываем @username с пометкой о группе
-        return f'👤 <a href="tg://user?id={organizer_id}">@{html.escape(organizer_username)}</a> 💬 (из группы)'
+        return f'👤 <a href="tg://user?id={organizer_id}">@{html.escape(organizer_username)}</a> 👥 (из группы)'
     elif organizer_id:
         # Есть ID но нет username - показываем "Автор" с пометкой о группе
-        return f'👤 <a href="tg://user?id={organizer_id}">Автор</a> 💬 (из группы)'
+        return f'👤 <a href="tg://user?id={organizer_id}">Автор</a> 👥 (из группы)'
     else:
         # Нет данных - показываем общий "Автор" с пометкой о группе
-        return "👤 Автор 💬 (из группы)"
+        return "👤 Автор 👥 (из группы)"
 
 
 def get_organizer_username_from_telegram_user(telegram_user) -> str | None:

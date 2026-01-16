@@ -1185,8 +1185,8 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     elif e.get("lat") and e.get("lng"):
         venue_display = f"координаты ({e['lat']:.4f}, {e['lng']:.4f})"
         logger.info(f"🔍 DEBUG: Используем координаты: '{venue_display}'")
-    elif event_type == "user" and e.get("description"):
-        # Для пользовательских событий показываем описание вместо "Локация уточняется"
+    elif event_type in ["user", "community"] and e.get("description"):
+        # Для пользовательских событий и событий от групп показываем описание вместо "Локация уточняется"
         description = e.get("description", "").strip()
         if description:
             # Ограничиваем длину описания для красоты
@@ -1291,9 +1291,9 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     author_line = f"{src_part}  " if src_part else ""
     logger.info(f"🔍 DEBUG: author_line='{author_line}', map_part='{map_part}'")
 
-    # Добавляем описание для пользовательских событий
+    # Добавляем описание для пользовательских событий и событий от групп
     description_part = ""
-    if event_type == "user" and e.get("description"):
+    if event_type in ["user", "community"] and e.get("description"):
         description = e.get("description", "").strip()
         if description:
             # Ограничиваем длину описания для красоты
