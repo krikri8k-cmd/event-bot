@@ -578,7 +578,7 @@ def create_events_summary(events: list) -> str:
     if user_count > 0:
         summary_lines.append(f"• От пользователей: {user_count}")
     if community_count > 0:
-        summary_lines.append(f"• От групп: {community_count}")
+        summary_lines.append(f"• 💥 От групп: {community_count}")
 
     return "\n".join(summary_lines)
 
@@ -1248,8 +1248,8 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         from utils.author_display import format_author_display
 
         src_part = format_author_display(organizer_id, organizer_username)
-        # Заменяем 👤 на 👥 для событий от групп
-        src_part = src_part.replace("👤", "👥")
+        # Заменяем 👤 на 💥 для событий от групп
+        src_part = src_part.replace("👤", "💥")
         logger.info(f"💬 Отображение автора из группы: {src_part}")
     else:
         # Для источников и AI-парсинга показываем источник
@@ -1297,7 +1297,7 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         # Для событий от групп: автор → маршрут → группа
         group_name = e.get("community_name")
         if group_name:
-            group_part = f"  👥 @{html.escape(group_name)}"
+            group_part = f"  💥@{html.escape(group_name)}"
         else:
             group_part = "  💥от группы"
         author_line = f"{src_part}  {map_part}{group_part}" if src_part else f"{map_part}{group_part}"
@@ -1624,7 +1624,7 @@ def render_header(counts, radius_km: int = None) -> str:
     if counts["user"]:
         lines.append(f"• 👥 От пользователей: {counts['user']}")
     if counts.get("community", 0):
-        lines.append(f"• 👥 От групп: {counts['community']}")
+        lines.append(f"• 💥 От групп: {counts['community']}")
     if counts["sources"]:
         lines.append(f"• 🌐 Из источников: {counts['sources']}")
     return "\n".join(lines)
