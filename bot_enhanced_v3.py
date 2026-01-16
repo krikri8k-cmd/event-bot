@@ -1299,7 +1299,7 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         if group_name:
             group_part = f"  👥 @{html.escape(group_name)}"
         else:
-            group_part = "  👥 (из группы)"
+            group_part = "  💥от группы"
         author_line = f"{src_part}  {map_part}{group_part}" if src_part else f"{map_part}{group_part}"
     else:
         # Для остальных событий: автор → маршрут
