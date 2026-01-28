@@ -55,8 +55,14 @@ from tasks_service import (
     get_user_active_tasks,
 )
 from utils.geo_utils import get_timezone, haversine_km
+from utils.i18n import t
 from utils.static_map import build_static_map_url, fetch_static_map
 from utils.unified_events_service import UnifiedEventsService
+from utils.user_language import (
+    get_user_language_or_default,
+    needs_language_selection,
+    set_user_language,
+)
 from utils.user_participation_analytics import UserParticipationAnalytics
 
 
@@ -2827,19 +2833,58 @@ def get_example_date():
     return example_date.strftime("%d.%m.%Y")
 
 
-def main_menu_kb() -> ReplyKeyboardMarkup:
-    """Создаёт главное меню"""
+def main_menu_kb(lang: str | None = None, user_id: int | None = None) -> ReplyKeyboardMarkup:
+    """
+    Создаёт главное меню с учётом языка
+
+    Args:
+        lang: Код языка ('ru' или 'en'). Если не указан, будет получен из user_id или использован 'ru'
+        user_id: ID пользователя для получения языка из БД (если lang не указан)
+    """
     from config import load_settings
 
     load_settings()
 
+    # Определяем язык
+    if lang is None:
+        if user_id is not None:
+            lang = get_user_language_or_default(user_id)
+        else:
+            lang = "ru"
+
     keyboard = [
-        [KeyboardButton(text="📍 События рядом"), KeyboardButton(text="🎯 Интересные места")],
-        [KeyboardButton(text="➕ Создать"), KeyboardButton(text="📝 Мои активности")],
-        [KeyboardButton(text="🔗 Добавить бота в чат"), KeyboardButton(text="🚀 Старт")],
+        [
+            KeyboardButton(text=t("menu.button.events_nearby", lang)),
+            KeyboardButton(text=t("menu.button.interesting_places", lang)),
+        ],
+        [
+            KeyboardButton(text=t("menu.button.create", lang)),
+            KeyboardButton(text=t("menu.button.my_activities", lang)),
+        ],
+        [
+            KeyboardButton(text=t("menu.button.add_bot_to_chat", lang)),
+            KeyboardButton(text=t("menu.button.start", lang)),
+        ],
     ]
 
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+
+def language_selection_kb(detected_lang: str | None = None) -> InlineKeyboardMarkup:
+    """
+    Создаёт клавиатуру выбора языка
+    detected_lang используется только для порядка кнопок
+    """
+    buttons = [
+        InlineKeyboardButton(text=t("language.button.ru", "ru"), callback_data="lang_ru"),
+        InlineKeyboardButton(text=t("language.button.en", "en"), callback_data="lang_en"),
+    ]
+
+    # Если detected_lang == "en", показываем английский первым
+    if detected_lang == "en":
+        buttons.reverse()
+
+    return InlineKeyboardMarkup(inline_keyboard=[buttons])
 
 
 async def setup_bot_commands():
@@ -2862,6 +2907,7 @@ async def setup_bot_commands():
             types.BotCommand(command="mytasks", description="🏆 Мои квесты - просмотр выполненных заданий"),
             types.BotCommand(command="share", description="🔗 Добавить бота в чат"),
             types.BotCommand(command="help", description="💬 Написать отзыв Разработчику"),
+            types.BotCommand(command="language", description="🌐 Выбрать язык / Choose language"),
         ]
 
         # Сначала очищаем все команды, чтобы избежать конфликтов
@@ -3204,7 +3250,7 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
             success, message_text = create_task_from_place(user_id, place_id, user_lat, user_lng)
 
             # Показываем сообщение с результатом
-            await message.answer(message_text, reply_markup=main_menu_kb())
+            await message.answer(message_text, reply_markup=main_menu_kb(user_id=user_id))
             return
         except (ValueError, Exception) as e:
             logger.warning(f"🎯 cmd_start: неверный параметр add_quest_ {command.args}: {e}")
@@ -3243,26 +3289,31 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
 
     # Разная логика для личных и групповых чатов
     if chat_type == "private":
-        # Упрощенная логика - всегда показываем полное меню
-        welcome_text = (
-            'Привет! @EventAroundBot версия "World" - твой цифровой помощник по активностям.\n\n'
-            "📍 События рядом: находи события в радиусе 5–20 км\n"
-            "🎯 Интересные места: промокоды и AI развлечения вокруг\n\n"
-            "➕ Создать: организуй встречи и приглашай друзей\n"
-            '🔗 Добавить бота в чат: добавь бота версия "Community" в чат — появится лента встреч и планов только для участников сообщества.\n\n'
-            "🚀 Начинай приключение"
-        )
-        await message.answer(welcome_text, reply_markup=main_menu_kb())
+        # Проверяем, нужно ли показывать экран выбора языка
+        if needs_language_selection(user_id):
+            # Получаем язык из Telegram для подсказки (только для порядка кнопок)
+            detected_lang = message.from_user.language_code
+            if detected_lang and detected_lang.startswith("en"):
+                detected_lang = "en"
+            else:
+                detected_lang = "ru"
+
+            # Показываем экран выбора языка
+            choose_text = t("language.choose", "ru")  # Используем билингвальный текст
+            await message.answer(choose_text, reply_markup=language_selection_kb(detected_lang))
+            return
+
+        # Язык выбран, получаем его
+        user_lang = get_user_language_or_default(user_id)
+
+        # Показываем приветственное сообщение с главным меню
+        welcome_text = t("menu.greeting", user_lang)
+        await message.answer(welcome_text, reply_markup=main_menu_kb(user_lang))
     else:
         # Групповой чат - упрощенный функционал для событий участников
-        welcome_text = (
-            '👋 Привет! Я EventAroundBot - версия "Community".\n\n'
-            "🎯 **В этом чате я помогаю:**\n"
-            "• Создавать события участников чата\n"
-            "• Показывать все события, созданные в этом чате\n"
-            "• Переходить к полному боту для поиска по геолокации\n\n"
-            "💡 **Выберите действие:**"
-        )
+        # Для групповых чатов язык не проверяем (используем русский по умолчанию)
+        user_lang = get_user_language_or_default(user_id)
+        welcome_text = t("group.greeting", user_lang)
 
         # Получаем username бота для создания ссылки (с кешированием)
         bot_info = await get_bot_info_cached()
@@ -3282,6 +3333,55 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
         )
 
         await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
+
+
+@main_router.message(Command("language"))
+async def cmd_language(message: types.Message):
+    """Обработчик команды /language - выбор языка"""
+
+    # Получаем язык из Telegram для подсказки (только для порядка кнопок)
+    detected_lang = message.from_user.language_code
+    if detected_lang and detected_lang.startswith("en"):
+        detected_lang = "en"
+    else:
+        detected_lang = "ru"
+
+    # Показываем экран выбора языка
+    choose_text = t("language.choose", "ru")  # Билингвальный текст
+    await message.answer(choose_text, reply_markup=language_selection_kb(detected_lang))
+
+
+@main_router.callback_query(F.data.startswith("lang_"))
+async def handle_language_selection(callback: types.CallbackQuery):
+    """Обработчик выбора языка"""
+    user_id = callback.from_user.id
+    lang_code = callback.data.replace("lang_", "")
+
+    if lang_code not in ["ru", "en"]:
+        await callback.answer("❌ Неверный язык")
+        return
+
+    # Сохраняем язык в БД
+    success = set_user_language(user_id, lang_code)
+
+    if success:
+        # Показываем подтверждение на выбранном языке
+        if lang_code == "ru":
+            confirmation = t("language.changed", "ru")
+        else:
+            confirmation = t("language.changed", "en")
+
+        await callback.answer(confirmation)
+        await callback.message.edit_text(confirmation)
+
+        # Если это был первый выбор языка, показываем главное меню
+        # (проверяем, было ли предыдущее сообщение экраном выбора языка)
+        if "Choose language" in callback.message.text or "Выберите язык" in callback.message.text:
+            user_lang = get_user_language_or_default(user_id)
+            welcome_text = t("menu.greeting", user_lang)
+            await callback.message.answer(welcome_text, reply_markup=main_menu_kb(user_id=user_id))
+    else:
+        await callback.answer("❌ Ошибка при сохранении языка")
 
 
 def get_community_cancel_kb() -> InlineKeyboardMarkup:
@@ -5057,17 +5157,12 @@ async def on_start_menu_callback(callback: types.CallbackQuery, state: FSMContex
     # Создаем пользователя если его нет (в фоне, не ждём)
     asyncio.create_task(ensure_user_exists(user_id, callback.from_user))
 
-    # Показываем приветственное сообщение с главным меню
-    welcome_text = (
-        'Привет! @EventAroundBot версия "World" - твой цифровой помощник по активностям.\n\n'
-        "📍 События рядом: находи события в радиусе 5–20 км\n"
-        "🎯 Интересные места: промокоды и AI развлечения вокруг\n\n"
-        "➕ Создать: организуй встречи и приглашай друзей\n"
-        '🔗 Поделиться: добавь бота версия "Community" в чат — появится лента встреч и планов только для участников сообщества.\n\n'
-        "🚀 Начинай приключение"
-    )
+    # Получаем язык пользователя
+    user_lang = get_user_language_or_default(user_id)
 
-    await callback.message.answer(welcome_text, reply_markup=main_menu_kb())
+    # Показываем приветственное сообщение с главным меню
+    welcome_text = t("menu.greeting", user_lang)
+    await callback.message.answer(welcome_text, reply_markup=main_menu_kb(user_id=user_id))
 
 
 @main_router.callback_query(F.data == "nearby_events")

@@ -60,6 +60,7 @@ class User(Base):
     events_created_world: Mapped[int] = mapped_column(Integer, default=0)
     events_created_community: Mapped[int] = mapped_column(Integer, default=0)
     is_banned: Mapped[bool] = mapped_column(Boolean, default=False)
+    language_code: Mapped[str | None] = mapped_column(String(5))  # 'ru', 'en' или NULL
 
 
 class Task(Base):
