@@ -1909,10 +1909,11 @@ async def perform_nearby_search(
 ) -> None:
     """Универсальный обработчик поиска событий рядом по координатам."""
     user_id = message.from_user.id
+    user_lang = get_user_language_or_default(user_id)
     logger.info(f"📍 perform_nearby_search: user_id={user_id}, lat={lat}, lng={lng}, source={source}")
 
     loading_message = await message.answer(
-        "🔍 Ищу события рядом...",
+        t("search.loading", user_lang),
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔍", callback_data="loading")]]),
     )
 
@@ -5175,15 +5176,23 @@ async def on_nearby_events_callback(callback: types.CallbackQuery, state: FSMCon
     """Обработчик кнопки 'События рядом' из callback"""
     await callback.answer()
 
+    user_id = callback.from_user.id
+    user_lang = get_user_language_or_default(user_id)
+
     # Устанавливаем состояние для поиска событий
     await state.set_state(EventSearch.waiting_for_location)
 
     # Создаем клавиатуру с кнопкой геолокации и главным меню
     location_keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📍 Отправить геолокацию", request_location=True)],
-            [KeyboardButton(text="🌍 Найти на карте")],
-            [KeyboardButton(text="🏠 Главное меню")],
+            [
+                KeyboardButton(
+                    text=t("tasks.button.send_location", user_lang),
+                    request_location=True,
+                )
+            ],
+            [KeyboardButton(text=t("tasks.button.find_on_map", user_lang))],
+            [KeyboardButton(text=t("tasks.button.main_menu", user_lang))],
         ],
         resize_keyboard=True,
         one_time_keyboard=False,
@@ -5191,12 +5200,7 @@ async def on_nearby_events_callback(callback: types.CallbackQuery, state: FSMCon
 
     # Отправляем новое сообщение с ReplyKeyboardMarkup
     await callback.message.answer(
-        "Нажмите кнопку '📍 Отправить геолокацию' чтобы начать!\n\n"
-        "💡 Если кнопка не работает :\n\n"
-        "• Жми '🌍 Найти на карте' \n"
-        "и вставь ссылку \n\n"
-        "• Или отправь координаты\n"
-        "пример: -8.4095, 115.1889",
+        t("search.geo_prompt", user_lang),
         reply_markup=location_keyboard,
         parse_mode="Markdown",
     )
@@ -6220,9 +6224,8 @@ async def on_location(message: types.Message, state: FSMContext):
     except Exception as e:
         logger.error(f"Ошибка при поиске событий: {e}")
         user_id = message.from_user.id
-        await message.answer(
-            "Произошла ошибка при поиске событий. Попробуйте позже.", reply_markup=main_menu_kb(user_id=user_id)
-        )
+        user_lang = get_user_language_or_default(user_id)
+        await message.answer(t("search.error.general", user_lang), reply_markup=main_menu_kb(user_id=user_id))
 
 
 @main_router.message(Command("create"))
