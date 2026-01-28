@@ -6249,11 +6249,10 @@ async def on_create(message: types.Message, state: FSMContext):
         UserAnalytics.maybe_increment_sessions_world(message.from_user.id, min_interval_minutes=6)
 
     await state.set_state(EventCreation.waiting_for_title)
+    user_id = message.from_user.id
+    user_lang = get_user_language_or_default(user_id)
     await message.answer(
-        '➕ **Создаём событие "World"**\n\n'
-        "- Будет видно для всех игроков бота.\n\n"
-        "Награда 5 🚀\n\n"
-        "**Введите название мероприятия** (например: Прогулка):",
+        t("create.start", user_lang),
         parse_mode="Markdown",
         reply_markup=types.ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="❌ Отмена")]], resize_keyboard=True),
     )
@@ -6264,7 +6263,8 @@ async def cancel_creation(message: types.Message, state: FSMContext):
     """Отмена создания события"""
     await state.clear()
     user_id = message.from_user.id
-    await message.answer("Создание отменено.", reply_markup=main_menu_kb(user_id=user_id))
+    user_lang = get_user_language_or_default(user_id)
+    await message.answer(t("create.cancelled", user_lang), reply_markup=main_menu_kb(user_id=user_id))
 
 
 async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_private: bool):
