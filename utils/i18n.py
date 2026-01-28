@@ -96,6 +96,17 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "errors.no_permission": "❌ У вас нет прав для редактирования этого события",
         "errors.general": "❌ Ошибка",
         "errors.update_failed": "❌ Ошибка при обновлении",
+        # Поиск событий
+        "search.loading": "🔍 Ищу события рядом...",
+        "search.error.general": "❌ Произошла ошибка при поиске событий. Попробуйте позже.",
+        "search.geo_prompt": (
+            "Нажмите кнопку '📍 Отправить геолокацию' чтобы начать!\n\n"
+            "💡 Если кнопка не работает :\n\n"
+            "• Жми '🌍 Найти на карте' \n"
+            "и вставь ссылку \n\n"
+            "• Или отправь координаты\n"
+            "пример: -8.4095, 115.1889"
+        ),
         # Редактирование событий
         "edit.enter_title": "✍️ Введите новое название события:",
         "edit.enter_date": "📅 Введите новую дату в формате ДД.ММ.ГГГГ:",
@@ -198,6 +209,15 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "errors.no_permission": "❌ You don't have permission to edit this event",
         "errors.general": "❌ Error",
         "errors.update_failed": "❌ Update failed",
+        # Search
+        "search.loading": "🔍 Searching for events nearby...",
+        "search.error.general": "❌ Error while searching for events. Please try again later.",
+        "search.geo_prompt": (
+            "Press the '📍 Send location' button to start!\n\n"
+            "💡 If the button does not work:\n\n"
+            "• Tap '🌍 Find on map' and paste a link\n\n"
+            "• Or send coordinates, e.g.: -8.4095, 115.1889"
+        ),
         # Event editing
         "edit.enter_title": "✍️ Enter new event title:",
         "edit.enter_date": "📅 Enter new date in format DD.MM.YYYY:",
