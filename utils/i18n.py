@@ -111,6 +111,58 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "events.suggestion.change_radius": "💡 Попробуй изменить радиус до {radius} км\n",
         "events.suggestion.repeat_search": "💡 Попробуй изменить радиус и повторить поиск\n",
         "events.suggestion.create_your_own": "➕ Или создай своё событие и собери свою компанию!",
+        # Создание событий
+        "create.start": (
+            '➕ **Создаём событие "World"**\n\n'
+            "- Будет видно для всех игроков бота.\n\n"
+            "Награда 5 🚀\n\n"
+            "**Введите название мероприятия** (например: Прогулка):"
+        ),
+        "create.enter_title": "**Введите название мероприятия** (например: Прогулка):",
+        "create.title_saved": "Название сохранено: *{title}* ✅\n\n📅 Теперь введите дату (например: {example_date}):",
+        "create.enter_date": "📅 **Введите дату** (например: {example_date}):",
+        "create.date_saved": "**Дата сохранена:** {date} ✅\n\n⏰ **Введите время** (например: 19:00):",
+        "create.enter_time": "⏰ **Введите время** (например: 19:00):",
+        "create.time_saved": "**Время сохранено:** {time} ✅\n\n📍 **Отправьте геолокацию или введите место:**",
+        "create.enter_location": "📍 **Отправьте геолокацию или введите место:**",
+        "create.location_saved": (
+            "**Место сохранено** ✅\n{location_text}\n\n"
+            "📝 **Введите описание события** (что будет происходить, кому интересно):"
+        ),
+        "create.enter_description": "📝 **Введите описание события** (что будет происходить, кому интересно):",
+        "create.cancelled": "Создание отменено.",
+        "create.validation.no_text": "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n{next_prompt}",
+        "create.validation.invalid_date_format": (
+            "❌ **Неверный формат даты!**\n\n" "📅 Введите дату в формате **ДД.ММ.ГГГГ**\n" "Например: 15.12.2024"
+        ),
+        "create.validation.invalid_time_format": (
+            "❌ **Неверный формат времени!**\n\n" "⏰ Введите время в формате **ЧЧ:ММ**\n" "Например: 19:00"
+        ),
+        "create.validation.past_date": "⚠️ Внимание! Дата *{date}* уже прошла (сегодня {today}).\n\n📅 Введите дату:",
+        "create.validation.no_commands_in_title": (
+            "❌ В названии нельзя указывать команды (символ / в начале)!\n\n"
+            "📝 Пожалуйста, придумайте краткое название события:\n"
+            "• Что будет происходить\n"
+            "• Где будет проходить\n"
+            "• Для кого предназначено\n\n"
+            "**Введите название мероприятия** (например: Прогулка):"
+        ),
+        "create.validation.no_links_in_title": (
+            "❌ В названии нельзя указывать ссылки и контакты!\n\n"
+            "📝 Пожалуйста, придумайте краткое название события:\n"
+            "• Что будет происходить\n"
+            "• Где будет проходить\n"
+            "• Для кого предназначено\n\n"
+            "**Введите название мероприятия** (например: Прогулка):"
+        ),
+        "create.validation.no_links_in_description": (
+            "❌ В описании нельзя указывать ссылки и контакты!\n\n"
+            "📝 Пожалуйста, опишите событие своими словами:\n"
+            "• Что будет происходить\n"
+            "• Кому будет интересно\n"
+            "• Что взять с собой\n\n"
+            "Контакты можно указать после создания события."
+        ),
         # Редактирование событий
         "edit.enter_title": "✍️ Введите новое название события:",
         "edit.enter_date": "📅 Введите новую дату в формате ДД.ММ.ГГГГ:",
@@ -184,6 +236,60 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "events.suggestion.change_radius": "💡 Try changing the radius to {radius} km\n",
         "events.suggestion.repeat_search": "💡 Try changing the radius and searching again\n",
         "events.suggestion.create_your_own": "➕ Or create your own event and gather your company!",
+        # Create events
+        "create.start": (
+            '➕ **Creating "World" event**\n\n'
+            "- Will be visible to all bot players.\n\n"
+            "Reward 5 🚀\n\n"
+            "**Enter event title** (e.g.: Walk):"
+        ),
+        "create.enter_title": "**Enter event title** (e.g.: Walk):",
+        "create.title_saved": "Title saved: *{title}* ✅\n\n📅 Now enter date (e.g.: {example_date}):",
+        "create.enter_date": "📅 **Enter date** (e.g.: {example_date}):",
+        "create.date_saved": "**Date saved:** {date} ✅\n\n⏰ **Enter time** (e.g.: 19:00):",
+        "create.enter_time": "⏰ **Enter time** (e.g.: 19:00):",
+        "create.time_saved": "**Time saved:** {time} ✅\n\n📍 **Send location or enter place:**",
+        "create.enter_location": "📍 **Send location or enter place:**",
+        "create.location_saved": (
+            "**Location saved** ✅\n{location_text}\n\n"
+            "📝 **Enter event description** (what will happen, who it's for):"
+        ),
+        "create.enter_description": "📝 **Enter event description** (what will happen, who it's for):",
+        "create.cancelled": "Creation cancelled.",
+        "create.validation.no_text": "❌ **Please send a text message!**\n\n{next_prompt}",
+        "create.validation.invalid_date_format": (
+            "❌ **Invalid date format!**\n\n" "📅 Enter date in format **DD.MM.YYYY**\n" "Example: 15.12.2024"
+        ),
+        "create.validation.invalid_time_format": (
+            "❌ **Invalid time format!**\n\n" "⏰ Enter time in format **HH:MM**\n" "Example: 19:00"
+        ),
+        "create.validation.past_date": (
+            "⚠️ Warning! Date *{date}* has already passed (today is {today}).\n\n" "📅 Enter date:"
+        ),
+        "create.validation.no_commands_in_title": (
+            "❌ Cannot use commands (symbol / at the beginning) in title!\n\n"
+            "📝 Please create a short event title:\n"
+            "• What will happen\n"
+            "• Where it will take place\n"
+            "• Who it's for\n\n"
+            "**Enter event title** (e.g.: Walk):"
+        ),
+        "create.validation.no_links_in_title": (
+            "❌ Cannot use links and contacts in title!\n\n"
+            "📝 Please create a short event title:\n"
+            "• What will happen\n"
+            "• Where it will take place\n"
+            "• Who it's for\n\n"
+            "**Enter event title** (e.g.: Walk):"
+        ),
+        "create.validation.no_links_in_description": (
+            "❌ Cannot use links and contacts in description!\n\n"
+            "📝 Please describe the event in your own words:\n"
+            "• What will happen\n"
+            "• Who it's for\n"
+            "• What to bring\n\n"
+            "You can add contacts after creating the event."
+        ),
         # Tasks
         "tasks.title": "🎯 Interesting places",
         "tasks.reward": "Reward 3 🚀",
