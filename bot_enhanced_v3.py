@@ -1988,11 +1988,12 @@ async def perform_nearby_search(
             except Exception:
                 pass
             fallback = render_fallback(lat, lng)
+            user_id = message.from_user.id
             await message.answer(
                 fallback,
                 parse_mode="HTML",
                 disable_web_page_preview=True,
-                reply_markup=main_menu_kb(),
+                reply_markup=main_menu_kb(user_id=user_id),
             )
             return
 
@@ -2665,19 +2666,20 @@ async def send_spinning_menu(message):
     """Отправляет анимированное меню с эпической ракетой"""
     # Последовательность для эффекта эпического полета ракеты с взрывами
     rocket_frames = ["🚀", "🔥", "💥", "⚡", "🎯"]
+    user_id = message.from_user.id
 
     # Отправляем первый кадр
-    menu_message = await message.answer(rocket_frames[0], reply_markup=main_menu_kb())
+    menu_message = await message.answer(rocket_frames[0], reply_markup=main_menu_kb(user_id=user_id))
 
     # Анимируем эпический полет (динамичная анимация)
     try:
         for frame in rocket_frames[1:]:
             await asyncio.sleep(0.5)  # Пауза между кадрами для эффектности
-            await menu_message.edit_text(frame, reply_markup=main_menu_kb())
+            await menu_message.edit_text(frame, reply_markup=main_menu_kb(user_id=user_id))
     except Exception:
         # Если редактирование не удалось, просто оставляем мишень
         try:
-            await menu_message.edit_text("🎯", reply_markup=main_menu_kb())
+            await menu_message.edit_text("🎯", reply_markup=main_menu_kb(user_id=user_id))
         except Exception:
             pass
 
@@ -4921,7 +4923,8 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
             success_text = "".join(success_text_parts)
 
             # Отправляем новое сообщение с ReplyKeyboardMarkup вместо edit_text
-            await callback.message.answer(success_text, parse_mode="Markdown", reply_markup=main_menu_kb())
+            user_id = callback.from_user.id
+            await callback.message.answer(success_text, parse_mode="Markdown", reply_markup=main_menu_kb(user_id=user_id))
 
             # Восстанавливаем команды бота после создания события
             await setup_bot_commands()
@@ -5814,11 +5817,12 @@ async def on_location(message: types.Message, state: FSMContext):
             except Exception:
                 pass
             fallback = render_fallback(lat, lng)
+            user_id = message.from_user.id
             await message.answer(
                 fallback,
                 parse_mode="HTML",
                 disable_web_page_preview=True,
-                reply_markup=main_menu_kb(),
+                reply_markup=main_menu_kb(user_id=user_id),
             )
             return
 
@@ -6184,9 +6188,10 @@ async def on_location(message: types.Message, state: FSMContext):
                 logger.error(f"❌ Ошибка отправки объединенного сообщения: {e}")
                 # Fallback - отправляем простое сообщение как раньше
                 try:
+                    user_id = message.from_user.id
                     await message.answer(
                         f"📋 Найдено {len(prepared)} событий в радиусе {radius} км",
-                        reply_markup=main_menu_kb(),
+                        reply_markup=main_menu_kb(user_id=user_id),
                         parse_mode="HTML",
                     )
                     logger.info("✅ Отправлен fallback после ошибки объединения")
@@ -6202,16 +6207,18 @@ async def on_location(message: types.Message, state: FSMContext):
                 int(settings.default_radius_km),
             )
             fallback = render_fallback(lat, lng)
+            user_id = message.from_user.id
             await message.answer(
                 fallback,
                 parse_mode="HTML",
                 disable_web_page_preview=True,
-                reply_markup=main_menu_kb(),
+                reply_markup=main_menu_kb(user_id=user_id),
             )
 
     except Exception as e:
         logger.error(f"Ошибка при поиске событий: {e}")
-        await message.answer("Произошла ошибка при поиске событий. Попробуйте позже.", reply_markup=main_menu_kb())
+        user_id = message.from_user.id
+        await message.answer("Произошла ошибка при поиске событий. Попробуйте позже.", reply_markup=main_menu_kb(user_id=user_id))
 
 
 @main_router.message(Command("create"))
@@ -6239,7 +6246,8 @@ async def on_create(message: types.Message, state: FSMContext):
 async def cancel_creation(message: types.Message, state: FSMContext):
     """Отмена создания события"""
     await state.clear()
-    await message.answer("Создание отменено.", reply_markup=main_menu_kb())
+    user_id = message.from_user.id
+    await message.answer("Создание отменено.", reply_markup=main_menu_kb(user_id=user_id))
 
 
 async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_private: bool):
@@ -6416,7 +6424,11 @@ async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_pri
             InlineKeyboardButton(text="🏆 Мои квесты", callback_data="show_my_tasks"),
         ]
     )
-    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons) if keyboard_buttons else main_menu_kb()
+    keyboard = (
+        InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+        if keyboard_buttons
+        else main_menu_kb(user_id=user_id)
+    )
 
     # Отправляем сообщение через bot
     import os
@@ -6739,7 +6751,11 @@ async def on_my_events(message: types.Message):
         ]
     )
 
-    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons) if keyboard_buttons else main_menu_kb()
+    keyboard = (
+        InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+        if keyboard_buttons
+        else main_menu_kb(user_id=user_id)
+    )
 
     # Пытаемся отправить с изображением (всегда, независимо от наличия событий)
     import os
@@ -6810,14 +6826,16 @@ async def on_share(message: types.Message):
                 from aiogram.types import FSInputFile
 
                 photo = FSInputFile(photo_path)
-                await message.answer_photo(photo, caption=text, reply_markup=main_menu_kb())
+                user_id = message.from_user.id
+                await message.answer_photo(photo, caption=text, reply_markup=main_menu_kb(user_id=user_id))
                 return
             except Exception as e:
                 logger.warning(f"⚠️ Не удалось отправить фото инструкции: {e}, отправляем только текст")
                 break
 
     # Если фото нет или произошла ошибка, отправляем только текст
-    await message.answer(text, reply_markup=main_menu_kb())
+    user_id = message.from_user.id
+    await message.answer(text, reply_markup=main_menu_kb(user_id=user_id))
 
 
 def is_admin_user(user_id: int) -> bool:
@@ -9010,14 +9028,14 @@ async def handle_task_accept(callback: types.CallbackQuery, state: FSMContext):
                 "✅ **Задание принято!**\n\n" "🏆 Задание добавлено в 'Мои квесты'.\n\n" "Удачи! 🚀",
                 parse_mode="Markdown",
             )
-            await callback.message.answer("🚀", reply_markup=main_menu_kb())
+            await callback.message.answer("🚀", reply_markup=main_menu_kb(user_id=user_id))
     else:
         await callback.message.edit_text(
             "❌ **Не удалось принять задание**\n\n" "Возможно, у вас уже есть активное задание этого типа.",
             parse_mode="Markdown",
         )
         # Показываем главное меню
-        await callback.message.answer("🚀", reply_markup=main_menu_kb())
+        await callback.message.answer("🚀", reply_markup=main_menu_kb(user_id=user_id))
 
     await callback.answer()
 
@@ -9793,19 +9811,21 @@ async def process_task_custom_location(message: types.Message, state: FSMContext
                 success = accept_task(user_id, task_id, lat, lng)
 
                 if success:
+                    user_id = message.from_user.id
                     await message.answer(
                         "✅ **Задание принято с вашей локацией!**\n\n"
                         f"📍 Место: {lat}, {lng}\n"
                         "🏆 Задание добавлено в 'Мои квесты'.\n\n"
                         "Удачи! 🚀",
                         parse_mode="Markdown",
-                        reply_markup=main_menu_kb(),
+                        reply_markup=main_menu_kb(user_id=user_id),
                     )
                 else:
+                    user_id = message.from_user.id
                     await message.answer(
                         "❌ **Не удалось принять задание**\n\n" "Возможно, у вас уже есть активное задание этого типа.",
                         parse_mode="Markdown",
-                        reply_markup=main_menu_kb(),
+                        reply_markup=main_menu_kb(user_id=user_id),
                     )
 
                 # Очищаем состояние
@@ -9843,6 +9863,7 @@ async def process_task_custom_location(message: types.Message, state: FSMContext
             success = accept_task(user_id, task_id, lat, lng)
 
             if success:
+                user_id = message.from_user.id
                 await message.answer(
                     "✅ **Задание принято с вашей локацией!**\n\n"
                     f"📍 Место: {location_name}\n"
@@ -9850,13 +9871,14 @@ async def process_task_custom_location(message: types.Message, state: FSMContext
                     "🏆 Задание добавлено в 'Мои квесты'.\n\n"
                     "Удачи! 🚀",
                     parse_mode="Markdown",
-                    reply_markup=main_menu_kb(),
+                    reply_markup=main_menu_kb(user_id=user_id),
                 )
             else:
+                user_id = message.from_user.id
                 await message.answer(
                     "❌ **Не удалось принять задание**\n\n" "Возможно, у вас уже есть активное задание этого типа.",
                     parse_mode="Markdown",
-                    reply_markup=main_menu_kb(),
+                    reply_markup=main_menu_kb(user_id=user_id),
                 )
 
             # Очищаем состояние
@@ -11152,10 +11174,11 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
     share_message += "💡 **Больше событий в боте:** [@EventAroundBot](https://t.me/EventAroundBot)"
 
     # Отправляем новое сообщение (которое можно переслать) вместо edit_text
+    user_id = callback.from_user.id
     await callback.message.answer(
         share_message,
         parse_mode="Markdown",
-        reply_markup=main_menu_kb(),
+        reply_markup=main_menu_kb(user_id=user_id),
     )
 
     await callback.answer("Событие создано!")
@@ -11348,7 +11371,8 @@ async def echo_message(message: types.Message, state: FSMContext):
         f"echo_message: получили сообщение '{message.text}' от пользователя {message.from_user.id}, состояние: {current_state}"
     )
     logger.info("echo_message: отвечаем общим сообщением")
-    await message.answer("Используйте кнопки меню для навигации:", reply_markup=main_menu_kb())
+    user_id = message.from_user.id
+    await message.answer("Используйте кнопки меню для навигации:", reply_markup=main_menu_kb(user_id=user_id))
 
 
 @main_router.callback_query(F.data.startswith("date_filter:"))
@@ -11771,6 +11795,7 @@ async def handle_create_event(callback: types.CallbackQuery):
             pass
 
         # Отправляем сообщение с инструкциями и главным меню
+        user_id = callback.from_user.id
         await callback.message.answer(
             "➕ <b>Создание события</b>\n\n"
             "Чтобы создать событие, нажмите кнопку <b>'➕ Создать'</b> в главном меню ниже.\n\n"
@@ -11781,7 +11806,7 @@ async def handle_create_event(callback: types.CallbackQuery):
             "• Место проведения\n"
             "• Ссылку на событие",
             parse_mode="HTML",
-            reply_markup=main_menu_kb(),
+            reply_markup=main_menu_kb(user_id=user_id),
         )
         await callback.answer()
 
@@ -11814,10 +11839,11 @@ async def handle_back_to_search(callback: types.CallbackQuery):
     """Обработчик возврата к поиску"""
     try:
         # Возвращаемся к главному меню
+        user_id = callback.from_user.id
         await callback.message.edit_text(
             "🔍 <b>Поиск событий</b>\n\nОтправьте геолокацию, чтобы найти события рядом с вами.",
             parse_mode="HTML",
-            reply_markup=main_menu_kb(),
+            reply_markup=main_menu_kb(user_id=user_id),
         )
         await callback.answer()
 
@@ -13179,7 +13205,11 @@ async def handle_back_to_list(callback: types.CallbackQuery):
     if events:
         keyboard_buttons.append([InlineKeyboardButton(text="🔧 Управление событиями", callback_data="manage_events")])
 
-    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons) if keyboard_buttons else main_menu_kb()
+    keyboard = (
+        InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+        if keyboard_buttons
+        else main_menu_kb(user_id=user_id)
+    )
 
     # Пытаемся отправить с изображением (как в on_my_events)
     import os
