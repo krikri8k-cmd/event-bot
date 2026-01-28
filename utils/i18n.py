@@ -127,9 +127,9 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.enter_location": "📍 **Отправьте геолокацию или введите место:**",
         "create.location_saved": (
             "**Место сохранено** ✅\n{location_text}\n\n"
-            "📝 **Введите описание события** (что будет происходить, кому интересно):"
+            "📝 **Введите описание события**\n(что будет происходить, кому интересно):"
         ),
-        "create.enter_description": "📝 **Введите описание события** (что будет происходить, кому интересно):",
+        "create.enter_description": ("📝 **Введите описание события**\n(что будет происходить, кому интересно):"),
         "create.cancelled": "Создание отменено.",
         "create.validation.no_text": "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n{next_prompt}",
         "create.validation.invalid_date_format": (
@@ -252,9 +252,9 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.enter_location": "📍 **Send location or enter place:**",
         "create.location_saved": (
             "**Location saved** ✅\n{location_text}\n\n"
-            "📝 **Enter event description** (what will happen, who it's for):"
+            "📝 **Enter event description**\n(what will happen, who it's for):"
         ),
-        "create.enter_description": "📝 **Enter event description** (what will happen, who it's for):",
+        "create.enter_description": ("📝 **Enter event description**\n(what will happen, who it's for):"),
         "create.cancelled": "Creation cancelled.",
         "create.validation.no_text": "❌ **Please send a text message!**\n\n{next_prompt}",
         "create.validation.invalid_date_format": (
