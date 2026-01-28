@@ -4924,7 +4924,9 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
 
             # Отправляем новое сообщение с ReplyKeyboardMarkup вместо edit_text
             user_id = callback.from_user.id
-            await callback.message.answer(success_text, parse_mode="Markdown", reply_markup=main_menu_kb(user_id=user_id))
+            await callback.message.answer(
+                success_text, parse_mode="Markdown", reply_markup=main_menu_kb(user_id=user_id)
+            )
 
             # Восстанавливаем команды бота после создания события
             await setup_bot_commands()
@@ -6218,7 +6220,9 @@ async def on_location(message: types.Message, state: FSMContext):
     except Exception as e:
         logger.error(f"Ошибка при поиске событий: {e}")
         user_id = message.from_user.id
-        await message.answer("Произошла ошибка при поиске событий. Попробуйте позже.", reply_markup=main_menu_kb(user_id=user_id))
+        await message.answer(
+            "Произошла ошибка при поиске событий. Попробуйте позже.", reply_markup=main_menu_kb(user_id=user_id)
+        )
 
 
 @main_router.message(Command("create"))
@@ -6425,9 +6429,7 @@ async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_pri
         ]
     )
     keyboard = (
-        InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-        if keyboard_buttons
-        else main_menu_kb(user_id=user_id)
+        InlineKeyboardMarkup(inline_keyboard=keyboard_buttons) if keyboard_buttons else main_menu_kb(user_id=user_id)
     )
 
     # Отправляем сообщение через bot
@@ -6752,9 +6754,7 @@ async def on_my_events(message: types.Message):
     )
 
     keyboard = (
-        InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-        if keyboard_buttons
-        else main_menu_kb(user_id=user_id)
+        InlineKeyboardMarkup(inline_keyboard=keyboard_buttons) if keyboard_buttons else main_menu_kb(user_id=user_id)
     )
 
     # Пытаемся отправить с изображением (всегда, независимо от наличия событий)
@@ -13206,9 +13206,7 @@ async def handle_back_to_list(callback: types.CallbackQuery):
         keyboard_buttons.append([InlineKeyboardButton(text="🔧 Управление событиями", callback_data="manage_events")])
 
     keyboard = (
-        InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-        if keyboard_buttons
-        else main_menu_kb(user_id=user_id)
+        InlineKeyboardMarkup(inline_keyboard=keyboard_buttons) if keyboard_buttons else main_menu_kb(user_id=user_id)
     )
 
     # Пытаемся отправить с изображением (как в on_my_events)
