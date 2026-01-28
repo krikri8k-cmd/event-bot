@@ -55,7 +55,7 @@ from tasks_service import (
     get_user_active_tasks,
 )
 from utils.geo_utils import get_timezone, haversine_km
-from utils.i18n import t
+from utils.i18n import format_translation, t
 from utils.static_map import build_static_map_url, fetch_static_map
 from utils.unified_events_service import UnifiedEventsService
 from utils.user_language import (
@@ -6795,22 +6795,11 @@ async def on_my_events(message: types.Message):
 @main_router.message(F.text == "🔗 Добавить бота в чат")
 async def on_share(message: types.Message):
     """Обработчик кнопки 'Добавить бота в чат'"""
+    user_id = message.from_user.id
     bot_info = await get_bot_info_cached()
-    text = (
-        '🤝Версия "Community"- наведет структуру и порядок событий в вашем чате.\n\n'
-        "🚀 **Награда: За добавление бота в чат 150 ракет !!!** 🚀\n\n"
-        "Инструкция:\n\n"
-        "Для супергрупп !!!\n"
-        "Заходите с Web 💻\n"
-        "Сможете добавить в конкретную Тему\n\n"
-        "1) Нажми на ссылку и выбери чат\n"
-        f"t.me/{bot_info.username}?startgroup=true\n\n"
-        "2) Предоставьте права админ\n\n"
-        "3) Разрешите удалять сообщения\n\n"
-        "Бот автоматически\n"
-        "чистит свои сообщения в чате\n\n"
-        "Теперь все события в одном месте ❤"
-    )
+    user_lang = get_user_language_or_default(user_id)
+    bot_link = f"t.me/{bot_info.username}?startgroup=true"
+    text = format_translation("share.title", user_lang, bot_link=bot_link)
 
     # Пытаемся отправить фото, если оно есть (поддерживаем разные форматы)
     photo_paths = [
@@ -7416,29 +7405,30 @@ async def on_diag_search(message: types.Message):
 @main_router.message(F.text == "🎯 Интересные места")
 async def on_tasks_goal(message: types.Message, state: FSMContext):
     """Обработчик кнопки 'Интересные места' - объяснение и запрос геолокации"""
+    user_id = message.from_user.id
+    user_lang = get_user_language_or_default(user_id)
+
     # Устанавливаем состояние для заданий
     await state.set_state(TaskFlow.waiting_for_location)
 
     # Создаем клавиатуру с кнопкой геолокации (one_time_keyboard=False - кнопка не исчезнет на MacBook)
     location_keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📍 Отправить геолокацию", request_location=True)],
-            [KeyboardButton(text="🌍 Найти на карте")],
-            [KeyboardButton(text="🏠 Главное меню")],
+            [
+                KeyboardButton(
+                    text=t("tasks.button.send_location", user_lang),
+                    request_location=True,
+                )
+            ],
+            [KeyboardButton(text=t("tasks.button.find_on_map", user_lang))],
+            [KeyboardButton(text=t("tasks.button.main_menu", user_lang))],
         ],
         resize_keyboard=True,
         one_time_keyboard=False,  # Изменено на False, чтобы кнопка не исчезала на MacBook
     )
 
     quest_text = (
-        "🎯 Интересные места\nНаграда 3 🚀\n\n"
-        "Самое время развлечься и получить награды.\n\n"
-        "Нажмите кнопку '📍 Отправить геолокацию' чтобы начать!\n\n"
-        "💡 Если кнопка не работает :\n\n"
-        "• Жми '🌍 Найти на карте' \n"
-        "и вставь ссылку \n\n"
-        "• Или отправь координаты\n"
-        "пример: -8.4095, 115.1889"
+        f"{t('tasks.title', user_lang)}\n" f"{t('tasks.reward', user_lang)}\n\n" f"{t('tasks.description', user_lang)}"
     )
 
     # Пытаемся отправить фото, если оно есть (поддерживаем разные форматы)
@@ -7643,6 +7633,9 @@ async def on_my_tasks(message: types.Message):
 @main_router.message(Command("tasks"))
 async def cmd_tasks(message: types.Message, state: FSMContext):
     """Обработчик команды /tasks - Интересные места"""
+    user_id = message.from_user.id
+    user_lang = get_user_language_or_default(user_id)
+
     # Инкрементируем сессию World (с проверкой времени)
     if message.chat.type == "private":
         from utils.user_analytics import UserAnalytics
@@ -7655,15 +7648,22 @@ async def cmd_tasks(message: types.Message, state: FSMContext):
     # Создаем клавиатуру с кнопкой геолокации
     location_keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📍 Отправить геолокацию", request_location=True)],
-            [KeyboardButton(text="🌍 Найти на карте")],
-            [KeyboardButton(text="🏠 Главное меню")],
+            [
+                KeyboardButton(
+                    text=t("tasks.button.send_location", user_lang),
+                    request_location=True,
+                )
+            ],
+            [KeyboardButton(text=t("tasks.button.find_on_map", user_lang))],
+            [KeyboardButton(text=t("tasks.button.main_menu", user_lang))],
         ],
         resize_keyboard=True,
         one_time_keyboard=False,
     )
 
-    quest_text = "🎯 Интересные места\nНаграда 3 🚀\n\nСамое время развлечься и получить награды.\n\nНажмите кнопку **'📍 Отправить геолокацию'** чтобы начать!"
+    quest_text = (
+        f"{t('tasks.title', user_lang)}\n" f"{t('tasks.reward', user_lang)}\n\n" f"{t('tasks.description', user_lang)}"
+    )
 
     # Пытаемся отправить фото, если оно есть (поддерживаем разные форматы)
     photo_paths = [
