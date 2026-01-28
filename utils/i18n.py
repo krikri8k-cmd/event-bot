@@ -56,10 +56,6 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "group.button.events_list": "📋 События этого чата",
         "group.button.full_version": '🚀 Полная версия "World"',
         "group.button.hide_bot": "👁️‍🗨️ Спрятать бота",
-        # События
-        "events.nearby": "📍 События рядом",
-        "events.page": "📋 События (страница {page} из {total}):",
-        "events.not_found": "❌ События не найдены",
         # Задания
         "tasks.title": "🎯 Интересные места",
         "tasks.reward": "Награда 3 🚀",
@@ -107,6 +103,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "• Или отправь координаты\n"
             "пример: -8.4095, 115.1889"
         ),
+        # События
+        "events.nearby": "📍 События рядом",
+        "events.page": "📋 События (страница {page} из {total}):",
+        "events.not_found": "❌ События не найдены",
+        "events.not_found_with_radius": "📅 В радиусе {radius} км событий {date_text} не найдено.",
+        "events.suggestion.change_radius": "💡 Попробуй изменить радиус до {radius} км\n",
+        "events.suggestion.repeat_search": "💡 Попробуй изменить радиус и повторить поиск\n",
+        "events.suggestion.create_your_own": "➕ Или создай своё событие и собери свою компанию!",
         # Редактирование событий
         "edit.enter_title": "✍️ Введите новое название события:",
         "edit.enter_date": "📅 Введите новую дату в формате ДД.ММ.ГГГГ:",
@@ -175,7 +179,11 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         # Events
         "events.nearby": "📍 Nearby events",
         "events.page": "📋 Events (page {page} of {total}):",
-        "events.not_found": "❌ Events not found",
+        "events.not_found": "❌ No events found",
+        "events.not_found_with_radius": "📅 No events within {radius} km {date_text}.",
+        "events.suggestion.change_radius": "💡 Try changing the radius to {radius} km\n",
+        "events.suggestion.repeat_search": "💡 Try changing the radius and searching again\n",
+        "events.suggestion.create_your_own": "➕ Or create your own event and gather your company!",
         # Tasks
         "tasks.title": "🎯 Interesting places",
         "tasks.reward": "Reward 3 🚀",
