@@ -23,6 +23,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import CommunityEvent
+from utils.i18n import t
 from utils.messaging_utils import delete_all_tracked, is_chat_admin
 
 # Константы для восстановления команд
@@ -1158,25 +1159,26 @@ group_router.callback_query.filter(F.message.chat.type.in_({"group", "supergroup
 
 # === ТЕКСТЫ И КЛАВИАТУРЫ ===
 
-PANEL_TEXT = (
-    '👋 Привет! Я EventAroundBot - версия "Community".\n\n'
-    "🎯 Что умею:\n"
-    "• Создавать события участников чата\n"
-    "• Показывать события этого чата\n"
-    '• Полная версия "World"\n\n'
-    "💡 Выберите действие:"
-)
 
-
-def group_kb(chat_id: int) -> InlineKeyboardMarkup:
+def group_kb(chat_id: int, lang: str = "ru") -> InlineKeyboardMarkup:
     """Клавиатура для панели группового чата"""
     # Используем статический username для надежности
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="➕ Создать событие", url=f"https://t.me/EventAroundBot?start=group_{chat_id}")],
-            [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_list")],
-            [InlineKeyboardButton(text='🚀 Полная версия "World"', url="https://t.me/EventAroundBot")],
-            [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_execute")],
+            [
+                InlineKeyboardButton(
+                    text=t("group.button.create_event", lang),
+                    url=f"https://t.me/EventAroundBot?start=group_{chat_id}",
+                )
+            ],
+            [InlineKeyboardButton(text=t("group.button.events_list", lang), callback_data="group_list")],
+            [
+                InlineKeyboardButton(
+                    text=t("group.button.full_version", lang),
+                    url="https://t.me/EventAroundBot",
+                )
+            ],
+            [InlineKeyboardButton(text=t("group.button.hide_bot", lang), callback_data="group_hide_execute")],
         ]
     )
 
@@ -2059,12 +2061,14 @@ async def group_back_to_panel(callback: CallbackQuery, bot: Bot, session: AsyncS
     """Возврат к главной панели"""
     chat_id = callback.message.chat.id
     message_id = callback.message.message_id
+    user_id = callback.from_user.id
     logger.info(f"🔥 group_back_to_panel: возврат к панели в чате {chat_id}")
 
     await callback.answer()
 
     try:
-        await callback.message.edit_text(PANEL_TEXT, reply_markup=group_kb(chat_id), parse_mode="Markdown")
+        panel_text = t("group.panel.text", "ru")
+        await callback.message.edit_text(panel_text, reply_markup=group_kb(chat_id, "ru"), parse_mode="Markdown")
 
         # Обновляем запись в БД и перезапускаем автоудаление
         import asyncio
