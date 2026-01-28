@@ -9444,27 +9444,23 @@ async def process_title(message: types.Message, state: FSMContext):
         "goo.gl",
     ]
 
+    # Получаем язык пользователя для i18n
+    user_id = message.from_user.id
+    user_lang = get_user_language_or_default(user_id)
+
     # Проверяем на команды (символ / в начале)
     if title.startswith("/"):
         await message.answer(
-            "❌ В названии нельзя указывать команды (символ / в начале)!\n\n"
-            "📝 Пожалуйста, придумайте краткое название события:\n"
-            "• Что будет происходить\n"
-            "• Где будет проходить\n"
-            "• Для кого предназначено\n\n"
-            "**Введите название мероприятия** (например: Прогулка):"
+            t("create.validation.no_commands_in_title", user_lang),
+            parse_mode="Markdown",
         )
         return
 
     title_lower = title.lower()
     if any(indicator in title_lower for indicator in spam_indicators):
         await message.answer(
-            "❌ В названии нельзя указывать ссылки и контакты!\n\n"
-            "📝 Пожалуйста, придумайте краткое название события:\n"
-            "• Что будет происходить\n"
-            "• Где будет проходить\n"
-            "• Для кого предназначено\n\n"
-            "**Введите название мероприятия** (например: Прогулка):"
+            t("create.validation.no_links_in_title", user_lang),
+            parse_mode="Markdown",
         )
         return
 
@@ -9476,7 +9472,7 @@ async def process_title(message: types.Message, state: FSMContext):
     # Разные сообщения для личных и групповых чатов
     if chat_type == "private":
         await message.answer(
-            f"Название сохранено: *{title}* ✅\n\n📅 Теперь введите дату (например: {example_date}):",
+            format_translation("create.title_saved", user_lang, title=title, example_date=example_date),
             parse_mode="Markdown",
         )
     else:
@@ -9485,7 +9481,7 @@ async def process_title(message: types.Message, state: FSMContext):
             inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
         )
         await message.edit_text(
-            f"**Название сохранено:** *{title}* ✅\n\n📅 **Теперь введите дату** (например: {example_date}):",
+            format_translation("create.title_saved", user_lang, title=title, example_date=example_date),
             parse_mode="Markdown",
             reply_markup=keyboard,
         )
@@ -9497,13 +9493,15 @@ async def process_date(message: types.Message, state: FSMContext):
     date = message.text.strip()
     logger.info(f"process_date: получили дату '{date}' от пользователя {message.from_user.id}")
 
+    # Получаем язык пользователя для i18n
+    user_id = message.from_user.id
+    user_lang = get_user_language_or_default(user_id)
+
     # Валидация формата даты DD.MM.YYYY
 
     if not re.match(r"^\d{1,2}\.\d{1,2}\.\d{4}$", date):
         await message.answer(
-            "❌ Неверный формат даты!\n\n"
-            "Используйте формат **DD.MM.YYYY** (например: 02.10.2025, 25.12.2025)\n\n"
-            "📅 Введите дату:",
+            t("create.validation.invalid_date_format", user_lang),
             parse_mode="Markdown",
         )
         return
@@ -9525,8 +9523,9 @@ async def process_date(message: types.Message, state: FSMContext):
 
         if event_date_only < today_bali:
             await message.answer(
-                f"⚠️ Внимание! Дата *{date}* уже прошла (сегодня {today_bali.strftime('%d.%m.%Y')}).\n\n"
-                "📅 Введите дату:",
+                format_translation(
+                    "create.validation.past_date", user_lang, date=date, today=today_bali.strftime("%d.%m.%Y")
+                ),
                 parse_mode="Markdown",
             )
             return
@@ -9545,9 +9544,7 @@ async def process_date(message: types.Message, state: FSMContext):
 
     await state.update_data(date=date)
     await state.set_state(EventCreation.waiting_for_time)
-    await message.answer(
-        f"Дата сохранена: *{date}* ✅\n\n⏰ Теперь введите время (например: 17:30):", parse_mode="Markdown"
-    )
+    await message.answer(format_translation("create.date_saved", user_lang, date=date), parse_mode="Markdown")
 
 
 @main_router.message(EventCreation.waiting_for_time)
@@ -9556,13 +9553,15 @@ async def process_time(message: types.Message, state: FSMContext):
     time = message.text.strip()
     logger.info(f"process_time: получили время '{time}' от пользователя {message.from_user.id}")
 
+    # Получаем язык пользователя для i18n
+    user_id = message.from_user.id
+    user_lang = get_user_language_or_default(user_id)
+
     # Валидация формата времени HH:MM
 
     if not re.match(r"^\d{1,2}:\d{2}$", time):
         await message.answer(
-            "❌ Неверный формат времени!\n\n"
-            "Используйте формат **HH:MM** (например: 17:30, 9:00)\n\n"
-            "⏰ Введите время:",
+            t("create.validation.invalid_time_format", user_lang),
             parse_mode="Markdown",
         )
         return
@@ -9595,7 +9594,8 @@ async def process_time(message: types.Message, state: FSMContext):
     )
 
     await message.answer(
-        f"Время сохранено: *{time}* ✅\n\n📍 Как укажем место?\n\n" "Выберите один из способов:",
+        format_translation("create.time_saved", user_lang, time=time)
+        + "\n\n📍 Как укажем место?\n\nВыберите один из способов:",
         parse_mode="Markdown",
         reply_markup=keyboard,
     )
@@ -10091,10 +10091,15 @@ async def process_location(message: types.Message, state: FSMContext):
     location = message.text.strip()
     logger.info(f"process_location: получили место '{location}' от пользователя {message.from_user.id}")
 
+    # Получаем язык пользователя для i18n
+    user_id = message.from_user.id
+    user_lang = get_user_language_or_default(user_id)
+
     await state.update_data(location=location)
     await state.set_state(EventCreation.waiting_for_description)
+    location_text = f"*{location}*"
     await message.answer(
-        f"Место сохранено: *{location}* ✅\n\n📝 Теперь введите описание (например: Вечерняя прогулка у океана):",
+        format_translation("create.location_saved", user_lang, location_text=location_text),
         parse_mode="Markdown",
     )
 
@@ -10104,6 +10109,10 @@ async def process_description(message: types.Message, state: FSMContext):
     """Шаг 5: Обработка описания события"""
     description = message.text.strip()
     logger.info(f"process_description: получили описание от пользователя {message.from_user.id}")
+
+    # Получаем язык пользователя для i18n
+    user_id = message.from_user.id
+    user_lang = get_user_language_or_default(user_id)
 
     # Защита от спама - запрет ссылок и подозрительного контента в описании
     spam_indicators = [
@@ -10124,14 +10133,7 @@ async def process_description(message: types.Message, state: FSMContext):
 
     description_lower = description.lower()
     if any(indicator in description_lower for indicator in spam_indicators):
-        await message.answer(
-            "❌ В описании нельзя указывать ссылки и контакты!\n\n"
-            "📝 Пожалуйста, опишите событие своими словами:\n"
-            "• Что будет происходить\n"
-            "• Кому будет интересно\n"
-            "• Что взять с собой\n\n"
-            "Контакты можно указать после создания события."
-        )
+        await message.answer(t("create.validation.no_links_in_description", user_lang))
         return
 
     await state.update_data(description=description)
