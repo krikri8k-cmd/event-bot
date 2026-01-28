@@ -2061,7 +2061,6 @@ async def group_back_to_panel(callback: CallbackQuery, bot: Bot, session: AsyncS
     """Возврат к главной панели"""
     chat_id = callback.message.chat.id
     message_id = callback.message.message_id
-    user_id = callback.from_user.id
     logger.info(f"🔥 group_back_to_panel: возврат к панели в чате {chat_id}")
 
     await callback.answer()
