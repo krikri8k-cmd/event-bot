@@ -5712,8 +5712,10 @@ async def on_location(message: types.Message, state: FSMContext):
     logger.info(f"📍 Получена геолокация для событий: lat={lat} lon={lng} (источник=пользователь)")
 
     # Показываем индикатор загрузки
+    user_id = message.from_user.id
+    user_lang = get_user_language_or_default(user_id)
     loading_message = await message.answer(
-        "🔍 Ищу события рядом...",
+        t("search.loading", user_lang),
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔍", callback_data="loading")]]),
     )
 
@@ -5936,19 +5938,27 @@ async def on_location(message: types.Message, state: FSMContext):
                     if higher_options
                     else next((r for r in RADIUS_OPTIONS if r < current_radius), current_radius)
                 )
+
+                # Получаем язык пользователя для i18n
+                user_id = message.from_user.id
+                user_lang = get_user_language_or_default(user_id)
+
                 suggestion_line = (
-                    f"💡 Попробуй изменить радиус до {suggested_radius} км\n"
+                    format_translation("events.suggestion.change_radius", user_lang, radius=suggested_radius)
                     if suggested_radius != current_radius
-                    else "💡 Попробуй изменить радиус и повторить поиск\n"
+                    else format_translation("events.suggestion.repeat_search", user_lang)
                 )
 
                 # Формируем текст сообщения в зависимости от фильтра даты
                 date_text = "на сегодня" if date_filter_state == "today" else "на завтра"
 
+                not_found_text = format_translation(
+                    "events.not_found_with_radius", user_lang, radius=current_radius, date_text=date_text
+                )
+                create_text = format_translation("events.suggestion.create_your_own", user_lang)
+
                 await message.answer(
-                    f"📅 В радиусе {current_radius} км событий {date_text} не найдено.\n\n"
-                    f"{suggestion_line}"
-                    f"➕ Или создай своё событие и собери свою компанию!",
+                    f"{not_found_text}\n\n{suggestion_line}{create_text}",
                     reply_markup=inline_kb,
                 )
 
@@ -8316,19 +8326,25 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             if higher_options
             else next((r for r in RADIUS_OPTIONS if r < current_radius), current_radius)
         )
+        # Получаем язык пользователя для i18n
+        user_lang = get_user_language_or_default(user_id)
+
         suggestion_line = (
-            f"💡 Попробуй изменить радиус до {suggested_radius} км\n"
+            format_translation("events.suggestion.change_radius", user_lang, radius=suggested_radius)
             if suggested_radius != current_radius
-            else "💡 Попробуй изменить радиус и повторить поиск\n"
+            else format_translation("events.suggestion.repeat_search", user_lang)
         )
 
         # Формируем текст сообщения в зависимости от фильтра даты
         date_text = "на сегодня" if date_filter == "today" else "на завтра"
 
+        not_found_text = format_translation(
+            "events.not_found_with_radius", user_lang, radius=current_radius, date_text=date_text
+        )
+        create_text = format_translation("events.suggestion.create_your_own", user_lang)
+
         await callback.message.edit_text(
-            f"📅 В радиусе {current_radius} км событий {date_text} не найдено.\n\n"
-            f"{suggestion_line}"
-            f"➕ Или создай своё событие и собери свою компанию!",
+            f"{not_found_text}\n\n{suggestion_line}{create_text}",
             reply_markup=inline_kb,
         )
 
