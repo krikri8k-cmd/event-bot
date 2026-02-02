@@ -12615,7 +12615,8 @@ async def handle_edit_title_choice(callback: types.CallbackQuery, state: FSMCont
 
     logging.info("handle_edit_title_choice: состояние установлено в EventEditing.waiting_for_title")
 
-    await callback.message.answer("✍️ Введите новое название события:")
+    user_lang = get_user_language_or_default(user_id)
+    await callback.message.answer(t("edit.enter_title", user_lang))
     await callback.answer()
 
 
@@ -12650,15 +12651,22 @@ async def handle_edit_date_choice(callback: types.CallbackQuery, state: FSMConte
             tz = pytz.timezone(user_tz)
             local_time = current_event["starts_at"].astimezone(tz)
             current_date_str = local_time.strftime("%d.%m.%Y")
+            user_lang = get_user_language_or_default(callback.from_user.id)
             await callback.message.answer(
-                f"📅 Введите новую дату в формате ДД.ММ.ГГГГ (текущая дата: {current_date_str}):"
+                format_translation("edit.enter_date_with_current", user_lang, current_date=current_date_str)
             )
         else:
             example_date = get_example_date()
-            await callback.message.answer(f"📅 Введите новую дату в формате ДД.ММ.ГГГГ (например: {example_date}):")
+            user_lang = get_user_language_or_default(callback.from_user.id)
+            await callback.message.answer(
+                format_translation("edit.enter_date_with_example", user_lang, example_date=example_date)
+            )
     except Exception:
         example_date = get_example_date()
-        await callback.message.answer(f"📅 Введите новую дату в формате ДД.ММ.ГГГГ (например: {example_date}):")
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.message.answer(
+            format_translation("edit.enter_date_with_example", user_lang, example_date=example_date)
+        )
 
     await callback.answer()
 
@@ -12694,13 +12702,16 @@ async def handle_edit_time_choice(callback: types.CallbackQuery, state: FSMConte
             tz = pytz.timezone(user_tz)
             local_time = current_event["starts_at"].astimezone(tz)
             current_time_str = local_time.strftime("%H:%M")
+            user_lang = get_user_language_or_default(callback.from_user.id)
             await callback.message.answer(
-                f"⏰ Введите новое время в формате ЧЧ:ММ (текущее время: {current_time_str}):"
+                format_translation("edit.enter_time_with_current", user_lang, current_time=current_time_str)
             )
         else:
-            await callback.message.answer("⏰ Введите новое время в формате ЧЧ:ММ (например: 18:30):")
+            user_lang = get_user_language_or_default(callback.from_user.id)
+            await callback.message.answer(t("edit.enter_time_with_example", user_lang))
     except Exception:
-        await callback.message.answer("⏰ Введите новое время в формате ЧЧ:ММ (например: 18:30):")
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.message.answer(t("edit.enter_time_with_example", user_lang))
 
     await callback.answer()
 
@@ -12780,7 +12791,8 @@ async def handle_edit_location_coords_choice(callback: types.CallbackQuery, stat
 async def handle_edit_description_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор редактирования описания"""
     await state.set_state(EventEditing.waiting_for_description)
-    await callback.message.answer("📝 Введите новое описание:")
+    user_lang = get_user_language_or_default(callback.from_user.id)
+    await callback.message.answer(t("edit.enter_description", user_lang))
     await callback.answer()
 
 
@@ -12833,20 +12845,23 @@ async def handle_title_input(message: types.Message, state: FSMContext):
         f"handle_title_input: получен ввод '{message.text}' для события {event_id} от пользователя {message.from_user.id}"
     )
 
+    user_id = message.from_user.id
+    user_lang = get_user_language_or_default(user_id)
+
     if event_id and message.text:
         logging.info(f"handle_title_input: вызываем update_event_field для события {event_id}")
-        success = update_event_field(event_id, "title", message.text.strip(), message.from_user.id)
+        success = update_event_field(event_id, "title", message.text.strip(), user_id)
         logging.info(f"handle_title_input: результат update_event_field: {success}")
 
         if success:
-            await message.answer("✅ Название обновлено!")
+            await message.answer(t("edit.title_updated", user_lang))
             keyboard = edit_event_keyboard(event_id)
-            await message.answer("Выберите, что еще хотите изменить:", reply_markup=keyboard)
+            await message.answer(t("edit.choose_what_to_change", user_lang), reply_markup=keyboard)
             await state.set_state(EventEditing.choosing_field)
         else:
-            await message.answer("❌ Ошибка при обновлении названия")
+            await message.answer(t("edit.title_update_error", user_lang))
     else:
-        await message.answer("❌ Введите корректное название")
+        await message.answer(t("edit.invalid_title", user_lang))
 
 
 @main_router.message(EventEditing.waiting_for_date)
@@ -12855,17 +12870,19 @@ async def handle_date_input(message: types.Message, state: FSMContext):
     data = await state.get_data()
     event_id = data.get("event_id")
 
+    user_lang = get_user_language_or_default(message.from_user.id)
+
     if event_id and message.text:
         success = update_event_field(event_id, "starts_at", message.text.strip(), message.from_user.id)
         if success:
-            await message.answer("✅ Дата обновлена!")
+            await message.answer(t("edit.date_updated", user_lang))
             keyboard = edit_event_keyboard(event_id)
-            await message.answer("Выберите, что еще хотите изменить:", reply_markup=keyboard)
+            await message.answer(t("edit.choose_what_to_change", user_lang), reply_markup=keyboard)
             await state.set_state(EventEditing.choosing_field)
         else:
-            await message.answer("❌ Ошибка при обновлении даты. Проверьте формат (ДД.ММ.ГГГГ)")
+            await message.answer(t("edit.date_format_error", user_lang))
     else:
-        await message.answer("❌ Введите корректную дату")
+        await message.answer(t("edit.invalid_date", user_lang))
 
 
 @main_router.message(EventEditing.waiting_for_time)
@@ -12912,17 +12929,20 @@ async def handle_time_input(message: types.Message, state: FSMContext):
                 new_datetime = f"{today} {message.text.strip()}"
                 success = update_event_field(event_id, "starts_at", new_datetime, message.from_user.id)
 
+            user_lang = get_user_language_or_default(message.from_user.id)
             if success:
-                await message.answer("✅ Время обновлено!")
+                await message.answer(t("edit.time_updated", user_lang))
                 keyboard = edit_event_keyboard(event_id)
-                await message.answer("Выберите, что еще хотите изменить:", reply_markup=keyboard)
+                await message.answer(t("edit.choose_what_to_change", user_lang), reply_markup=keyboard)
                 await state.set_state(EventEditing.choosing_field)
             else:
-                await message.answer("❌ Ошибка при обновлении времени. Проверьте формат (ЧЧ:ММ)")
+                await message.answer(t("edit.time_format_error", user_lang))
         except Exception:
-            await message.answer("❌ Ошибка при обновлении времени. Проверьте формат (ЧЧ:ММ)")
+            user_lang = get_user_language_or_default(message.from_user.id)
+            await message.answer(t("edit.time_format_error", user_lang))
     else:
-        await message.answer("❌ Введите корректное время")
+        user_lang = get_user_language_or_default(message.from_user.id)
+        await message.answer(t("edit.invalid_time", user_lang))
 
 
 @main_router.message(EventEditing.waiting_for_location)
@@ -12931,8 +12951,9 @@ async def handle_location_input(message: types.Message, state: FSMContext):
     data = await state.get_data()
     event_id = data.get("event_id")
 
+    user_lang = get_user_language_or_default(message.from_user.id)
     if not event_id or not message.text:
-        await message.answer("❌ Введите корректную локацию")
+        await message.answer(t("edit.invalid_location", user_lang))
         return
 
     location_input = message.text.strip()
@@ -12958,10 +12979,13 @@ async def handle_location_input(message: types.Message, state: FSMContext):
                     update_event_field(event_id, "lng", location_data.get("lng"), message.from_user.id)
 
                 await message.answer(
-                    f"✅ Локация обновлена: *{location_data.get('name', 'Место на карте')}*", parse_mode="Markdown"
+                    format_translation(
+                        "edit.location_updated", user_lang, location=location_data.get("name", "Место на карте")
+                    ),
+                    parse_mode="Markdown",
                 )
             else:
-                await message.answer("❌ Ошибка при обновлении локации")
+                await message.answer(t("edit.location_update_error", user_lang))
         else:
             await message.answer(
                 "❌ Не удалось распознать ссылку Google Maps.\n\n"
@@ -12986,9 +13010,12 @@ async def handle_location_input(message: types.Message, state: FSMContext):
                     update_event_field(event_id, "lng", lng, message.from_user.id)
                     update_event_field(event_id, "location_url", location_input, message.from_user.id)
 
-                    await message.answer(f"✅ Локация обновлена: *{lat:.6f}, {lng:.6f}*", parse_mode="Markdown")
+                    await message.answer(
+                        format_translation("edit.location_updated", user_lang, location=f"{lat:.6f}, {lng:.6f}"),
+                        parse_mode="Markdown",
+                    )
                 else:
-                    await message.answer("❌ Ошибка при обновлении локации")
+                    await message.answer(t("edit.location_update_error", user_lang))
             else:
                 await message.answer("❌ Координаты вне допустимого диапазона")
         except ValueError:
@@ -12998,13 +13025,15 @@ async def handle_location_input(message: types.Message, state: FSMContext):
         # Обычный текст - обновляем только название
         success = update_event_field(event_id, "location_name", location_input, message.from_user.id)
         if success:
-            await message.answer(f"✅ Локация обновлена: *{location_input}*", parse_mode="Markdown")
+            await message.answer(
+                format_translation("edit.location_updated", user_lang, location=location_input), parse_mode="Markdown"
+            )
         else:
-            await message.answer("❌ Ошибка при обновлении локации")
+            await message.answer(t("edit.location_update_error", user_lang))
 
     # Возвращаемся к меню редактирования
     keyboard = edit_event_keyboard(event_id)
-    await message.answer("Выберите, что еще хотите изменить:", reply_markup=keyboard)
+    await message.answer(t("edit.choose_what_to_change", user_lang), reply_markup=keyboard)
     await state.set_state(EventEditing.choosing_field)
 
 
@@ -13045,17 +13074,19 @@ async def handle_description_input(message: types.Message, state: FSMContext):
     data = await state.get_data()
     event_id = data.get("event_id")
 
+    user_lang = get_user_language_or_default(message.from_user.id)
+
     if event_id and description:
         success = update_event_field(event_id, "description", description, message.from_user.id)
         if success:
-            await message.answer("✅ Описание обновлено!")
+            await message.answer(t("edit.description_updated", user_lang))
             keyboard = edit_event_keyboard(event_id)
-            await message.answer("Выберите, что еще хотите изменить:", reply_markup=keyboard)
+            await message.answer(t("edit.choose_what_to_change", user_lang), reply_markup=keyboard)
             await state.set_state(EventEditing.choosing_field)
         else:
-            await message.answer("❌ Ошибка при обновлении описания")
+            await message.answer(t("edit.description_update_error", user_lang))
     else:
-        await message.answer("❌ Введите корректное описание")
+        await message.answer(t("edit.invalid_description", user_lang))
 
 
 @main_router.callback_query(F.data.startswith("next_event_"))
