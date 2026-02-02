@@ -663,7 +663,9 @@ async def send_compact_events_list_prepared(
     except Exception as e:
         logger.error(f"❌ Ошибка отправки страницы {page + 1}: {e}")
         # Fallback - отправляем без форматирования
-        await message.answer(f"📋 События (страница {page + 1} из {total_pages}):\n\n{text}", reply_markup=keyboard)
+        user_lang = get_user_language_or_default(message.from_user.id)
+        header = format_translation("events.page", user_lang, page=page + 1, total=total_pages)
+        await message.answer(f"{header}\n\n{text}", reply_markup=keyboard)
 
 
 async def send_compact_events_list(
@@ -744,7 +746,9 @@ async def send_compact_events_list(
     except Exception as e:
         logger.error(f"❌ Ошибка отправки страницы {page + 1}: {e}")
         # Fallback - отправляем без форматирования
-        await message.answer(f"📋 События (страница {page + 1} из {total_pages}):\n\n{text}", reply_markup=inline_kb)
+        user_lang = get_user_language_or_default(message.from_user.id)
+        header = format_translation("events.page", user_lang, page=page + 1, total=total_pages)
+        await message.answer(f"{header}\n\n{text}", reply_markup=inline_kb)
 
     # Главное меню будет отправлено в последнем сообщении со списком событий
 
@@ -2546,16 +2550,16 @@ class EventEditing(StatesGroup):
     waiting_for_description = State()
 
 
-def edit_event_keyboard(event_id: int) -> InlineKeyboardMarkup:
+def edit_event_keyboard(event_id: int, lang: str = "ru") -> InlineKeyboardMarkup:
     """Создаёт клавиатуру для редактирования события"""
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="📌 Название", callback_data=f"edit_title_{event_id}")],
-            [InlineKeyboardButton(text="📅 Дата", callback_data=f"edit_date_{event_id}")],
-            [InlineKeyboardButton(text="⏰ Время", callback_data=f"edit_time_{event_id}")],
-            [InlineKeyboardButton(text="📍 Локация", callback_data=f"edit_location_{event_id}")],
-            [InlineKeyboardButton(text="📝 Описание", callback_data=f"edit_description_{event_id}")],
-            [InlineKeyboardButton(text="✅ Завершить", callback_data=f"edit_finish_{event_id}")],
+            [InlineKeyboardButton(text=t("edit.button.title", lang), callback_data=f"edit_title_{event_id}")],
+            [InlineKeyboardButton(text=t("edit.button.date", lang), callback_data=f"edit_date_{event_id}")],
+            [InlineKeyboardButton(text=t("edit.button.time", lang), callback_data=f"edit_time_{event_id}")],
+            [InlineKeyboardButton(text=t("edit.button.location", lang), callback_data=f"edit_location_{event_id}")],
+            [InlineKeyboardButton(text=t("edit.button.description", lang), callback_data=f"edit_description_{event_id}")],
+            [InlineKeyboardButton(text=t("edit.button.finish", lang), callback_data=f"edit_finish_{event_id}")],
         ]
     )
 
@@ -2890,28 +2894,30 @@ def language_selection_kb(detected_lang: str | None = None) -> InlineKeyboardMar
     return InlineKeyboardMarkup(inline_keyboard=[buttons])
 
 
+def _build_public_commands(lang: str) -> list:
+    """Собирает список публичных команд для указанного языка через i18n."""
+    return [
+        types.BotCommand(command="start", description=t("command.start", lang)),
+        types.BotCommand(command="nearby", description=t("command.nearby", lang)),
+        types.BotCommand(command="create", description=t("command.create", lang)),
+        types.BotCommand(command="myevents", description=t("command.myevents", lang)),
+        types.BotCommand(command="tasks", description=t("command.tasks", lang)),
+        types.BotCommand(command="mytasks", description=t("command.mytasks", lang)),
+        types.BotCommand(command="share", description=t("command.share", lang)),
+        types.BotCommand(command="help", description=t("command.help", lang)),
+        types.BotCommand(command="language", description=t("command.language", lang)),
+    ]
+
+
+def _build_group_commands(lang: str) -> list:
+    """Собирает список команд для групп для указанного языка через i18n."""
+    return [types.BotCommand(command="start", description=t("command.group.start", lang))]
+
+
 async def setup_bot_commands():
     """ЭТАЛОН: Устанавливает команды бота для всех языков и скоупов"""
     try:
         from aiogram.types import BotCommandScopeAllGroupChats, BotCommandScopeAllPrivateChats, BotCommandScopeDefault
-
-        # Команды для групповых чатов - только /start в режиме Community
-        group_commands = [
-            types.BotCommand(command="start", description="🎉 События чата"),
-        ]
-
-        # Публичные команды для личных чатов (полный набор)
-        public_commands = [
-            types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
-            types.BotCommand(command="nearby", description="📍 События рядом - найти события поблизости"),
-            types.BotCommand(command="create", description="➕ Создать новое событие"),
-            types.BotCommand(command="myevents", description="📋 Мои события - просмотр созданных событий"),
-            types.BotCommand(command="tasks", description="🎯 Интересные места - найти задания поблизости"),
-            types.BotCommand(command="mytasks", description="🏆 Мои квесты - просмотр выполненных заданий"),
-            types.BotCommand(command="share", description="🔗 Добавить бота в чат"),
-            types.BotCommand(command="help", description="💬 Написать отзыв Разработчику"),
-            types.BotCommand(command="language", description="🌐 Выбрать язык / Choose language"),
-        ]
 
         # Сначала очищаем все команды, чтобы избежать конфликтов
         await bot.delete_my_commands(scope=BotCommandScopeDefault())
@@ -2929,18 +2935,20 @@ async def setup_bot_commands():
 
         await asyncio.sleep(1)
 
-        # Устанавливаем команды для всех скоупов и языков
-        scopes = [
-            (BotCommandScopeDefault(), public_commands),
-            (BotCommandScopeAllPrivateChats(), public_commands),
-            (BotCommandScopeAllGroupChats(), group_commands),
+        # Устанавливаем команды для всех скоупов и языков (lang=None — fallback для ru)
+        scope_builders = [
+            (BotCommandScopeDefault(), _build_public_commands),
+            (BotCommandScopeAllPrivateChats(), _build_public_commands),
+            (BotCommandScopeAllGroupChats(), _build_group_commands),
         ]
 
-        languages = [None, "ru", "en"]  # None = default, ru = русский, en = английский
+        languages = [None, "ru", "en"]  # None = default (ru), ru, en
 
-        for scope, commands in scopes:
+        for scope, build_commands in scope_builders:
             for lang in languages:
                 try:
+                    cmd_lang = "ru" if lang is None else lang
+                    commands = build_commands(cmd_lang)
                     await bot.set_my_commands(commands, scope=scope, language_code=lang)
                     logger.info(f"✅ Команды установлены: {scope.__class__.__name__} {lang or 'default'}")
                 except Exception as e:
@@ -2968,8 +2976,6 @@ async def ensure_group_commands(bot):
 
         from aiogram.types import BotCommandScopeAllGroupChats
 
-        # Команды для групп - только /start в режиме Community
-        GROUP_CMDS = [types.BotCommand(command="start", description="🎉 События чата")]
         LANGS = (None, "ru", "en")  # default + ru + en
 
         # Проверяем группы - есть ли /start
@@ -2986,7 +2992,8 @@ async def ensure_group_commands(bot):
             logger.warning("🔄 Восстанавливаем команды для групп...")
             for lang in LANGS:
                 with suppress(Exception):
-                    await bot.set_my_commands(GROUP_CMDS, scope=BotCommandScopeAllGroupChats(), language_code=lang)
+                    group_cmds = _build_group_commands("ru" if lang is None else lang)
+                    await bot.set_my_commands(group_cmds, scope=BotCommandScopeAllGroupChats(), language_code=lang)
             logger.info("✅ Команды для групп восстановлены")
         else:
             logger.info("✅ Команды для групп в порядке")
@@ -3000,27 +3007,14 @@ async def ensure_commands(bot):
     try:
         from contextlib import suppress
 
-        # Команды для групп - только /start в режиме Community
-        GROUP_CMDS = [types.BotCommand(command="start", description="🎉 События чата")]
-
-        # Команды для личных чатов - полный набор
-        PRIVATE_CMDS = [
-            types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
-            types.BotCommand(command="nearby", description="📍 События рядом - найти события поблизости"),
-            types.BotCommand(command="create", description="➕ Создать новое событие"),
-            types.BotCommand(command="myevents", description="📋 Мои события - просмотр созданных событий"),
-            types.BotCommand(command="tasks", description="🎯 Интересные места - найти задания поблизости"),
-            types.BotCommand(command="mytasks", description="🏆 Мои квесты - просмотр выполненных заданий"),
-            types.BotCommand(command="share", description="🔗 Добавить бота в чат"),
-            types.BotCommand(command="help", description="💬 Написать отзыв Разработчику"),
-        ]
-
         LANGS = [None, "ru", "en"]  # расширяй при необходимости
 
-        async def _set(scope, cmds):
-            """Устанавливает команды для всех языков"""
+        async def _set(scope, build_fn):
+            """Устанавливает команды для всех языков через build_fn(lang)"""
             for lang in LANGS:
                 with suppress(Exception):
+                    cmd_lang = "ru" if lang is None else lang
+                    cmds = build_fn(cmd_lang)
                     await bot.set_my_commands(cmds, scope=scope, language_code=lang)
 
         # Проверяем группы - есть ли /start
@@ -3035,9 +3029,9 @@ async def ensure_commands(bot):
 
         if not ok:
             logger.warning("🔄 Восстанавливаем команды...")
-            await _set(types.BotCommandScopeDefault(), PRIVATE_CMDS)
-            await _set(types.BotCommandScopeAllPrivateChats(), PRIVATE_CMDS)
-            await _set(types.BotCommandScopeAllGroupChats(), GROUP_CMDS)
+            await _set(types.BotCommandScopeDefault(), _build_public_commands)
+            await _set(types.BotCommandScopeAllPrivateChats(), _build_public_commands)
+            await _set(types.BotCommandScopeAllGroupChats(), _build_group_commands)
             logger.info("✅ Команды восстановлены")
         else:
             logger.info("✅ Команды в порядке")
@@ -12584,8 +12578,10 @@ async def handle_edit_event(callback: types.CallbackQuery, state: FSMContext):
     events = get_user_events(user_id)
     event_exists = any(event["id"] == event_id for event in events)
 
+    user_lang = get_user_language_or_default(user_id)
+
     if not event_exists:
-        await callback.answer("❌ Событие не найдено или не принадлежит вам")
+        await callback.answer(t("edit.event_not_found", user_lang))
         return
 
     # Сохраняем ID события в состоянии
@@ -12593,9 +12589,9 @@ async def handle_edit_event(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state(EventEditing.choosing_field)
 
     # Показываем меню редактирования
-    keyboard = edit_event_keyboard(event_id)
+    keyboard = edit_event_keyboard(event_id, user_lang)
     await callback.message.answer(
-        "✏️ **Редактирование события**\n\nВыберите, что хотите изменить:", parse_mode="Markdown", reply_markup=keyboard
+        t("edit.header", user_lang), parse_mode="Markdown", reply_markup=keyboard
     )
     await callback.answer()
 
@@ -12855,7 +12851,7 @@ async def handle_title_input(message: types.Message, state: FSMContext):
 
         if success:
             await message.answer(t("edit.title_updated", user_lang))
-            keyboard = edit_event_keyboard(event_id)
+            keyboard = edit_event_keyboard(event_id, user_lang)
             await message.answer(t("edit.choose_what_to_change", user_lang), reply_markup=keyboard)
             await state.set_state(EventEditing.choosing_field)
         else:
@@ -12876,7 +12872,7 @@ async def handle_date_input(message: types.Message, state: FSMContext):
         success = update_event_field(event_id, "starts_at", message.text.strip(), message.from_user.id)
         if success:
             await message.answer(t("edit.date_updated", user_lang))
-            keyboard = edit_event_keyboard(event_id)
+            keyboard = edit_event_keyboard(event_id, user_lang)
             await message.answer(t("edit.choose_what_to_change", user_lang), reply_markup=keyboard)
             await state.set_state(EventEditing.choosing_field)
         else:
@@ -12932,7 +12928,7 @@ async def handle_time_input(message: types.Message, state: FSMContext):
             user_lang = get_user_language_or_default(message.from_user.id)
             if success:
                 await message.answer(t("edit.time_updated", user_lang))
-                keyboard = edit_event_keyboard(event_id)
+                keyboard = edit_event_keyboard(event_id, user_lang)
                 await message.answer(t("edit.choose_what_to_change", user_lang), reply_markup=keyboard)
                 await state.set_state(EventEditing.choosing_field)
             else:
@@ -13032,7 +13028,7 @@ async def handle_location_input(message: types.Message, state: FSMContext):
             await message.answer(t("edit.location_update_error", user_lang))
 
     # Возвращаемся к меню редактирования
-    keyboard = edit_event_keyboard(event_id)
+    keyboard = edit_event_keyboard(event_id, user_lang)
     await message.answer(t("edit.choose_what_to_change", user_lang), reply_markup=keyboard)
     await state.set_state(EventEditing.choosing_field)
 
@@ -13080,7 +13076,7 @@ async def handle_description_input(message: types.Message, state: FSMContext):
         success = update_event_field(event_id, "description", description, message.from_user.id)
         if success:
             await message.answer(t("edit.description_updated", user_lang))
-            keyboard = edit_event_keyboard(event_id)
+            keyboard = edit_event_keyboard(event_id, user_lang)
             await message.answer(t("edit.choose_what_to_change", user_lang), reply_markup=keyboard)
             await state.set_state(EventEditing.choosing_field)
         else:
