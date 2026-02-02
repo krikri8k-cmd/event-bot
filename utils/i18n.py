@@ -160,6 +160,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "events.suggestion.change_radius": "💡 Попробуй изменить радиус до {radius} км\n",
         "events.suggestion.repeat_search": "💡 Попробуй изменить радиус и повторить поиск\n",
         "events.suggestion.create_your_own": "➕ Или создай своё событие и собери свою компанию!",
+        # Заголовок списка событий
+        "events.header.found_nearby": "🗺 Найдено рядом: <b>{count}</b>",
+        "events.header.found_in_radius": "🗺 В радиусе {radius} км найдено: <b>{count}</b>",
+        "events.header.from_users": "• 👥 От пользователей: {count}",
+        "events.header.from_groups": "• 💥 От групп: {count}",
+        "events.header.from_sources": "• 🌐 Из источников: {count}",
+        "events.header.ai_parsed": "• 🤖 AI-парсинг: {count}",
+        "events.summary.found": "🗺 Найдено {count} событий рядом!",
         # Создание событий
         "create.start": (
             '➕ **Создаём событие "World"**\n\n'
@@ -390,6 +398,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "events.suggestion.change_radius": "💡 Try changing the radius to {radius} km\n",
         "events.suggestion.repeat_search": "💡 Try changing the radius and searching again\n",
         "events.suggestion.create_your_own": "➕ Or create your own event and gather your company!",
+        # Events list header
+        "events.header.found_nearby": "🗺 Found nearby: <b>{count}</b>",
+        "events.header.found_in_radius": "🗺 Found within {radius} km: <b>{count}</b>",
+        "events.header.from_users": "• 👥 From users: {count}",
+        "events.header.from_groups": "• 💥 From groups: {count}",
+        "events.header.from_sources": "• 🌐 From sources: {count}",
+        "events.header.ai_parsed": "• 🤖 AI parsed: {count}",
+        "events.summary.found": "🗺 Found {count} events nearby!",
         # Create events
         "create.start": (
             '➕ **Creating "World" event**\n\n'

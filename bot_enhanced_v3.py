@@ -640,7 +640,8 @@ async def send_compact_events_list_prepared(
     }
 
     # Рендерим страницу
-    header_html = render_header(counts, radius_km=int(radius))
+    user_lang = get_user_language_or_default(message.from_user.id)
+    header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
     # Обогащаем события reverse geocoding для названий локаций
     prepared_events = await enrich_events_with_reverse_geocoding(prepared_events)
 
@@ -732,7 +733,8 @@ async def send_compact_events_list(
     prepared = await enrich_events_with_reverse_geocoding(prepared)
 
     # 6) Рендерим страницу
-    header_html = render_header(counts, radius_km=int(radius))
+    user_lang = get_user_language_or_default(message.from_user.id)
+    header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
     page_html, total_pages = render_page(prepared, page=page + 1, page_size=8, user_id=message.from_user.id)
     text = header_html + "\n\n" + page_html
 
@@ -792,7 +794,8 @@ async def edit_events_list_message(
     page_events = prepared[start_idx:end_idx]
 
     # Формируем заголовок
-    header_html = render_header(counts, radius_km=int(radius))
+    user_lang = get_user_language_or_default(message.from_user.id)
+    header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
 
     # Формируем HTML карточки событий
     event_lines = []
@@ -1624,19 +1627,19 @@ def make_counts(groups):
     return counts
 
 
-def render_header(counts, radius_km: int = None) -> str:
+def render_header(counts, radius_km: int = None, lang: str = "ru") -> str:
     """Рендерит заголовок с счетчиками (только ненулевые)"""
     if radius_km:
-        lines = [f"🗺 В радиусе {radius_km} км найдено: <b>{counts['all']}</b>"]
+        lines = [format_translation("events.header.found_in_radius", lang, radius=radius_km, count=counts["all"])]
     else:
-        lines = [f"🗺 Найдено рядом: <b>{counts['all']}</b>"]
+        lines = [format_translation("events.header.found_nearby", lang, count=counts["all"])]
 
     if counts["user"]:
-        lines.append(f"• 👥 От пользователей: {counts['user']}")
+        lines.append(format_translation("events.header.from_users", lang, count=counts["user"]))
     if counts.get("community", 0):
-        lines.append(f"• 💥 От групп: {counts['community']}")
+        lines.append(format_translation("events.header.from_groups", lang, count=counts["community"]))
     if counts["sources"]:
-        lines.append(f"• 🌐 Из источников: {counts['sources']}")
+        lines.append(format_translation("events.header.from_sources", lang, count=counts["sources"]))
     return "\n".join(lines)
 
 
@@ -2108,7 +2111,7 @@ async def perform_nearby_search(
                 "diag": diag,
             }
 
-            header_html = render_header(counts, radius_km=int(radius))
+            header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
             prepared = await enrich_events_with_reverse_geocoding(prepared)
             # Обновлено: теперь показываем 8 событий (карта отдельно)
             page_html, _ = render_page(prepared, page=1, page_size=8, user_id=user_id)
@@ -6026,7 +6029,8 @@ async def on_location(message: types.Message, state: FSMContext):
             )
 
             # 4) Формируем заголовок с правильным отчётом
-            header_html = render_header(counts, radius_km=int(radius))
+            user_lang = get_user_language_or_default(message.from_user.id)
+            header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
 
             # 5) Обогащаем события reverse geocoding для названий локаций
             prepared = await enrich_events_with_reverse_geocoding(prepared)
@@ -6112,7 +6116,8 @@ async def on_location(message: types.Message, state: FSMContext):
                 counts = make_counts(groups)
 
                 # 3) Создаем заголовок с событиями
-                header_html = render_header(counts, radius_km=int(radius))
+                user_lang = get_user_language_or_default(message.from_user.id)
+                header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
 
                 # 4) Обогащаем события reverse geocoding для названий локаций
                 prepared = await enrich_events_with_reverse_geocoding(prepared)
@@ -8427,7 +8432,8 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     prepared = await enrich_events_with_reverse_geocoding(prepared)
 
     # Рендерим страницу
-    header_html = render_header(counts, radius_km=new_radius)
+    user_lang = get_user_language_or_default(user_id)
+    header_html = render_header(counts, radius_km=new_radius, lang=user_lang)
     events_text, total_pages = render_page(prepared, 1, page_size=8, user_id=user_id)
 
     text = header_html + "\n\n" + events_text
@@ -11580,9 +11586,10 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
         MAX_CAPTION_LENGTH = 1024
 
         # Для первой страницы с картой динамически определяем, сколько событий поместится
+        user_lang = get_user_language_or_default(callback.from_user.id)
         if is_first_page and is_photo_message:
             # Формируем заголовок
-            header_html = render_header(counts, radius_km=int(radius))
+            header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
             header_length = len(header_html.encode("utf-8"))
 
             # Пробуем добавить события по одному, пока не превысим лимит
@@ -11632,7 +11639,7 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
         if is_first_page and is_photo_message:
             new_text = header_html + "\n\n" + page_html
         else:
-            header_html = render_header(counts, radius_km=int(radius))
+            header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
             new_text = header_html + "\n\n" + page_html
 
         # Создаем клавиатуру с правильным фильтром даты
@@ -11763,7 +11770,8 @@ async def handle_pagination(callback: types.CallbackQuery):
         combined_keyboard = kb_pager(page, total_pages, current_radius, date_filter=date_filter)
 
         # Обновляем сообщение (проверяем тип сообщения)
-        new_text = render_header(counts, radius_km=current_radius) + "\n\n" + page_html
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        new_text = render_header(counts, radius_km=current_radius, lang=user_lang) + "\n\n" + page_html
 
         try:
             # ВАЖНО: Карта показывается только на первой странице
