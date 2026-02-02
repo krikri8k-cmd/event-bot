@@ -3421,6 +3421,7 @@ async def start_group_event_editing(message: types.Message, event_id: int, chat_
 
     # Загружаем событие из БД (используем синхронную сессию для простоты)
     user_id = message.from_user.id
+    user_lang = get_user_language_or_default(user_id)
     try:
         with get_session() as session:
             event = (
@@ -3430,29 +3431,29 @@ async def start_group_event_editing(message: types.Message, event_id: int, chat_
             )
 
             if not event:
-                await message.answer("❌ Событие не найдено")
+                await message.answer(t("edit.group.event_not_found", user_lang))
                 return
 
             # Проверяем права доступа
             can_edit = event.organizer_id == user_id
             if not can_edit:
-                await message.answer("❌ У вас нет прав для редактирования этого события")
+                await message.answer(t("edit.group.no_permission", user_lang))
                 return
 
             # Форматируем дату и время для отображения
-            date_str = event.starts_at.strftime("%d.%m.%Y") if event.starts_at else "Не указано"
-            time_str = event.starts_at.strftime("%H:%M") if event.starts_at else "Не указано"
+            not_spec = t("common.not_specified", user_lang)
+            date_str = event.starts_at.strftime("%d.%m.%Y") if event.starts_at else not_spec
+            time_str = event.starts_at.strftime("%H:%M") if event.starts_at else not_spec
 
             # Показываем информацию о событии и меню редактирования
-            event_info = (
-                f"✏️ **Редактирование события**\n\n"
-                f"**Текущие данные:**\n"
-                f"📌 Название: {event.title}\n"
-                f"📅 Дата: {date_str}\n"
-                f"⏰ Время: {time_str}\n"
-                f"📍 Локация: {event.location_name or 'Не указано'}\n"
-                f"📝 Описание: {event.description or 'Не указано'}\n\n"
-                f"**Выберите, что хотите изменить:**"
+            event_info = format_translation(
+                "edit.group.header",
+                user_lang,
+                title=event.title or not_spec,
+                date=date_str,
+                time=time_str,
+                location=event.location_name or not_spec,
+                description=event.description or not_spec,
             )
 
             # Создаем клавиатуру для редактирования
@@ -3460,16 +3461,42 @@ async def start_group_event_editing(message: types.Message, event_id: int, chat_
 
             keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[
-                    [InlineKeyboardButton(text="📌 Название", callback_data=f"pm_edit_title_{event_id}_{chat_id}")],
-                    [InlineKeyboardButton(text="📅 Дата", callback_data=f"pm_edit_date_{event_id}_{chat_id}")],
-                    [InlineKeyboardButton(text="⏰ Время", callback_data=f"pm_edit_time_{event_id}_{chat_id}")],
-                    [InlineKeyboardButton(text="📍 Локация", callback_data=f"pm_edit_location_{event_id}_{chat_id}")],
                     [
                         InlineKeyboardButton(
-                            text="📝 Описание", callback_data=f"pm_edit_description_{event_id}_{chat_id}"
+                            text=t("edit.button.title", user_lang),
+                            callback_data=f"pm_edit_title_{event_id}_{chat_id}",
                         )
                     ],
-                    [InlineKeyboardButton(text="✅ Завершить", callback_data=f"pm_edit_finish_{event_id}_{chat_id}")],
+                    [
+                        InlineKeyboardButton(
+                            text=t("edit.button.date", user_lang),
+                            callback_data=f"pm_edit_date_{event_id}_{chat_id}",
+                        )
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            text=t("edit.button.time", user_lang),
+                            callback_data=f"pm_edit_time_{event_id}_{chat_id}",
+                        )
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            text=t("edit.button.location", user_lang),
+                            callback_data=f"pm_edit_location_{event_id}_{chat_id}",
+                        )
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            text=t("edit.button.description", user_lang),
+                            callback_data=f"pm_edit_description_{event_id}_{chat_id}",
+                        )
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            text=t("edit.button.finish", user_lang),
+                            callback_data=f"pm_edit_finish_{event_id}_{chat_id}",
+                        )
+                    ],
                 ]
             )
 
@@ -3578,6 +3605,7 @@ async def update_community_event_field_pm(event_id: int, field: str, value: str,
 @main_router.callback_query(F.data.startswith("pm_edit_title_"))
 async def pm_edit_title_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор редактирования названия Community события"""
+    user_lang = get_user_language_or_default(callback.from_user.id)
     try:
         # Формат: pm_edit_title_{event_id}_{chat_id}
         parts = callback.data.replace("pm_edit_title_", "").split("_")
@@ -3586,18 +3614,19 @@ async def pm_edit_title_choice(callback: types.CallbackQuery, state: FSMContext)
             chat_id = int(parts[1])
             await state.update_data(event_id=event_id, chat_id=chat_id)
             await state.set_state(CommunityEventEditing.waiting_for_title)
-            await callback.message.answer("✍️ Введите новое название события:")
+            await callback.message.answer(t("edit.enter_title", user_lang))
             await callback.answer()
         else:
-            await callback.answer("❌ Неверный формат", show_alert=True)
+            await callback.answer(t("edit.group.invalid_format", user_lang), show_alert=True)
     except (ValueError, IndexError) as e:
         logger.error(f"Ошибка парсинга pm_edit_title_: {e}")
-        await callback.answer("❌ Ошибка", show_alert=True)
+        await callback.answer(t("edit.group.error", user_lang), show_alert=True)
 
 
 @main_router.callback_query(F.data.startswith("pm_edit_date_"))
 async def pm_edit_date_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор редактирования даты Community события"""
+    user_lang = get_user_language_or_default(callback.from_user.id)
     try:
         parts = callback.data.replace("pm_edit_date_", "").split("_")
         if len(parts) >= 2:
@@ -3605,18 +3634,19 @@ async def pm_edit_date_choice(callback: types.CallbackQuery, state: FSMContext):
             chat_id = int(parts[1])
             await state.update_data(event_id=event_id, chat_id=chat_id)
             await state.set_state(CommunityEventEditing.waiting_for_date)
-            await callback.message.answer("📅 Введите новую дату в формате ДД.ММ.ГГГГ:")
+            await callback.message.answer(t("edit.enter_date", user_lang))
             await callback.answer()
         else:
-            await callback.answer("❌ Неверный формат", show_alert=True)
+            await callback.answer(t("edit.group.invalid_format", user_lang), show_alert=True)
     except (ValueError, IndexError) as e:
         logger.error(f"Ошибка парсинга pm_edit_date_: {e}")
-        await callback.answer("❌ Ошибка", show_alert=True)
+        await callback.answer(t("edit.group.error", user_lang), show_alert=True)
 
 
 @main_router.callback_query(F.data.startswith("pm_edit_time_"))
 async def pm_edit_time_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор редактирования времени Community события"""
+    user_lang = get_user_language_or_default(callback.from_user.id)
     try:
         parts = callback.data.replace("pm_edit_time_", "").split("_")
         if len(parts) >= 2:
@@ -3624,13 +3654,13 @@ async def pm_edit_time_choice(callback: types.CallbackQuery, state: FSMContext):
             chat_id = int(parts[1])
             await state.update_data(event_id=event_id, chat_id=chat_id)
             await state.set_state(CommunityEventEditing.waiting_for_time)
-            await callback.message.answer("⏰ Введите новое время в формате ЧЧ:ММ:")
+            await callback.message.answer(t("edit.enter_time", user_lang))
             await callback.answer()
         else:
-            await callback.answer("❌ Неверный формат", show_alert=True)
+            await callback.answer(t("edit.group.invalid_format", user_lang), show_alert=True)
     except (ValueError, IndexError) as e:
         logger.error(f"Ошибка парсинга pm_edit_time_: {e}")
-        await callback.answer("❌ Ошибка", show_alert=True)
+        await callback.answer(t("edit.group.error", user_lang), show_alert=True)
 
 
 @main_router.callback_query(
@@ -3724,16 +3754,19 @@ async def pm_edit_location_map_choice(callback: types.CallbackQuery, state: FSMC
                 ]
             )
 
+            user_lang = get_user_language_or_default(callback.from_user.id)
             await callback.message.answer(
-                "🌍 Открой карту, найди место и вставь ссылку сюда 👇",
+                t("edit.location_map_prompt", user_lang),
                 reply_markup=keyboard,
             )
             await callback.answer()
         else:
-            await callback.answer("❌ Неверный формат", show_alert=True)
+            user_lang = get_user_language_or_default(callback.from_user.id)
+            await callback.answer(t("edit.group.invalid_format", user_lang), show_alert=True)
     except (ValueError, IndexError) as e:
         logger.error(f"Ошибка парсинга pm_edit_location_map_: {e}")
-        await callback.answer("❌ Ошибка", show_alert=True)
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.answer(t("edit.group.error", user_lang), show_alert=True)
 
 
 @main_router.callback_query(F.data.startswith("pm_edit_location_coords_"))
@@ -3746,23 +3779,25 @@ async def pm_edit_location_coords_choice(callback: types.CallbackQuery, state: F
             chat_id = int(parts[1])
             await state.update_data(event_id=event_id, chat_id=chat_id)
             await state.set_state(CommunityEventEditing.waiting_for_location)
+            user_lang = get_user_language_or_default(callback.from_user.id)
             await callback.message.answer(
-                "📍 Введите координаты в формате: **широта, долгота**\n\n"
-                "Например: 55.7558, 37.6176\n"
-                "Или: -8.67, 115.21",
+                t("edit.location_coords_prompt", user_lang),
                 parse_mode="Markdown",
             )
             await callback.answer()
         else:
-            await callback.answer("❌ Неверный формат", show_alert=True)
+            user_lang = get_user_language_or_default(callback.from_user.id)
+            await callback.answer(t("edit.group.invalid_format", user_lang), show_alert=True)
     except (ValueError, IndexError) as e:
         logger.error(f"Ошибка парсинга pm_edit_location_coords_: {e}")
-        await callback.answer("❌ Ошибка", show_alert=True)
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.answer(t("edit.group.error", user_lang), show_alert=True)
 
 
 @main_router.callback_query(F.data.startswith("pm_edit_description_"))
 async def pm_edit_description_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор редактирования описания Community события"""
+    user_lang = get_user_language_or_default(callback.from_user.id)
     try:
         parts = callback.data.replace("pm_edit_description_", "").split("_")
         if len(parts) >= 2:
@@ -3770,13 +3805,13 @@ async def pm_edit_description_choice(callback: types.CallbackQuery, state: FSMCo
             chat_id = int(parts[1])
             await state.update_data(event_id=event_id, chat_id=chat_id)
             await state.set_state(CommunityEventEditing.waiting_for_description)
-            await callback.message.answer("📝 Введите новое описание:")
+            await callback.message.answer(t("edit.enter_description", user_lang))
             await callback.answer()
         else:
-            await callback.answer("❌ Неверный формат", show_alert=True)
+            await callback.answer(t("edit.group.invalid_format", user_lang), show_alert=True)
     except (ValueError, IndexError) as e:
         logger.error(f"Ошибка парсинга pm_edit_description_: {e}")
-        await callback.answer("❌ Ошибка", show_alert=True)
+        await callback.answer(t("edit.group.error", user_lang), show_alert=True)
 
 
 @main_router.callback_query(F.data.startswith("pm_edit_finish_"))
@@ -3799,30 +3834,34 @@ async def pm_edit_finish(callback: types.CallbackQuery, state: FSMContext):
                 )
 
                 if event:
-                    # Форматируем дату и время
-                    date_str = event.starts_at.strftime("%d.%m.%Y") if event.starts_at else "Не указано"
-                    time_str = event.starts_at.strftime("%H:%M") if event.starts_at else "Не указано"
+                    user_lang = get_user_language_or_default(callback.from_user.id)
+                    not_spec = t("common.not_specified", user_lang)
+                    date_str = event.starts_at.strftime("%d.%m.%Y") if event.starts_at else not_spec
+                    time_str = event.starts_at.strftime("%H:%M") if event.starts_at else not_spec
 
-                    text = (
-                        f"✅ **Событие обновлено!**\n\n"
-                        f"📌 Название: {event.title}\n"
-                        f"📅 Дата: {date_str}\n"
-                        f"⏰ Время: {time_str}\n"
-                        f"📍 Локация: {event.location_name or 'Не указано'}\n"
-                        f"📝 Описание: {event.description or 'Не указано'}\n\n"
-                        f"Событие обновлено в группе!"
+                    text = format_translation(
+                        "edit.group.updated_summary",
+                        user_lang,
+                        title=event.title or not_spec,
+                        date=date_str,
+                        time=time_str,
+                        location=event.location_name or not_spec,
+                        description=event.description or not_spec,
                     )
                     await callback.message.edit_text(text, parse_mode="Markdown")
-                    await callback.answer("✅ Событие обновлено!")
+                    await callback.answer(t("edit.group.updated_toast", user_lang))
                 else:
-                    await callback.answer("❌ Событие не найдено", show_alert=True)
+                    user_lang = get_user_language_or_default(callback.from_user.id)
+                    await callback.answer(t("edit.group.event_not_found", user_lang), show_alert=True)
 
             await state.clear()
         else:
-            await callback.answer("❌ Неверный формат", show_alert=True)
+            user_lang = get_user_language_or_default(callback.from_user.id)
+            await callback.answer(t("edit.group.invalid_format", user_lang), show_alert=True)
     except (ValueError, IndexError) as e:
         logger.error(f"Ошибка парсинга pm_edit_finish_: {e}")
-        await callback.answer("❌ Ошибка", show_alert=True)
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.answer(t("edit.group.error", user_lang), show_alert=True)
 
 
 # === ОБРАБОТЧИКИ ВВОДА ДАННЫХ ДЛЯ РЕДАКТИРОВАНИЯ COMMUNITY СОБЫТИЙ ===
@@ -3833,17 +3872,17 @@ async def pm_handle_title_input(message: types.Message, state: FSMContext):
     event_id = data.get("event_id")
     chat_id = data.get("chat_id")
     user_id = message.from_user.id
+    user_lang = get_user_language_or_default(user_id)
 
     if event_id and chat_id and message.text:
         success = await update_community_event_field_pm(event_id, "title", message.text.strip(), user_id, chat_id)
         if success:
-            await message.answer("✅ Название обновлено!")
-            # Показываем меню редактирования снова
+            await message.answer(t("edit.title_updated", user_lang))
             await start_group_event_editing(message, event_id, chat_id, state)
         else:
-            await message.answer("❌ Ошибка при обновлении названия")
+            await message.answer(t("edit.title_update_error", user_lang))
     else:
-        await message.answer("❌ Введите корректное название")
+        await message.answer(t("edit.invalid_title", user_lang))
 
 
 @main_router.message(CommunityEventEditing.waiting_for_date)
@@ -3853,6 +3892,7 @@ async def pm_handle_date_input(message: types.Message, state: FSMContext):
     event_id = data.get("event_id")
     chat_id = data.get("chat_id")
     user_id = message.from_user.id
+    user_lang = get_user_language_or_default(user_id)
 
     if event_id and chat_id and message.text:
         # Получаем текущее событие для получения времени
@@ -3875,12 +3915,12 @@ async def pm_handle_date_input(message: types.Message, state: FSMContext):
 
         success = await update_community_event_field_pm(event_id, "starts_at", new_datetime, user_id, chat_id)
         if success:
-            await message.answer("✅ Дата обновлена!")
+            await message.answer(t("edit.date_updated", user_lang))
             await start_group_event_editing(message, event_id, chat_id, state)
         else:
-            await message.answer("❌ Ошибка при обновлении даты. Проверьте формат (ДД.ММ.ГГГГ)")
+            await message.answer(t("edit.date_format_error", user_lang))
     else:
-        await message.answer("❌ Введите корректную дату")
+        await message.answer(t("edit.invalid_date", user_lang))
 
 
 @main_router.message(CommunityEventEditing.waiting_for_time)
@@ -3890,6 +3930,7 @@ async def pm_handle_time_input(message: types.Message, state: FSMContext):
     event_id = data.get("event_id")
     chat_id = data.get("chat_id")
     user_id = message.from_user.id
+    user_lang = get_user_language_or_default(user_id)
 
     if event_id and chat_id and message.text:
         # Получаем текущее событие для получения даты
@@ -3913,12 +3954,12 @@ async def pm_handle_time_input(message: types.Message, state: FSMContext):
 
         success = await update_community_event_field_pm(event_id, "starts_at", new_datetime, user_id, chat_id)
         if success:
-            await message.answer("✅ Время обновлено!")
+            await message.answer(t("edit.time_updated", user_lang))
             await start_group_event_editing(message, event_id, chat_id, state)
         else:
-            await message.answer("❌ Ошибка при обновлении времени. Проверьте формат (ЧЧ:ММ)")
+            await message.answer(t("edit.time_format_error", user_lang))
     else:
-        await message.answer("❌ Введите корректное время")
+        await message.answer(t("edit.invalid_time", user_lang))
 
 
 @main_router.message(CommunityEventEditing.waiting_for_location)
@@ -3928,9 +3969,10 @@ async def pm_handle_location_input(message: types.Message, state: FSMContext):
     event_id = data.get("event_id")
     chat_id = data.get("chat_id")
     user_id = message.from_user.id
+    user_lang = get_user_language_or_default(user_id)
 
     if not event_id or not chat_id or not message.text:
-        await message.answer("❌ Введите корректную локацию")
+        await message.answer(t("edit.invalid_location", user_lang))
         return
 
     location_input = message.text.strip()
@@ -3952,18 +3994,18 @@ async def pm_handle_location_input(message: types.Message, state: FSMContext):
                 # Обновляем URL
                 await update_community_event_field_pm(event_id, "location_url", location_input, user_id, chat_id)
                 await message.answer(
-                    f"✅ Локация обновлена: *{location_data.get('name', 'Место на карте')}*", parse_mode="Markdown"
+                    format_translation(
+                        "edit.location_updated",
+                        user_lang,
+                        location=location_data.get("name", "Место на карте"),
+                    ),
+                    parse_mode="Markdown",
                 )
                 await start_group_event_editing(message, event_id, chat_id, state)
             else:
-                await message.answer("❌ Ошибка при обновлении локации")
+                await message.answer(t("edit.location_update_error", user_lang))
         else:
-            await message.answer(
-                "❌ Не удалось распознать ссылку Google Maps.\n\n"
-                "Попробуйте:\n"
-                "• Скопировать ссылку из приложения Google Maps\n"
-                "• Или ввести координаты в формате: широта, долгота"
-            )
+            await message.answer(t("edit.location_google_maps_error", user_lang))
 
     # Проверяем, являются ли это координаты (широта, долгота)
     elif "," in location_input and len(location_input.split(",")) == 2:
@@ -3980,23 +4022,29 @@ async def pm_handle_location_input(message: types.Message, state: FSMContext):
                 )
                 if success:
                     await update_community_event_field_pm(event_id, "location_url", location_input, user_id, chat_id)
-                    await message.answer(f"✅ Локация обновлена: *{lat:.6f}, {lng:.6f}*", parse_mode="Markdown")
+                    await message.answer(
+                        format_translation("edit.location_updated", user_lang, location=f"{lat:.6f}, {lng:.6f}"),
+                        parse_mode="Markdown",
+                    )
                     await start_group_event_editing(message, event_id, chat_id, state)
                 else:
-                    await message.answer("❌ Ошибка при обновлении локации")
+                    await message.answer(t("edit.location_update_error", user_lang))
             else:
-                await message.answer("❌ Координаты вне допустимого диапазона")
+                await message.answer(t("edit.coords_out_of_range", user_lang))
         except ValueError:
-            await message.answer("❌ Неверный формат координат. Используйте: широта, долгота")
+            await message.answer(t("edit.coords_format", user_lang))
 
     else:
         # Обычный текст - обновляем только название
         success = await update_community_event_field_pm(event_id, "location_name", location_input, user_id, chat_id)
         if success:
-            await message.answer(f"✅ Локация обновлена: *{location_input}*", parse_mode="Markdown")
+            await message.answer(
+                format_translation("edit.location_updated", user_lang, location=location_input),
+                parse_mode="Markdown",
+            )
             await start_group_event_editing(message, event_id, chat_id, state)
         else:
-            await message.answer("❌ Ошибка при обновлении локации")
+            await message.answer(t("edit.location_update_error", user_lang))
 
 
 @main_router.message(CommunityEventEditing.waiting_for_description)
@@ -4025,27 +4073,21 @@ async def pm_handle_description_input(message: types.Message, state: FSMContext)
         "goo.gl",
     ]
 
+    user_lang = get_user_language_or_default(user_id)
     description_lower = description.lower()
     if any(indicator in description_lower for indicator in spam_indicators):
-        await message.answer(
-            "❌ В описании нельзя указывать ссылки и контакты!\n\n"
-            "📝 Пожалуйста, опишите событие своими словами:\n"
-            "• Что будет происходить\n"
-            "• Кому будет интересно\n"
-            "• Что взять с собой\n\n"
-            "Контакты можно указать после создания события."
-        )
+        await message.answer(t("create.validation.no_links_in_description", user_lang))
         return
 
     if event_id and chat_id and description:
         success = await update_community_event_field_pm(event_id, "description", description, user_id, chat_id)
         if success:
-            await message.answer("✅ Описание обновлено!")
+            await message.answer(t("edit.description_updated", user_lang))
             await start_group_event_editing(message, event_id, chat_id, state)
         else:
-            await message.answer("❌ Ошибка при обновлении описания")
+            await message.answer(t("edit.description_update_error", user_lang))
     else:
-        await message.answer("❌ Введите корректное описание")
+        await message.answer(t("edit.invalid_description", user_lang))
 
 
 # Обработчики FSM для создания событий в ЛС (для групп)
@@ -12985,12 +13027,7 @@ async def handle_location_input(message: types.Message, state: FSMContext):
             else:
                 await message.answer(t("edit.location_update_error", user_lang))
         else:
-            await message.answer(
-                "❌ Не удалось распознать ссылку Google Maps.\n\n"
-                "Попробуйте:\n"
-                "• Скопировать ссылку из приложения Google Maps\n"
-                "• Или ввести координаты в формате: широта, долгота"
-            )
+            await message.answer(t("edit.location_google_maps_error", user_lang))
 
     # Проверяем, являются ли это координаты (широта, долгота)
     elif "," in location_input and len(location_input.split(",")) == 2:
@@ -13015,9 +13052,9 @@ async def handle_location_input(message: types.Message, state: FSMContext):
                 else:
                     await message.answer(t("edit.location_update_error", user_lang))
             else:
-                await message.answer("❌ Координаты вне допустимого диапазона")
+                await message.answer(t("edit.coords_out_of_range", user_lang))
         except ValueError:
-            await message.answer("❌ Неверный формат координат. Используйте: широта, долгота")
+            await message.answer(t("edit.coords_format", user_lang))
 
     else:
         # Обычный текст - обновляем только название

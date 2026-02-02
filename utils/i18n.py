@@ -197,6 +197,44 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "edit.location_updated": "✅ Локация обновлена: *{location}*",
         "edit.location_update_error": "❌ Ошибка при обновлении локации",
         "edit.description_update_error": "❌ Ошибка при обновлении описания",
+        "edit.group.event_not_found": "❌ Событие не найдено",
+        "edit.group.no_permission": "❌ У вас нет прав для редактирования этого события",
+        "edit.group.header": (
+            "✏️ **Редактирование события**\n\n"
+            "**Текущие данные:**\n"
+            "📌 Название: {title}\n"
+            "📅 Дата: {date}\n"
+            "⏰ Время: {time}\n"
+            "📍 Локация: {location}\n"
+            "📝 Описание: {description}\n\n"
+            "**Выберите, что хотите изменить:**"
+        ),
+        "edit.location_google_maps_error": (
+            "❌ Не удалось распознать ссылку Google Maps.\n\n"
+            "Попробуйте:\n"
+            "• Скопировать ссылку из приложения Google Maps\n"
+            "• Или ввести координаты в формате: широта, долгота"
+        ),
+        "edit.coords_out_of_range": "❌ Координаты вне допустимого диапазона",
+        "edit.coords_format": "❌ Неверный формат координат. Используйте: широта, долгота",
+        "edit.group.updated_summary": (
+            "✅ **Событие обновлено!**\n\n"
+            "📌 Название: {title}\n"
+            "📅 Дата: {date}\n"
+            "⏰ Время: {time}\n"
+            "📍 Локация: {location}\n"
+            "📝 Описание: {description}\n\n"
+            "Событие обновлено в группе!"
+        ),
+        "edit.group.invalid_format": "❌ Неверный формат",
+        "edit.group.error": "❌ Ошибка",
+        "edit.group.updated_toast": "✅ Событие обновлено!",
+        "edit.location_map_prompt": "🌍 Открой карту, найди место и вставь ссылку сюда 👇",
+        "edit.location_coords_prompt": (
+            "📍 Введите координаты в формате: **широта, долгота**\n\n"
+            "Например: 55.7558, 37.6176\n"
+            "Или: -8.67, 115.21"
+        ),
     },
     "en": {
         # Language selection
@@ -385,6 +423,42 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "edit.location_updated": "✅ Location updated: *{location}*",
         "edit.location_update_error": "❌ Error updating location",
         "edit.description_update_error": "❌ Error updating description",
+        "edit.group.event_not_found": "❌ Event not found",
+        "edit.group.no_permission": "❌ You don't have permission to edit this event",
+        "edit.group.header": (
+            "✏️ **Edit event**\n\n"
+            "**Current data:**\n"
+            "📌 Title: {title}\n"
+            "📅 Date: {date}\n"
+            "⏰ Time: {time}\n"
+            "📍 Location: {location}\n"
+            "📝 Description: {description}\n\n"
+            "**Choose what to change:**"
+        ),
+        "edit.location_google_maps_error": (
+            "❌ Could not recognize Google Maps link.\n\n"
+            "Try:\n"
+            "• Copy link from Google Maps app\n"
+            "• Or enter coordinates as: latitude, longitude"
+        ),
+        "edit.coords_out_of_range": "❌ Coordinates out of valid range",
+        "edit.coords_format": "❌ Invalid coordinates format. Use: latitude, longitude",
+        "edit.group.updated_summary": (
+            "✅ **Event updated!**\n\n"
+            "📌 Title: {title}\n"
+            "📅 Date: {date}\n"
+            "⏰ Time: {time}\n"
+            "📍 Location: {location}\n"
+            "📝 Description: {description}\n\n"
+            "Event updated in group!"
+        ),
+        "edit.group.invalid_format": "❌ Invalid format",
+        "edit.group.error": "❌ Error",
+        "edit.group.updated_toast": "✅ Event updated!",
+        "edit.location_map_prompt": "🌍 Open the map, find the place and paste the link here 👇",
+        "edit.location_coords_prompt": (
+            "📍 Enter coordinates in format: **latitude, longitude**\n\n" "E.g.: 55.7558, 37.6176\n" "Or: -8.67, 115.21"
+        ),
     },
 }
 
