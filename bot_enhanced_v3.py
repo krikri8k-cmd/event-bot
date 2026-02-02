@@ -2558,7 +2558,11 @@ def edit_event_keyboard(event_id: int, lang: str = "ru") -> InlineKeyboardMarkup
             [InlineKeyboardButton(text=t("edit.button.date", lang), callback_data=f"edit_date_{event_id}")],
             [InlineKeyboardButton(text=t("edit.button.time", lang), callback_data=f"edit_time_{event_id}")],
             [InlineKeyboardButton(text=t("edit.button.location", lang), callback_data=f"edit_location_{event_id}")],
-            [InlineKeyboardButton(text=t("edit.button.description", lang), callback_data=f"edit_description_{event_id}")],
+            [
+                InlineKeyboardButton(
+                    text=t("edit.button.description", lang), callback_data=f"edit_description_{event_id}"
+                )
+            ],
             [InlineKeyboardButton(text=t("edit.button.finish", lang), callback_data=f"edit_finish_{event_id}")],
         ]
     )
@@ -12590,9 +12594,7 @@ async def handle_edit_event(callback: types.CallbackQuery, state: FSMContext):
 
     # Показываем меню редактирования
     keyboard = edit_event_keyboard(event_id, user_lang)
-    await callback.message.answer(
-        t("edit.header", user_lang), parse_mode="Markdown", reply_markup=keyboard
-    )
+    await callback.message.answer(t("edit.header", user_lang), parse_mode="Markdown", reply_markup=keyboard)
     await callback.answer()
 
 
