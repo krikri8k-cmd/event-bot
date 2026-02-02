@@ -56,6 +56,55 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "group.button.events_list": "📋 События этого чата",
         "group.button.full_version": '🚀 Полная версия "World"',
         "group.button.hide_bot": "👁️‍🗨️ Спрятать бота",
+        "group.button.manage_events": "🔧 Управление событиями",
+        "group.button.back": "◀️ Назад",
+        "group.button.menu": "📋 Меню",
+        "group.button.next": "▶️ Вперед",
+        "group.join.use_command": "❌ Используйте команду: /join_event_123 (где 123 - ID события)",
+        "group.join.use_command_short": "❌ Используйте команду: /joinevent123 (где 123 - ID события)",
+        "group.join.invalid_id": "❌ Неверный ID события. Используйте: /join_event_123",
+        "group.join.invalid_id_short": "❌ Неверный ID события. Используйте: /joinevent123",
+        "group.leave.use_command": "❌ Используйте команду: /leave_event_123 (где 123 - ID события)",
+        "group.leave.use_command_short": "❌ Используйте команду: /leaveevent123 (где 123 - ID события)",
+        "group.leave.invalid_id": "❌ Неверный ID события. Используйте: /leave_event_123",
+        "group.leave.invalid_id_short": "❌ Неверный ID события. Используйте: /leaveevent123",
+        "group.event_not_found": "❌ Событие не найдено",
+        "group.already_joined": "ℹ️ Вы уже записаны на это событие",
+        "group.join_failed": "❌ Не удалось записаться на событие",
+        "group.list.empty": (
+            "📋 **События этого чата**\n\n"
+            "📭 **0 событий**\n\n"
+            "В этом чате пока нет активных событий.\n\n"
+            "💡 Создайте первое событие, нажав кнопку **➕ Создать событие**!"
+        ),
+        "group.list.header": "📋 **События этого чата** ({count} событий)\n\n",
+        "group.list.place_on_map": "Место на карте",
+        "group.list.organizer": "👤 Организатор:",
+        "group.list.participants": "👥 Участников:",
+        "group.list.you_joined": "✅ Вы записаны | Нажмите 👉 /leaveevent{id} чтобы отменить",
+        "group.list.join_prompt": "Нажмите 👉 /joinevent{id} чтобы записаться",
+        "group.list.admin_footer": (
+            "🔧 Админ-панель: Вы можете управлять любым событием кнопками ниже!\n"
+            "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
+        ),
+        "group.list.user_footer": (
+            "🔧 Ваши события: Вы можете управлять своими событиями кнопками ниже!\n"
+            "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
+        ),
+        "group.load_error": "❌ Ошибка при загрузке события",
+        "group.panel.what_can_do": (
+            '👋 Привет! Я EventAroundBot - версия "Community".\n\n'
+            "🎯 Что умею:\n\n"
+            "• Создавать события\n"
+            "• Показывать события этого чата\n"
+            '• Полная версия "World"\n\n'
+            "💡 Выберите действие:"
+        ),
+        "group.nudge_commands": "ℹ️ Чтобы открыть команды, нажмите `/` или введите `/start@EventAroundBot`.",
+        "group.activated": "🤖 EventAroundBot активирован!",
+        "group.list.first_page": "⚠️ Это первая страница",
+        "group.list.last_page": "⚠️ Это последняя страница",
+        "group.list.header_paged": "📋 **События этого чата** ({count} событий, стр. {page}/{total_pages})\n\n",
         # Задания
         "tasks.title": "🎯 Интересные места",
         "tasks.reward": "Награда 3 🚀",
@@ -285,6 +334,54 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "group.button.events_list": "📋 Events in this chat",
         "group.button.full_version": '🚀 Full "World" version',
         "group.button.hide_bot": "👁️‍🗨️ Hide bot",
+        "group.button.manage_events": "🔧 Manage events",
+        "group.button.back": "◀️ Back",
+        "group.button.menu": "📋 Menu",
+        "group.button.next": "▶️ Next",
+        "group.join.use_command": "❌ Use command: /join_event_123 (where 123 is event ID)",
+        "group.join.use_command_short": "❌ Use command: /joinevent123 (where 123 is event ID)",
+        "group.join.invalid_id": "❌ Invalid event ID. Use: /join_event_123",
+        "group.join.invalid_id_short": "❌ Invalid event ID. Use: /joinevent123",
+        "group.leave.use_command": "❌ Use command: /leave_event_123 (where 123 is event ID)",
+        "group.leave.use_command_short": "❌ Use command: /leaveevent123 (where 123 is event ID)",
+        "group.leave.invalid_id": "❌ Invalid event ID. Use: /leave_event_123",
+        "group.leave.invalid_id_short": "❌ Invalid event ID. Use: /leaveevent123",
+        "group.event_not_found": "❌ Event not found",
+        "group.already_joined": "ℹ️ You are already registered for this event",
+        "group.join_failed": "❌ Failed to register for the event",
+        "group.list.empty": (
+            "📋 **Events in this chat**\n\n"
+            "📭 **0 events**\n\n"
+            "No active events in this chat yet.\n\n"
+            "💡 Create the first event by tapping **➕ Create event**!"
+        ),
+        "group.list.header": "📋 **Events in this chat** ({count} events)\n\n",
+        "group.list.place_on_map": "Place on map",
+        "group.list.organizer": "👤 Organizer:",
+        "group.list.participants": "👥 Participants:",
+        "group.list.you_joined": "✅ You're in | Tap 👉 /leaveevent{id} to leave",
+        "group.list.join_prompt": "Tap 👉 /joinevent{id} to join",
+        "group.list.admin_footer": (
+            "🔧 Admin: You can manage any event with the buttons below!\n" "💡 Tap ➕ Create event to add your own!"
+        ),
+        "group.list.user_footer": (
+            "🔧 Your events: You can manage your events with the buttons below!\n"
+            "💡 Tap ➕ Create event to add your own!"
+        ),
+        "group.load_error": "❌ Error loading event",
+        "group.panel.what_can_do": (
+            '👋 Hello! I am EventAroundBot - "Community" version.\n\n'
+            "🎯 What I can do:\n\n"
+            "• Create events\n"
+            "• Show events in this chat\n"
+            '• Full "World" version\n\n'
+            "💡 Choose an action:"
+        ),
+        "group.nudge_commands": "ℹ️ To open commands, press `/` or type `/start@EventAroundBot`.",
+        "group.activated": "🤖 EventAroundBot activated!",
+        "group.list.first_page": "⚠️ This is the first page",
+        "group.list.last_page": "⚠️ This is the last page",
+        "group.list.header_paged": "📋 **Events in this chat** ({count} events, p. {page}/{total_pages})\n\n",
         # Events
         "events.nearby": "📍 Nearby events",
         "events.page": "📋 Events (page {page} of {total}):",

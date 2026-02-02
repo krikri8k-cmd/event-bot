@@ -23,28 +23,26 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import CommunityEvent
-from utils.i18n import t
+from utils.i18n import format_translation, t
 from utils.messaging_utils import delete_all_tracked, is_chat_admin
+from utils.user_language import get_user_language_or_default
 
 # Константы для восстановления команд
-GROUP_CMDS = [types.BotCommand(command="start", description="🎉 События чата")]
 LANGS = (None, "ru", "en")  # default + ru + en
 
 
 async def ensure_group_start_command(bot: Bot, chat_id: int):
     """Устанавливает команду /start для конкретной группы (ускоряет мобильный клиент)"""
     try:
-        cmds = [types.BotCommand(command="start", description="🎉 События чата")]
-
         # Для супергрупп нужна особая обработка
         chat_type = "supergroup" if str(chat_id).startswith("-100") else "group"
         logger.info(f"🔥 Устанавливаем команды для {chat_type} {chat_id}")
 
         for lang in (None, "ru", "en"):
             try:
-                # Для супергрупп пробуем разные подходы
+                cmd_lang = "ru" if lang is None else lang
+                cmds = [types.BotCommand(command="start", description=t("command.group.start", cmd_lang))]
                 if chat_type == "supergroup":
-                    # Сначала пробуем BotCommandScopeChat
                     try:
                         await bot.set_my_commands(
                             cmds, scope=types.BotCommandScopeChat(chat_id=chat_id), language_code=lang
@@ -56,14 +54,12 @@ async def ensure_group_start_command(bot: Bot, chat_id: int):
                         logger.warning(
                             f"⚠️ BotCommandScopeChat не сработал для супергруппы {chat_id}: {chat_scope_error}"
                         )
-                        # Fallback: используем AllGroupChats
                         await bot.set_my_commands(cmds, scope=types.BotCommandScopeAllGroupChats(), language_code=lang)
                         logger.info(
                             f"✅ Fallback: команда /start установлена через AllGroupChats "
                             f"для супергруппы {chat_id} (язык: {lang or 'default'})"
                         )
                 else:
-                    # Для обычных групп
                     await bot.set_my_commands(
                         cmds, scope=types.BotCommandScopeChat(chat_id=chat_id), language_code=lang
                     )
@@ -76,12 +72,12 @@ async def ensure_group_start_command(bot: Bot, chat_id: int):
         logger.error(f"⚠️ Ошибка ensure_group_start_command({chat_id}): {e}")
 
 
-async def nudge_mobile_menu(bot: Bot, chat_id: int):
+async def nudge_mobile_menu(bot: Bot, chat_id: int, lang: str = "ru"):
     """Мягкий пинок интерфейса - подсказка для мобильного клиента"""
     try:
         msg = await bot.send_message(
             chat_id,
-            "ℹ️ Чтобы открыть команды, нажмите `/` или введите `/start@EventAroundBot`.",
+            t("group.nudge_commands", lang),
             disable_notification=True,
         )
         await asyncio.sleep(3)
@@ -125,9 +121,9 @@ async def restore_commands_after_hide(event_or_chat_id, bot: Bot):
         # 5) Вернём кнопку "Команды бота" и /start СПЕЦИАЛЬНО для этого чата
         for lang in LANGS:
             try:
-                await bot.set_my_commands(
-                    GROUP_CMDS, scope=types.BotCommandScopeChat(chat_id=chat_id), language_code=lang
-                )
+                cmd_lang = "ru" if lang is None else lang
+                cmds = [types.BotCommand(command="start", description=t("command.group.start", cmd_lang))]
+                await bot.set_my_commands(cmds, scope=types.BotCommandScopeChat(chat_id=chat_id), language_code=lang)
                 logger.info(f"[restore] Команды установлены для языка {lang or 'default'}")
             except Exception as e:
                 logger.error(f"[restore] Ошибка установки команд для языка {lang}: {e}")
@@ -139,9 +135,9 @@ async def restore_commands_after_hide(event_or_chat_id, bot: Bot):
         await asyncio.sleep(2)
         for lang in LANGS:
             try:
-                await bot.set_my_commands(
-                    GROUP_CMDS, scope=types.BotCommandScopeChat(chat_id=chat_id), language_code=lang
-                )
+                cmd_lang = "ru" if lang is None else lang
+                cmds = [types.BotCommand(command="start", description=t("command.group.start", cmd_lang))]
+                await bot.set_my_commands(cmds, scope=types.BotCommandScopeChat(chat_id=chat_id), language_code=lang)
             except Exception as e:
                 logger.error(f"[restore] Ошибка повторной установки команд для языка {lang}: {e}")
 
@@ -264,15 +260,16 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
     chat_id = message.chat.id
     user_id = message.from_user.id
 
+    lang = get_user_language_or_default(user_id)
     # Извлекаем ID события из команды
     if not command.args:
-        await message.answer("❌ Используйте команду: /join_event_123 (где 123 - ID события)")
+        await message.answer(t("group.join.use_command", lang))
         return
 
     try:
         event_id = int(command.args)
     except ValueError:
-        await message.answer("❌ Неверный ID события. Используйте: /join_event_123")
+        await message.answer(t("group.join.invalid_id", lang))
         return
 
     logger.info(f"🔥 handle_join_event_command: пользователь {user_id} запрашивает запись на событие {event_id}")
@@ -286,7 +283,7 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
         event = result.scalar_one_or_none()
 
         if not event:
-            await message.answer("❌ Событие не найдено")
+            await message.answer(t("group.event_not_found", lang))
             return
 
         # Проверяем, не записан ли уже пользователь
@@ -297,7 +294,7 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
             # Отправляем сообщение и удаляем его вместе с сообщением пользователя через 4 секунды
             import asyncio
 
-            bot_msg = await message.answer("ℹ️ Вы уже записаны на это событие")
+            bot_msg = await message.answer(t("group.already_joined", lang))
 
             # Удаляем оба сообщения через 4 секунды
             async def delete_both_messages():
@@ -326,7 +323,7 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
         added = await add_participant_optimized(session, event_id, user_id, username)
 
         if not added:
-            await message.answer("❌ Не удалось записаться на событие")
+            await message.answer(t("group.join_failed", lang))
             return
 
         # Удаляем сообщение пользователя с командой
@@ -427,14 +424,9 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
 
         # Формируем текст списка (используем существующую логику из group_list_events_page)
         if not events:
-            text = (
-                "📋 **События этого чата**\n\n"
-                "📭 **0 событий**\n\n"
-                "В этом чате пока нет активных событий.\n\n"
-                "💡 Создайте первое событие, нажав кнопку **➕ Создать событие**!"
-            )
+            text = t("group.list.empty", lang)
         else:
-            text = f"📋 **События этого чата** ({len(events)} событий)\n\n"
+            text = format_translation("group.list.header", lang, count=len(events))
             for i, event in enumerate(events, 1):
                 date_str = format_community_event_time(event, "%d.%m.%Y %H:%M")
                 safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
@@ -462,10 +454,10 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
                         text += f"   📍 {safe_location}\n"
                 elif event.location_url:
                     safe_url = event.location_url.replace("(", "").replace(")", "")
-                    text += f"   📍 [Место на карте]({safe_url})\n"
+                    text += f"   📍 [{t('group.list.place_on_map', lang)}]({safe_url})\n"
 
                 if event.organizer_username:
-                    text += f"   👤 Организатор: @{event.organizer_username}\n"
+                    text += f"   {t('group.list.organizer', lang)} @{event.organizer_username}\n"
 
                 from utils.community_participants_service_optimized import (
                     get_participants_count_optimized,
@@ -475,39 +467,40 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
                 participants_count = await get_participants_count_optimized(session, event.id)
                 is_user_participant = await is_participant_optimized(session, event.id, user_id)
 
-                text += f"   👥 Участников: {participants_count}\n"
+                text += f"   {t('group.list.participants', lang)} {participants_count}\n"
 
                 if is_user_participant:
-                    text += f"   ✅ Вы записаны | Нажмите 👉 /leaveevent{event.id} чтобы отменить\n"
+                    text += f"   {format_translation('group.list.you_joined', lang, id=event.id)}\n"
                 else:
-                    text += f"   Нажмите 👉 /joinevent{event.id} чтобы записаться\n"
+                    text += f"   {format_translation('group.list.join_prompt', lang, id=event.id)}\n"
 
                 text += "\n"
 
             # Проверяем, является ли пользователь админом
             is_admin = await is_chat_admin(bot, chat_id, user_id)
             if is_admin:
-                text += "🔧 Админ-панель: Вы можете управлять любым событием кнопками ниже!\n"
-                text += "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
+                text += t("group.list.admin_footer", lang)
             else:
-                text += "🔧 Ваши события: Вы можете управлять своими событиями кнопками ниже!\n"
-                text += "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
+                text += t("group.list.user_footer", lang)
 
         # Создаем клавиатуру с кнопками управления событиями
         keyboard_buttons = []
 
         # Всегда показываем кнопку "Управление событиями", даже если активных событий нет
-        # Это позволяет возобновлять закрытые события (в течение 24 часов после закрытия)
         keyboard_buttons.append(
             [
                 InlineKeyboardButton(
-                    text="🔧 Управление событиями",
+                    text=t("group.button.manage_events", lang),
                     callback_data="group_manage_events",
                 )
             ]
         )
 
-        keyboard_buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel")])
+        keyboard_buttons.append(
+            [
+                InlineKeyboardButton(text=t("group.button.back", lang), callback_data="group_back_to_panel"),
+            ]
+        )
         back_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
         # Отправляем список через send_tracked
@@ -534,11 +527,12 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
         logger.error(traceback.format_exc())
         from utils.messaging_utils import send_tracked
 
+        lang = get_user_language_or_default(message.from_user.id)
         await send_tracked(
             bot,
             session,
             chat_id=chat_id,
-            text="❌ Ошибка при загрузке события",
+            text=t("group.load_error", lang),
             tag="service",
         )
 
@@ -565,19 +559,20 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
 
     chat_id = message.chat.id
     user_id = message.from_user.id
+    lang = get_user_language_or_default(user_id)
 
     # Извлекаем ID события из текста команды
     import re
 
     match = re.match(r"^/joinevent(\d+)(@\w+)?$", message.text)
     if not match:
-        await message.answer("❌ Используйте команду: /joinevent123 (где 123 - ID события)")
+        await message.answer(t("group.join.use_command_short", lang))
         return
 
     try:
         event_id = int(match.group(1))
     except (ValueError, AttributeError):
-        await message.answer("❌ Неверный ID события. Используйте: /joinevent123")
+        await message.answer(t("group.join.invalid_id_short", lang))
         return
 
     logger.info(f"🔥 handle_join_event_command_short: пользователь {user_id} запрашивает запись на событие {event_id}")
@@ -591,7 +586,7 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
         event = result.scalar_one_or_none()
 
         if not event:
-            await message.answer("❌ Событие не найдено")
+            await message.answer(t("group.event_not_found", lang))
             return
 
         # Проверяем, не записан ли уже пользователь
@@ -602,7 +597,7 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
             # Отправляем сообщение и удаляем его вместе с сообщением пользователя через 4 секунды
             import asyncio
 
-            bot_msg = await message.answer("ℹ️ Вы уже записаны на это событие")
+            bot_msg = await message.answer(t("group.already_joined", lang))
 
             # Удаляем оба сообщения через 4 секунды
             async def delete_both_messages():
@@ -631,7 +626,7 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
         added = await add_participant_optimized(session, event_id, user_id, username)
 
         if not added:
-            await message.answer("❌ Не удалось записаться на событие")
+            await message.answer(t("group.join_failed", lang))
             return
 
         # Удаляем сообщение пользователя с командой
@@ -714,11 +709,12 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
         logger.error(traceback.format_exc())
         from utils.messaging_utils import send_tracked
 
+        lang = get_user_language_or_default(message.from_user.id)
         await send_tracked(
             bot,
             session,
             chat_id=chat_id,
-            text="❌ Ошибка при загрузке события",
+            text=t("group.load_error", lang),
             tag="service",
         )
 
@@ -728,15 +724,16 @@ async def handle_leave_event_command(message: Message, bot: Bot, session: AsyncS
     """Обработчик команды /leave_event_123 для отмены записи на событие"""
     user_id = message.from_user.id
 
+    lang = get_user_language_or_default(user_id)
     # Извлекаем ID события из команды
     if not command.args:
-        await message.answer("❌ Используйте команду: /leave_event_123 (где 123 - ID события)")
+        await message.answer(t("group.leave.use_command", lang))
         return
 
     try:
         event_id = int(command.args)
     except ValueError:
-        await message.answer("❌ Неверный ID события. Используйте: /leave_event_123")
+        await message.answer(t("group.leave.invalid_id", lang))
         return
 
     logger.info(f"🔥 handle_leave_event_command: пользователь {user_id} отменяет запись на событие {event_id}")
@@ -770,15 +767,16 @@ async def handle_leave_event_command_short(message: Message, bot: Bot, session: 
     # Извлекаем ID события из текста команды
     import re
 
+    lang = get_user_language_or_default(user_id)
     match = re.match(r"^/leaveevent(\d+)(@\w+)?$", message.text)
     if not match:
-        await message.answer("❌ Используйте команду: /leaveevent123 (где 123 - ID события)")
+        await message.answer(t("group.leave.use_command_short", lang))
         return
 
     try:
         event_id = int(match.group(1))
     except (ValueError, AttributeError):
-        await message.answer("❌ Неверный ID события. Используйте: /leaveevent123")
+        await message.answer(t("group.leave.invalid_id_short", lang))
         return
 
     logger.info(f"🔥 handle_leave_event_command_short: пользователь {user_id} отменяет запись на событие {event_id}")
@@ -883,33 +881,30 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
     # Убираем промежуточное сообщение с командой
 
     # Показываем панель Community с InlineKeyboard под сообщением
+    panel_lang = get_user_language_or_default(message.from_user.id)
     try:
-        # Создаем InlineKeyboard для действий под сообщением
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
                     InlineKeyboardButton(
-                        text="➕ Создать событие", url=f"https://t.me/EventAroundBot?start=group_{message.chat.id}"
+                        text=t("group.button.create_event", panel_lang),
+                        url=f"https://t.me/EventAroundBot?start=group_{message.chat.id}",
                     )
                 ],
-                [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_list")],
-                [InlineKeyboardButton(text='🚀 Полная версия "World"', url="https://t.me/EventAroundBot")],
-                [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_execute")],
+                [InlineKeyboardButton(text=t("group.button.events_list", panel_lang), callback_data="group_list")],
+                [
+                    InlineKeyboardButton(
+                        text=t("group.button.full_version", panel_lang), url="https://t.me/EventAroundBot"
+                    )
+                ],
+                [InlineKeyboardButton(text=t("group.button.hide_bot", panel_lang), callback_data="group_hide_execute")],
             ]
         )
 
-        # Отправляем панель Community с трекированием (автоудаление через 2 минуты)
         try:
             from utils.messaging_utils import send_tracked
 
-            panel_text = (
-                '👋 Привет! Я EventAroundBot - версия "Community".\n\n'
-                "🎯 Что умею:\n\n"
-                "• Создавать события\n"
-                "• Показывать события этого чата\n"
-                '• Полная версия "World"\n\n'
-                "💡 Выберите действие:"
-            )
+            panel_text = t("group.panel.what_can_do", panel_lang)
 
             # Передаем message_thread_id для форумов
             send_kwargs = {"reply_markup": keyboard}
@@ -937,12 +932,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             # Fallback - обычная отправка без трекирования
             try:
                 await message.answer(
-                    '👋 Привет! Я EventAroundBot - версия "Community".\n\n'
-                    "🎯 Что умею:\n\n"
-                    "• Создавать события\n"
-                    "• Показывать события этого чата\n"
-                    '• Полная версия "World"\n\n'
-                    "💡 Выберите действие:",
+                    t("group.panel.what_can_do", panel_lang),
                     reply_markup=keyboard,
                     parse_mode="Markdown",
                 )
@@ -972,7 +962,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                 answer_kwargs = {"reply_markup": start_keyboard}
                 if is_forum and thread_id:
                     answer_kwargs["message_thread_id"] = thread_id
-                activation_msg = await message.answer("🤖 EventAroundBot активирован!", **answer_kwargs)
+                activation_msg = await message.answer(t("group.activated", panel_lang), **answer_kwargs)
             except Exception as e:
                 if "TOPIC_CLOSED" in str(e):
                     logger.warning(
@@ -1064,7 +1054,8 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             )
             return
         try:
-            fallback_msg = await message.answer("🤖 EventAroundBot активирован в этом чате!")
+            fallback_lang = get_user_language_or_default(message.from_user.id)
+            fallback_msg = await message.answer(t("group.activated", fallback_lang))
             # Удаляем fallback сообщение через 3 секунды
             try:
                 await asyncio.sleep(3)
@@ -1594,6 +1585,7 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
     """Показать список событий этого чата с пагинацией"""
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id
+    lang = get_user_language_or_default(user_id)
     events_per_page = 10
 
     # Получаем thread_id для форумов
@@ -1647,7 +1639,7 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
         if page < 1:
             logger.info(f"🔥 Страница {page} < 1, показываем предупреждение")
             try:
-                await callback.answer("⚠️ Это первая страница", show_alert=True)
+                await callback.answer(t("group.list.first_page", lang), show_alert=True)
                 logger.info("✅ Предупреждение показано: первая страница")
             except Exception as e:
                 logger.error(f"❌ Ошибка при показе alert: {e}")
@@ -1656,7 +1648,7 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
         if page > total_pages:
             logger.info(f"🔥 Страница {page} > total_pages {total_pages}, показываем предупреждение")
             try:
-                await callback.answer("⚠️ Это последняя страница", show_alert=True)
+                await callback.answer(t("group.list.last_page", lang), show_alert=True)
                 logger.info("✅ Предупреждение показано: последняя страница")
             except Exception as e:
                 logger.error(f"❌ Ошибка при показе alert: {e}")
@@ -1695,18 +1687,19 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
         is_admin = await is_chat_admin(bot, chat_id, callback.from_user.id)
 
         if not events:
-            text = (
-                "📋 **События этого чата**\n\n"
-                "📭 **0 событий**\n\n"
-                "В этом чате пока нет активных событий.\n\n"
-                "💡 Создайте первое событие, нажав кнопку **➕ Создать событие**!"
-            )
+            text = t("group.list.empty", lang)
         else:
             # Формируем заголовок с информацией о пагинации
             if total_pages > 1:
-                text = f"📋 **События этого чата** ({total_events} событий, стр. {page}/{total_pages})\n\n"
+                text = format_translation(
+                    "group.list.header_paged",
+                    lang,
+                    count=total_events,
+                    page=page,
+                    total_pages=total_pages,
+                )
             else:
-                text = f"📋 **События этого чата** ({total_events} событий)\n\n"
+                text = format_translation("group.list.header", lang, count=total_events)
 
             for i, event in enumerate(events, 1):
                 # Номер события на текущей странице (с учетом offset)
@@ -1748,11 +1741,11 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                 elif event.location_url:
                     # Если есть только ссылка, без названия места
                     safe_url = event.location_url.replace("(", "").replace(")", "")
-                    text += f"   📍 [Место на карте]({safe_url})\n"
+                    text += f"   📍 [{t('group.list.place_on_map', lang)}]({safe_url})\n"
 
                 # Организатор
                 if event.organizer_username:
-                    text += f"   👤 Организатор: @{event.organizer_username}\n"
+                    text += f"   {t('group.list.organizer', lang)} @{event.organizer_username}\n"
 
                 # Получаем количество участников и добавляем в текст
                 from utils.community_participants_service_optimized import (
@@ -1763,34 +1756,26 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                 participants_count = await get_participants_count_optimized(session, event.id)
                 is_user_participant = await is_participant_optimized(session, event.id, user_id)
 
-                # Добавляем информацию об участниках (кнопка будет добавлена в клавиатуру)
-                text += f"   👥 Участников: {participants_count}\n"
+                text += f"   {t('group.list.participants', lang)} {participants_count}\n"
 
-                # Добавляем ссылку на запись прямо в тексте (через команду)
-                # В групповых чатах используем команды, которые можно вызвать
                 if is_user_participant:
-                    text += f"   ✅ Вы записаны | Нажмите 👉 /leaveevent{event.id} чтобы отменить\n"
+                    text += f"   {format_translation('group.list.you_joined', lang, id=event.id)}\n"
                 else:
-                    text += f"   Нажмите 👉 /joinevent{event.id} чтобы записаться\n"
+                    text += f"   {format_translation('group.list.join_prompt', lang, id=event.id)}\n"
 
                 text += "\n"
 
             if is_admin:
-                text += "🔧 Админ-панель: Вы можете управлять любым событием кнопками ниже!\n"
-                text += "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
+                text += t("group.list.admin_footer", lang)
             else:
-                text += "🔧 Ваши события: Вы можете управлять своими событиями кнопками ниже!\n"
-                text += "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
+                text += t("group.list.user_footer", lang)
 
         # Создаем клавиатуру с кнопками управления событиями
         keyboard_buttons = []
-
-        # Всегда показываем кнопку "Управление событиями", даже если активных событий нет
-        # Это позволяет возобновлять закрытые события (в течение 24 часов после закрытия)
         keyboard_buttons.append(
             [
                 InlineKeyboardButton(
-                    text="🔧 Управление событиями",
+                    text=t("group.button.manage_events", lang),
                     callback_data="group_manage_events",
                 )
             ]
@@ -1800,9 +1785,9 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
         # Всегда показываем все три кнопки, но передаем реальные значения страниц
         # (проверка границ будет в обработчике)
         nav_row = [
-            InlineKeyboardButton(text="📋 Меню", callback_data="group_back_to_panel"),
-            InlineKeyboardButton(text="◀️ Назад", callback_data=f"group_list_page_{page - 1}"),
-            InlineKeyboardButton(text="▶️ Вперед", callback_data=f"group_list_page_{page + 1}"),
+            InlineKeyboardButton(text=t("group.button.menu", lang), callback_data="group_back_to_panel"),
+            InlineKeyboardButton(text=t("group.button.back", lang), callback_data=f"group_list_page_{page - 1}"),
+            InlineKeyboardButton(text=t("group.button.next", lang), callback_data=f"group_list_page_{page + 1}"),
         ]
 
         keyboard_buttons.append(nav_row)
