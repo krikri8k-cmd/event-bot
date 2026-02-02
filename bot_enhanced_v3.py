@@ -655,7 +655,7 @@ async def send_compact_events_list_prepared(
     total_pages = max(1, ceil(len(prepared_events) / 8))
 
     # Создаем клавиатуру с кнопками пагинации и расширения радиуса
-    keyboard = kb_pager(page + 1, total_pages, int(radius))
+    keyboard = kb_pager(page + 1, total_pages, int(radius), lang=user_lang)
 
     try:
         # Отправляем компактный список событий в HTML формате
@@ -739,7 +739,7 @@ async def send_compact_events_list(
     text = header_html + "\n\n" + page_html
 
     # 6) Создаем клавиатуру пагинации с кнопками расширения радиуса
-    inline_kb = kb_pager(page + 1, total_pages, int(radius)) if total_pages > 1 else None
+    inline_kb = kb_pager(page + 1, total_pages, int(radius), lang=user_lang) if total_pages > 1 else None
 
     try:
         # Отправляем компактный список событий в HTML формате
@@ -806,7 +806,7 @@ async def edit_events_list_message(
     text = header_html + "\n\n" + "\n".join(event_lines)
 
     # Создаем клавиатуру пагинации с кнопками расширения радиуса
-    inline_kb = kb_pager(page + 1, total_pages, int(radius)) if total_pages > 1 else None
+    inline_kb = kb_pager(page + 1, total_pages, int(radius), lang=user_lang) if total_pages > 1 else None
 
     try:
         # Редактируем сообщение
@@ -1558,7 +1558,13 @@ def render_page(
     return "\n".join(parts).strip(), total_pages
 
 
-def kb_pager(page: int, total: int, current_radius: int = None, date_filter: str = "today") -> InlineKeyboardMarkup:
+def kb_pager(
+    page: int,
+    total: int,
+    current_radius: int = None,
+    date_filter: str = "today",
+    lang: str = "ru",
+) -> InlineKeyboardMarkup:
     """Создает клавиатуру пагинации с кнопками расширения радиуса и фильтрации даты"""
     from config import load_settings
 
@@ -1569,25 +1575,30 @@ def kb_pager(page: int, total: int, current_radius: int = None, date_filter: str
 
     buttons = [
         [
-            InlineKeyboardButton(text="◀️ Назад", callback_data=prev_cb),
-            InlineKeyboardButton(text="Вперёд ▶️", callback_data=next_cb),
+            InlineKeyboardButton(text=t("pager.prev", lang), callback_data=prev_cb),
+            InlineKeyboardButton(text=t("pager.next", lang), callback_data=next_cb),
         ],
-        [InlineKeyboardButton(text=f"Стр. {page}/{total}", callback_data="pg:noop")],
+        [
+            InlineKeyboardButton(
+                text=format_translation("pager.page", lang, page=page, total=total),
+                callback_data="pg:noop",
+            )
+        ],
     ]
 
     # Добавляем кнопки фильтрации даты (Сегодня/Завтра)
     if date_filter == "today":
         buttons.append(
             [
-                InlineKeyboardButton(text="📅 Сегодня ✅", callback_data="date_filter:today"),
-                InlineKeyboardButton(text="📅 Завтра", callback_data="date_filter:tomorrow"),
+                InlineKeyboardButton(text=t("pager.today_selected", lang), callback_data="date_filter:today"),
+                InlineKeyboardButton(text=t("pager.tomorrow", lang), callback_data="date_filter:tomorrow"),
             ]
         )
     else:
         buttons.append(
             [
-                InlineKeyboardButton(text="📅 Сегодня", callback_data="date_filter:today"),
-                InlineKeyboardButton(text="📅 Завтра ✅", callback_data="date_filter:tomorrow"),
+                InlineKeyboardButton(text=t("pager.today", lang), callback_data="date_filter:today"),
+                InlineKeyboardButton(text=t("pager.tomorrow_selected", lang), callback_data="date_filter:tomorrow"),
             ]
         )
 
@@ -1596,7 +1607,7 @@ def kb_pager(page: int, total: int, current_radius: int = None, date_filter: str
         current_radius = int(settings.default_radius_km)
 
     # Добавляем кнопки изменения радиуса
-    buttons.extend(build_radius_inline_buttons(current_radius))
+    buttons.extend(build_radius_inline_buttons(current_radius, lang))
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -1867,7 +1878,7 @@ TEST_LOCATIONS = {
 }
 
 
-def build_radius_inline_buttons(current_radius: int) -> list[list[InlineKeyboardButton]]:
+def build_radius_inline_buttons(current_radius: int, lang: str = "ru") -> list[list[InlineKeyboardButton]]:
     """Формирует список кнопок для изменения радиуса поиска."""
     buttons_row = []
     for radius_option in RADIUS_OPTIONS:
@@ -1875,7 +1886,7 @@ def build_radius_inline_buttons(current_radius: int) -> list[list[InlineKeyboard
             continue
         buttons_row.append(
             InlineKeyboardButton(
-                text=f"{radius_option} км",
+                text=format_translation("pager.radius_km", lang, radius=radius_option),
                 callback_data=f"{CB_RADIUS_PREFIX}{radius_option}",
             )
         )
@@ -2029,23 +2040,32 @@ async def perform_nearby_search(
                 if date_filter_state == "today":
                     keyboard_buttons.append(
                         [
-                            InlineKeyboardButton(text="📅 Сегодня ✅", callback_data="date_filter:today"),
-                            InlineKeyboardButton(text="📅 Завтра", callback_data="date_filter:tomorrow"),
+                            InlineKeyboardButton(
+                                text=t("pager.today_selected", user_lang), callback_data="date_filter:today"
+                            ),
+                            InlineKeyboardButton(
+                                text=t("pager.tomorrow", user_lang), callback_data="date_filter:tomorrow"
+                            ),
                         ]
                     )
                 else:
                     keyboard_buttons.append(
                         [
-                            InlineKeyboardButton(text="📅 Сегодня", callback_data="date_filter:today"),
-                            InlineKeyboardButton(text="📅 Завтра ✅", callback_data="date_filter:tomorrow"),
+                            InlineKeyboardButton(text=t("pager.today", user_lang), callback_data="date_filter:today"),
+                            InlineKeyboardButton(
+                                text=t("pager.tomorrow_selected", user_lang),
+                                callback_data="date_filter:tomorrow",
+                            ),
                         ]
                     )
 
                 # Добавляем кнопки радиуса
-                keyboard_buttons.extend(build_radius_inline_buttons(current_radius))
+                keyboard_buttons.extend(build_radius_inline_buttons(current_radius, user_lang))
 
                 # Добавляем кнопку создания события
-                keyboard_buttons.append([InlineKeyboardButton(text="➕ Создать событие", callback_data="create_event")])
+                keyboard_buttons.append(
+                    [InlineKeyboardButton(text=t("menu.button.create_event", user_lang), callback_data="create_event")]
+                )
                 inline_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
                 try:
@@ -2168,7 +2188,7 @@ async def perform_nearby_search(
 
             total_pages = max(1, ceil(len(prepared) / 8))
             date_filter_state = user_state.get(message.chat.id, {}).get("date_filter", "today")
-            combined_keyboard = kb_pager(1, total_pages, int(radius), date_filter=date_filter_state)
+            combined_keyboard = kb_pager(1, total_pages, int(radius), date_filter=date_filter_state, lang=user_lang)
 
             # ИСПРАВЛЕНИЕ: Отправляем карту и список событий отдельными сообщениями
             if map_bytes:
@@ -5914,29 +5934,37 @@ async def on_location(message: types.Message, state: FSMContext):
                 keyboard_buttons = []
 
                 # Добавляем кнопки фильтрации даты (Сегодня/Завтра)
+                user_lang = get_user_language_or_default(message.from_user.id)
                 if date_filter_state == "today":
                     keyboard_buttons.append(
                         [
-                            InlineKeyboardButton(text="📅 Сегодня ✅", callback_data="date_filter:today"),
-                            InlineKeyboardButton(text="📅 Завтра", callback_data="date_filter:tomorrow"),
+                            InlineKeyboardButton(
+                                text=t("pager.today_selected", user_lang), callback_data="date_filter:today"
+                            ),
+                            InlineKeyboardButton(
+                                text=t("pager.tomorrow", user_lang), callback_data="date_filter:tomorrow"
+                            ),
                         ]
                     )
                 else:
                     keyboard_buttons.append(
                         [
-                            InlineKeyboardButton(text="📅 Сегодня", callback_data="date_filter:today"),
-                            InlineKeyboardButton(text="📅 Завтра ✅", callback_data="date_filter:tomorrow"),
+                            InlineKeyboardButton(text=t("pager.today", user_lang), callback_data="date_filter:today"),
+                            InlineKeyboardButton(
+                                text=t("pager.tomorrow_selected", user_lang),
+                                callback_data="date_filter:tomorrow",
+                            ),
                         ]
                     )
 
                 # Добавляем кнопки радиуса
-                keyboard_buttons.extend(build_radius_inline_buttons(current_radius))
+                keyboard_buttons.extend(build_radius_inline_buttons(current_radius, user_lang))
 
                 # Добавляем кнопку создания события
                 keyboard_buttons.append(
                     [
                         InlineKeyboardButton(
-                            text="➕ Создать событие",
+                            text=t("menu.button.create_event", user_lang),
                             callback_data="create_event",
                         )
                     ]
@@ -6167,7 +6195,7 @@ async def on_location(message: types.Message, state: FSMContext):
                 # 6) Создаем клавиатуру с пагинацией И расширением радиуса
                 # Используем date_filter из состояния (по умолчанию "today")
                 date_filter_state = user_state.get(message.chat.id, {}).get("date_filter", "today")
-                combined_keyboard = kb_pager(1, total_pages, int(radius), date_filter=date_filter_state)
+                combined_keyboard = kb_pager(1, total_pages, int(radius), date_filter=date_filter_state, lang=user_lang)
 
                 # 7) НОВАЯ ЛОГИКА: Отправляем карту и список событий ОТДЕЛЬНЫМИ сообщениями
                 # Это решает проблему с лимитом 1024 байта для caption и позволяет показывать больше событий
@@ -8333,31 +8361,35 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     if not prepared:
         current_radius = new_radius
         keyboard_buttons = []
+        user_lang = get_user_language_or_default(user_id)
 
         # Добавляем кнопки фильтрации даты (Сегодня/Завтра)
         if date_filter == "today":
             keyboard_buttons.append(
                 [
-                    InlineKeyboardButton(text="📅 Сегодня ✅", callback_data="date_filter:today"),
-                    InlineKeyboardButton(text="📅 Завтра", callback_data="date_filter:tomorrow"),
+                    InlineKeyboardButton(text=t("pager.today_selected", user_lang), callback_data="date_filter:today"),
+                    InlineKeyboardButton(text=t("pager.tomorrow", user_lang), callback_data="date_filter:tomorrow"),
                 ]
             )
         else:
             keyboard_buttons.append(
                 [
-                    InlineKeyboardButton(text="📅 Сегодня", callback_data="date_filter:today"),
-                    InlineKeyboardButton(text="📅 Завтра ✅", callback_data="date_filter:tomorrow"),
+                    InlineKeyboardButton(text=t("pager.today", user_lang), callback_data="date_filter:today"),
+                    InlineKeyboardButton(
+                        text=t("pager.tomorrow_selected", user_lang),
+                        callback_data="date_filter:tomorrow",
+                    ),
                 ]
             )
 
         # Добавляем кнопки радиуса
-        keyboard_buttons.extend(build_radius_inline_buttons(current_radius))
+        keyboard_buttons.extend(build_radius_inline_buttons(current_radius, user_lang))
 
         # Добавляем кнопку создания события
         keyboard_buttons.append(
             [
                 InlineKeyboardButton(
-                    text="➕ Создать событие",
+                    text=t("menu.button.create_event", user_lang),
                     callback_data="create_event",
                 )
             ]
@@ -8439,7 +8471,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     text = header_html + "\n\n" + events_text
 
     # Создаем клавиатуру с кнопками пагинации и расширения радиуса
-    keyboard = kb_pager(1, total_pages, new_radius, date_filter=date_filter)
+    keyboard = kb_pager(1, total_pages, new_radius, date_filter=date_filter, lang=user_lang)
 
     # Отправляем результаты с картой (как в основном поиске)
     try:
@@ -11643,7 +11675,7 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
             new_text = header_html + "\n\n" + page_html
 
         # Создаем клавиатуру с правильным фильтром даты
-        combined_keyboard = kb_pager(1, total_pages, current_radius=int(radius), date_filter=date_type)
+        combined_keyboard = kb_pager(1, total_pages, current_radius=int(radius), date_filter=date_type, lang=user_lang)
 
         # Обновляем сообщение
         try:
@@ -11767,10 +11799,10 @@ async def handle_pagination(callback: types.CallbackQuery):
                 )
 
         # Создаем клавиатуру пагинации с учетом фильтра даты
-        combined_keyboard = kb_pager(page, total_pages, current_radius, date_filter=date_filter)
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        combined_keyboard = kb_pager(page, total_pages, current_radius, date_filter=date_filter, lang=user_lang)
 
         # Обновляем сообщение (проверяем тип сообщения)
-        user_lang = get_user_language_or_default(callback.from_user.id)
         new_text = render_header(counts, radius_km=current_radius, lang=user_lang) + "\n\n" + page_html
 
         try:

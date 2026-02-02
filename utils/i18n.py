@@ -25,6 +25,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "menu.button.events_nearby": "📍 События рядом",
         "menu.button.interesting_places": "🎯 Интересные места",
         "menu.button.create": "➕ Создать",
+        "menu.button.create_event": "➕ Создать событие",
         "menu.button.my_activities": "📝 Мои активности",
         "menu.button.add_bot_to_chat": "🔗 Добавить бота в чат",
         "menu.button.start": "🚀 Старт",
@@ -168,6 +169,15 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "events.header.from_sources": "• 🌐 Из источников: {count}",
         "events.header.ai_parsed": "• 🤖 AI-парсинг: {count}",
         "events.summary.found": "🗺 Найдено {count} событий рядом!",
+        # Пагинация событий
+        "pager.prev": "◀️ Назад",
+        "pager.next": "Вперёд ▶️",
+        "pager.page": "Стр. {page}/{total}",
+        "pager.today": "📅 Сегодня",
+        "pager.today_selected": "📅 Сегодня ✅",
+        "pager.tomorrow": "📅 Завтра",
+        "pager.tomorrow_selected": "📅 Завтра ✅",
+        "pager.radius_km": "{radius} км",
         # Создание событий
         "create.start": (
             '➕ **Создаём событие "World"**\n\n'
@@ -311,6 +321,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "menu.button.events_nearby": "📍 Nearby events",
         "menu.button.interesting_places": "🎯 Interesting places",
         "menu.button.create": "➕ Create",
+        "menu.button.create_event": "➕ Create event",
         "menu.button.my_activities": "📝 My activities",
         "menu.button.add_bot_to_chat": "🔗 Add bot to chat",
         "menu.button.start": "🚀 Start",
@@ -406,6 +417,15 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "events.header.from_sources": "• 🌐 From sources: {count}",
         "events.header.ai_parsed": "• 🤖 AI parsed: {count}",
         "events.summary.found": "🗺 Found {count} events nearby!",
+        # Pagination
+        "pager.prev": "◀️ Back",
+        "pager.next": "Forward ▶️",
+        "pager.page": "Page {page}/{total}",
+        "pager.today": "📅 Today",
+        "pager.today_selected": "📅 Today ✅",
+        "pager.tomorrow": "📅 Tomorrow",
+        "pager.tomorrow_selected": "📅 Tomorrow ✅",
+        "pager.radius_km": "{radius} km",
         # Create events
         "create.start": (
             '➕ **Creating "World" event**\n\n'
