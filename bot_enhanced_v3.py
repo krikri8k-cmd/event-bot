@@ -3382,7 +3382,7 @@ async def handle_language_selection(callback: types.CallbackQuery):
     lang_code = callback.data.replace("lang_", "")
 
     if lang_code not in ["ru", "en"]:
-        await callback.answer("❌ Неверный язык")
+        await callback.answer(t("language.invalid", get_user_language_or_default(user_id)))
         return
 
     # Сохраняем язык в БД
@@ -3405,7 +3405,7 @@ async def handle_language_selection(callback: types.CallbackQuery):
             welcome_text = t("menu.greeting", user_lang)
             await callback.message.answer(welcome_text, reply_markup=main_menu_kb(user_id=user_id))
     else:
-        await callback.answer("❌ Ошибка при сохранении языка")
+        await callback.answer(t("language.save_error", get_user_language_or_default(user_id)))
 
 
 def get_community_cancel_kb() -> InlineKeyboardMarkup:
@@ -3560,7 +3560,8 @@ async def start_group_event_editing(message: types.Message, event_id: int, chat_
             await state.update_data(edit_menu_msg_id=sent_message.message_id)
     except Exception as e:
         logger.error(f"Ошибка при загрузке события для редактирования: {e}")
-        await message.answer("❌ Ошибка при загрузке события")
+        user_lang = get_user_language_or_default(message.from_user.id)
+        await message.answer(t("errors.event_load_failed", user_lang))
 
 
 async def update_community_event_field_pm(event_id: int, field: str, value: str, user_id: int, chat_id: int) -> bool:
@@ -3732,10 +3733,12 @@ async def pm_edit_location_choice(callback: types.CallbackQuery, state: FSMConte
             )
             await callback.answer()
         else:
-            await callback.answer("❌ Неверный формат", show_alert=True)
+            user_lang = get_user_language_or_default(callback.from_user.id)
+            await callback.answer(t("edit.group.invalid_format", user_lang), show_alert=True)
     except (ValueError, IndexError) as e:
         logger.error(f"Ошибка парсинга pm_edit_location_: {e}")
-        await callback.answer("❌ Ошибка", show_alert=True)
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.answer(t("edit.group.error", user_lang), show_alert=True)
 
 
 @main_router.callback_query(F.data.startswith("pm_edit_location_link_"))
@@ -3753,10 +3756,12 @@ async def pm_edit_location_link_choice(callback: types.CallbackQuery, state: FSM
             )
             await callback.answer()
         else:
-            await callback.answer("❌ Неверный формат", show_alert=True)
+            user_lang = get_user_language_or_default(callback.from_user.id)
+            await callback.answer(t("edit.group.invalid_format", user_lang), show_alert=True)
     except (ValueError, IndexError) as e:
         logger.error(f"Ошибка парсинга pm_edit_location_link_: {e}")
-        await callback.answer("❌ Ошибка", show_alert=True)
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.answer(t("edit.group.error", user_lang), show_alert=True)
 
 
 @main_router.callback_query(F.data.startswith("pm_edit_location_map_"))
@@ -4599,7 +4604,8 @@ async def handle_group_create_event(callback: types.CallbackQuery, state: FSMCon
     current_time = time()
     if current_time - LAST_START.get(chat_id, 0) < 2:
         logger.info(f"🔥 handle_group_create_event: игнорируем двойной клик в чате {chat_id}")
-        await callback.answer("⏳ Подождите, создание события уже запущено...")
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.answer(t("create.wait_already_started", user_lang))
         return
 
     LAST_START[chat_id] = current_time
@@ -4729,8 +4735,8 @@ async def handle_group_hide_bot(callback: types.CallbackQuery, bot: Bot, session
     logger.info(
         f"🔥 handle_group_hide_bot: пользователь {user_id} скрывает бота в чате {chat_id}, thread_id={thread_id}"
     )
-
-    await callback.answer("Скрываем сервисные сообщения бота…", show_alert=False)
+    user_lang = get_user_language_or_default(callback.from_user.id)
+    await callback.answer(t("group.hide_toast", user_lang), show_alert=False)
 
     # Проверяем права бота на удаление сообщений
     try:
@@ -4805,10 +4811,12 @@ async def handle_delete_message(callback: types.CallbackQuery):
     """Обработчик кнопки удаления сообщения"""
     try:
         await callback.message.delete()
-        await callback.answer("✅ Сообщение удалено")
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.answer(t("group.message_deleted", user_lang))
     except Exception as e:
         logger.error(f"❌ Ошибка при удалении сообщения: {e}")
-        await callback.answer("❌ Не удалось удалить сообщение")
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.answer(t("group.message_delete_failed", user_lang))
 
 
 @main_router.callback_query(F.data.in_({"community_event_confirm_chat", "community_event_confirm_world"}))
@@ -4832,7 +4840,8 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
 
     if current_time - last_processing < 3:  # 3 секунды защиты от двойного клика
         logger.warning(f"⚠️ confirm_community_event_pm: игнорируем двойной клик от пользователя {user_id}")
-        await callback.answer("⏳ Подождите, событие уже создается...", show_alert=False)
+        user_lang = get_user_language_or_default(user_id)
+        await callback.answer(t("create.wait_in_progress", user_lang), show_alert=False)
         return
 
     confirm_community_event_pm._processing[user_id] = current_time
@@ -5279,14 +5288,15 @@ async def on_nearby_events_callback(callback: types.CallbackQuery, state: FSMCon
 @main_router.callback_query(F.data.startswith("test_location:"))
 async def on_test_location(callback: types.CallbackQuery, state: FSMContext):
     """Быстрый выбор тестовой локации (доступно только администраторам)."""
+    user_lang = get_user_language_or_default(callback.from_user.id)
     if callback.from_user.id not in settings.admin_ids:
-        await callback.answer("Доступ запрещён")
+        await callback.answer(t("common.access_denied", user_lang))
         return
 
     key = callback.data.split(":", maxsplit=1)[1]
     location = TEST_LOCATIONS.get(key)
     if not location:
-        await callback.answer("Локация не найдена")
+        await callback.answer(t("common.location_not_found", user_lang))
         return
 
     await callback.answer(f"📍 {location['label']}")
@@ -7553,7 +7563,8 @@ async def on_my_activities(message: types.Message):
             [InlineKeyboardButton(text="🏆 Мои квесты", callback_data="show_my_tasks")],
         ]
     )
-    await message.answer("Выберите раздел:", reply_markup=keyboard)
+    user_lang = get_user_language_or_default(message.from_user.id)
+    await message.answer(t("tasks.choose_section", user_lang), reply_markup=keyboard)
 
 
 @main_router.callback_query(F.data == "show_my_events")
@@ -8104,7 +8115,8 @@ async def handle_task_navigation(callback: types.CallbackQuery):
 
     active_tasks = get_user_active_tasks(user_id)
     if not active_tasks or task_index >= len(active_tasks):
-        await callback.answer("Задание не найдено")
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.answer(t("tasks.not_found", user_lang))
         return
 
     await show_task_detail(callback, active_tasks, task_index, user_id)
@@ -11005,7 +11017,8 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
 
     if current_time - last_processing < 3:  # 3 секунды защиты от двойного клика
         logger.warning(f"⚠️ confirm_community_event: игнорируем двойной клик от пользователя {user_id}")
-        await callback.answer("⏳ Подождите, событие уже создается...", show_alert=False)
+        user_lang = get_user_language_or_default(user_id)
+        await callback.answer(t("create.wait_in_progress", user_lang), show_alert=False)
         return
 
     confirm_community_event._processing[user_id] = current_time

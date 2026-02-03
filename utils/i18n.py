@@ -9,6 +9,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         # Язык и выбор языка
         "language.choose": "Выберите язык / Choose language",
         "language.changed": "✅ Язык изменён на русский",
+        "language.invalid": "❌ Неверный язык",
+        "language.save_error": "❌ Ошибка при сохранении языка",
         "language.changed.en": "✅ Language changed to English",
         "language.button.ru": "🇷🇺 Русский",
         "language.button.en": "🇬🇧 English",
@@ -104,6 +106,9 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         ),
         "group.nudge_commands": "ℹ️ Чтобы открыть команды, нажмите `/` или введите `/start@EventAroundBot`.",
         "group.activated": "🤖 EventAroundBot активирован!",
+        "group.hide_toast": "Скрываем сервисные сообщения бота…",
+        "group.message_deleted": "✅ Сообщение удалено",
+        "group.message_delete_failed": "❌ Не удалось удалить сообщение",
         "group.list.first_page": "⚠️ Это первая страница",
         "group.list.last_page": "⚠️ Это последняя страница",
         "group.list.header_paged": "📋 **События этого чата** ({count} событий, стр. {page}/{total_pages})\n\n",
@@ -123,6 +128,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "myevents.create_first": ("Создайте первое событие командой /create"),
         # Мои квесты
         "mytasks.title": "🏆 Мои квесты",
+        "tasks.choose_section": "Выберите раздел:",
+        "tasks.not_found": "Задание не найдено",
         # Добавить бота в чат
         "share.title": '🤝Версия "Community"- наведет структуру и порядок событий в вашем чате.\n\n'
         "🚀 **Награда: За добавление бота в чат 150 ракет !!!** 🚀\n\n"
@@ -166,6 +173,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         # Ошибки
         "errors.not_found": "❌ Не найдено",
         "errors.banned": "🚫 Вы заблокированы в этом боте",
+        "errors.event_load_failed": "❌ Ошибка при загрузке события",
         "errors.location_failed": (
             "❌ Ошибка: не удалось получить геолокацию. Попробуйте отправить геолокацию еще раз."
         ),
@@ -233,6 +241,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.enter_description": ("📝 **Введите описание события**\n(что будет происходить, кому интересно):"),
         "create.cancelled": "Создание отменено.",
         "create.cancelled_full": "❌ Создание мероприятия отменено.",
+        "create.wait_already_started": "⏳ Подождите, создание события уже запущено...",
+        "create.wait_in_progress": "⏳ Подождите, событие уже создается...",
         "create.validation.no_text": "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n{next_prompt}",
         "create.validation.invalid_date_format": (
             "❌ **Неверный формат даты!**\n\n" "📅 Введите дату в формате **ДД.ММ.ГГГГ**\n" "Например: 15.12.2024"
@@ -296,6 +306,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "edit.button.description": "📝 Описание",
         "edit.button.finish": "✅ Завершить",
         "common.not_specified": "Не указано",
+        "common.access_denied": "Доступ запрещён",
+        "common.location_not_found": "Локация не найдена",
         "edit.location_updated": "✅ Локация обновлена: *{location}*",
         "edit.location_update_error": "❌ Ошибка при обновлении локации",
         "edit.description_update_error": "❌ Ошибка при обновлении описания",
@@ -344,6 +356,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         # Language selection
         "language.choose": "Choose language / Выберите язык",
         "language.changed": "✅ Language changed to English",
+        "language.invalid": "❌ Invalid language",
+        "language.save_error": "❌ Error saving language",
         "language.changed.ru": "✅ Язык изменён на русский",
         "language.button.ru": "🇷🇺 Русский",
         "language.button.en": "🇬🇧 English",
@@ -436,6 +450,9 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         ),
         "group.nudge_commands": "ℹ️ To open commands, press `/` or type `/start@EventAroundBot`.",
         "group.activated": "🤖 EventAroundBot activated!",
+        "group.hide_toast": "Hiding bot service messages…",
+        "group.message_deleted": "✅ Message deleted",
+        "group.message_delete_failed": "❌ Failed to delete message",
         "group.list.first_page": "⚠️ This is the first page",
         "group.list.last_page": "⚠️ This is the last page",
         "group.list.header_paged": "📋 **Events in this chat** ({count} events, p. {page}/{total_pages})\n\n",
@@ -486,6 +503,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.enter_description": ("📝 **Enter event description**\n(what will happen, who it's for):"),
         "create.cancelled": "Creation cancelled.",
         "create.cancelled_full": "❌ Event creation cancelled.",
+        "create.wait_already_started": "⏳ Please wait, event creation is already in progress...",
+        "create.wait_in_progress": "⏳ Please wait, event is being created...",
         "create.validation.no_text": "❌ **Please send a text message!**\n\n{next_prompt}",
         "create.validation.invalid_date_format": (
             "❌ **Invalid date format!**\n\n" "📅 Enter date in format **DD.MM.YYYY**\n" "Example: 15.12.2024"
@@ -533,6 +552,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "myevents.create_first": "Create your first event with /create command",
         # My quests
         "mytasks.title": "🏆 My quests",
+        "tasks.choose_section": "Choose section:",
+        "tasks.not_found": "Task not found",
         # Add bot to chat
         "share.title": '🤝"Community" version - will bring structure and order to events in your chat.\n\n'
         "🚀 **Reward: For adding bot to chat 150 rockets !!!** 🚀\n\n"
@@ -574,6 +595,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         # Errors
         "errors.not_found": "❌ Not found",
         "errors.banned": "🚫 You are blocked in this bot",
+        "errors.event_load_failed": "❌ Error loading event",
         "errors.location_failed": ("❌ Error: could not get location. Please send your location again."),
         "errors.event_not_found": "❌ Event not found",
         "errors.no_permission": "❌ You don't have permission to edit this event",
@@ -621,6 +643,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "edit.button.description": "📝 Description",
         "edit.button.finish": "✅ Finish",
         "common.not_specified": "Not specified",
+        "common.access_denied": "Access denied",
+        "common.location_not_found": "Location not found",
         "edit.location_updated": "✅ Location updated: *{location}*",
         "edit.location_update_error": "❌ Error updating location",
         "edit.description_update_error": "❌ Error updating description",
