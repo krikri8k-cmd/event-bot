@@ -7101,12 +7101,12 @@ async def on_banlist(message: types.Message):
 @main_router.message(Command("admin_event"))
 async def on_admin_event(message: types.Message):
     """Обработчик команды /admin_event для диагностики событий"""
-    # Проверяем, что это админ (можно добавить проверку по user_id)
+    user_lang = get_user_language_or_default(message.from_user.id)
     try:
         # Извлекаем ID события из команды
         command_parts = message.text.split()
         if len(command_parts) < 2:
-            await message.answer("Использование: /admin_event <id_события>")
+            await message.answer(t("admin.event.usage", user_lang))
             return
 
         event_id = int(command_parts[1])
@@ -7115,7 +7115,7 @@ async def on_admin_event(message: types.Message):
         with get_session() as session:
             event = session.get(Event, event_id)
             if not event:
-                await message.answer(f"Событие с ID {event_id} не найдено")
+                await message.answer(format_translation("admin.event.not_found", user_lang, event_id=event_id))
                 return
 
             # Формируем диагностическую информацию в HTML
@@ -7159,10 +7159,10 @@ async def on_admin_event(message: types.Message):
             await message.answer(text, parse_mode="HTML", disable_web_page_preview=True)
 
     except ValueError:
-        await message.answer("ID события должен быть числом")
+        await message.answer(t("admin.event.invalid_id", user_lang))
     except Exception as e:
         logger.error(f"Ошибка в команде admin_event: {e}")
-        await message.answer("Произошла ошибка при получении информации о событии")
+        await message.answer(t("admin.event.error", user_lang))
 
 
 @main_router.message(Command("diag_webhook"))
@@ -7250,11 +7250,12 @@ async def on_diag_commands(message: types.Message):
 @main_router.message(Command("diag_last"))
 async def on_diag_last(message: types.Message):
     """Обработчик команды /diag_last для диагностики последнего запроса"""
+    user_lang = get_user_language_or_default(message.from_user.id)
     try:
         # Получаем состояние последнего запроса
         state = user_state.get(message.chat.id)
         if not state:
-            await message.answer("Нет данных о последнем запросе. Отправьте геолокацию.")
+            await message.answer(t("search.no_last_request", user_lang))
             return
 
         # Формируем диагностическую информацию
@@ -7337,12 +7338,14 @@ async def on_diag_last(message: types.Message):
 
     except Exception as e:
         logger.error(f"Ошибка в команде diag_last: {e}")
-        await message.answer("Произошла ошибка при получении диагностики")
+        user_lang = get_user_language_or_default(message.from_user.id)
+        await message.answer(t("diag.error", user_lang))
 
 
 @main_router.message(Command("diag_all"))
 async def on_diag_all(message: types.Message):
     """Обработчик команды /diag_all для полной диагностики системы"""
+    user_lang = get_user_language_or_default(message.from_user.id)
     try:
         with get_session() as session:
             # Получаем статистику событий за последние 24 часа
@@ -7423,17 +7426,18 @@ async def on_diag_all(message: types.Message):
 
     except Exception as e:
         logger.error(f"Ошибка в команде diag_all: {e}")
-        await message.answer("Произошла ошибка при получении диагностики")
+        await message.answer(t("diag.error", user_lang))
 
 
 @main_router.message(Command("diag_search"))
 async def on_diag_search(message: types.Message):
     """Обработчик команды /diag_search для диагностики поиска"""
+    user_lang = get_user_language_or_default(message.from_user.id)
     try:
         # Получаем состояние последнего запроса
         state = user_state.get(message.chat.id)
         if not state:
-            await message.answer("Нет данных о последнем запросе. Отправьте геолокацию.")
+            await message.answer(t("search.no_last_request", user_lang))
             return
 
         # Формируем диагностическую информацию
@@ -7496,7 +7500,7 @@ async def on_diag_search(message: types.Message):
 
     except Exception as e:
         logger.error(f"Ошибка в команде diag_search: {e}")
-        await message.answer("Произошла ошибка при получении диагностики поиска")
+        await message.answer(t("diag.search_error", user_lang))
 
 
 @main_router.message(F.text == "🎯 Интересные места")
@@ -11508,13 +11512,15 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
         state = user_state.get(callback.message.chat.id)
         if not state:
             logger.warning(f"Состояние не найдено для пользователя {callback.message.chat.id}")
-            await callback.answer("❌ Состояние потеряно. Отправьте геолокацию заново.")
+            user_lang = get_user_language_or_default(callback.from_user.id)
+            await callback.answer(t("pager.state_lost", user_lang))
             return
 
         # Проверяем, что фильтр действительно изменился
         current_filter = state.get("date_filter", "today")
         if current_filter == date_type:
-            await callback.answer("Эта дата уже выбрана")
+            user_lang = get_user_language_or_default(callback.from_user.id)
+            await callback.answer(t("pager.date_already_selected", user_lang))
             return
 
         # Показываем индикатор загрузки
@@ -11721,14 +11727,16 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
             logger.info(f"✅ Фильтр даты переключен на {date_type}, найдено {len(prepared)} событий")
         except Exception as e:
             logger.error(f"❌ Ошибка обновления сообщения при переключении даты: {e}")
-            await callback.answer("❌ Не удалось переключить дату", show_alert=True)
+            user_lang = get_user_language_or_default(callback.from_user.id)
+            await callback.answer(t("pager.date_switch_failed", user_lang), show_alert=True)
             return
 
         await callback.answer(f"📅 Показаны события на {date_type}")
 
     except Exception as e:
         logger.error(f"❌ Ошибка обработки переключения даты: {e}")
-        await callback.answer("❌ Произошла ошибка при переключении даты")
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.answer(t("pager.date_error", user_lang))
 
 
 @main_router.callback_query(F.data.startswith("pg:"))
@@ -11738,8 +11746,9 @@ async def handle_pagination(callback: types.CallbackQuery):
     try:
         # Извлекаем номер страницы из callback_data
         token = callback.data.split(":", 1)[1]
+        user_lang = get_user_language_or_default(callback.from_user.id)
         if token == "noop":
-            await callback.answer("Это крайняя страница")
+            await callback.answer(t("pager.page_edge", user_lang))
             return
 
         page = int(token)
@@ -11748,7 +11757,7 @@ async def handle_pagination(callback: types.CallbackQuery):
         state = user_state.get(callback.message.chat.id)
         if not state:
             logger.warning(f"Состояние не найдено для пользователя {callback.message.chat.id}")
-            await callback.answer("Состояние не найдено. Отправьте новую геолокацию.")
+            await callback.answer(t("pager.state_not_found", user_lang))
             return
 
         prepared = state["prepared"]
@@ -11785,7 +11794,7 @@ async def handle_pagination(callback: types.CallbackQuery):
 
         # Проверяем, что запрошенная страница находится в допустимых пределах
         if page < 1 or page > total_pages:
-            await callback.answer("⚠️ Это крайняя страница", show_alert=True)
+            await callback.answer(t("pager.page_edge_alert", user_lang), show_alert=True)
             return
 
         # Рендерим страницу
@@ -11886,7 +11895,7 @@ async def handle_pagination(callback: types.CallbackQuery):
                 logger.info(f"✅ Страница {page} отправлена как новое текстовое сообщение (длина: {len(new_text)})")
         except Exception as e:
             logger.error(f"❌ Ошибка редактирования/отправки страницы {page}: {e}")
-            await callback.answer("❌ Не удалось перелистнуть страницу", show_alert=True)
+            await callback.answer(t("pager.page_failed", user_lang), show_alert=True)
             return
 
         # Обновляем состояние
@@ -11899,16 +11908,19 @@ async def handle_pagination(callback: types.CallbackQuery):
 
     except (ValueError, IndexError) as e:
         logger.error(f"❌ Ошибка обработки пагинации: {e}")
-        await callback.answer("Ошибка обработки запроса")
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.answer(t("pager.request_error", user_lang))
     except Exception as e:
         logger.error(f"❌ Неожиданная ошибка в пагинации: {e}")
-        await callback.answer("Произошла ошибка")
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.answer(t("pager.general_error", user_lang))
 
 
 @main_router.callback_query(F.data == "loading")
 async def handle_loading_button(callback: types.CallbackQuery):
     """Обработчик кнопки загрузки - просто отвечаем, что работаем"""
-    await callback.answer("🔍 Ищем события...", show_alert=False)
+    user_lang = get_user_language_or_default(callback.from_user.id)
+    await callback.answer(t("search.loading_toast", user_lang), show_alert=False)
 
 
 @main_router.callback_query(F.data == "create_event")
@@ -11954,7 +11966,8 @@ async def handle_start_create(callback: types.CallbackQuery):
                 inline_keyboard=[[InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_search")]]
             ),
         )
-        await callback.answer("Используйте команду /create")
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.answer(t("pager.use_create", user_lang))
 
     except Exception as e:
         logger.error(f"❌ Ошибка в обработчике начала создания: {e}")

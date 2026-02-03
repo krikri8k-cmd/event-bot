@@ -170,6 +170,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "admin.banlist.reason": "  Причина: {reason}",
         "admin.banlist.until": "  До: {date}",
         "admin.banlist.permanent": "  Навсегда",
+        "admin.event.usage": "Использование: /admin_event <id_события>",
+        "admin.event.not_found": "Событие с ID {event_id} не найдено",
+        "admin.event.invalid_id": "ID события должен быть числом",
+        "admin.event.error": "Произошла ошибка при получении информации о событии",
         # Ошибки
         "errors.not_found": "❌ Не найдено",
         "errors.banned": "🚫 Вы заблокированы в этом боте",
@@ -186,6 +190,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "search.error.general": "❌ Произошла ошибка при поиске событий. Попробуйте позже.",
         "search.state_expired": "❌ Данные поиска устарели. Отправьте геолокацию заново.",
         "search.location_not_found": "❌ Геолокация не найдена. Отправьте геолокацию заново.",
+        "search.no_last_request": "Нет данных о последнем запросе. Отправьте геолокацию.",
+        "search.loading_toast": "🔍 Ищем события...",
         "search.geo_prompt": (
             "Нажмите кнопку '📍 Отправить геолокацию' чтобы начать!\n\n"
             "💡 Если кнопка не работает :\n\n"
@@ -220,6 +226,19 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "pager.tomorrow_selected": "📅 Завтра ✅",
         "pager.radius_km": "{radius} км",
         "pager.radius_expanded": "✅ Радиус расширен до {radius} км",
+        "pager.date_already_selected": "Эта дата уже выбрана",
+        "pager.state_lost": "Состояние потеряно. Отправьте геолокацию заново.",
+        "pager.date_switch_failed": "❌ Не удалось переключить дату",
+        "pager.date_error": "❌ Произошла ошибка при переключении даты",
+        "pager.page_edge": "Это крайняя страница",
+        "pager.page_edge_alert": "⚠️ Это крайняя страница",
+        "pager.page_failed": "❌ Не удалось перелистнуть страницу",
+        "pager.state_not_found": "Состояние не найдено. Отправьте новую геолокацию.",
+        "pager.request_error": "Ошибка обработки запроса",
+        "pager.general_error": "Произошла ошибка",
+        "pager.use_create": "Используйте команду /create",
+        "diag.error": "Произошла ошибка при получении диагностики",
+        "diag.search_error": "Произошла ошибка при получении диагностики поиска",
         # Создание событий
         "create.start": (
             '➕ **Создаём событие "World"**\n\n'
@@ -482,6 +501,19 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "pager.tomorrow_selected": "📅 Tomorrow ✅",
         "pager.radius_km": "{radius} km",
         "pager.radius_expanded": "✅ Radius expanded to {radius} km",
+        "pager.date_already_selected": "This date is already selected",
+        "pager.state_lost": "State lost. Send your location again.",
+        "pager.date_switch_failed": "❌ Failed to switch date",
+        "pager.date_error": "❌ Error switching date",
+        "pager.page_edge": "This is the last page",
+        "pager.page_edge_alert": "⚠️ This is the last page",
+        "pager.page_failed": "❌ Failed to flip page",
+        "pager.state_not_found": "State not found. Send a new location.",
+        "pager.request_error": "Request processing error",
+        "pager.general_error": "An error occurred",
+        "pager.use_create": "Use the /create command",
+        "diag.error": "Error getting diagnostics",
+        "diag.search_error": "Error getting search diagnostics",
         # Create events
         "create.start": (
             '➕ **Creating "World" event**\n\n'
@@ -592,6 +624,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "admin.banlist.reason": "  Reason: {reason}",
         "admin.banlist.until": "  Until: {date}",
         "admin.banlist.permanent": "  Permanent",
+        "admin.event.usage": "Usage: /admin_event <event_id>",
+        "admin.event.not_found": "Event with ID {event_id} not found",
+        "admin.event.invalid_id": "Event ID must be a number",
+        "admin.event.error": "Error getting event information",
         # Errors
         "errors.not_found": "❌ Not found",
         "errors.banned": "🚫 You are blocked in this bot",
@@ -606,6 +642,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "search.error.general": "❌ Error while searching for events. Please try again later.",
         "search.state_expired": "❌ Search data expired. Send your location again.",
         "search.location_not_found": "❌ Location not found. Send your location again.",
+        "search.no_last_request": "No last request data. Send your location.",
+        "search.loading_toast": "🔍 Searching for events...",
         "search.geo_prompt": (
             "Press the '📍 Send location' button to start!\n\n"
             "💡 If the button does not work:\n\n"
