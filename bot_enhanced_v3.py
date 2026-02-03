@@ -8738,7 +8738,8 @@ async def handle_task_cancel(callback: types.CallbackQuery):
             "🏆 **Мои квесты**\n\n" "У вас нет активных заданий.",
             parse_mode="Markdown",
         )
-        await callback.answer("✅ Задание отменено")
+        user_lang = get_user_language_or_default(user_id)
+        await callback.answer(t("tasks.cancelled", user_lang))
         return
 
     # Определяем, какое задание показать после удаления
@@ -8757,7 +8758,8 @@ async def handle_task_cancel(callback: types.CallbackQuery):
 
     # Показываем следующее задание
     await show_task_detail(callback, active_tasks, new_index, user_id)
-    await callback.answer("✅ Задание отменено")
+    user_lang = get_user_language_or_default(user_id)
+    await callback.answer(t("tasks.cancelled", user_lang))
 
 
 async def show_tasks_for_category(
@@ -9135,7 +9137,8 @@ async def handle_task_accept(callback: types.CallbackQuery, state: FSMContext):
 
     if success:
         # Показываем краткое сообщение об успехе
-        await callback.answer("✅ Задание принято!", show_alert=False)
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.answer(t("tasks.accepted", user_lang), show_alert=False)
 
         # Если есть категория и координаты, показываем обновленный список мест
         if category and user_lat and user_lng:
@@ -9213,11 +9216,13 @@ async def handle_start_task(callback: types.CallbackQuery):
             parse_mode="Markdown",
         )
 
-        await callback.answer("✅ Задание добавлено в активные!")
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.answer(t("tasks.added", user_lang))
 
     except Exception as e:
         logger.error(f"Ошибка начала задания: {e}")
-        await callback.answer("❌ Ошибка при начале задания")
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.answer(t("tasks.start_error", user_lang))
 
 
 @main_router.callback_query(F.data == "back_to_main")
@@ -9285,8 +9290,9 @@ async def handle_back_to_tasks(callback: types.CallbackQuery):
 async def handle_places_page(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик пагинации мест"""
     parts = callback.data.split(":")
+    user_lang = get_user_language_or_default(callback.from_user.id)
     if len(parts) < 3 or parts[2] == "noop":
-        await callback.answer("Это крайняя страница")
+        await callback.answer(t("tasks.page_edge", user_lang))
         return
 
     category = parts[1]
@@ -9300,7 +9306,7 @@ async def handle_places_page(callback: types.CallbackQuery, state: FSMContext):
         user_lng = user.last_lng if user else None
 
     if not user_lat or not user_lng:
-        await callback.answer("📍 Требуется геолокация")
+        await callback.answer(t("tasks.require_location", user_lang))
         return
 
     # Показываем страницу мест
@@ -9419,7 +9425,8 @@ async def process_feedback(message: types.Message, state: FSMContext):
     completing_task_id = data.get("completing_task_id") or data.get("user_task_id")
 
     if not completing_task_id:
-        await message.answer("❌ Ошибка: не найдено задание для завершения.")
+        user_lang = get_user_language_or_default(user_id)
+        await message.answer(t("tasks.complete_not_found", user_lang))
         await state.clear()
         return
 
@@ -9903,7 +9910,8 @@ async def process_task_custom_location(message: types.Message, state: FSMContext
     task_id = data.get("selected_task_id")
 
     if not task_id:
-        await message.answer("❌ Ошибка: не найдено задание.")
+        user_lang = get_user_language_or_default(user_id)
+        await message.answer(t("tasks.task_not_found", user_lang))
         await state.clear()
         return
 
@@ -9950,11 +9958,13 @@ async def process_task_custom_location(message: types.Message, state: FSMContext
                 await state.clear()
                 return
             else:
-                await message.answer("❌ Неверные координаты. Широта должна быть от -90 до 90, долгота от -180 до 180.")
+                user_lang = get_user_language_or_default(user_id)
+                await message.answer(t("edit.coords_invalid", user_lang))
                 return
 
         except ValueError:
-            await message.answer("❌ Неверный формат координат. Используйте: широта, долгота")
+            user_lang = get_user_language_or_default(user_id)
+            await message.answer(t("edit.coords_format", user_lang))
             return
 
     # Проверяем, является ли это Google Maps ссылкой
@@ -10003,7 +10013,8 @@ async def process_task_custom_location(message: types.Message, state: FSMContext
             await state.clear()
             return
         else:
-            await message.answer("❌ Не удалось определить координаты по ссылке. Попробуйте ввести координаты вручную.")
+            user_lang = get_user_language_or_default(user_id)
+            await message.answer(t("edit.coords_link_failed", user_lang))
             return
 
     # Если это не координаты и не ссылка
@@ -11302,7 +11313,8 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
         reply_markup=main_menu_kb(user_id=user_id),
     )
 
-    await callback.answer("Событие создано!")
+    user_lang = get_user_language_or_default(callback.from_user.id)
+    await callback.answer(t("event.created", user_lang))
 
     # Показываем крутую анимацию после сохранения
     await send_spinning_menu(callback.message)
@@ -11951,7 +11963,8 @@ async def handle_create_event(callback: types.CallbackQuery):
 
     except Exception as e:
         logger.error(f"❌ Ошибка в обработчике создания события: {e}")
-        await callback.answer("Произошла ошибка")
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.answer(t("pager.general_error", user_lang))
 
 
 @main_router.callback_query(F.data == "start_create")
@@ -11971,7 +11984,8 @@ async def handle_start_create(callback: types.CallbackQuery):
 
     except Exception as e:
         logger.error(f"❌ Ошибка в обработчике начала создания: {e}")
-        await callback.answer("Произошла ошибка")
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.answer(t("pager.general_error", user_lang))
 
 
 @main_router.callback_query(F.data == "back_to_search")
@@ -11989,7 +12003,8 @@ async def handle_back_to_search(callback: types.CallbackQuery):
 
     except Exception as e:
         logger.error(f"❌ Ошибка в обработчике возврата к поиску: {e}")
-        await callback.answer("Произошла ошибка")
+        user_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.answer(t("pager.general_error", user_lang))
 
 
 # ===== ОБРАБОТЧИКИ MOMENTS ОТКЛЮЧЕНЫ =====
@@ -12543,8 +12558,8 @@ async def handle_close_event(callback: types.CallbackQuery):
         closed_event = get_event_by_id(event_id, user_id)
 
         if closed_event:
-            event_name = closed_event["title"]
-            await callback.answer(f"✅ Мероприятие '{event_name}' завершено!")
+            user_lang = get_user_language_or_default(user_id)
+            await callback.answer(t("event.completed", user_lang))
 
             # Получаем список всех событий (включая закрытое) для навигации
             events = _get_active_user_events(user_id)
@@ -12559,9 +12574,11 @@ async def handle_close_event(callback: types.CallbackQuery):
             if events:
                 await _show_manage_event(callback, events, 0)
             else:
-                await callback.answer("✅ Мероприятие завершено!")
+                user_lang = get_user_language_or_default(user_id)
+                await callback.answer(t("event.completed", user_lang))
     else:
-        await callback.answer("❌ Ошибка при завершении мероприятия")
+        user_lang = get_user_language_or_default(user_id)
+        await callback.answer(t("event.complete_error", user_lang))
 
 
 @main_router.callback_query(F.data.startswith("open_event_"))
@@ -12573,12 +12590,14 @@ async def handle_open_event(callback: types.CallbackQuery):
     # Получаем событие для проверки статуса и времени закрытия
     event = get_event_by_id(event_id, user_id)
     if not event:
-        await callback.answer("❌ Событие не найдено", show_alert=True)
+        user_lang = get_user_language_or_default(user_id)
+        await callback.answer(t("event.not_found", user_lang), show_alert=True)
         return
 
     # Проверяем, что событие закрыто
     if event["status"] != "closed":
-        await callback.answer("❌ Событие не закрыто, его нельзя возобновить", show_alert=True)
+        user_lang = get_user_language_or_default(user_id)
+        await callback.answer(t("event.not_closed", user_lang), show_alert=True)
         return
 
     # Проверяем, что событие было закрыто в течение последних 24 часов
@@ -12605,8 +12624,8 @@ async def handle_open_event(callback: types.CallbackQuery):
         reopened_event = get_event_by_id(event_id, user_id)
 
         if reopened_event:
-            event_name = reopened_event["title"]
-            await callback.answer(f"🔄 Мероприятие '{event_name}' снова активно!")
+            user_lang = get_user_language_or_default(user_id)
+            await callback.answer(t("event.resumed", user_lang))
 
             # Получаем список всех событий пользователя (включая закрытые для навигации)
             events = _get_active_user_events(user_id)
@@ -12622,9 +12641,11 @@ async def handle_open_event(callback: types.CallbackQuery):
             if events:
                 await _show_manage_event(callback, events, 0)
             else:
-                await callback.answer("🔄 Мероприятие снова активно!")
+                user_lang = get_user_language_or_default(user_id)
+                await callback.answer(t("event.resumed", user_lang))
     else:
-        await callback.answer("❌ Ошибка при возобновлении мероприятия")
+        user_lang = get_user_language_or_default(user_id)
+        await callback.answer(t("event.resume_error", user_lang))
 
 
 @main_router.callback_query(F.data.startswith("share_event_"))
@@ -12636,7 +12657,8 @@ async def handle_share_event(callback: types.CallbackQuery):
     # Получаем полные данные события
     event = get_event_by_id(event_id, user_id)
     if not event:
-        await callback.answer("❌ Событие не найдено")
+        user_lang = get_user_language_or_default(user_id)
+        await callback.answer(t("event.not_found", user_lang))
         return
 
     # Формируем структурированное сообщение (как после создания события)
@@ -12690,7 +12712,8 @@ async def handle_share_event(callback: types.CallbackQuery):
         share_message,
         parse_mode="Markdown",
     )
-    await callback.answer("✅ Сообщение готово к пересылке!")
+    user_lang = get_user_language_or_default(callback.from_user.id)
+    await callback.answer(t("event.ready_to_forward", user_lang))
 
 
 @main_router.callback_query(F.data.startswith("edit_event_"))
@@ -12931,7 +12954,8 @@ async def handle_edit_finish(callback: types.CallbackQuery, state: FSMContext):
         if event_index is not None:
             # Показываем событие через _show_manage_event с навигацией
             await _show_manage_event(callback, events, event_index)
-            await callback.answer("✅ Событие обновлено!")
+            user_lang = get_user_language_or_default(callback.from_user.id)
+            await callback.answer(t("event.updated", user_lang))
         else:
             # Если событие не найдено в списке активных, получаем его напрямую
             all_events = get_user_events(user_id)
@@ -12946,9 +12970,11 @@ async def handle_edit_finish(callback: types.CallbackQuery, state: FSMContext):
                     ]
                 )
                 await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
-                await callback.answer("✅ Событие обновлено!")
+                user_lang = get_user_language_or_default(callback.from_user.id)
+                await callback.answer(t("event.updated", user_lang))
             else:
-                await callback.answer("❌ Событие не найдено")
+                user_lang = get_user_language_or_default(callback.from_user.id)
+                await callback.answer(t("event.not_found", user_lang))
 
     await state.clear()
 
@@ -13212,7 +13238,8 @@ async def handle_next_event(callback: types.CallbackQuery):
     total = len(active_events)
 
     if target_index is None or target_index >= total:
-        await callback.answer("⚠️ Это последнее событие", show_alert=True)
+        user_lang = get_user_language_or_default(user_id)
+        await callback.answer(t("carousel.last_event", user_lang), show_alert=True)
         return
 
     # Проверяем, не пытаемся ли мы перейти вперед с последней страницы
@@ -13224,11 +13251,13 @@ async def handle_next_event(callback: types.CallbackQuery):
         total_num = int(match.group(2))
         # Если текущий номер равен общему количеству, значит мы уже на последней странице
         if current_num == total_num and total_num == total:
-            await callback.answer("⚠️ Это последнее событие", show_alert=True)
+            user_lang = get_user_language_or_default(user_id)
+            await callback.answer(t("carousel.last_event", user_lang), show_alert=True)
             return
         # Если target_index совпадает с текущим индексом (current_num - 1), значит мы уже на этой странице
         if target_index == current_num - 1:
-            await callback.answer("⚠️ Это последнее событие", show_alert=True)
+            user_lang = get_user_language_or_default(user_id)
+            await callback.answer(t("carousel.last_event", user_lang), show_alert=True)
             return
 
     await _show_manage_event(callback, active_events, target_index)
@@ -13238,17 +13267,17 @@ async def handle_next_event(callback: types.CallbackQuery):
 @main_router.callback_query(F.data.startswith("back_to_main_"))
 async def handle_back_to_main(callback: types.CallbackQuery):
     """Возврат в главное меню (старый обработчик для совместимости)"""
-    # Показываем анимацию ракеты с главным меню
-    await callback.answer("🎯 Возврат в главное меню")
+    user_lang = get_user_language_or_default(callback.from_user.id)
+    await callback.answer(t("carousel.back_to_menu", user_lang))
     await send_spinning_menu(callback.message)
 
 
 @main_router.callback_query(F.data.startswith("back_to_list_"))
 async def handle_back_to_list(callback: types.CallbackQuery):
     """Возврат к списку событий"""
-    await callback.answer("📋 Возврат к списку событий")
-
     user_id = callback.from_user.id
+    user_lang = get_user_language_or_default(user_id)
+    await callback.answer(t("carousel.back_to_list", user_lang))
 
     # Автомодерация: закрываем прошедшие события
     closed_count = auto_close_events()
@@ -13419,7 +13448,8 @@ async def handle_prev_event(callback: types.CallbackQuery):
     total = len(active_events)
 
     if target_index is None or target_index < 0 or target_index >= total:
-        await callback.answer("⚠️ Это первое событие", show_alert=True)
+        user_lang = get_user_language_or_default(user_id)
+        await callback.answer(t("carousel.first_event", user_lang), show_alert=True)
         return
 
     # Проверяем, не пытаемся ли мы перейти назад с первой страницы
@@ -13430,11 +13460,13 @@ async def handle_prev_event(callback: types.CallbackQuery):
         current_num = int(match.group(1))
         # Если текущий номер равен 1, значит мы уже на первой странице
         if current_num == 1:
-            await callback.answer("⚠️ Это первое событие", show_alert=True)
+            user_lang = get_user_language_or_default(user_id)
+            await callback.answer(t("carousel.first_event", user_lang), show_alert=True)
             return
         # Если target_index совпадает с текущим индексом (current_num - 1), значит мы уже на этой странице
         if target_index == current_num - 1:
-            await callback.answer("⚠️ Это первое событие", show_alert=True)
+            user_lang = get_user_language_or_default(user_id)
+            await callback.answer(t("carousel.first_event", user_lang), show_alert=True)
             return
 
     await _show_manage_event(callback, active_events, target_index)

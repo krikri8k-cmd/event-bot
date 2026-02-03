@@ -130,6 +130,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "mytasks.title": "🏆 Мои квесты",
         "tasks.choose_section": "Выберите раздел:",
         "tasks.not_found": "Задание не найдено",
+        "tasks.cancelled": "✅ Задание отменено",
+        "tasks.accepted": "✅ Задание принято!",
+        "tasks.added": "✅ Задание добавлено в активные!",
+        "tasks.start_error": "❌ Ошибка при начале задания",
+        "tasks.page_edge": "Это крайняя страница",
+        "tasks.require_location": "📍 Требуется геолокация",
+        "tasks.complete_not_found": "❌ Ошибка: не найдено задание для завершения.",
+        "tasks.task_not_found": "❌ Ошибка: не найдено задание.",
         # Добавить бота в чат
         "share.title": '🤝Версия "Community"- наведет структуру и порядок событий в вашем чате.\n\n'
         "🚀 **Награда: За добавление бота в чат 150 ракет !!!** 🚀\n\n"
@@ -239,6 +247,23 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "pager.use_create": "Используйте команду /create",
         "diag.error": "Произошла ошибка при получении диагностики",
         "diag.search_error": "Произошла ошибка при получении диагностики поиска",
+        "event.created": "Событие создано!",
+        "event.completed": "✅ Мероприятие завершено!",
+        "event.complete_error": "❌ Ошибка при завершении мероприятия",
+        "event.not_found": "❌ Событие не найдено",
+        "event.not_closed": "❌ Событие не закрыто, его нельзя возобновить",
+        "event.resumed": "🔄 Мероприятие снова активно!",
+        "event.resume_error": "❌ Ошибка при возобновлении мероприятия",
+        "event.ready_to_forward": "✅ Сообщение готово к пересылке!",
+        "event.updated": "✅ Событие обновлено!",
+        "carousel.last_event": "⚠️ Это последнее событие",
+        "carousel.first_event": "⚠️ Это первое событие",
+        "carousel.back_to_menu": "🎯 Возврат в главное меню",
+        "carousel.back_to_list": "📋 Возврат к списку событий",
+        "edit.coords_invalid": ("❌ Неверные координаты. Широта: -90 до 90, долгота: -180 до 180."),
+        "edit.coords_link_failed": (
+            "❌ Не удалось определить координаты по ссылке. " "Попробуйте ввести координаты вручную."
+        ),
         # Создание событий
         "create.start": (
             '➕ **Создаём событие "World"**\n\n'
@@ -586,6 +611,29 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "mytasks.title": "🏆 My quests",
         "tasks.choose_section": "Choose section:",
         "tasks.not_found": "Task not found",
+        "tasks.cancelled": "✅ Task cancelled",
+        "tasks.accepted": "✅ Task accepted!",
+        "tasks.added": "✅ Task added to active!",
+        "tasks.start_error": "❌ Error starting task",
+        "tasks.page_edge": "This is the last page",
+        "tasks.require_location": "📍 Location required",
+        "tasks.complete_not_found": "❌ Error: no task found to complete.",
+        "tasks.task_not_found": "❌ Error: task not found.",
+        "event.created": "Event created!",
+        "event.completed": "✅ Event completed!",
+        "event.complete_error": "❌ Error completing event",
+        "event.not_found": "❌ Event not found",
+        "event.not_closed": "❌ Event is not closed, cannot resume",
+        "event.resumed": "🔄 Event active again!",
+        "event.resume_error": "❌ Error resuming event",
+        "event.ready_to_forward": "✅ Message ready to forward!",
+        "event.updated": "✅ Event updated!",
+        "carousel.last_event": "⚠️ This is the last event",
+        "carousel.first_event": "⚠️ This is the first event",
+        "carousel.back_to_menu": "🎯 Back to main menu",
+        "carousel.back_to_list": "📋 Back to events list",
+        "edit.coords_invalid": "❌ Invalid coordinates. Latitude must be -90 to 90, longitude -180 to 180.",
+        "edit.coords_link_failed": "❌ Could not get coordinates from link. Try entering coordinates manually.",
         # Add bot to chat
         "share.title": '🤝"Community" version - will bring structure and order to events in your chat.\n\n'
         "🚀 **Reward: For adding bot to chat 150 rockets !!!** 🚀\n\n"
