@@ -26,6 +26,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "menu.button.interesting_places": "🎯 Интересные места",
         "menu.button.create": "➕ Создать",
         "menu.button.create_event": "➕ Создать событие",
+        "menu.use_buttons": "Используйте кнопки меню для навигации:",
         "menu.button.my_activities": "📝 Мои активности",
         "menu.button.add_bot_to_chat": "🔗 Добавить бота в чат",
         "menu.button.start": "🚀 Старт",
@@ -164,6 +165,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "admin.banlist.permanent": "  Навсегда",
         # Ошибки
         "errors.not_found": "❌ Не найдено",
+        "errors.banned": "🚫 Вы заблокированы в этом боте",
+        "errors.location_failed": (
+            "❌ Ошибка: не удалось получить геолокацию. Попробуйте отправить геолокацию еще раз."
+        ),
         "errors.event_not_found": "❌ Событие не найдено",
         "errors.no_permission": "❌ У вас нет прав для редактирования этого события",
         "errors.general": "❌ Ошибка",
@@ -171,6 +176,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         # Поиск событий
         "search.loading": "🔍 Ищу события рядом...",
         "search.error.general": "❌ Произошла ошибка при поиске событий. Попробуйте позже.",
+        "search.state_expired": "❌ Данные поиска устарели. Отправьте геолокацию заново.",
+        "search.location_not_found": "❌ Геолокация не найдена. Отправьте геолокацию заново.",
         "search.geo_prompt": (
             "Нажмите кнопку '📍 Отправить геолокацию' чтобы начать!\n\n"
             "💡 Если кнопка не работает :\n\n"
@@ -204,6 +211,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "pager.tomorrow": "📅 Завтра",
         "pager.tomorrow_selected": "📅 Завтра ✅",
         "pager.radius_km": "{radius} км",
+        "pager.radius_expanded": "✅ Радиус расширен до {radius} км",
         # Создание событий
         "create.start": (
             '➕ **Создаём событие "World"**\n\n'
@@ -224,6 +232,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         ),
         "create.enter_description": ("📝 **Введите описание события**\n(что будет происходить, кому интересно):"),
         "create.cancelled": "Создание отменено.",
+        "create.cancelled_full": "❌ Создание мероприятия отменено.",
         "create.validation.no_text": "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n{next_prompt}",
         "create.validation.invalid_date_format": (
             "❌ **Неверный формат даты!**\n\n" "📅 Введите дату в формате **ДД.ММ.ГГГГ**\n" "Например: 15.12.2024"
@@ -308,7 +317,9 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "• Скопировать ссылку из приложения Google Maps\n"
             "• Или ввести координаты в формате: широта, долгота"
         ),
-        "edit.coords_out_of_range": "❌ Координаты вне допустимого диапазона",
+        "edit.coords_out_of_range": (
+            "❌ Координаты вне допустимого диапазона. Широта: -90 до 90, долгота: -180 до 180"
+        ),
         "edit.coords_format": "❌ Неверный формат координат. Используйте: широта, долгота",
         "edit.group.updated_summary": (
             "✅ **Событие обновлено!**\n\n"
@@ -348,6 +359,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "menu.button.interesting_places": "🎯 Interesting places",
         "menu.button.create": "➕ Create",
         "menu.button.create_event": "➕ Create event",
+        "menu.use_buttons": "Use menu buttons for navigation:",
         "menu.button.my_activities": "📝 My activities",
         "menu.button.add_bot_to_chat": "🔗 Add bot to chat",
         "menu.button.start": "🚀 Start",
@@ -452,6 +464,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "pager.tomorrow": "📅 Tomorrow",
         "pager.tomorrow_selected": "📅 Tomorrow ✅",
         "pager.radius_km": "{radius} km",
+        "pager.radius_expanded": "✅ Radius expanded to {radius} km",
         # Create events
         "create.start": (
             '➕ **Creating "World" event**\n\n'
@@ -472,6 +485,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         ),
         "create.enter_description": ("📝 **Enter event description**\n(what will happen, who it's for):"),
         "create.cancelled": "Creation cancelled.",
+        "create.cancelled_full": "❌ Event creation cancelled.",
         "create.validation.no_text": "❌ **Please send a text message!**\n\n{next_prompt}",
         "create.validation.invalid_date_format": (
             "❌ **Invalid date format!**\n\n" "📅 Enter date in format **DD.MM.YYYY**\n" "Example: 15.12.2024"
@@ -559,6 +573,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "admin.banlist.permanent": "  Permanent",
         # Errors
         "errors.not_found": "❌ Not found",
+        "errors.banned": "🚫 You are blocked in this bot",
+        "errors.location_failed": ("❌ Error: could not get location. Please send your location again."),
         "errors.event_not_found": "❌ Event not found",
         "errors.no_permission": "❌ You don't have permission to edit this event",
         "errors.general": "❌ Error",
@@ -566,6 +582,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         # Search
         "search.loading": "🔍 Searching for events nearby...",
         "search.error.general": "❌ Error while searching for events. Please try again later.",
+        "search.state_expired": "❌ Search data expired. Send your location again.",
+        "search.location_not_found": "❌ Location not found. Send your location again.",
         "search.geo_prompt": (
             "Press the '📍 Send location' button to start!\n\n"
             "💡 If the button does not work:\n\n"
@@ -624,7 +642,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "• Copy link from Google Maps app\n"
             "• Or enter coordinates as: latitude, longitude"
         ),
-        "edit.coords_out_of_range": "❌ Coordinates out of valid range",
+        "edit.coords_out_of_range": ("❌ Coordinates out of valid range. Latitude: -90 to 90, longitude: -180 to 180"),
         "edit.coords_format": "❌ Invalid coordinates format. Use: latitude, longitude",
         "edit.group.updated_summary": (
             "✅ **Event updated!**\n\n"

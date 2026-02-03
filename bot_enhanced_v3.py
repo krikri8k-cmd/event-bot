@@ -2395,12 +2395,12 @@ class BanCheckMiddleware(BaseMiddleware):
                 if ban_service.is_banned(user_id):
                     # Пользователь забанен - не обрабатываем сообщение
                     logger.info(f"🚫 Забаненный пользователь {user_id} попытался использовать бота")
-                    # Пытаемся отправить сообщение (если это возможно)
+                    ban_msg = t("errors.banned", get_user_language_or_default(user_id))
                     try:
                         if hasattr(event, "answer"):
-                            await event.answer("🚫 Вы заблокированы в этом боте")
+                            await event.answer(ban_msg)
                         elif hasattr(event, "message") and event.message:
-                            await event.message.answer("🚫 Вы заблокированы в этом боте")
+                            await event.message.answer(ban_msg)
                     except Exception:
                         pass  # Игнорируем ошибки отправки
                     return  # Прерываем обработку
@@ -5144,6 +5144,7 @@ async def cancel_community_event_pm(callback: types.CallbackQuery, state: FSMCon
 async def cancel_community_event(callback: types.CallbackQuery, state: FSMContext):
     """Отмена создания события сообщества (универсальная кнопка отмены)"""
     logger.info(f"🔥 cancel_community_event: пользователь {callback.from_user.id} отменил создание группового события")
+    user_lang = get_user_language_or_default(callback.from_user.id)
 
     # Получаем данные для информативного сообщения
     data = await state.get_data()
@@ -5169,7 +5170,7 @@ async def cancel_community_event(callback: types.CallbackQuery, state: FSMContex
     else:
         cancel_text += "Если хотите создать событие, нажмите /start"
         await callback.message.edit_text(cancel_text, parse_mode="Markdown")
-    await callback.answer("Создание отменено", show_alert=False)
+    await callback.answer(t("create.cancelled", user_lang), show_alert=False)
 
 
 @main_router.callback_query(F.data == "group_cancel_create")
@@ -5409,6 +5410,7 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
 async def on_location_text_input(message: types.Message, state: FSMContext):
     """Обработчик текстового ввода координат или ссылки Google Maps для MacBook"""
     user_id = message.from_user.id
+    user_lang = get_user_language_or_default(user_id)
     text = message.text.strip()
     logger.info(f"📍 [TEXT_INPUT] Получен текст в состоянии waiting_for_location: user_id={user_id}, text={text[:100]}")
 
@@ -5431,7 +5433,7 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
             ]
         )
         await message.answer(
-            "🌍 Открой карту, найди место и вставь ссылку сюда 👇",
+            t("edit.location_map_prompt", user_lang),
             reply_markup=maps_keyboard,
         )
         return
@@ -5448,12 +5450,7 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
             ]
         )
         await message.answer(
-            "Нажмите кнопку '📍 Отправить геолокацию' чтобы начать!\n\n"
-            "💡 Если кнопка не работает :\n\n"
-            "• Жми '🌍 Найти на карте' \n"
-            "и вставь ссылку \n\n"
-            "• Или отправь координаты\n"
-            "пример: -8.4095, 115.1889",
+            t("search.geo_prompt", user_lang),
             parse_mode="Markdown",
             reply_markup=maps_keyboard,
         )
@@ -5488,12 +5485,7 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
                 ]
             )
             await message.answer(
-                "❌ Не удалось извлечь координаты из ссылки Google Maps.\n\n"
-                "💡 Если кнопка не работает :\n\n"
-                "• Жми '🌍 Найти на карте' \n"
-                "и вставь ссылку \n\n"
-                "• Или отправь координаты\n"
-                "пример: -8.4095, 115.1889",
+                t("search.geo_prompt", user_lang),
                 reply_markup=maps_keyboard,
             )
             return
@@ -5520,7 +5512,7 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
                 )
                 return
             else:
-                await message.answer("❌ Координаты вне допустимого диапазона. Широта: -90 до 90, долгота: -180 до 180")
+                await message.answer(t("edit.coords_out_of_range", user_lang))
                 return
     except ValueError:
         # Не координаты, возможно это другой текст - пропускаем
@@ -5535,12 +5527,7 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
         ]
     )
     await message.answer(
-        "Нажмите кнопку '📍 Отправить геолокацию' чтобы начать!\n\n"
-        "💡 Если кнопка не работает :\n\n"
-        "• Жми '🌍 Найти на карте' \n"
-        "и вставь ссылку \n\n"
-        "• Или отправь координаты\n"
-        "пример: -8.4095, 115.1889",
+        t("search.geo_prompt", user_lang),
         parse_mode="Markdown",
         reply_markup=maps_keyboard,
     )
@@ -5551,6 +5538,7 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
 async def on_location_text_input_tasks(message: types.Message, state: FSMContext):
     """Обработчик текстового ввода координат или ссылки Google Maps для заданий (MacBook)"""
     user_id = message.from_user.id
+    user_lang = get_user_language_or_default(user_id)
     text = message.text.strip()
     logger.info(
         f"📍 [TEXT_INPUT_TASKS] Получен текст в состоянии TaskFlow.waiting_for_location: user_id={user_id}, text={text[:100]}"
@@ -5655,7 +5643,7 @@ async def on_location_text_input_tasks(message: types.Message, state: FSMContext
                 await process_task_location(message, state, lat, lng)
                 return
             else:
-                await message.answer("❌ Координаты вне допустимого диапазона. Широта: -90 до 90, долгота: -180 до 180")
+                await message.answer(t("edit.coords_out_of_range", user_lang))
                 return
     except ValueError:
         # Не координаты, возможно это другой текст - пропускаем
@@ -5765,7 +5753,8 @@ async def on_location(message: types.Message, state: FSMContext):
 
     if not message.location:
         logger.error(f"📍 [ERROR] message.location is None для пользователя {user_id}")
-        await message.answer("❌ Ошибка: не удалось получить геолокацию. Попробуйте отправить геолокацию еще раз.")
+        user_lang = get_user_language_or_default(user_id)
+        await message.answer(t("errors.location_failed", user_lang))
         return
 
     lat = message.location.latitude
@@ -8289,7 +8278,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     # Получаем сохраненное состояние
     state_data = user_state.get(chat_id)
     if not state_data:
-        await callback.answer("❌ Данные поиска устарели. Отправьте геолокацию заново.")
+        await callback.answer(t("search.state_expired", get_user_language_or_default(callback.from_user.id)))
         return
 
     lat = state_data.get("lat")
@@ -8297,7 +8286,10 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     region = state_data.get("region", "bali")
 
     if not lat or not lng:
-        await callback.answer("❌ Геолокация не найдена. Отправьте геолокацию заново.")
+        await callback.answer(
+            t("search.location_not_found", get_user_language_or_default(callback.from_user.id)),
+            show_alert=True,
+        )
         return
 
     # Определяем city по координатам (как при первом запросе)
@@ -8675,7 +8667,8 @@ async def handle_expand_radius(callback: types.CallbackQuery):
                 parse_mode="HTML",
             )
 
-    await callback.answer(f"✅ Радиус расширен до {new_radius} км")
+    user_lang = get_user_language_or_default(callback.from_user.id)
+    await callback.answer(format_translation("pager.radius_expanded", user_lang, radius=new_radius))
 
 
 @main_router.callback_query(F.data.startswith("task_complete:"))
@@ -11301,9 +11294,10 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
 @main_router.callback_query(F.data == "event_cancel")
 async def cancel_event_creation(callback: types.CallbackQuery, state: FSMContext):
     """Отмена создания события"""
+    user_lang = get_user_language_or_default(callback.from_user.id)
     await state.clear()
-    await callback.message.edit_text("❌ Создание мероприятия отменено.")
-    await callback.answer("Создание отменено")
+    await callback.message.edit_text(t("create.cancelled_full", user_lang))
+    await callback.answer(t("create.cancelled", user_lang))
 
 
 @main_router.callback_query(F.data == "manage_events")
@@ -11483,7 +11477,11 @@ async def echo_message(message: types.Message, state: FSMContext):
     )
     logger.info("echo_message: отвечаем общим сообщением")
     user_id = message.from_user.id
-    await message.answer("Используйте кнопки меню для навигации:", reply_markup=main_menu_kb(user_id=user_id))
+    user_lang = get_user_language_or_default(user_id)
+    await message.answer(
+        t("menu.use_buttons", user_lang),
+        reply_markup=main_menu_kb(user_id=user_id),
+    )
 
 
 @main_router.callback_query(F.data.startswith("date_filter:"))
@@ -11524,7 +11522,10 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
         )
 
         if not lat or not lng:
-            await callback.answer("❌ Геолокация не найдена. Отправьте геолокацию заново.")
+            await callback.answer(
+                t("search.location_not_found", get_user_language_or_default(callback.from_user.id)),
+                show_alert=True,
+            )
             return
 
         # Определяем city по координатам (как при первом запросе)
