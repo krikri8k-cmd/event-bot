@@ -15,7 +15,7 @@ from urllib.parse import quote_plus, urlparse
 
 # Импорт psutil для мониторинга памяти (опционально)
 try:
-    import psutil
+    import psutil  # type: ignore
 
     PSUTIL_AVAILABLE = True
 except ImportError:
@@ -6924,20 +6924,15 @@ def is_admin_user(user_id: int) -> bool:
 @main_router.message(Command("ban"))
 async def on_ban(message: types.Message):
     """Команда для бана пользователя (только для админов)"""
+    user_lang = get_user_language_or_default(message.from_user.id)
     if not is_admin_user(message.from_user.id):
-        await message.answer("❌ У вас нет прав для выполнения этой команды")
+        await message.answer(t("admin.permission.denied", user_lang))
         return
 
     try:
         command_parts = message.text.split(maxsplit=2)
         if len(command_parts) < 2:
-            await message.answer(
-                "Использование: /ban <user_id> [дни] [причина]\n\n"
-                "Примеры:\n"
-                "/ban 123456789 - забанить навсегда\n"
-                "/ban 123456789 7 - забанить на 7 дней\n"
-                "/ban 123456789 30 Спам - забанить на 30 дней с причиной"
-            )
+            await message.answer(t("admin.ban.usage", user_lang))
             return
 
         user_id_to_ban = int(command_parts[1])
@@ -6980,39 +6975,53 @@ async def on_ban(message: types.Message):
         )
 
         if success:
-            ban_text = f"🚫 Пользователь {user_id_to_ban}"
-            if username:
-                ban_text += f" (@{username})"
+            username_part = f" (@{username})" if username else ""
+            ban_lines = []
             if days:
-                ban_text += f" забанен на {days} дней"
+                ban_lines.append(
+                    format_translation(
+                        "admin.ban.success.temporary",
+                        user_lang,
+                        user_id=user_id_to_ban,
+                        username_part=username_part,
+                        days=days,
+                    )
+                )
             else:
-                ban_text += " забанен навсегда"
+                ban_lines.append(
+                    format_translation(
+                        "admin.ban.success.permanent",
+                        user_lang,
+                        user_id=user_id_to_ban,
+                        username_part=username_part,
+                    )
+                )
             if reason:
-                ban_text += f"\nПричина: {reason}"
-            await message.answer(ban_text)
+                ban_lines.append(format_translation("admin.ban.reason", user_lang, reason=reason))
+            await message.answer("\n".join(ban_lines))
         else:
-            await message.answer("❌ Ошибка при бане пользователя")
+            await message.answer(t("admin.ban.error", user_lang))
 
     except ValueError:
-        await message.answer("❌ ID пользователя должен быть числом")
+        await message.answer(t("admin.ban.invalid_id", user_lang))
     except Exception as e:
         logger.error(f"Ошибка в команде ban: {e}")
-        await message.answer(f"❌ Произошла ошибка: {e}")
+        error_text = str(e).replace("{", "{{").replace("}", "}}")
+        await message.answer(format_translation("admin.error.exception", user_lang, error=error_text))
 
 
 @main_router.message(Command("unban"))
 async def on_unban(message: types.Message):
     """Команда для разбана пользователя (только для админов)"""
+    user_lang = get_user_language_or_default(message.from_user.id)
     if not is_admin_user(message.from_user.id):
-        await message.answer("❌ У вас нет прав для выполнения этой команды")
+        await message.answer(t("admin.permission.denied", user_lang))
         return
 
     try:
         command_parts = message.text.split()
         if len(command_parts) < 2:
-            await message.answer(
-                "Использование: /unban <user_id>\n\n" "Или ответьте на сообщение пользователя командой /unban"
-            )
+            await message.answer(t("admin.unban.usage", user_lang))
             return
 
         user_id_to_unban = int(command_parts[1])
@@ -7030,22 +7039,24 @@ async def on_unban(message: types.Message):
         success = ban_service.unban_user(user_id_to_unban)
 
         if success:
-            await message.answer(f"✅ Пользователь {user_id_to_unban} разбанен")
+            await message.answer(format_translation("admin.unban.success", user_lang, user_id=user_id_to_unban))
         else:
-            await message.answer(f"⚠️ Пользователь {user_id_to_unban} не найден в списке банов")
+            await message.answer(format_translation("admin.unban.not_found", user_lang, user_id=user_id_to_unban))
 
     except ValueError:
-        await message.answer("❌ ID пользователя должен быть числом")
+        await message.answer(t("admin.ban.invalid_id", user_lang))
     except Exception as e:
         logger.error(f"Ошибка в команде unban: {e}")
-        await message.answer(f"❌ Произошла ошибка: {e}")
+        error_text = str(e).replace("{", "{{").replace("}", "}}")
+        await message.answer(format_translation("admin.error.exception", user_lang, error=error_text))
 
 
 @main_router.message(Command("banlist"))
 async def on_banlist(message: types.Message):
     """Команда для просмотра списка забаненных пользователей (только для админов)"""
+    user_lang = get_user_language_or_default(message.from_user.id)
     if not is_admin_user(message.from_user.id):
-        await message.answer("❌ У вас нет прав для выполнения этой команды")
+        await message.answer(t("admin.permission.denied", user_lang))
         return
 
     try:
@@ -7058,10 +7069,10 @@ async def on_banlist(message: types.Message):
         banned_users = ban_service.get_banned_users(limit=20)
 
         if not banned_users:
-            await message.answer("📋 Список забаненных пользователей пуст")
+            await message.answer(t("admin.banlist.empty", user_lang))
             return
 
-        text_lines = ["🚫 <b>Забаненные пользователи:</b>\n"]
+        text_lines = [t("admin.banlist.header", user_lang), ""]
         for ban in banned_users:
             user_info = f"ID: {ban['user_id']}"
             if ban["username"]:
@@ -7069,14 +7080,14 @@ async def on_banlist(message: types.Message):
             if ban["first_name"]:
                 user_info += f" - {ban['first_name']}"
 
-            text_lines.append(f"• {user_info}")
+            text_lines.append(format_translation("admin.banlist.item", user_lang, user_info=user_info))
             if ban["reason"]:
-                text_lines.append(f"  Причина: {ban['reason']}")
+                text_lines.append(format_translation("admin.banlist.reason", user_lang, reason=ban["reason"]))
             if ban["expires_at"]:
                 expires_str = ban["expires_at"].strftime("%d.%m.%Y %H:%M")
-                text_lines.append(f"  До: {expires_str}")
+                text_lines.append(format_translation("admin.banlist.until", user_lang, date=expires_str))
             else:
-                text_lines.append("  Навсегда")
+                text_lines.append(t("admin.banlist.permanent", user_lang))
             text_lines.append("")
 
         text = "\n".join(text_lines)
@@ -7084,7 +7095,8 @@ async def on_banlist(message: types.Message):
 
     except Exception as e:
         logger.error(f"Ошибка в команде banlist: {e}")
-        await message.answer(f"❌ Произошла ошибка: {e}")
+        error_text = str(e).replace("{", "{{").replace("}", "}}")
+        await message.answer(format_translation("admin.error.exception", user_lang, error=error_text))
 
 
 @main_router.message(Command("admin_event"))

@@ -136,6 +136,32 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "Бот автоматически\n"
         "чистит свои сообщения в чате\n\n"
         "Теперь все события в одном месте ❤",
+        # Администрирование
+        "admin.permission.denied": "❌ У вас нет прав для выполнения этой команды",
+        "admin.ban.usage": (
+            "Использование: /ban <user_id> [дни] [причина]\n\n"
+            "Примеры:\n"
+            "/ban 123456789 - забанить навсегда\n"
+            "/ban 123456789 7 - забанить на 7 дней\n"
+            "/ban 123456789 30 Спам - забанить на 30 дней с причиной"
+        ),
+        "admin.ban.success.permanent": "🚫 Пользователь {user_id}{username_part} забанен навсегда",
+        "admin.ban.success.temporary": "🚫 Пользователь {user_id}{username_part} забанен на {days} дней",
+        "admin.ban.reason": "Причина: {reason}",
+        "admin.ban.error": "❌ Ошибка при бане пользователя",
+        "admin.ban.invalid_id": "❌ ID пользователя должен быть числом",
+        "admin.error.exception": "❌ Произошла ошибка: {error}",
+        "admin.unban.usage": (
+            "Использование: /unban <user_id>\n\n" "Или ответьте на сообщение пользователя командой /unban"
+        ),
+        "admin.unban.success": "✅ Пользователь {user_id} разбанен",
+        "admin.unban.not_found": "⚠️ Пользователь {user_id} не найден в списке банов",
+        "admin.banlist.empty": "📋 Список забаненных пользователей пуст",
+        "admin.banlist.header": "🚫 <b>Забаненные пользователи:</b>",
+        "admin.banlist.item": "• {user_info}",
+        "admin.banlist.reason": "  Причина: {reason}",
+        "admin.banlist.until": "  До: {date}",
+        "admin.banlist.permanent": "  Навсегда",
         # Ошибки
         "errors.not_found": "❌ Не найдено",
         "errors.event_not_found": "❌ Событие не найдено",
@@ -507,6 +533,30 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "Bot automatically\n"
         "cleans its messages in chat\n\n"
         "Now all events in one place ❤",
+        # Administration
+        "admin.permission.denied": "❌ You don't have permission to run this command",
+        "admin.ban.usage": (
+            "Usage: /ban <user_id> [days] [reason]\n\n"
+            "Examples:\n"
+            "/ban 123456789 — ban permanently\n"
+            "/ban 123456789 7 — ban for 7 days\n"
+            "/ban 123456789 30 Spam — ban for 30 days with a reason"
+        ),
+        "admin.ban.success.permanent": "🚫 User {user_id}{username_part} banned permanently",
+        "admin.ban.success.temporary": "🚫 User {user_id}{username_part} banned for {days} days",
+        "admin.ban.reason": "Reason: {reason}",
+        "admin.ban.error": "❌ Failed to ban user",
+        "admin.ban.invalid_id": "❌ User ID must be a number",
+        "admin.error.exception": "❌ Error: {error}",
+        "admin.unban.usage": ("Usage: /unban <user_id>\n\n" "Or reply to a user's message with /unban"),
+        "admin.unban.success": "✅ User {user_id} unbanned",
+        "admin.unban.not_found": "⚠️ User {user_id} not found in ban list",
+        "admin.banlist.empty": "📋 Banned users list is empty",
+        "admin.banlist.header": "🚫 <b>Banned users:</b>",
+        "admin.banlist.item": "• {user_info}",
+        "admin.banlist.reason": "  Reason: {reason}",
+        "admin.banlist.until": "  Until: {date}",
+        "admin.banlist.permanent": "  Permanent",
         # Errors
         "errors.not_found": "❌ Not found",
         "errors.event_not_found": "❌ Event not found",
