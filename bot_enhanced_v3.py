@@ -1720,7 +1720,7 @@ def update_user_state_timestamp(chat_id: int):
 def cleanup_large_prepared_events():
     """Очищает большие списки prepared_events из user_state для экономии памяти"""
     global user_state
-    MAX_PREPARED_EVENTS = 50  # Максимальное количество событий в prepared
+    MAX_PREPARED_EVENTS = 20  # Агрессивный лимит против OOM (было 50)
 
     for chat_id, state in list(user_state.items()):
         if "prepared" in state and isinstance(state["prepared"], list):
@@ -1773,8 +1773,8 @@ def log_memory_stats():
     )
 
 
-# Порог памяти для принудительной очистки (в МБ)
-MEMORY_THRESHOLD_MB = 512  # 512 МБ - порог для принудительной очистки
+# Порог памяти для принудительной очистки (в МБ). 256 МБ — агрессивная защита от OOM.
+MEMORY_THRESHOLD_MB = 256
 
 
 def force_memory_cleanup():
@@ -1835,12 +1835,12 @@ async def periodic_cleanup_user_state():
         current_time = time.time()
 
         try:
-            # Логирование памяти каждые 5 минут
+            # Логирование памяти каждые 2 минуты
             if current_time - last_memory_log >= memory_log_interval:
                 log_memory_stats()
                 last_memory_log = current_time
 
-            # Очистка каждые 15 минут
+            # Очистка каждые 5 минут
             if current_time - last_cleanup >= cleanup_interval:
                 cleanup_user_state()
                 cleanup_large_prepared_events()
@@ -3347,12 +3347,23 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
             inline_keyboard=[
                 [
                     InlineKeyboardButton(
-                        text="➕ Создать событие", url=f"https://t.me/{bot_info.username}?start=group_{message.chat.id}"
+                        text=t("group.button.create_event", user_lang),
+                        url=f"https://t.me/{bot_info.username}?start=group_{message.chat.id}",
                     )
                 ],
-                [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_chat_events")],
-                [InlineKeyboardButton(text='🚀 Расширенная версия "World"', url=f"https://t.me/{bot_info.username}")],
-                [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_bot")],
+                [
+                    InlineKeyboardButton(
+                        text=t("group.button.events_list", user_lang),
+                        callback_data="group_chat_events",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text=t("group.button.full_version", user_lang),
+                        url=f"https://t.me/{bot_info.username}",
+                    )
+                ],
+                [InlineKeyboardButton(text=t("group.button.hide_bot", user_lang), callback_data="group_hide_bot")],
             ]
         )
 
@@ -3408,10 +3419,11 @@ async def handle_language_selection(callback: types.CallbackQuery):
         await callback.answer(t("language.save_error", get_user_language_or_default(user_id)))
 
 
-def get_community_cancel_kb() -> InlineKeyboardMarkup:
+def get_community_cancel_kb(user_id: int | None = None) -> InlineKeyboardMarkup:
     """Возвращает клавиатуру с кнопкой отмены для группового события"""
+    lang = get_user_language_or_default(user_id) if user_id else "ru"
     return InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="❌ Отменить создание", callback_data="community_cancel")]]
+        inline_keyboard=[[InlineKeyboardButton(text=t("community.cancel", lang), callback_data="community_cancel")]]
     )
 
 
@@ -3430,7 +3442,9 @@ async def start_group_event_creation(message: types.Message, group_id: int, stat
         "**Введите название события:**"
     )
 
-    await message.answer(welcome_text, parse_mode="Markdown", reply_markup=get_community_cancel_kb())
+    await message.answer(
+        welcome_text, parse_mode="Markdown", reply_markup=get_community_cancel_kb(message.from_user.id)
+    )
 
 
 async def start_group_event_editing(message: types.Message, event_id: int, chat_id: int, state: FSMContext):
@@ -4130,7 +4144,7 @@ async def process_community_title_pm(message: types.Message, state: FSMContext):
         await message.answer(
             "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n✍️ **Введите название события:**",
             parse_mode="Markdown",
-            reply_markup=get_community_cancel_kb(),
+            reply_markup=get_community_cancel_kb(message.from_user.id),
         )
         return
 
@@ -4166,7 +4180,7 @@ async def process_community_title_pm(message: types.Message, state: FSMContext):
             "• Для кого предназначено\n\n"
             "✍️ **Введите название события:**",
             parse_mode="Markdown",
-            reply_markup=get_community_cancel_kb(),
+            reply_markup=get_community_cancel_kb(message.from_user.id),
         )
         return
 
@@ -4180,7 +4194,7 @@ async def process_community_title_pm(message: types.Message, state: FSMContext):
             "• Для кого предназначено\n\n"
             "✍️ **Введите название события:**",
             parse_mode="Markdown",
-            reply_markup=get_community_cancel_kb(),
+            reply_markup=get_community_cancel_kb(message.from_user.id),
         )
         return
 
@@ -4191,7 +4205,7 @@ async def process_community_title_pm(message: types.Message, state: FSMContext):
     await message.answer(
         f"**Название сохранено:** *{title}* ✅\n\n📅 **Введите дату** (например: {example_date}):",
         parse_mode="Markdown",
-        reply_markup=get_community_cancel_kb(),
+        reply_markup=get_community_cancel_kb(message.from_user.id),
     )
 
 
@@ -4206,7 +4220,7 @@ async def process_community_date_pm(message: types.Message, state: FSMContext):
         await message.answer(
             "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n📅 **Введите дату** (например: 15.12.2024):",
             parse_mode="Markdown",
-            reply_markup=get_community_cancel_kb(),
+            reply_markup=get_community_cancel_kb(message.from_user.id),
         )
         return
 
@@ -4219,7 +4233,7 @@ async def process_community_date_pm(message: types.Message, state: FSMContext):
         await message.answer(
             "❌ **Неверный формат даты!**\n\n📅 Введите дату в формате **ДД.ММ.ГГГГ**\nНапример: 15.12.2024",
             parse_mode="Markdown",
-            reply_markup=get_community_cancel_kb(),
+            reply_markup=get_community_cancel_kb(message.from_user.id),
         )
         return
 
@@ -4249,7 +4263,7 @@ async def process_community_date_pm(message: types.Message, state: FSMContext):
                 f"⚠️ Внимание! Дата *{date}* уже прошла (сегодня {today_bali.strftime('%d.%m.%Y')}).\n\n"
                 "📅 Введите дату:",
                 parse_mode="Markdown",
-                reply_markup=get_community_cancel_kb(),
+                reply_markup=get_community_cancel_kb(message.from_user.id),
             )
             return
     except ValueError:
@@ -4262,7 +4276,7 @@ async def process_community_date_pm(message: types.Message, state: FSMContext):
             "Например: 15.12.2024\n\n"
             "📅 **Введите дату** (например: 15.12.2024):",
             parse_mode="Markdown",
-            reply_markup=get_community_cancel_kb(),
+            reply_markup=get_community_cancel_kb(message.from_user.id),
         )
         return
 
@@ -4272,7 +4286,7 @@ async def process_community_date_pm(message: types.Message, state: FSMContext):
     await message.answer(
         f"**Дата сохранена:** {date} ✅\n\n⏰ **Введите время** (например: 19:00):",
         parse_mode="Markdown",
-        reply_markup=get_community_cancel_kb(),
+        reply_markup=get_community_cancel_kb(message.from_user.id),
     )
 
 
@@ -4287,7 +4301,7 @@ async def process_community_time_pm(message: types.Message, state: FSMContext):
         await message.answer(
             "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n⏰ **Введите время** (например: 19:00):",
             parse_mode="Markdown",
-            reply_markup=get_community_cancel_kb(),
+            reply_markup=get_community_cancel_kb(message.from_user.id),
         )
         return
 
@@ -4300,7 +4314,7 @@ async def process_community_time_pm(message: types.Message, state: FSMContext):
         await message.answer(
             "❌ **Неверный формат времени!**\n\n⏰ Введите время в формате **ЧЧ:ММ**\nНапример: 19:00",
             parse_mode="Markdown",
-            reply_markup=get_community_cancel_kb(),
+            reply_markup=get_community_cancel_kb(message.from_user.id),
         )
         return
 
@@ -4310,7 +4324,7 @@ async def process_community_time_pm(message: types.Message, state: FSMContext):
     await message.answer(
         f"**Время сохранено:** {time} ✅\n\n🏙️ **Введите город** (например: Москва):",
         parse_mode="Markdown",
-        reply_markup=get_community_cancel_kb(),
+        reply_markup=get_community_cancel_kb(message.from_user.id),
     )
 
 
@@ -4325,7 +4339,7 @@ async def process_community_city_pm(message: types.Message, state: FSMContext):
         await message.answer(
             "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n🏙️ **Введите город** (например: Москва):",
             parse_mode="Markdown",
-            reply_markup=get_community_cancel_kb(),
+            reply_markup=get_community_cancel_kb(message.from_user.id),
         )
         return
 
@@ -4393,7 +4407,7 @@ async def handle_community_location_type_text(message: types.Message, state: FSM
                     f"📍 **Место определено по координатам:** {lat}, {lng} ✅\n\n"
                     "📝 **Введите описание события** (что будет происходить, кому интересно):",
                     parse_mode="Markdown",
-                    reply_markup=get_community_cancel_kb(),
+                    reply_markup=get_community_cancel_kb(message.from_user.id),
                 )
                 return
             else:
@@ -4407,7 +4421,7 @@ async def handle_community_location_type_text(message: types.Message, state: FSM
                 "• Широта: -90 до 90\n"
                 "• Долгота: -180 до 180",
                 parse_mode="Markdown",
-                reply_markup=get_community_cancel_kb(),
+                reply_markup=get_community_cancel_kb(message.from_user.id),
             )
             return
 
@@ -4437,7 +4451,7 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
         await message.answer(
             "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n🔗 **Введите ссылку на место** (Google Maps или адрес):",
             parse_mode="Markdown",
-            reply_markup=get_community_cancel_kb(),
+            reply_markup=get_community_cancel_kb(message.from_user.id),
         )
         return
 
@@ -4474,7 +4488,7 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
                 "• Широта: -90 до 90\n"
                 "• Долгота: -180 до 180",
                 parse_mode="Markdown",
-                reply_markup=get_community_cancel_kb(),
+                reply_markup=get_community_cancel_kb(message.from_user.id),
             )
             return
     else:
@@ -4533,7 +4547,7 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
     await message.answer(
         f"**Место сохранено** ✅\n{location_text}\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
         parse_mode="Markdown",
-        reply_markup=get_community_cancel_kb(),
+        reply_markup=get_community_cancel_kb(message.from_user.id),
     )
 
 
@@ -4548,7 +4562,7 @@ async def process_community_description_pm(message: types.Message, state: FSMCon
         await message.answer(
             "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
             parse_mode="Markdown",
-            reply_markup=get_community_cancel_kb(),
+            reply_markup=get_community_cancel_kb(message.from_user.id),
         )
         return
 
@@ -5187,37 +5201,39 @@ async def handle_group_cancel_create(callback: types.CallbackQuery, state: FSMCo
     """Обработчик отмены создания события в групповых чатах"""
     await state.clear()
 
-    text = "❌ Создание события отменено."
-    await callback.message.edit_text(text)
+    user_lang = get_user_language_or_default(callback.from_user.id)
+    await callback.message.edit_text(t("community.event_cancelled", user_lang))
     await callback.answer()
 
 
 @main_router.callback_query(F.data == "group_back_to_start")
 async def handle_group_back_to_start(callback: types.CallbackQuery):
     """Обработчик возврата в главное меню группового чата"""
-    welcome_text = (
-        "👋 **Привет! Я EventAroundBot для группового чата!**\n\n"
-        "🎯 **В этом чате я помогаю:**\n"
-        "• Создавать события участников чата\n"
-        "• Показывать все события, созданные в этом чате\n"
-        "• Переходить к полному боту для поиска по геолокации\n\n"
-        "💡 **Выберите действие:**"
-    )
+    user_lang = get_user_language_or_default(callback.from_user.id)
+    welcome_text = t("group.greeting", user_lang)
 
-    # Получаем username бота для создания ссылки (с кешированием)
     bot_info = await get_bot_info_cached()
-
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="➕ Создать событие",
+                    text=t("group.button.create_event", user_lang),
                     url=f"https://t.me/{bot_info.username}?start=group_{callback.message.chat.id}",
                 )
             ],
-            [InlineKeyboardButton(text="📋 События этого чата", callback_data="group_chat_events")],
-            [InlineKeyboardButton(text='🚀 Расширенная версия "World"', url=f"https://t.me/{bot_info.username}")],
-            [InlineKeyboardButton(text="👁️‍🗨️ Спрятать бота", callback_data="group_hide_bot")],
+            [
+                InlineKeyboardButton(
+                    text=t("group.button.events_list", user_lang),
+                    callback_data="group_chat_events",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=t("group.button.full_version", user_lang),
+                    url=f"https://t.me/{bot_info.username}",
+                )
+            ],
+            [InlineKeyboardButton(text=t("group.button.hide_bot", user_lang), callback_data="group_hide_bot")],
         ]
     )
 
@@ -5394,20 +5410,17 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
     await state.set_state(TaskFlow.waiting_for_category)
 
     # Показываем выбор категории после получения геолокации
+    user_lang = get_user_language_or_default(user_id)
     keyboard = [
-        [InlineKeyboardButton(text="🍔 Еда", callback_data="task_category:food")],
-        [InlineKeyboardButton(text="💪 Здоровье", callback_data="task_category:health")],
-        [InlineKeyboardButton(text="🌟 Интересные места", callback_data="task_category:places")],
-        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+        [InlineKeyboardButton(text=t("tasks.category.food", user_lang), callback_data="task_category:food")],
+        [InlineKeyboardButton(text=t("tasks.category.health", user_lang), callback_data="task_category:health")],
+        [InlineKeyboardButton(text=t("tasks.category.places", user_lang), callback_data="task_category:places")],
+        [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")],
     ]
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
     await message.answer(
-        "✅ **Геолокация получена!**\n\n"
-        "Выберите категорию для получения персонализированных заданий:\n\n"
-        "🍔 **Еда** - кафе, рестораны, уличная еда\n"
-        "💪 **Здоровье** - спорт, йога, спа, клиники\n"
-        "🌟 **Интересные места** - парки, выставки, храмы",
+        t("tasks.location_received", user_lang),
         parse_mode="Markdown",
         reply_markup=reply_markup,
     )
@@ -5710,20 +5723,17 @@ async def process_task_location(message: types.Message, state: FSMContext, lat: 
     await state.set_state(TaskFlow.waiting_for_category)
 
     # Показываем выбор категории после получения геолокации
+    user_lang = get_user_language_or_default(user_id)
     keyboard = [
-        [InlineKeyboardButton(text="🍔 Еда", callback_data="task_category:food")],
-        [InlineKeyboardButton(text="💪 Здоровье", callback_data="task_category:health")],
-        [InlineKeyboardButton(text="🌟 Интересные места", callback_data="task_category:places")],
-        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+        [InlineKeyboardButton(text=t("tasks.category.food", user_lang), callback_data="task_category:food")],
+        [InlineKeyboardButton(text=t("tasks.category.health", user_lang), callback_data="task_category:health")],
+        [InlineKeyboardButton(text=t("tasks.category.places", user_lang), callback_data="task_category:places")],
+        [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")],
     ]
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
     await message.answer(
-        "✅ **Геолокация получена!**\n\n"
-        "Выберите категорию для получения персонализированных заданий:\n\n"
-        "🍔 **Еда** - кафе, рестораны, уличная еда\n"
-        "💪 **Здоровье** - спорт, йога, спа, клиники\n"
-        "🌟 **Интересные места** - парки, выставки, храмы",
+        t("tasks.location_received", user_lang),
         parse_mode="Markdown",
         reply_markup=reply_markup,
     )
@@ -9265,21 +9275,19 @@ async def handle_show_bot_commands(callback: types.CallbackQuery):
 @main_router.callback_query(F.data == "back_to_tasks")
 async def handle_back_to_tasks(callback: types.CallbackQuery):
     """Обработчик возврата к выбору категории заданий"""
-    # Показываем выбор категории
+    user_lang = get_user_language_or_default(callback.from_user.id)
     keyboard = [
-        [InlineKeyboardButton(text="🍔 Еда", callback_data="task_category:food")],
-        [InlineKeyboardButton(text="💪 Здоровье", callback_data="task_category:health")],
-        [InlineKeyboardButton(text="🌟 Интересные места", callback_data="task_category:places")],
-        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+        [InlineKeyboardButton(text=t("tasks.category.food", user_lang), callback_data="task_category:food")],
+        [InlineKeyboardButton(text=t("tasks.category.health", user_lang), callback_data="task_category:health")],
+        [InlineKeyboardButton(text=t("tasks.category.places", user_lang), callback_data="task_category:places")],
+        [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")],
     ]
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
+    header = t("tasks.title", user_lang)
+    body = t("tasks.categories_intro", user_lang)
     await callback.message.edit_text(
-        "🎯 **Интересные места**\n\n"
-        "Выберите категорию заданий:\n\n"
-        "🍔 **Еда** - кафе, рестораны, уличная еда\n"
-        "💪 **Здоровье** - спорт, йога, спа, клиники\n"
-        "🌟 **Интересные места** - парки, выставки, храмы",
+        f"{header}\n\n{body}",
         parse_mode="Markdown",
         reply_markup=reply_markup,
     )
@@ -9870,7 +9878,10 @@ async def handle_location_coords_choice(callback: types.CallbackQuery, state: FS
 async def handle_community_location_link_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор ввода готовой ссылки в Community режиме"""
     await state.set_state(CommunityEventCreation.waiting_for_location_url)
-    await callback.message.answer("🔗 Вставьте сюда ссылку из Google Maps:", reply_markup=get_community_cancel_kb())
+    await callback.message.answer(
+        "🔗 Вставьте сюда ссылку из Google Maps:",
+        reply_markup=get_community_cancel_kb(callback.from_user.id),
+    )
     await callback.answer()
 
 
@@ -9893,7 +9904,7 @@ async def handle_community_location_coords_choice(callback: types.CallbackQuery,
     await callback.message.answer(
         "📍 Введите координаты в формате: **широта, долгота**\n\n" "Например: 55.7558, 37.6176\n" "Или: -8.67, 115.21",
         parse_mode="Markdown",
-        reply_markup=get_community_cancel_kb(),
+        reply_markup=get_community_cancel_kb(callback.from_user.id),
     )
     await callback.answer()
 
@@ -13282,7 +13293,7 @@ async def handle_back_to_list(callback: types.CallbackQuery):
     # Автомодерация: закрываем прошедшие события
     closed_count = auto_close_events()
     if closed_count > 0:
-        await callback.message.answer(f"🤖 Автоматически закрыто {closed_count} прошедших событий")
+        await callback.message.answer(format_translation("myevents.auto_closed", user_lang, count=closed_count))
 
     # Получаем события пользователя
     events = get_user_events(user_id)
@@ -13293,7 +13304,10 @@ async def handle_back_to_list(callback: types.CallbackQuery):
     rocket_balance = get_user_rockets(user_id)
 
     # Формируем текст сообщения
-    text_parts = ["📋 **Мои события:**\n", f"**Баланс {rocket_balance} 🚀**\n"]
+    text_parts = [
+        t("myevents.header", user_lang),
+        format_translation("myevents.balance", user_lang, rocket_balance=rocket_balance),
+    ]
 
     # Созданные события
     if events:
@@ -13318,17 +13332,17 @@ async def handle_back_to_list(callback: types.CallbackQuery):
                         recent_closed_events.append(e)
 
         if active_events:
-            text_parts.append("📝 **Созданные мной:**")
+            text_parts.append(t("myevents.created_by_me", user_lang))
             for i, event in enumerate(active_events[:3], 1):
-                title = event.get("title", "Без названия")
-                location = event.get("location_name", "Место уточняется")
+                title = event.get("title", t("common.title_not_specified", user_lang))
+                location = event.get("location_name", t("common.location_tba", user_lang))
                 starts_at = event.get("starts_at")
 
                 if starts_at:
                     local_time = starts_at.astimezone(tz_bali)
                     time_str = local_time.strftime("%d.%m.%Y %H:%M")
                 else:
-                    time_str = "Время уточняется"
+                    time_str = t("common.time_tba", user_lang)
 
                 escaped_title = (
                     title.replace("\\", "\\\\")
@@ -13348,21 +13362,23 @@ async def handle_back_to_list(callback: types.CallbackQuery):
                 text_parts.append(f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location}\n")
 
             if len(active_events) > 3:
-                text_parts.append(f"... и еще {len(active_events) - 3} событий")
+                text_parts.append(format_translation("myevents.and_more", user_lang, count=len(active_events) - 3))
 
         # Показываем недавно закрытые события
         if recent_closed_events:
-            text_parts.append(f"\n🔴 **Недавно закрытые ({len(recent_closed_events)}):**")
+            text_parts.append(
+                format_translation("myevents.recently_closed", user_lang, count=len(recent_closed_events))
+            )
             for i, event in enumerate(recent_closed_events[:3], 1):
-                title = event.get("title", "Без названия")
-                location = event.get("location_name", "Место уточняется")
+                title = event.get("title", t("common.title_not_specified", user_lang))
+                location = event.get("location_name", t("common.location_tba", user_lang))
                 starts_at = event.get("starts_at")
 
                 if starts_at:
                     local_time = starts_at.astimezone(tz_bali)
                     time_str = local_time.strftime("%d.%m.%Y %H:%M")
                 else:
-                    time_str = "Время уточняется"
+                    time_str = t("common.time_tba", user_lang)
 
                 escaped_title = (
                     title.replace("\\", "\\\\")
@@ -13382,14 +13398,16 @@ async def handle_back_to_list(callback: types.CallbackQuery):
                 text_parts.append(f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location} (закрыто)\n")
 
             if len(recent_closed_events) > 3:
-                text_parts.append(f"... и еще {len(recent_closed_events) - 3} закрытых событий")
+                text_parts.append(
+                    format_translation("myevents.and_more_closed", user_lang, count=len(recent_closed_events) - 3)
+                )
 
     # Если нет событий вообще
     if not events:
         text_parts = [
-            "📋 **Мои события:**\n",
-            "У вас пока нет событий.\n",
-            f"**Баланс {rocket_balance} 🚀**",
+            t("myevents.header", user_lang),
+            t("myevents.no_events", user_lang) + "\n",
+            format_translation("myevents.balance", user_lang, rocket_balance=rocket_balance),
         ]
 
     text = "\n".join(text_parts)
@@ -13398,7 +13416,14 @@ async def handle_back_to_list(callback: types.CallbackQuery):
     keyboard_buttons = []
 
     if events:
-        keyboard_buttons.append([InlineKeyboardButton(text="🔧 Управление событиями", callback_data="manage_events")])
+        keyboard_buttons.append(
+            [
+                InlineKeyboardButton(
+                    text=t("myevents.button.manage_events", user_lang),
+                    callback_data="manage_events",
+                )
+            ]
+        )
 
     keyboard = (
         InlineKeyboardMarkup(inline_keyboard=keyboard_buttons) if keyboard_buttons else main_menu_kb(user_id=user_id)
