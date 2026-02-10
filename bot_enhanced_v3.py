@@ -75,6 +75,7 @@ _EVENTS_NEARBY_BUTTON_TEXTS = (t("menu.button.events_nearby", "ru"), t("menu.but
 _TASKS_TITLE_BUTTON_TEXTS = (t("tasks.title", "ru"), t("tasks.title", "en"))
 _MY_ACTIVITIES_BUTTON_TEXTS = (t("menu.button.my_activities", "ru"), t("menu.button.my_activities", "en"))
 _HELP_BUTTON_TEXTS = (t("command.help", "ru"), t("command.help", "en"))
+_START_BUTTON_TEXTS = (t("menu.button.start", "ru"), t("menu.button.start", "en"))
 
 
 def _build_tracking_url(click_type: str, event: dict, target_url: str, user_id: int | None) -> str:
@@ -3235,7 +3236,7 @@ async def get_bot_info_cached() -> types.User:
 
 
 @main_router.message(Command("start"))
-@main_router.message(F.text == "🚀 Старт")
+@main_router.message(F.text.in_(_START_BUTTON_TEXTS))
 async def cmd_start(message: types.Message, state: FSMContext, command: CommandObject = None):
     """Обработчик команды /start"""
     user_id = message.from_user.id
