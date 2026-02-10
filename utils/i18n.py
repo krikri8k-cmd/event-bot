@@ -138,6 +138,41 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.require_location": "📍 Требуется геолокация",
         "tasks.complete_not_found": "❌ Ошибка: не найдено задание для завершения.",
         "tasks.task_not_found": "❌ Ошибка: не найдено задание.",
+        "tasks.category.food": "🍔 Еда",
+        "tasks.category.health": "💪 Здоровье",
+        "tasks.category.places": "🌟 Интересные места",
+        "tasks.location_received": (
+            "✅ **Геолокация получена!**\n\n"
+            "Выберите категорию для получения персонализированных заданий:\n\n"
+            "🍔 **Еда** - кафе, рестораны, уличная еда\n"
+            "💪 **Здоровье** - спорт, йога, спа, клиники\n"
+            "🌟 **Интересные места** - парки, выставки, храмы"
+        ),
+        "tasks.categories_intro": (
+            "Выберите категорию заданий:\n\n"
+            "🍔 **Еда** - кафе, рестораны, уличная еда\n"
+            "💪 **Здоровье** - спорт, йога, спа, клиники\n"
+            "🌟 **Интересные места** - парки, выставки, храмы"
+        ),
+        "myevents.auto_closed": "🤖 Автоматически закрыто {count} прошедших событий",
+        "myevents.header": "📋 **Мои события:**\n",
+        "myevents.balance": "**Баланс {rocket_balance} 🚀**\n",
+        "myevents.created_by_me": "📝 **Созданные мной:**",
+        "myevents.recently_closed": "🔴 **Недавно закрытые ({count}):**",
+        "myevents.and_more": "... и еще {count} событий",
+        "myevents.and_more_closed": "... и еще {count} закрытых событий",
+        "myevents.no_events": "У вас пока нет событий.",
+        "myevents.button.manage_events": "🔧 Управление событиями",
+        "myevents.button.all_added": "📋 Все добавленные события",
+        "myevents.button.manage_tasks": "🔧 Управление заданиями",
+        "common.title_not_specified": "Без названия",
+        "common.location_tba": "Место уточняется",
+        "common.time_tba": "Время уточняется",
+        "diag.error_msg": "❌ Ошибка диагностики: {error}",
+        "diag.commands_error": "❌ Ошибка диагностики команд: {error}",
+        "community.cancel": "❌ Отменить создание",
+        "community.event_cancelled": "❌ Создание события отменено.",
+        "pager.date_shown": "📅 Показаны события на {date_type}",
         # Добавить бота в чат
         "share.title": '🤝Версия "Community"- наведет структуру и порядок событий в вашем чате.\n\n'
         "🚀 **Награда: За добавление бота в чат 150 ракет !!!** 🚀\n\n"
@@ -395,6 +430,20 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "Например: 55.7558, 37.6176\n"
             "Или: -8.67, 115.21"
         ),
+        "myevents.button.main_menu": "🏠 Главное меню",
+        "myevents.button.my_quests": "🏆 Мои квесты",
+        "myevents.button.my_events": "📋 Мои события",
+        "common.no_title": "Без названия",
+        "common.closed": "(закрыто)",
+        "tasks.press_location_hint": (
+            "Нажмите кнопку '📍 Отправить геолокацию' чтобы начать!\n\n"
+            "💡 Если кнопка не работает:\n\n"
+            "• Жми '🌍 Найти на карте'\n"
+            "и вставь ссылку\n\n"
+            "• Или отправь координаты\n"
+            "пример: -8.4095, 115.1889"
+        ),
+        "community.date_shown": "📅 Показаны события на {date_type}",
     },
     "en": {
         # Language selection
@@ -619,6 +668,41 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.require_location": "📍 Location required",
         "tasks.complete_not_found": "❌ Error: no task found to complete.",
         "tasks.task_not_found": "❌ Error: task not found.",
+        "tasks.category.food": "🍔 Food",
+        "tasks.category.health": "💪 Health",
+        "tasks.category.places": "🌟 Interesting places",
+        "tasks.location_received": (
+            "✅ **Location received!**\n\n"
+            "Choose category for personalized tasks:\n\n"
+            "🍔 **Food** - cafes, restaurants, street food\n"
+            "💪 **Health** - sports, yoga, spa, clinics\n"
+            "🌟 **Interesting places** - parks, exhibitions, temples"
+        ),
+        "tasks.categories_intro": (
+            "Choose task category:\n\n"
+            "🍔 **Food** - cafes, restaurants, street food\n"
+            "💪 **Health** - sports, yoga, spa, clinics\n"
+            "🌟 **Interesting places** - parks, exhibitions, temples"
+        ),
+        "myevents.auto_closed": "🤖 Auto-closed {count} past events",
+        "myevents.header": "📋 **My events:**\n",
+        "myevents.balance": "**Balance {rocket_balance} 🚀**\n",
+        "myevents.created_by_me": "📝 **Created by me:**",
+        "myevents.recently_closed": "🔴 **Recently closed ({count}):**",
+        "myevents.and_more": "... and {count} more events",
+        "myevents.and_more_closed": "... and {count} more closed",
+        "myevents.no_events": "You have no events yet.",
+        "myevents.button.manage_events": "🔧 Manage events",
+        "myevents.button.all_added": "📋 All added events",
+        "myevents.button.manage_tasks": "🔧 Manage tasks",
+        "common.title_not_specified": "Untitled",
+        "common.location_tba": "Location TBA",
+        "common.time_tba": "Time TBA",
+        "diag.error_msg": "❌ Diagnostics error: {error}",
+        "diag.commands_error": "❌ Commands diagnostics error: {error}",
+        "community.cancel": "❌ Cancel creation",
+        "community.event_cancelled": "❌ Event creation cancelled.",
+        "pager.date_shown": "📅 Events shown for {date_type}",
         "event.created": "Event created!",
         "event.completed": "✅ Event completed!",
         "event.complete_error": "❌ Error completing event",
@@ -770,6 +854,20 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "edit.location_coords_prompt": (
             "📍 Enter coordinates in format: **latitude, longitude**\n\n" "E.g.: 55.7558, 37.6176\n" "Or: -8.67, 115.21"
         ),
+        "myevents.button.main_menu": "🏠 Main menu",
+        "myevents.button.my_quests": "🏆 My quests",
+        "myevents.button.my_events": "📋 My events",
+        "common.no_title": "Untitled",
+        "common.closed": "(closed)",
+        "tasks.press_location_hint": (
+            "Tap '📍 Send location' button to start!\n\n"
+            "💡 If button doesn't work:\n\n"
+            "• Tap '🌍 Find on map'\n"
+            "and paste a link\n\n"
+            "• Or send coordinates\n"
+            "e.g.: -8.4095, 115.1889"
+        ),
+        "community.date_shown": "📅 Events shown for {date_type}",
     },
 }
 
