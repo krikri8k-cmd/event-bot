@@ -41,6 +41,15 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "command.mytasks": "🏆 Мои квесты - просмотр выполненных заданий",
         "command.share": "🔗 Добавить бота в чат",
         "command.help": "💬 Написать отзыв Разработчику",
+        "help.feedback.text": (
+            "💬 **Написать отзыв Разработчику**\n\n"
+            "Спасибо за использование EventAroundBot! 🚀\n\n"
+            "Если у вас есть предложения, замечания или просто хотите поблагодарить - "
+            "напишите мне лично:\n\n"
+            "👨‍💻 **@Fincontro**\n\n"
+            "Я всегда рад обратной связи и готов помочь! 😊"
+        ),
+        "help.button.write": "💬 Написать @Fincontro",
         "command.language": "🌐 Выбрать язык / Choose language",
         "command.group.start": "🎉 События чата",
         # Групповой чат
@@ -504,6 +513,15 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "command.mytasks": "🏆 My quests - view completed tasks",
         "command.share": "🔗 Add bot to chat",
         "command.help": "💬 Write feedback to Developer",
+        "help.feedback.text": (
+            "💬 **Write feedback to Developer**\n\n"
+            "Thanks for using EventAroundBot! 🚀\n\n"
+            "If you have suggestions, feedback or just want to say thanks - "
+            "write to me personally:\n\n"
+            "👨‍💻 **@Fincontro**\n\n"
+            "I'm always happy to hear from you! 😊"
+        ),
+        "help.button.write": "💬 Message @Fincontro",
         "command.language": "🌐 Choose language / Выберите язык",
         "command.group.start": "🎉 Chat events",
         # Group chat

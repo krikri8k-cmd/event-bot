@@ -74,6 +74,7 @@ _CANCEL_BUTTON_TEXTS = (t("common.cancel", "ru"), t("common.cancel", "en"))
 _EVENTS_NEARBY_BUTTON_TEXTS = (t("menu.button.events_nearby", "ru"), t("menu.button.events_nearby", "en"))
 _TASKS_TITLE_BUTTON_TEXTS = (t("tasks.title", "ru"), t("tasks.title", "en"))
 _MY_ACTIVITIES_BUTTON_TEXTS = (t("menu.button.my_activities", "ru"), t("menu.button.my_activities", "en"))
+_HELP_BUTTON_TEXTS = (t("command.help", "ru"), t("command.help", "en"))
 
 
 def _build_tracking_url(click_type: str, event: dict, target_url: str, user_id: int | None) -> str:
@@ -3109,7 +3110,7 @@ async def dump_commands_healthcheck(bot):
             types.BotCommand(command="tasks", description="🎯 Интересные места - найти задания поблизости"),
             types.BotCommand(command="mytasks", description="🏆 Мои квесты - просмотр выполненных заданий"),
             types.BotCommand(command="share", description="🔗 Добавить бота в чат"),
-            types.BotCommand(command="help", description="💬 Написать отзыв Разработчику"),
+            types.BotCommand(command="help", description=t("command.help", "ru")),
         ]
 
         scopes = [
@@ -3725,6 +3726,7 @@ async def pm_edit_location_choice(callback: types.CallbackQuery, state: FSMConte
         if len(parts) >= 2:
             event_id = int(parts[0])
             chat_id = int(parts[1])
+            lang = get_user_language_or_default(callback.from_user.id)
             await state.update_data(event_id=event_id, chat_id=chat_id)
             await state.set_state(CommunityEventEditing.waiting_for_location)
 
@@ -3733,18 +3735,20 @@ async def pm_edit_location_choice(callback: types.CallbackQuery, state: FSMConte
                 inline_keyboard=[
                     [
                         InlineKeyboardButton(
-                            text="🔗 Вставить готовую ссылку",
+                            text=t("community.location_link", lang),
                             callback_data=f"pm_edit_location_link_{event_id}_{chat_id}",
                         )
                     ],
                     [
                         InlineKeyboardButton(
-                            text="🌍 Найти на карте", callback_data=f"pm_edit_location_map_{event_id}_{chat_id}"
+                            text=t("community.location_map", lang),
+                            callback_data=f"pm_edit_location_map_{event_id}_{chat_id}",
                         )
                     ],
                     [
                         InlineKeyboardButton(
-                            text="📍 Ввести координаты", callback_data=f"pm_edit_location_coords_{event_id}_{chat_id}"
+                            text=t("community.location_coords", lang),
+                            callback_data=f"pm_edit_location_coords_{event_id}_{chat_id}",
                         )
                     ],
                 ]
@@ -9227,6 +9231,7 @@ async def handle_task_accept(callback: types.CallbackQuery, state: FSMContext):
 async def handle_task_custom_location(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик ввода своей локации для задания"""
     task_id = int(callback.data.split(":")[1])
+    lang = get_user_language_or_default(callback.from_user.id)
 
     await state.update_data(selected_task_id=task_id)
     await state.set_state(TaskFlow.waiting_for_custom_location)
@@ -9234,10 +9239,10 @@ async def handle_task_custom_location(callback: types.CallbackQuery, state: FSMC
     # Добавляем кнопки для выбора типа локации
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="location_link")],
-            [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="location_map")],
-            [InlineKeyboardButton(text="📍 Ввести координаты", callback_data="location_coords")],
-            [InlineKeyboardButton(text="◀️ Назад", callback_data=f"task_detail:{task_id}")],
+            [InlineKeyboardButton(text=t("community.location_link", lang), callback_data="location_link")],
+            [InlineKeyboardButton(text=t("community.location_map", lang), callback_data="location_map")],
+            [InlineKeyboardButton(text=t("community.location_coords", lang), callback_data="location_coords")],
+            [InlineKeyboardButton(text=t("group.button.back", lang), callback_data=f"task_detail:{task_id}")],
         ]
     )
 
@@ -9556,23 +9561,16 @@ async def process_feedback(message: types.Message, state: FSMContext):
 
 
 @main_router.message(Command("help"))
-@main_router.message(F.text == "💬 Написать отзыв Разработчику")
+@main_router.message(F.text.in_(_HELP_BUTTON_TEXTS))
 async def on_help(message: types.Message):
     """Обработчик кнопки 'Написать отзыв Разработчику'"""
-    feedback_text = (
-        "💬 **Написать отзыв Разработчику**\n\n"
-        "Спасибо за использование EventAroundBot! 🚀\n\n"
-        "Если у вас есть предложения, замечания или просто хотите поблагодарить - "
-        "напишите мне лично:\n\n"
-        "👨‍💻 **@Fincontro**\n\n"
-        "Я всегда рад обратной связи и готов помочь! 😊"
-    )
+    lang = get_user_language_or_default(message.from_user.id)
+    feedback_text = t("help.feedback.text", lang)
 
-    # Создаем inline кнопку для быстрого перехода к чату
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="💬 Написать @Fincontro", url="https://t.me/Fincontro")],
-            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+            [InlineKeyboardButton(text=t("help.button.write", lang), url="https://t.me/Fincontro")],
+            [InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main")],
         ]
     )
 
@@ -9753,9 +9751,9 @@ async def process_time(message: types.Message, state: FSMContext):
     # Создаем клавиатуру для выбора типа локации
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="location_link")],
-            [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="location_map")],
-            [InlineKeyboardButton(text="📍 Ввести координаты", callback_data="location_coords")],
+            [InlineKeyboardButton(text=t("community.location_link", user_lang), callback_data="location_link")],
+            [InlineKeyboardButton(text=t("community.location_map", user_lang), callback_data="location_map")],
+            [InlineKeyboardButton(text=t("community.location_coords", user_lang), callback_data="location_coords")],
         ]
     )
 
@@ -9844,10 +9842,11 @@ async def handle_location_type_text(message: types.Message, state: FSMContext):
             )
     else:
         # Не ссылка - напоминаем о кнопках
+        user_lang = get_user_language_or_default(message.from_user.id)
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="location_link")],
-                [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="location_map")],
+                [InlineKeyboardButton(text=t("community.location_link", user_lang), callback_data="location_link")],
+                [InlineKeyboardButton(text=t("community.location_map", user_lang), callback_data="location_map")],
             ]
         )
 
@@ -10243,14 +10242,15 @@ async def handle_location_confirm(callback: types.CallbackQuery, state: FSMConte
 @main_router.callback_query(F.data == "location_change")
 async def handle_location_change(callback: types.CallbackQuery, state: FSMContext):
     """Изменение локации"""
+    lang = get_user_language_or_default(callback.from_user.id)
     await state.set_state(EventCreation.waiting_for_location_type)
 
     # Создаем клавиатуру для выбора типа локации
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="location_link")],
-            [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="location_map")],
-            [InlineKeyboardButton(text="📍 Ввести координаты", callback_data="location_coords")],
+            [InlineKeyboardButton(text=t("community.location_link", lang), callback_data="location_link")],
+            [InlineKeyboardButton(text=t("community.location_map", lang), callback_data="location_map")],
+            [InlineKeyboardButton(text=t("community.location_coords", lang), callback_data="location_coords")],
         ]
     )
 
@@ -10822,13 +10822,18 @@ async def process_community_city_group(message: types.Message, state: FSMContext
     await state.update_data(city=city)
     await state.set_state(CommunityEventCreation.waiting_for_location_type)
 
+    lang = get_user_language_or_default(message.from_user.id)
     # Создаем клавиатуру для выбора типа локации (как в World режиме)
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="community_location_link")],
-            [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="community_location_map")],
-            [InlineKeyboardButton(text="📍 Ввести координаты", callback_data="community_location_coords")],
-            [InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")],
+            [InlineKeyboardButton(text=t("community.location_link", lang), callback_data="community_location_link")],
+            [InlineKeyboardButton(text=t("community.location_map", lang), callback_data="community_location_map")],
+            [
+                InlineKeyboardButton(
+                    text=t("community.location_coords", lang), callback_data="community_location_coords"
+                )
+            ],
+            [InlineKeyboardButton(text=t("common.cancel", lang), callback_data="group_cancel_create")],
         ]
     )
 
@@ -10898,12 +10903,17 @@ async def handle_community_location_type_text_group(message: types.Message, stat
             return
 
     # Если не распознали, показываем подсказку
+    lang = get_user_language_or_default(message.from_user.id)
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="community_location_link")],
-            [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="community_location_map")],
-            [InlineKeyboardButton(text="📍 Ввести координаты", callback_data="community_location_coords")],
-            [InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")],
+            [InlineKeyboardButton(text=t("community.location_link", lang), callback_data="community_location_link")],
+            [InlineKeyboardButton(text=t("community.location_map", lang), callback_data="community_location_map")],
+            [
+                InlineKeyboardButton(
+                    text=t("community.location_coords", lang), callback_data="community_location_coords"
+                )
+            ],
+            [InlineKeyboardButton(text=t("common.cancel", lang), callback_data="group_cancel_create")],
         ]
     )
     await message.answer(
@@ -12925,6 +12935,7 @@ async def handle_edit_time_choice(callback: types.CallbackQuery, state: FSMConte
 async def handle_edit_location_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор редактирования локации - показываем меню выбора типа"""
     event_id = int(callback.data.split("_")[-1])
+    lang = get_user_language_or_default(callback.from_user.id)
 
     # Сохраняем ID события в состоянии
     await state.update_data(event_id=event_id)
@@ -12933,10 +12944,22 @@ async def handle_edit_location_choice(callback: types.CallbackQuery, state: FSMC
     # Создаем клавиатуру для выбора типа локации (как при создании)
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data=f"edit_location_link_{event_id}")],
-            [InlineKeyboardButton(text="🌍 Найти на карте", callback_data=f"edit_location_map_{event_id}")],
-            [InlineKeyboardButton(text="📍 Ввести координаты", callback_data=f"edit_location_coords_{event_id}")],
-            [InlineKeyboardButton(text="◀️ Назад", callback_data=f"edit_event_{event_id}")],
+            [
+                InlineKeyboardButton(
+                    text=t("community.location_link", lang), callback_data=f"edit_location_link_{event_id}"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=t("community.location_map", lang), callback_data=f"edit_location_map_{event_id}"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=t("community.location_coords", lang), callback_data=f"edit_location_coords_{event_id}"
+                )
+            ],
+            [InlineKeyboardButton(text=t("group.button.back", lang), callback_data=f"edit_event_{event_id}")],
         ]
     )
 
