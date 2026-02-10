@@ -8,6 +8,10 @@ import os
 import sys
 from pathlib import Path
 
+# Устанавливаем UTF-8 для вывода в Windows
+if sys.platform == "win32":
+    os.environ["PYTHONIOENCODING"] = "utf-8"
+
 from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -28,7 +32,7 @@ if not db_url:
 init_engine(db_url)
 
 print("=" * 60)
-print("ПРОВЕРКА task_hint НА УПОМИНАНИЕ ДРУГИХ МЕСТ")
+print("CHECKING task_hint FOR MENTIONS OF OTHER PLACES")
 print("=" * 60)
 print()
 
@@ -36,7 +40,7 @@ with get_session() as session:
     # Получаем все места с task_hint
     places = session.query(TaskPlace).filter(TaskPlace.task_hint.isnot(None)).all()
 
-    print(f"Всего мест с task_hint: {len(places)}")
+    print(f"Total places with task_hint: {len(places)}")
     print()
 
     issues = []
@@ -73,29 +77,29 @@ with get_session() as session:
                     break  # Нашли проблему, переходим к следующему месту
 
     if issues:
-        print(f"[WARN] Найдено {len(issues)} мест с проблемными task_hint:")
+        print(f"[WARN] Found {len(issues)} places with problematic task_hint:")
         print()
 
         for issue in issues:
-            print(f"📍 Место ID {issue['place_id']}: {issue['place_name']}")
+            print(f"Place ID {issue['place_id']}: {issue['place_name']}")
             print(f"   task_hint: {issue['task_hint']}")
-            print(f"   ⚠️ Упоминает другое место: {issue['mentioned_place']} (ID {issue['mentioned_place_id']})")
+            print(f"   [WARN] Mentions other place: {issue['mentioned_place']} (ID {issue['mentioned_place_id']})")
             print()
 
         print("=" * 60)
-        print("РЕКОМЕНДАЦИИ:")
+        print("RECOMMENDATIONS:")
         print("=" * 60)
-        print("1. Перегенерировать task_hint для этих мест")
-        print("2. Проверить вручную и исправить")
-        print("3. Улучшить промпт для GPT (уже сделано в коде)")
+        print("1. Regenerate task_hint for these places")
+        print("2. Check manually and fix")
+        print("3. Improve GPT prompt (already done in code)")
         print()
 
         # SQL для исправления (очистить task_hint для проблемных мест)
-        print("SQL для очистки task_hint проблемных мест:")
+        print("SQL to clear task_hint for problematic places:")
         print()
         place_ids = [str(issue["place_id"]) for issue in issues]
         print(f"UPDATE task_places SET task_hint = NULL WHERE id IN ({', '.join(place_ids)});")
         print()
     else:
-        print("[OK] Проблемных task_hint не найдено!")
+        print("[OK] No problematic task_hint found!")
         print()
