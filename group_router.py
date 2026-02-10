@@ -1970,8 +1970,14 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                     logger.error(f"❌ Ошибка отправки нового сообщения: {e2}")
                     # Последний fallback: отправляем без клавиатуры
                 try:
+                    _lang = get_user_language_or_default(callback.from_user.id)
                     answer_kwargs = {
-                        "text": "📋 **События этого чата**\n\n❌ Ошибка отображения. Попробуйте позже.",
+                        "text": format_translation("group.list.header", _lang, count=0)
+                        .replace(" (0 событий)", "")
+                        .replace(" (0 events)", "")
+                        .strip()
+                        + "\n\n"
+                        + t("group.list.error", _lang),
                         "parse_mode": "Markdown",
                     }
                     if is_forum and thread_id:
@@ -1983,14 +1989,20 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
     except Exception as e:
         logger.error(f"❌ Ошибка получения событий: {e}")
         # Отправляем сообщение об ошибке пользователю
+        _lang = get_user_language_or_default(callback.from_user.id)
+        header = (
+            format_translation("group.list.header", _lang, count=0)
+            .replace(" (0 событий)", "")
+            .replace(" (0 events)", "")
+            .strip()
+        )
         error_text = (
-            "📋 **События этого чата**\n\n"
-            "❌ Произошла ошибка при загрузке событий.\n\n"
+            header + "\n\n❌ Произошла ошибка при загрузке событий.\n\n"
             "Попробуйте позже или обратитесь к администратору."
         )
         back_kb = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="◀️ Назад", callback_data="group_back_to_panel")],
+                [InlineKeyboardButton(text=t("group.button.back", _lang), callback_data="group_back_to_panel")],
             ]
         )
         try:
@@ -2112,25 +2124,22 @@ async def group_hide_confirm(callback: CallbackQuery, bot: Bot, session: AsyncSe
     """Показ диалога подтверждения скрытия бота - редактируем панель"""
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id
+    lang = get_user_language_or_default(user_id)
     logger.info(f"🔥 group_hide_confirm: пользователь {user_id} запросил подтверждение скрытия бота в чате {chat_id}")
 
     await callback.answer("Показываем подтверждение...", show_alert=False)
 
-    confirmation_text = (
-        "👁️‍🗨️ **Спрятать бота**\n\n"
-        "Вы действительно хотите скрыть все сообщения бота из этого чата?\n\n"
-        "⚠️ **Это действие:**\n"
-        "• Удалит все сообщения бота из чата\n"
-        "• Очистит историю взаимодействий\n"
-        "• Бот останется в группе, но не будет засорять чат\n\n"
-        "💡 **Особенно полезно после создания события** - освобождает чат от служебных сообщений\n\n"
-        "Для восстановления функций бота используйте команду /start"
-    )
+    confirmation_text = t("group.hide_bot.text", lang) + t("group.hide_bot.confirm", lang)
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="✅ Да, спрятать", callback_data=f"group_hide_execute_{chat_id}")],
-            [InlineKeyboardButton(text="❌ Отмена", callback_data="group_back_to_panel")],
+            [
+                InlineKeyboardButton(
+                    text=t("group.hide_bot.confirm_yes", lang),
+                    callback_data=f"group_hide_execute_{chat_id}",
+                )
+            ],
+            [InlineKeyboardButton(text=t("common.cancel", lang), callback_data="group_back_to_panel")],
         ]
     )
 
@@ -2671,6 +2680,7 @@ async def group_manage_events(callback: CallbackQuery, bot: Bot, session: AsyncS
     """Обработчик кнопки Управление событиями (главная кнопка, как в World режиме)"""
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id
+    lang = get_user_language_or_default(user_id)
 
     logger.info(f"🔥 group_manage_events: пользователь {user_id} открывает управление событиями в чате {chat_id}")
 
@@ -2685,14 +2695,21 @@ async def group_manage_events(callback: CallbackQuery, bot: Bot, session: AsyncS
 
         if not manageable_events:
             text = (
-                "📋 **Управление событиями**\n\n"
-                "У вас нет событий для управления.\n\n"
-                "💡 Вы можете:\n"
-                "• Создать новое событие через кнопку ➕ Создать событие\n"
-                "• Возобновить закрытые события (если они были закрыты менее 24 часов назад)"
+                t("group.manage_events.title", lang)
+                + "\n\n"
+                + t("group.manage_events.empty", lang)
+                + t("group.manage_events.hint", lang)
+                + t("group.manage_events.resume_hint", lang)
             )
             keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text="◀️ Назад к списку", callback_data="group_list")]]
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text=t("group.button.back_to_list", lang),
+                            callback_data="group_list",
+                        )
+                    ]
+                ]
             )
             try:
                 await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)

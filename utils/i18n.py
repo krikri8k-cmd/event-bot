@@ -175,6 +175,28 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "diag.commands_error": "❌ Ошибка диагностики команд: {error}",
         "community.cancel": "❌ Отменить создание",
         "community.event_cancelled": "❌ Создание события отменено.",
+        "community.location_link": "🔗 Вставить готовую ссылку",
+        "community.location_map": "🌍 Найти на карте",
+        "community.location_coords": "📍 Ввести координаты",
+        "community.confirm_chat_only": "✅ Только чат",
+        "community.confirm_world": "🌍 Чат + World",
+        "group.list.error": "❌ Ошибка отображения. Попробуйте позже.",
+        "group.manage_events.title": "📋 **Управление событиями**",
+        "group.manage_events.hint": "• Создать новое событие через кнопку ➕ Создать событие\n",
+        "group.hide_bot.text": "👁️‍🗨️ **Спрятать бота**\n\n",
+        "group.hide_bot.confirm_yes": "✅ Да, спрятать",
+        "group.hide_bot.confirm": (
+            "Вы действительно хотите скрыть все сообщения бота из этого чата?\n\n"
+            "⚠️ **Это действие:**\n"
+            "• Удалит все сообщения бота из чата\n"
+            "• Очистит историю взаимодействий\n"
+            "• Бот останется в группе, но не будет засорять чат\n\n"
+            "💡 **Особенно полезно после создания события** - освобождает чат от служебных сообщений\n\n"
+            "Для восстановления функций бота используйте команду /start"
+        ),
+        "group.manage_events.empty": "У вас нет событий для управления.\n\n💡 Вы можете:\n",
+        "group.manage_events.resume_hint": ("• Возобновить закрытые события (если закрыты менее 24 ч назад)"),
+        "group.button.back_to_list": "◀️ Назад к списку",
         "pager.date_shown": "📅 Показаны события на {date_type}",
         # Добавить бота в чат
         "share.title": '🤝Версия "Community"- наведет структуру и порядок событий в вашем чате.\n\n'
@@ -708,6 +730,28 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "diag.commands_error": "❌ Commands diagnostics error: {error}",
         "community.cancel": "❌ Cancel creation",
         "community.event_cancelled": "❌ Event creation cancelled.",
+        "community.location_link": "🔗 Paste link",
+        "community.location_map": "🌍 Find on map",
+        "community.location_coords": "📍 Enter coordinates",
+        "community.confirm_chat_only": "✅ Chat only",
+        "community.confirm_world": "🌍 Chat + World",
+        "group.list.error": "❌ Display error. Try again later.",
+        "group.manage_events.title": "📋 **Manage events**",
+        "group.manage_events.hint": "• Create new event via ➕ Create event button\n",
+        "group.hide_bot.text": "👁️‍🗨️ **Hide bot**\n\n",
+        "group.hide_bot.confirm_yes": "✅ Yes, hide",
+        "group.hide_bot.confirm": (
+            "Do you want to hide all bot messages in this chat?\n\n"
+            "⚠️ **This will:**\n"
+            "• Remove all bot messages from the chat\n"
+            "• Clear interaction history\n"
+            "• Bot stays in the group but won't clutter the chat\n\n"
+            "💡 **Useful after creating an event** - frees the chat from service messages\n\n"
+            "Use /start to restore bot functions"
+        ),
+        "group.manage_events.empty": "You have no events to manage.\n\n💡 You can:\n",
+        "group.manage_events.resume_hint": ("• Resume closed events (if closed less than 24h ago)"),
+        "group.button.back_to_list": "◀️ Back to list",
         "pager.date_shown": "📅 Events shown for {date_type}",
         "event.created": "Event created!",
         "event.completed": "✅ Event completed!",

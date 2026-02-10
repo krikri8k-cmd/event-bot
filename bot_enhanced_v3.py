@@ -4359,12 +4359,17 @@ async def process_community_city_pm(message: types.Message, state: FSMContext):
     await state.update_data(city=city)
     await state.set_state(CommunityEventCreation.waiting_for_location_type)
 
+    lang = get_user_language_or_default(message.from_user.id)
     # Создаем клавиатуру для выбора типа локации (как в World режиме)
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="community_location_link")],
-            [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="community_location_map")],
-            [InlineKeyboardButton(text="📍 Ввести координаты", callback_data="community_location_coords")],
+            [InlineKeyboardButton(text=t("community.location_link", lang), callback_data="community_location_link")],
+            [InlineKeyboardButton(text=t("community.location_map", lang), callback_data="community_location_map")],
+            [
+                InlineKeyboardButton(
+                    text=t("community.location_coords", lang), callback_data="community_location_coords"
+                )
+            ],
         ]
     )
 
@@ -4436,11 +4441,16 @@ async def handle_community_location_type_text(message: types.Message, state: FSM
             return
 
     # Если не распознали, показываем подсказку
+    lang = get_user_language_or_default(message.from_user.id)
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🔗 Вставить готовую ссылку", callback_data="community_location_link")],
-            [InlineKeyboardButton(text="🌍 Найти на карте", callback_data="community_location_map")],
-            [InlineKeyboardButton(text="📍 Ввести координаты", callback_data="community_location_coords")],
+            [InlineKeyboardButton(text=t("community.location_link", lang), callback_data="community_location_link")],
+            [InlineKeyboardButton(text=t("community.location_map", lang), callback_data="community_location_map")],
+            [
+                InlineKeyboardButton(
+                    text=t("community.location_coords", lang), callback_data="community_location_coords"
+                )
+            ],
         ]
     )
     await message.answer(
@@ -4587,6 +4597,7 @@ async def process_community_description_pm(message: types.Message, state: FSMCon
     logger.info(f"🔥 process_community_description_pm: данные FSM: {data}")
 
     # Показываем итог перед подтверждением
+    lang = get_user_language_or_default(message.from_user.id)
     city_info = f"\n🏙️ **Город:** {data.get('city', 'НЕ УКАЗАНО')}" if data.get("city") else ""
     await message.answer(
         f"📌 **Проверьте данные события для группы:**\n\n"
@@ -4602,10 +4613,14 @@ async def process_community_description_pm(message: types.Message, state: FSMCon
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton(text="✅ Только чат", callback_data="community_event_confirm_chat"),
-                    InlineKeyboardButton(text="🌍 Чат + World", callback_data="community_event_confirm_world"),
+                    InlineKeyboardButton(
+                        text=t("community.confirm_chat_only", lang), callback_data="community_event_confirm_chat"
+                    ),
+                    InlineKeyboardButton(
+                        text=t("community.confirm_world", lang), callback_data="community_event_confirm_world"
+                    ),
                 ],
-                [InlineKeyboardButton(text="❌ Отменить", callback_data="community_event_cancel_pm")],
+                [InlineKeyboardButton(text=t("common.cancel", lang), callback_data="community_event_cancel_pm")],
             ]
         ),
     )
@@ -7209,6 +7224,7 @@ async def on_admin_event(message: types.Message):
 @main_router.message(Command("diag_webhook"))
 async def on_diag_webhook(message: types.Message):
     """Диагностика webhook"""
+    lang = get_user_language_or_default(message.from_user.id)
     try:
         # Получаем информацию о webhook
         webhook_info = await bot.get_webhook_info()
@@ -7232,12 +7248,13 @@ async def on_diag_webhook(message: types.Message):
 
     except Exception as e:
         logger.error(f"Ошибка в диагностике webhook: {e}")
-        await message.answer(f"❌ Ошибка диагностики: {e}")
+        await message.answer(format_translation("diag.error_msg", lang, error=str(e)))
 
 
 @main_router.message(Command("diag_commands"))
 async def on_diag_commands(message: types.Message):
     """Диагностика команд бота"""
+    lang = get_user_language_or_default(message.from_user.id)
     try:
         from aiogram.types import BotCommandScopeAllGroupChats, BotCommandScopeAllPrivateChats, BotCommandScopeDefault
 
@@ -7285,7 +7302,7 @@ async def on_diag_commands(message: types.Message):
         await message.answer("\n".join(info_lines), parse_mode="HTML")
     except Exception as e:
         logger.error(f"Ошибка в диагностике команд: {e}")
-        await message.answer(f"❌ Ошибка диагностики команд: {e}")
+        await message.answer(format_translation("diag.commands_error", lang, error=str(e)))
 
 
 @main_router.message(Command("diag_last"))
