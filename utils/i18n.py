@@ -52,6 +52,16 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "help.button.write": "💬 Написать @Fincontro",
         "command.language": "🌐 Выбрать язык / Choose language",
         "command.group.start": "🎉 События чата",
+        "commands.list": (
+            "📋 **Команды бота:**\n\n"
+            "🚀 /start - Запустить бота и показать меню\n"
+            "❓ /help - Показать справку\n"
+            "📍 /nearby - Найти события рядом\n"
+            "➕ /create - Создать событие\n"
+            "📋 /myevents - Мои события\n"
+            "🔗 /share - Добавить бота в чат\n\n"
+            "💡 **Совет:** Используйте кнопки меню для удобной навигации!"
+        ),
         # Групповой чат
         "group.greeting": '👋 Привет! Я EventAroundBot - версия "Community".\n\n'
         "🎯 **В этом чате я помогаю:**\n"
@@ -352,6 +362,69 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "📝 **Введите описание события**\n(что будет происходить, кому интересно):"
         ),
         "create.enter_description": ("📝 **Введите описание события**\n(что будет происходить, кому интересно):"),
+        "create.location_prompt": "📍 **Как укажем место?**\n\nВыберите один из способов:",
+        "create.city_saved": "**Город сохранен:** {city} ✅\n\n📍 **Как укажем место?**\n\nВыберите один из способов:",
+        "create.enter_city": "🏙️ **Введите город** (например: Москва):",
+        "create.place_by_coords": "📍 **Место определено по координатам:** {lat}, {lng} ✅\n\n",
+        "create.place_saved_then_desc": (
+            "**Место сохранено** ✅\n{location_text}\n\n"
+            "📝 **Введите описание события** (что будет происходить, кому интересно):"
+        ),
+        "create.invalid_coords": (
+            "❌ **Неверный формат координат!**\n\n"
+            "Используйте формат: **широта, долгота**\n"
+            "Например: 55.7558, 37.6176\n\n"
+            "Диапазоны:\n• Широта: -90 до 90\n• Долгота: -180 до 180"
+        ),
+        "create.link_failed": (
+            "❌ Не удалось распознать ссылку Google Maps.\n\n"
+            "Попробуйте:\n• Скопировать ссылку из приложения Google Maps\n"
+            "• Или нажать кнопку '🔗 Вставить готовую ссылку'"
+        ),
+        "create.check_data_group": "📌 **Проверьте данные события для группы:**\n\n",
+        "create.confirm_question": "✅ **Все данные корректны?**\nВыберите, где опубликовать событие.",
+        "create.place_saved_short": (
+            "📍 Место сохранено! ✅\n\n" "📝 Теперь введите описание (например: Вечерняя прогулка у океана):"
+        ),
+        "create.place_defined": "📍 Место определено: *{name}*\n\n",
+        "create.add_description": "📝 Теперь добавьте описание события:",
+        "create.location_use_buttons": (
+            "❌ Пожалуйста, используйте кнопки ниже для указания места:\n\n"
+            "• **🔗 Вставить готовую ссылку** — если у вас есть ссылка Google Maps\n"
+            "• **🌍 Найти на карте** — чтобы найти место на карте\n"
+            "• **📍 Ввести координаты** — если знаете широту и долготу"
+        ),
+        "create.group.enter_title": "✍️ **Введите название мероприятия:**",
+        "create.group.title_saved_ask_date": (
+            "**Название сохранено:** *{title}* ✅\n\n" "📅 **Укажите дату** (например: 10.10.2025 18:00):"
+        ),
+        "create.group.ask_datetime": "📅 **Укажите дату и время** (например: 10.10.2025 18:00):",
+        "create.group.invalid_datetime": (
+            "❌ **Неверный формат даты!**\n\n"
+            "📅 Введите дату в формате **ДД.ММ.ГГГГ ЧЧ:ММ**\n"
+            "Например: 10.10.2025 18:00"
+        ),
+        "create.group.datetime_saved_ask_city": (
+            "**Дата и время сохранены:** {datetime_text} ✅\n\n" "🏙️ **Введите город** (например: Москва):"
+        ),
+        "create.group.city_saved_ask_location": (
+            "**Город сохранен:** {city} ✅\n\n" "📍 **Отправьте ссылку на место** (Google Maps или адрес):"
+        ),
+        "create.group.ask_location_link": "📍 **Отправьте ссылку на место** (Google Maps или адрес):",
+        "create.group.location_saved_ask_description": (
+            "**Локация сохранена:** {location} ✅\n\n" "📝 **Введите описание события:**"
+        ),
+        "create.validation.datetime_error": "❌ **Ошибка в формате даты!** Попробуйте еще раз.",
+        "create.group.event_created": (
+            "✅ **Событие создано!**\n\n"
+            "**📌 {title}**\n"
+            "📅 {datetime}\n"
+            "🏙️ {city}\n"
+            "📍 {location}\n"
+            "📝 {description}\n\n"
+            "*Создано пользователем @{created_by}*"
+        ),
+        "create.group.error_creating": ("❌ **Произошла ошибка при создании события.** Попробуйте еще раз."),
         "create.cancelled": "Создание отменено.",
         "create.cancelled_full": "❌ Создание мероприятия отменено.",
         "create.wait_already_started": "⏳ Подождите, создание события уже запущено...",
@@ -524,6 +597,16 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "help.button.write": "💬 Message @Fincontro",
         "command.language": "🌐 Choose language / Выберите язык",
         "command.group.start": "🎉 Chat events",
+        "commands.list": (
+            "📋 **Bot commands:**\n\n"
+            "🚀 /start - Start bot and show menu\n"
+            "❓ /help - Show help\n"
+            "📍 /nearby - Find nearby events\n"
+            "➕ /create - Create event\n"
+            "📋 /myevents - My events\n"
+            "🔗 /share - Add bot to chat\n\n"
+            "💡 **Tip:** Use menu buttons for easy navigation!"
+        ),
         # Group chat
         "group.greeting": '👋 Hello! I am EventAroundBot - "Community" version.\n\n'
         "🎯 **In this chat I help:**\n"
@@ -650,6 +733,66 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "📝 **Enter event description**\n(what will happen, who it's for):"
         ),
         "create.enter_description": ("📝 **Enter event description**\n(what will happen, who it's for):"),
+        "create.location_prompt": "📍 **How to set the place?**\n\nChoose one of the options:",
+        "create.city_saved": "**City saved:** {city} ✅\n\n📍 **How to set the place?**\n\nChoose one of the options:",
+        "create.enter_city": "🏙️ **Enter city** (e.g.: Moscow):",
+        "create.place_by_coords": "📍 **Place set by coordinates:** {lat}, {lng} ✅\n\n",
+        "create.place_saved_then_desc": (
+            "**Place saved** ✅\n{location_text}\n\n" "📝 **Enter event description** (what will happen, who it's for):"
+        ),
+        "create.invalid_coords": (
+            "❌ **Invalid coordinates format!**\n\n"
+            "Use format: **latitude, longitude**\n"
+            "E.g.: 55.7558, 37.6176\n\n"
+            "Ranges: Latitude -90 to 90, Longitude -180 to 180"
+        ),
+        "create.link_failed": (
+            "❌ Could not recognize Google Maps link.\n\n"
+            "Try:\n• Copy link from Google Maps app\n"
+            "• Or tap '🔗 Paste link' button"
+        ),
+        "create.check_data_group": "📌 **Check event data for the group:**\n\n",
+        "create.confirm_question": "✅ **All data correct?**\nChoose where to publish the event.",
+        "create.place_saved_short": "📍 Place saved! ✅\n\n📝 Now enter description (e.g.: Evening walk by the ocean):",
+        "create.place_defined": "📍 Place set: *{name}*\n\n",
+        "create.add_description": "📝 Now add event description:",
+        "create.location_use_buttons": (
+            "❌ Please use the buttons below to set the place:\n\n"
+            "• **🔗 Paste link** — if you have a Google Maps link\n"
+            "• **🌍 Find on map** — to find the place on the map\n"
+            "• **📍 Enter coordinates** — if you know latitude and longitude"
+        ),
+        "create.group.enter_title": "✍️ **Enter event title:**",
+        "create.group.title_saved_ask_date": (
+            "**Title saved:** *{title}* ✅\n\n" "📅 **Enter date and time** (e.g.: 10.10.2025 18:00):"
+        ),
+        "create.group.ask_datetime": "📅 **Enter date and time** (e.g.: 10.10.2025 18:00):",
+        "create.group.invalid_datetime": (
+            "❌ **Invalid date format!**\n\n"
+            "📅 Enter date in format **DD.MM.YYYY HH:MM**\n"
+            "Example: 10.10.2025 18:00"
+        ),
+        "create.group.datetime_saved_ask_city": (
+            "**Date and time saved:** {datetime_text} ✅\n\n" "🏙️ **Enter city** (e.g.: Moscow):"
+        ),
+        "create.group.city_saved_ask_location": (
+            "**City saved:** {city} ✅\n\n" "📍 **Send link to the place** (Google Maps or address):"
+        ),
+        "create.group.ask_location_link": "📍 **Send link to the place** (Google Maps or address):",
+        "create.group.location_saved_ask_description": (
+            "**Location saved:** {location} ✅\n\n" "📝 **Enter event description:**"
+        ),
+        "create.validation.datetime_error": "❌ **Date format error!** Please try again.",
+        "create.group.event_created": (
+            "✅ **Event created!**\n\n"
+            "**📌 {title}**\n"
+            "📅 {datetime}\n"
+            "🏙️ {city}\n"
+            "📍 {location}\n"
+            "📝 {description}\n\n"
+            "*Created by @{created_by}*"
+        ),
+        "create.group.error_creating": ("❌ **An error occurred while creating the event.** Please try again."),
         "create.cancelled": "Creation cancelled.",
         "create.cancelled_full": "❌ Event creation cancelled.",
         "create.wait_already_started": "⏳ Please wait, event creation is already in progress...",

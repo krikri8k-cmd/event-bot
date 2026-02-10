@@ -3754,8 +3754,9 @@ async def pm_edit_location_choice(callback: types.CallbackQuery, state: FSMConte
                 ]
             )
 
+            lang = get_user_language_or_default(callback.from_user.id)
             await callback.message.answer(
-                "📍 **Как укажем место?**\n\nВыберите один из способов:",
+                t("create.location_prompt", lang),
                 parse_mode="Markdown",
                 reply_markup=keyboard,
             )
@@ -4307,6 +4308,7 @@ async def process_community_date_pm(message: types.Message, state: FSMContext):
 @main_router.message(CommunityEventCreation.waiting_for_time)
 async def process_community_time_pm(message: types.Message, state: FSMContext):
     """Обработка времени события в ЛС для группы"""
+    lang = get_user_language_or_default(message.from_user.id)
     logger.info(
         f"🔥 process_community_time_pm: получено сообщение от пользователя {message.from_user.id}, текст: '{message.text}'"
     )
@@ -4336,7 +4338,11 @@ async def process_community_time_pm(message: types.Message, state: FSMContext):
     await state.set_state(CommunityEventCreation.waiting_for_city)
 
     await message.answer(
-        f"**Время сохранено:** {time} ✅\n\n🏙️ **Введите город** (например: Москва):",
+        format_translation("create.time_saved", lang, time=time)
+        .replace("📍 **Отправьте геолокацию или введите место:**", "")
+        .strip()
+        + "\n\n"
+        + t("create.enter_city", lang),
         parse_mode="Markdown",
         reply_markup=get_community_cancel_kb(message.from_user.id),
     )
@@ -4349,9 +4355,10 @@ async def process_community_city_pm(message: types.Message, state: FSMContext):
         f"🔥 process_community_city_pm: получено сообщение от пользователя {message.from_user.id}, текст: '{message.text}'"
     )
 
+    lang = get_user_language_or_default(message.from_user.id)
     if not message.text:
         await message.answer(
-            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n🏙️ **Введите город** (например: Москва):",
+            format_translation("create.validation.no_text", lang, next_prompt=t("create.enter_city", lang)),
             parse_mode="Markdown",
             reply_markup=get_community_cancel_kb(message.from_user.id),
         )
@@ -4362,8 +4369,6 @@ async def process_community_city_pm(message: types.Message, state: FSMContext):
 
     await state.update_data(city=city)
     await state.set_state(CommunityEventCreation.waiting_for_location_type)
-
-    lang = get_user_language_or_default(message.from_user.id)
     # Создаем клавиатуру для выбора типа локации (как в World режиме)
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -4378,7 +4383,7 @@ async def process_community_city_pm(message: types.Message, state: FSMContext):
     )
 
     await message.answer(
-        f"**Город сохранен:** {city} ✅\n\n📍 **Как укажем место?**\n\nВыберите один из способов:",
+        format_translation("create.city_saved", lang, city=city),
         parse_mode="Markdown",
         reply_markup=keyboard,
     )
@@ -4458,7 +4463,7 @@ async def handle_community_location_type_text(message: types.Message, state: FSM
         ]
     )
     await message.answer(
-        "📍 **Как укажем место?**\n\nВыберите один из способов:",
+        t("create.location_prompt", lang),
         parse_mode="Markdown",
         reply_markup=keyboard,
     )
@@ -4604,15 +4609,12 @@ async def process_community_description_pm(message: types.Message, state: FSMCon
     lang = get_user_language_or_default(message.from_user.id)
     city_info = f"\n🏙️ **Город:** {data.get('city', 'НЕ УКАЗАНО')}" if data.get("city") else ""
     await message.answer(
-        f"📌 **Проверьте данные события для группы:**\n\n"
-        f"**Название:** {data.get('title', 'НЕ УКАЗАНО')}\n"
+        t("create.check_data_group", lang) + f"**Название:** {data.get('title', 'НЕ УКАЗАНО')}\n"
         f"**Дата:** {data.get('date', 'НЕ УКАЗАНО')}\n"
         f"**Время:** {data.get('time', 'НЕ УКАЗАНО')}{city_info}\n"
         f"**Место:** {data.get('location_name', 'НЕ УКАЗАНО')}\n"
         f"**Ссылка:** {data.get('location_url', 'НЕ УКАЗАНО')}\n"
-        f"**Описание:** {data.get('description', 'НЕ УКАЗАНО')}\n\n"
-        f"✅ **Все данные корректны?**\n"
-        f"Выберите, где опубликовать событие.",
+        f"**Описание:** {data.get('description', 'НЕ УКАЗАНО')}\n\n" + t("create.confirm_question", lang),
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
@@ -9306,16 +9308,8 @@ async def handle_back_to_main_tasks(callback: types.CallbackQuery, state: FSMCon
 @main_router.callback_query(F.data == "show_bot_commands")
 async def handle_show_bot_commands(callback: types.CallbackQuery):
     """Обработчик показа команд бота"""
-    commands_text = (
-        "📋 **Команды бота:**\n\n"
-        "🚀 /start - Запустить бота и показать меню\n"
-        "❓ /help - Показать справку\n"
-        "📍 /nearby - Найти события рядом\n"
-        "➕ /create - Создать событие\n"
-        "📋 /myevents - Мои события\n"
-        "🔗 /share - Добавить бота в чат\n\n"
-        "💡 **Совет:** Используйте кнопки меню для удобной навигации!"
-    )
+    lang = get_user_language_or_default(callback.from_user.id)
+    commands_text = t("commands.list", lang)
 
     # Создаем клавиатуру с кнопкой возврата
     keyboard = InlineKeyboardMarkup(
@@ -9759,7 +9753,10 @@ async def process_time(message: types.Message, state: FSMContext):
 
     await message.answer(
         format_translation("create.time_saved", user_lang, time=time)
-        + "\n\n📍 Как укажем место?\n\nВыберите один из способов:",
+        .replace("📍 **Отправьте геолокацию или введите место:**", "")
+        .strip()
+        + "\n\n"
+        + t("create.location_prompt", user_lang),
         parse_mode="Markdown",
         reply_markup=keyboard,
     )
@@ -9791,18 +9788,19 @@ async def handle_location_type_text(message: types.Message, state: FSMContext):
 
             # Переходим к описанию
             await state.set_state(EventCreation.waiting_for_description)
+            user_lang = get_user_language_or_default(message.from_user.id)
             await message.answer(
-                f"📍 Место определено: *{location_data.get('name', 'Место на карте')}*\n\n"
-                "📝 Теперь добавьте описание события:",
+                format_translation(
+                    "create.place_defined",
+                    user_lang,
+                    name=location_data.get("name", t("group.list.place_on_map", user_lang)),
+                )
+                + t("create.add_description", user_lang),
                 parse_mode="Markdown",
             )
         else:
-            await message.answer(
-                "❌ Не удалось распознать ссылку Google Maps.\n\n"
-                "Попробуйте:\n"
-                "• Скопировать ссылку из приложения Google Maps\n"
-                "• Или нажать кнопку '🔗 Вставить готовую ссылку'"
-            )
+            user_lang = get_user_language_or_default(message.from_user.id)
+            await message.answer(t("create.link_failed", user_lang))
 
     # Проверяем, являются ли это координаты (широта, долгота)
     elif "," in text and len(text.split(",")) == 2:
@@ -9823,23 +9821,18 @@ async def handle_location_type_text(message: types.Message, state: FSMContext):
 
                 # Переходим к описанию
                 await state.set_state(EventCreation.waiting_for_description)
+                user_lang = get_user_language_or_default(message.from_user.id)
                 await message.answer(
-                    f"📍 Место определено по координатам: *{lat}, {lng}*\n\n" "📝 Теперь добавьте описание события:",
+                    format_translation("create.place_by_coords", user_lang, lat=lat, lng=lng)
+                    + t("create.add_description", user_lang),
                     parse_mode="Markdown",
                 )
             else:
                 raise ValueError("Invalid coordinates range")
 
         except ValueError:
-            await message.answer(
-                "❌ Неверный формат координат!\n\n"
-                "Используйте формат: **широта, долгота**\n"
-                "Например: 55.7558, 37.6176\n\n"
-                "Диапазоны:\n"
-                "• Широта: -90 до 90\n"
-                "• Долгота: -180 до 180",
-                parse_mode="Markdown",
-            )
+            user_lang = get_user_language_or_default(message.from_user.id)
+            await message.answer(t("create.invalid_coords", user_lang), parse_mode="Markdown")
     else:
         # Не ссылка - напоминаем о кнопках
         user_lang = get_user_language_or_default(message.from_user.id)
@@ -9851,10 +9844,7 @@ async def handle_location_type_text(message: types.Message, state: FSMContext):
         )
 
         await message.answer(
-            "❌ Пожалуйста, используйте кнопки ниже для указания места:\n\n"
-            "• **🔗 Вставить готовую ссылку** - если у вас есть ссылка Google Maps\n"
-            "• **🌍 Найти на карте** - чтобы найти место на карте\n"
-            "• **📍 Ввести координаты** - если знаете широту и долготу",
+            t("create.location_use_buttons", user_lang),
             parse_mode="Markdown",
             reply_markup=keyboard,
         )
@@ -10231,9 +10221,10 @@ async def process_location_link(message: types.Message, state: FSMContext):
 @main_router.callback_query(F.data == "location_confirm")
 async def handle_location_confirm(callback: types.CallbackQuery, state: FSMContext):
     """Подтверждение локации"""
+    lang = get_user_language_or_default(callback.from_user.id)
     await state.set_state(EventCreation.waiting_for_description)
     await callback.message.answer(
-        "📍 Место сохранено! ✅\n\n📝 Теперь введите описание (например: Вечерняя прогулка у океана):",
+        t("create.place_saved_short", lang),
         parse_mode="Markdown",
     )
     await callback.answer()
@@ -10254,7 +10245,8 @@ async def handle_location_change(callback: types.CallbackQuery, state: FSMContex
         ]
     )
 
-    await callback.message.answer("📍 Как укажем место?", reply_markup=keyboard)
+    lang = get_user_language_or_default(callback.from_user.id)
+    await callback.message.answer(t("create.location_prompt", lang), reply_markup=keyboard)
     await callback.answer()
 
 
@@ -10838,7 +10830,7 @@ async def process_community_city_group(message: types.Message, state: FSMContext
     )
 
     await message.answer(
-        f"**Город сохранен:** {city} ✅\n\n📍 **Как укажем место?**\n\nВыберите один из способов:",
+        format_translation("create.city_saved", lang, city=city),
         parse_mode="Markdown",
         reply_markup=keyboard,
     )
@@ -10917,7 +10909,7 @@ async def handle_community_location_type_text_group(message: types.Message, stat
         ]
     )
     await message.answer(
-        "📍 **Как укажем место?**\n\nВыберите один из способов:",
+        t("create.location_prompt", lang),
         parse_mode="Markdown",
         reply_markup=keyboard,
     )

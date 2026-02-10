@@ -15,6 +15,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import ForceReply
 
 from utils.community_events_service import CommunityEventsService
+from utils.i18n import format_translation, get_user_language_or_default, t
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +43,11 @@ async def group_create_start(message: types.Message, state: FSMContext):
     )
 
     await state.set_state(GroupCreate.waiting_for_title)
+    lang = get_user_language_or_default(message.from_user.id)
     await message.answer(
-        "✍️ **Введите название мероприятия:**", parse_mode="Markdown", reply_markup=ForceReply(selective=True)
+        t("create.group.enter_title", lang),
+        parse_mode="Markdown",
+        reply_markup=ForceReply(selective=True),
     )
 
 
@@ -92,9 +96,10 @@ async def group_title_step(message: types.Message, state: FSMContext):
         f"text={message.text!r}"
     )
 
+    lang = get_user_language_or_default(message.from_user.id)
     if not message.text:
         await message.answer(
-            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n" "✍️ **Введите название мероприятия:**",
+            format_translation("create.validation.no_text", lang, next_prompt=t("create.group.enter_title", lang)),
             parse_mode="Markdown",
             reply_markup=ForceReply(selective=True),
         )
@@ -110,7 +115,7 @@ async def group_title_step(message: types.Message, state: FSMContext):
     bot = Bot.get_current()
     prompt = await bot.send_message(
         chat_id=data["group_id"],
-        text=f"**Название сохранено:** *{title}* ✅\n\n" "📅 **Укажите дату** (например: 10.10.2025 18:00):",
+        text=format_translation("create.group.title_saved_ask_date", lang, title=title),
         parse_mode="Markdown",
         reply_markup=ForceReply(selective=True),
         message_thread_id=data.get("thread_id"),
@@ -139,11 +144,10 @@ async def group_datetime_step(message: types.Message, state: FSMContext):
         f"[FSM] chat={message.chat.id} user={message.from_user.id} "
         f"reply_to={message.reply_to_message.message_id} state=datetime text={message.text!r}"
     )
-
+    lang = get_user_language_or_default(message.from_user.id)
     if not message.text:
         await message.answer(
-            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n"
-            "📅 **Укажите дату и время** (например: 10.10.2025 18:00):",
+            format_translation("create.validation.no_text", lang, next_prompt=t("create.group.ask_datetime", lang)),
             parse_mode="Markdown",
             reply_markup=ForceReply(selective=True),
         )
@@ -155,9 +159,7 @@ async def group_datetime_step(message: types.Message, state: FSMContext):
 
     if not re.match(r"^\d{1,2}\.\d{1,2}\.\d{4}\s+\d{1,2}:\d{2}$", datetime_text):
         await message.answer(
-            "❌ **Неверный формат даты!**\n\n"
-            "📅 Введите дату в формате **ДД.ММ.ГГГГ ЧЧ:ММ**\n"
-            "Например: 10.10.2025 18:00",
+            t("create.group.invalid_datetime", lang),
             parse_mode="Markdown",
             reply_markup=ForceReply(selective=True),
         )
@@ -172,7 +174,7 @@ async def group_datetime_step(message: types.Message, state: FSMContext):
     bot = Bot.get_current()
     prompt = await bot.send_message(
         chat_id=data["group_id"],
-        text=f"**Дата и время сохранены:** {datetime_text} ✅\n\n" "🏙️ **Введите город** (например: Москва):",
+        text=format_translation("create.group.datetime_saved_ask_city", lang, datetime_text=datetime_text),
         parse_mode="Markdown",
         reply_markup=ForceReply(selective=True),
         message_thread_id=data.get("thread_id"),
@@ -201,10 +203,10 @@ async def group_city_step(message: types.Message, state: FSMContext):
         f"[FSM] chat={message.chat.id} user={message.from_user.id} "
         f"reply_to={message.reply_to_message.message_id} state=city text={message.text!r}"
     )
-
+    lang = get_user_language_or_default(message.from_user.id)
     if not message.text:
         await message.answer(
-            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n" "🏙️ **Введите город** (например: Москва):",
+            format_translation("create.validation.no_text", lang, next_prompt=t("create.enter_city", lang)),
             parse_mode="Markdown",
             reply_markup=ForceReply(selective=True),
         )
@@ -220,7 +222,7 @@ async def group_city_step(message: types.Message, state: FSMContext):
     bot = Bot.get_current()
     prompt = await bot.send_message(
         chat_id=data["group_id"],
-        text=f"**Город сохранен:** {city} ✅\n\n" "📍 **Отправьте ссылку на место** (Google Maps или адрес):",
+        text=format_translation("create.group.city_saved_ask_location", lang, city=city),
         parse_mode="Markdown",
         reply_markup=ForceReply(selective=True),
         message_thread_id=data.get("thread_id"),
@@ -249,11 +251,12 @@ async def group_location_step(message: types.Message, state: FSMContext):
         f"[FSM] chat={message.chat.id} user={message.from_user.id} "
         f"reply_to={message.reply_to_message.message_id} state=location text={message.text!r}"
     )
-
+    lang = get_user_language_or_default(message.from_user.id)
     if not message.text:
         await message.answer(
-            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n"
-            "📍 **Отправьте ссылку на место** (Google Maps или адрес):",
+            format_translation(
+                "create.validation.no_text", lang, next_prompt=t("create.group.ask_location_link", lang)
+            ),
             parse_mode="Markdown",
             reply_markup=ForceReply(selective=True),
         )
@@ -269,7 +272,7 @@ async def group_location_step(message: types.Message, state: FSMContext):
     bot = Bot.get_current()
     prompt = await bot.send_message(
         chat_id=data["group_id"],
-        text=f"**Локация сохранена:** {location} ✅\n\n" "📝 **Введите описание события:**",
+        text=format_translation("create.group.location_saved_ask_description", lang, location=location),
         parse_mode="Markdown",
         reply_markup=ForceReply(selective=True),
         message_thread_id=data.get("thread_id"),
@@ -298,10 +301,10 @@ async def group_finish(message: types.Message, state: FSMContext, bot: Bot):
         f"[FSM] chat={message.chat.id} user={message.from_user.id} "
         f"reply_to={message.reply_to_message.message_id} state=description text={message.text!r}"
     )
-
+    lang = get_user_language_or_default(message.from_user.id)
     if not message.text:
         await message.answer(
-            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n" "📝 **Введите описание события:**",
+            format_translation("create.validation.no_text", lang, next_prompt=t("create.enter_description", lang)),
             parse_mode="Markdown",
             reply_markup=ForceReply(selective=True),
         )
@@ -316,7 +319,10 @@ async def group_finish(message: types.Message, state: FSMContext, bot: Bot):
             # Парсим время как локальное (naive datetime)
             naive_local_dt = datetime.strptime(datetime_str, "%d.%m.%Y %H:%M")
         except ValueError:
-            await message.answer("❌ **Ошибка в формате даты!** Попробуйте еще раз.", parse_mode="Markdown")
+            await message.answer(
+                t("create.validation.datetime_error", get_user_language_or_default(message.from_user.id)),
+                parse_mode="Markdown",
+            )
             return
 
         # В Community режиме сохраняем время как указал пользователь, БЕЗ конвертации в UTC
@@ -351,20 +357,26 @@ async def group_finish(message: types.Message, state: FSMContext, bot: Bot):
         )
         logger.info(f"🔥 group_finish: событие {event_id} создано успешно")
 
+        lang = get_user_language_or_default(message.from_user.id)
+        created_by = message.from_user.username or message.from_user.first_name
         await message.answer(
-            f"✅ **Событие создано!**\n\n"
-            f"**📌 {data['title']}**\n"
-            f"📅 {data['datetime']}\n"
-            f"🏙️ {data['city']}\n"
-            f"📍 {data['location']}\n"
-            f"📝 {description}\n\n"
-            f"*Создано пользователем @{message.from_user.username or message.from_user.first_name}*",
+            format_translation(
+                "create.group.event_created",
+                lang,
+                title=data["title"],
+                datetime=data["datetime"],
+                city=data["city"],
+                location=data["location"],
+                description=description,
+                created_by=created_by,
+            ),
             parse_mode="Markdown",
         )
 
     except Exception as e:
         logger.error(f"🔥 group_finish: ошибка при создании события: {e}")
-        await message.answer("❌ **Произошла ошибка при создании события.** Попробуйте еще раз.", parse_mode="Markdown")
+        lang = get_user_language_or_default(message.from_user.id)
+        await message.answer(t("create.group.error_creating", lang), parse_mode="Markdown")
 
     await state.clear()
 
