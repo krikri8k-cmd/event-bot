@@ -128,6 +128,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "myevents.create_first": ("Создайте первое событие командой /create"),
         # Мои квесты
         "mytasks.title": "🏆 Мои квесты",
+        "mytasks.empty": "У вас нет активных заданий.",
+        "mytasks.empty_hint": "Нажмите «Интересные места», чтобы получить новые задания!",
         "tasks.choose_section": "Выберите раздел:",
         "tasks.not_found": "Задание не найдено",
         "tasks.cancelled": "✅ Задание отменено",
@@ -165,6 +167,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "myevents.button.manage_events": "🔧 Управление событиями",
         "myevents.button.all_added": "📋 Все добавленные события",
         "myevents.button.manage_tasks": "🔧 Управление заданиями",
+        "common.cancel": "❌ Отмена",
         "common.title_not_specified": "Без названия",
         "common.location_tba": "Место уточняется",
         "common.time_tba": "Время уточняется",
@@ -658,6 +661,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "myevents.create_first": "Create your first event with /create command",
         # My quests
         "mytasks.title": "🏆 My quests",
+        "mytasks.empty": "You have no active tasks.",
+        "mytasks.empty_hint": "Tap «Interesting places» to get new tasks!",
         "tasks.choose_section": "Choose section:",
         "tasks.not_found": "Task not found",
         "tasks.cancelled": "✅ Task cancelled",
@@ -695,6 +700,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "myevents.button.manage_events": "🔧 Manage events",
         "myevents.button.all_added": "📋 All added events",
         "myevents.button.manage_tasks": "🔧 Manage tasks",
+        "common.cancel": "❌ Cancel",
         "common.title_not_specified": "Untitled",
         "common.location_tba": "Location TBA",
         "common.time_tba": "Time TBA",

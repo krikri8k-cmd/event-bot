@@ -65,6 +65,16 @@ from utils.user_language import (
 )
 from utils.user_participation_analytics import UserParticipationAnalytics
 
+# Тексты кнопок на обоих языках для сопоставления в обработчиках (reply-клавиатура)
+_MAIN_MENU_BUTTON_TEXTS = (t("myevents.button.main_menu", "ru"), t("myevents.button.main_menu", "en"))
+_FIND_ON_MAP_BUTTON_TEXTS = (t("tasks.button.find_on_map", "ru"), t("tasks.button.find_on_map", "en"))
+_MY_EVENTS_BUTTON_TEXTS = (t("myevents.button.my_events", "ru"), t("myevents.button.my_events", "en"))
+_MY_QUESTS_BUTTON_TEXTS = (t("myevents.button.my_quests", "ru"), t("myevents.button.my_quests", "en"))
+_CANCEL_BUTTON_TEXTS = (t("common.cancel", "ru"), t("common.cancel", "en"))
+_EVENTS_NEARBY_BUTTON_TEXTS = (t("menu.button.events_nearby", "ru"), t("menu.button.events_nearby", "en"))
+_TASKS_TITLE_BUTTON_TEXTS = (t("tasks.title", "ru"), t("tasks.title", "en"))
+_MY_ACTIVITIES_BUTTON_TEXTS = (t("menu.button.my_activities", "ru"), t("menu.button.my_activities", "en"))
+
 
 def _build_tracking_url(click_type: str, event: dict, target_url: str, user_id: int | None) -> str:
     """
@@ -5327,10 +5337,11 @@ async def on_test_location(callback: types.CallbackQuery, state: FSMContext):
 
 
 @main_router.message(Command("nearby"))
-@main_router.message(F.text == "📍 События рядом")
+@main_router.message(F.text.in_(_EVENTS_NEARBY_BUTTON_TEXTS))
 async def on_what_nearby(message: types.Message, state: FSMContext):
     """Обработчик кнопки 'События рядом'"""
     user_id = message.from_user.id
+    lang = get_user_language_or_default(user_id)
     logger.info(f"📍 [DEBUG] Команда /nearby от пользователя {user_id}")
 
     # Инкрементируем сессию World (с проверкой времени)
@@ -5347,21 +5358,16 @@ async def on_what_nearby(message: types.Message, state: FSMContext):
     # Создаем клавиатуру с кнопкой геолокации и главным меню
     location_keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📍 Отправить геолокацию", request_location=True)],
-            [KeyboardButton(text="🌍 Найти на карте")],
-            [KeyboardButton(text="🏠 Главное меню")],
+            [KeyboardButton(text=t("tasks.button.send_location", lang), request_location=True)],
+            [KeyboardButton(text=t("tasks.button.find_on_map", lang))],
+            [KeyboardButton(text=t("tasks.button.main_menu", lang))],
         ],
         resize_keyboard=True,
         one_time_keyboard=False,  # Изменено на False, чтобы кнопка не исчезала на MacBook
     )
 
     await message.answer(
-        "Нажмите кнопку '📍 Отправить геолокацию' чтобы начать!\n\n"
-        "💡 Если кнопка не работает :\n\n"
-        "• Жми '🌍 Найти на карте' \n"
-        "и вставь ссылку \n\n"
-        "• Или отправь координаты\n"
-        "пример: -8.4095, 115.1889",
+        t("tasks.press_location_hint", lang),
         reply_markup=location_keyboard,
         parse_mode="Markdown",
     )
@@ -5438,7 +5444,7 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
     logger.info(f"📍 [TEXT_INPUT] Получен текст в состоянии waiting_for_location: user_id={user_id}, text={text[:100]}")
 
     # Если пользователь нажал "Главное меню", вызываем соответствующий обработчик
-    if text == "🏠 Главное меню":
+    if text in _MAIN_MENU_BUTTON_TEXTS:
         logger.info(f"📍 [TEXT_INPUT] Обнаружена кнопка 'Главное меню', возвращаем в меню для пользователя {user_id}")
         # Очищаем состояние FSM
         await state.clear()
@@ -5447,7 +5453,7 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
         return
 
     # Если пользователь нажал "🌍 Найти на карте", показываем inline-кнопку с картой
-    if text == "🌍 Найти на карте":
+    if text in _FIND_ON_MAP_BUTTON_TEXTS:
         logger.info(f"📍 [TEXT_INPUT] Обнаружена кнопка '🌍 Найти на карте' от пользователя {user_id}")
         # Создаем inline-кнопку для открытия Google Maps
         maps_keyboard = InlineKeyboardMarkup(
@@ -5568,7 +5574,7 @@ async def on_location_text_input_tasks(message: types.Message, state: FSMContext
     )
 
     # Если пользователь нажал "Главное меню", вызываем соответствующий обработчик
-    if text == "🏠 Главное меню":
+    if text in _MAIN_MENU_BUTTON_TEXTS:
         logger.info(
             f"📍 [TEXT_INPUT_TASKS] Обнаружена кнопка 'Главное меню', возвращаем в меню для пользователя {user_id}"
         )
@@ -5579,7 +5585,7 @@ async def on_location_text_input_tasks(message: types.Message, state: FSMContext
         return
 
     # Если пользователь нажал "🌍 Найти на карте", показываем inline-кнопку с картой
-    if text == "🌍 Найти на карте":
+    if text in _FIND_ON_MAP_BUTTON_TEXTS:
         logger.info(f"📍 [TEXT_INPUT_TASKS] Обнаружена кнопка '🌍 Найти на карте' от пользователя {user_id}")
         # Создаем inline-кнопку для открытия Google Maps
         maps_keyboard = InlineKeyboardMarkup(
@@ -6336,11 +6342,13 @@ async def on_create(message: types.Message, state: FSMContext):
     await message.answer(
         t("create.start", user_lang),
         parse_mode="Markdown",
-        reply_markup=types.ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="❌ Отмена")]], resize_keyboard=True),
+        reply_markup=types.ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text=t("common.cancel", user_lang))]], resize_keyboard=True
+        ),
     )
 
 
-@main_router.message(F.text == "❌ Отмена")
+@main_router.message(F.text.in_(_CANCEL_BUTTON_TEXTS))
 async def cancel_creation(message: types.Message, state: FSMContext):
     """Отмена создания события"""
     await state.clear()
@@ -6351,6 +6359,7 @@ async def cancel_creation(message: types.Message, state: FSMContext):
 
 async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_private: bool):
     """Вспомогательная функция для обработки 'Мои события' через bot напрямую"""
+    lang = get_user_language_or_default(user_id)
     logger.info(f"🔍 _handle_my_events_via_bot: запрос от пользователя {user_id}")
 
     # Инкрементируем сессию World (с проверкой времени)
@@ -6362,7 +6371,9 @@ async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_pri
     # Автомодерация: закрываем прошедшие события
     closed_count = auto_close_events()
     if closed_count > 0:
-        await bot.send_message(chat_id=chat_id, text=f"🤖 Автоматически закрыто {closed_count} прошедших событий")
+        await bot.send_message(
+            chat_id=chat_id, text=format_translation("myevents.auto_closed", lang, count=closed_count)
+        )
 
     # Получаем события пользователя
     events = get_user_events(user_id)
@@ -6379,7 +6390,10 @@ async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_pri
     rocket_balance = get_user_rockets(user_id)
 
     # Формируем текст сообщения (та же логика, что и в on_my_events)
-    text_parts = ["📋 **Мои события:**\n", f"**Баланс {rocket_balance} 🚀**\n"]
+    text_parts = [
+        t("myevents.header", lang),
+        format_translation("myevents.balance", lang, rocket_balance=rocket_balance),
+    ]
 
     # Созданные события
     if events:
@@ -6404,17 +6418,17 @@ async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_pri
                         recent_closed_events.append(e)
 
         if active_events:
-            text_parts.append("📝 **Созданные мной:**")
+            text_parts.append(t("myevents.created_by_me", lang))
             for i, event in enumerate(active_events[:3], 1):
-                title = event.get("title", "Без названия")
-                location = event.get("location_name", "Место уточняется")
+                title = event.get("title", t("common.title_not_specified", lang))
+                location = event.get("location_name", t("common.location_tba", lang))
                 starts_at = event.get("starts_at")
 
                 if starts_at:
                     local_time = starts_at.astimezone(tz_bali)
                     time_str = local_time.strftime("%d.%m.%Y %H:%M")
                 else:
-                    time_str = "Время уточняется"
+                    time_str = t("common.time_tba", lang)
 
                 escaped_title = (
                     title.replace("\\", "\\\\")
@@ -6434,20 +6448,22 @@ async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_pri
                 text_parts.append(f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location}\n")
 
             if len(active_events) > 3:
-                text_parts.append(f"... и еще {len(active_events) - 3} событий")
+                text_parts.append(format_translation("myevents.and_more", lang, count=len(active_events) - 3))
 
         if recent_closed_events:
-            text_parts.append(f"\n🔴 **Недавно закрытые ({len(recent_closed_events)}):**")
+            text_parts.append(
+                f"\n{format_translation('myevents.recently_closed', lang, count=len(recent_closed_events))}"
+            )
             for i, event in enumerate(recent_closed_events[:3], 1):
-                title = event.get("title", "Без названия")
-                location = event.get("location_name", "Место уточняется")
+                title = event.get("title", t("common.title_not_specified", lang))
+                location = event.get("location_name", t("common.location_tba", lang))
                 starts_at = event.get("starts_at")
 
                 if starts_at:
                     local_time = starts_at.astimezone(tz_bali)
                     time_str = local_time.strftime("%d.%m.%Y %H:%M")
                 else:
-                    time_str = "Время уточняется"
+                    time_str = t("common.time_tba", lang)
 
                 escaped_title = (
                     title.replace("\\", "\\\\")
@@ -6464,16 +6480,20 @@ async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_pri
                     .replace("[", "\\[")
                 )
 
-                text_parts.append(f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location} (закрыто)\n")
+                text_parts.append(
+                    f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location} {t('common.closed', lang)}\n"
+                )
 
             if len(recent_closed_events) > 3:
-                text_parts.append(f"... и еще {len(recent_closed_events) - 3} закрытых событий")
+                text_parts.append(
+                    format_translation("myevents.and_more_closed", lang, count=len(recent_closed_events) - 3)
+                )
 
     # Добавленные события
     if all_participations:
         text_parts.append(f"\n➕ **Добавленные ({len(all_participations)}):**")
         for i, event in enumerate(all_participations[:3], 1):
-            title = event.get("title", "Без названия")
+            title = event.get("title", t("common.title_not_specified", lang))
             starts_at = event.get("starts_at")
             if starts_at:
                 import pytz
@@ -6501,9 +6521,9 @@ async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_pri
     if not events and not all_participations:
         rocket_balance = get_user_rockets(user_id)
         text_parts = [
-            "📋 **Мои события:**\n",
-            "У вас пока нет событий.\n",
-            f"**Баланс {rocket_balance} 🚀**",
+            t("myevents.header", lang),
+            t("myevents.no_events", lang) + "\n",
+            format_translation("myevents.balance", lang, rocket_balance=rocket_balance).strip(),
         ]
 
     text = "\n".join(text_parts)
@@ -6511,16 +6531,18 @@ async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_pri
     # Создаем клавиатуру
     keyboard_buttons = []
     if events:
-        keyboard_buttons.append([InlineKeyboardButton(text="🔧 Управление событиями", callback_data="manage_events")])
+        keyboard_buttons.append(
+            [InlineKeyboardButton(text=t("myevents.button.manage_events", lang), callback_data="manage_events")]
+        )
     if all_participations:
         keyboard_buttons.append(
-            [InlineKeyboardButton(text="📋 Все добавленные события", callback_data="view_participations")]
+            [InlineKeyboardButton(text=t("myevents.button.all_added", lang), callback_data="view_participations")]
         )
     # Добавляем кнопки навигации: Главное меню и Мои квесты на одной линии
     keyboard_buttons.append(
         [
-            InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
-            InlineKeyboardButton(text="🏆 Мои квесты", callback_data="show_my_tasks"),
+            InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main"),
+            InlineKeyboardButton(text=t("myevents.button.my_quests", lang), callback_data="show_my_tasks"),
         ]
     )
     keyboard = (
@@ -6554,6 +6576,7 @@ async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_pri
 
 async def _handle_my_tasks_via_bot(bot: Bot, chat_id: int, user_id: int, is_private: bool):
     """Вспомогательная функция для обработки 'Мои квесты' через bot напрямую"""
+    lang = get_user_language_or_default(user_id)
     # Инкрементируем сессию World (с проверкой времени)
     if is_private:
         from utils.user_analytics import UserAnalytics
@@ -6571,23 +6594,23 @@ async def _handle_my_tasks_via_bot(bot: Bot, chat_id: int, user_id: int, is_priv
     # Формируем текст сообщения
     if not active_tasks:
         message_text = (
-            "🏆 **Мои квесты**\n\n"
-            "У вас пока нет активных заданий.\n\n"
-            f"**Баланс {rocket_balance} 🚀**\n\n"
-            "🎯 Нажмите 'Интересные места' чтобы получить новые задания!"
+            f"🏆 **{t('mytasks.title', lang)}**\n\n"
+            f"{t('mytasks.empty', lang)}\n\n"
+            f"**{format_translation('myevents.balance', lang, rocket_balance=rocket_balance).strip()}**\n\n"
+            f"🎯 {t('mytasks.empty_hint', lang)}"
         )
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
-                    InlineKeyboardButton(text="📋 Мои события", callback_data="show_my_events"),
+                    InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main"),
+                    InlineKeyboardButton(text=t("myevents.button.my_events", lang), callback_data="show_my_events"),
                 ],
             ]
         )
     else:
         message_text = "📋 **Ваши активные задания:**\n\n"
         message_text += "Прохождение + 3 🚀\n\n"
-        message_text += f"**Баланс {rocket_balance} 🚀**\n\n"
+        message_text += format_translation("myevents.balance", lang, rocket_balance=rocket_balance)
 
         for i, task in enumerate(active_tasks, 1):
             category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
@@ -6596,7 +6619,7 @@ async def _handle_my_tasks_via_bot(bot: Bot, chat_id: int, user_id: int, is_priv
             message_text += f"{i}) {category_emoji} **{task['title']}**\n"
 
             if task.get("place_name") or task.get("place_url"):
-                place_name = task.get("place_name", "Место на карте")
+                place_name = task.get("place_name", t("group.list.place_on_map", lang))
                 place_url = task.get("place_url")
                 distance = task.get("distance_km")
 
@@ -6618,10 +6641,10 @@ async def _handle_my_tasks_via_bot(bot: Bot, chat_id: int, user_id: int, is_priv
 
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="🔧 Управление заданиями", callback_data="manage_tasks")],
+                [InlineKeyboardButton(text=t("myevents.button.manage_tasks", lang), callback_data="manage_tasks")],
                 [
-                    InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
-                    InlineKeyboardButton(text="📋 Мои события", callback_data="show_my_events"),
+                    InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main"),
+                    InlineKeyboardButton(text=t("myevents.button.my_events", lang), callback_data="show_my_events"),
                 ],
             ]
         )
@@ -6654,10 +6677,11 @@ async def _handle_my_tasks_via_bot(bot: Bot, chat_id: int, user_id: int, is_priv
 
 
 @main_router.message(Command("myevents"))
-@main_router.message(F.text == "📋 Мои события")
+@main_router.message(F.text.in_(_MY_EVENTS_BUTTON_TEXTS))
 async def on_my_events(message: types.Message):
     """Обработчик кнопки 'Мои события' с управлением статусами"""
     user_id = message.from_user.id
+    lang = get_user_language_or_default(user_id)
     logger.info(f"🔍 on_my_events: запрос от пользователя {user_id}")
 
     # Инкрементируем сессию World (с проверкой времени)
@@ -6669,7 +6693,7 @@ async def on_my_events(message: types.Message):
     # Автомодерация: закрываем прошедшие события
     closed_count = auto_close_events()
     if closed_count > 0:
-        await message.answer(f"🤖 Автоматически закрыто {closed_count} прошедших событий")
+        await message.answer(format_translation("myevents.auto_closed", lang, count=closed_count))
 
     # Получаем события пользователя
     events = get_user_events(user_id)
@@ -6684,7 +6708,10 @@ async def on_my_events(message: types.Message):
     rocket_balance = get_user_rockets(user_id)
 
     # Формируем текст сообщения
-    text_parts = ["📋 **Мои события:**\n", f"**Баланс {rocket_balance} 🚀**\n"]
+    text_parts = [
+        t("myevents.header", lang),
+        format_translation("myevents.balance", lang, rocket_balance=rocket_balance),
+    ]
 
     # Созданные события
     if events:
@@ -6712,9 +6739,9 @@ async def on_my_events(message: types.Message):
                         recent_closed_events.append(e)
 
         if active_events:
-            text_parts.append("📝 **Созданные мной:**")
+            text_parts.append(t("myevents.created_by_me", lang))
             for i, event in enumerate(active_events[:3], 1):
-                title = event.get("title", "Без названия")
+                title = event.get("title", t("common.title_not_specified", lang))
                 event.get("starts_at")
                 location = event.get("location_name", "Место уточняется")
 
@@ -6725,7 +6752,7 @@ async def on_my_events(message: types.Message):
                     local_time = starts_at.astimezone(tz_bali)
                     time_str = local_time.strftime("%d.%m.%Y %H:%M")
                 else:
-                    time_str = "Время уточняется"
+                    time_str = t("common.time_tba", lang)
 
                 # Экранируем специальные символы Markdown (сначала \, потом остальные)
                 escaped_title = (
@@ -6746,7 +6773,7 @@ async def on_my_events(message: types.Message):
                 text_parts.append(f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location}\n")
 
             if len(active_events) > 3:
-                text_parts.append(f"... и еще {len(active_events) - 3} событий")
+                text_parts.append(format_translation("myevents.and_more", lang, count=len(active_events) - 3))
 
         # Показываем недавно закрытые события
         if recent_closed_events:
@@ -6777,16 +6804,20 @@ async def on_my_events(message: types.Message):
                     .replace("[", "\\[")
                 )
 
-                text_parts.append(f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location} (закрыто)\n")
+                text_parts.append(
+                    f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location} {t('common.closed', lang)}\n"
+                )
 
             if len(recent_closed_events) > 3:
-                text_parts.append(f"... и еще {len(recent_closed_events) - 3} закрытых событий")
+                text_parts.append(
+                    format_translation("myevents.and_more_closed", lang, count=len(recent_closed_events) - 3)
+                )
 
     # Добавленные события
     if all_participations:
         text_parts.append(f"\n➕ **Добавленные ({len(all_participations)}):**")
         for i, event in enumerate(all_participations[:3], 1):
-            title = event.get("title", "Без названия")
+            title = event.get("title", t("common.title_not_specified", lang))
             starts_at = event.get("starts_at")
             if starts_at:
                 # Конвертируем UTC в местное время Бали
@@ -7513,7 +7544,7 @@ async def on_diag_search(message: types.Message):
         await message.answer(t("diag.search_error", user_lang))
 
 
-@main_router.message(F.text == "🎯 Интересные места")
+@main_router.message(F.text.in_(_TASKS_TITLE_BUTTON_TEXTS))
 async def on_tasks_goal(message: types.Message, state: FSMContext):
     """Обработчик кнопки 'Интересные места' - объяснение и запрос геолокации"""
     user_id = message.from_user.id
@@ -7568,7 +7599,7 @@ async def on_tasks_goal(message: types.Message, state: FSMContext):
     await message.answer(quest_text, parse_mode="Markdown", reply_markup=location_keyboard)
 
 
-@main_router.message(F.text == "📝 Мои активности")
+@main_router.message(F.text.in_(_MY_ACTIVITIES_BUTTON_TEXTS))
 async def on_my_activities(message: types.Message):
     """Обработчик кнопки 'Мои активности' - показывает выбор между событиями и квестами"""
     keyboard = InlineKeyboardMarkup(
@@ -7621,10 +7652,11 @@ async def show_my_tasks_callback(callback: types.CallbackQuery):
     await _handle_my_tasks_via_bot(bot, chat_id, user_id, is_private)
 
 
-@main_router.message(F.text == "🏆 Мои квесты")
+@main_router.message(F.text.in_(_MY_QUESTS_BUTTON_TEXTS))
 async def on_my_tasks(message: types.Message):
     """Обработчик кнопки 'Мои квесты'"""
     user_id = message.from_user.id
+    lang = get_user_language_or_default(user_id)
 
     # Автомодерация: помечаем истекшие задания (отключено - ограничение по времени снято)
     # from tasks_service import mark_tasks_as_expired
@@ -7646,17 +7678,17 @@ async def on_my_tasks(message: types.Message):
     # Формируем текст сообщения
     if not active_tasks:
         message_text = (
-            "🏆 **Мои квесты**\n\n"
-            "У вас пока нет активных заданий.\n\n"
-            f"**Баланс {rocket_balance} 🚀**\n\n"
-            "🎯 Нажмите 'Интересные места' чтобы получить новые задания!"
+            f"🏆 **{t('mytasks.title', lang)}**\n\n"
+            f"{t('mytasks.empty', lang)}\n\n"
+            f"**{format_translation('myevents.balance', lang, rocket_balance=rocket_balance).strip()}**\n\n"
+            f"🎯 {t('mytasks.empty_hint', lang)}"
         )
         # Добавляем кнопки навигации даже когда нет заданий
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
-                    InlineKeyboardButton(text="📋 Мои события", callback_data="show_my_events"),
+                    InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main"),
+                    InlineKeyboardButton(text=t("myevents.button.my_events", lang), callback_data="show_my_events"),
                 ],
             ]
         )
@@ -7807,6 +7839,7 @@ async def cmd_tasks(message: types.Message, state: FSMContext):
 async def cmd_mytasks(message: types.Message):
     """Обработчик команды /mytasks - Мои квесты"""
     user_id = message.from_user.id
+    lang = get_user_language_or_default(user_id)
 
     # Инкрементируем сессию World (с проверкой времени)
     if message.chat.type == "private":
@@ -7834,10 +7867,10 @@ async def cmd_mytasks(message: types.Message):
     # Формируем текст сообщения
     if not active_tasks:
         message_text = (
-            "🏆 **Мои квесты**\n\n"
-            "У вас пока нет активных заданий.\n\n"
-            f"**Баланс {rocket_balance} 🚀**\n\n"
-            "🎯 Нажмите 'Интересные места' чтобы получить новые задания!"
+            f"🏆 **{t('mytasks.title', lang)}**\n\n"
+            f"{t('mytasks.empty', lang)}\n\n"
+            f"**{format_translation('myevents.balance', lang, rocket_balance=rocket_balance).strip()}**\n\n"
+            f"🎯 {t('mytasks.empty_hint', lang)}"
         )
         # Клавиатура не нужна, когда нет заданий
         keyboard = None
@@ -7845,7 +7878,7 @@ async def cmd_mytasks(message: types.Message):
         # Формируем сообщение со списком активных заданий
         message_text = "📋 **Ваши активные задания:**\n\n"
         message_text += "Прохождение + 3 🚀\n\n"
-        message_text += f"**Баланс {rocket_balance} 🚀**\n\n"
+        message_text += format_translation("myevents.balance", lang, rocket_balance=rocket_balance)
 
         for i, task in enumerate(active_tasks, 1):
             # Время выполнения больше не показываем - ограничение по времени снято
@@ -7927,6 +7960,7 @@ async def cmd_mytasks(message: types.Message):
 async def handle_manage_tasks(callback: types.CallbackQuery):
     """Обработчик кнопки 'Управление заданиями'"""
     user_id = callback.from_user.id
+    lang = get_user_language_or_default(user_id)
     active_tasks = get_user_active_tasks(user_id)
 
     if not active_tasks:
@@ -7938,7 +7972,7 @@ async def handle_manage_tasks(callback: types.CallbackQuery):
                 await callback.message.delete()
                 await bot.send_message(
                     chat_id=chat_id,
-                    text="🏆 **Мои квесты**\n\n" "У вас нет активных заданий.",
+                    text=f"🏆 **{t('mytasks.title', lang)}**\n\n{t('mytasks.empty', lang)}",
                     parse_mode="Markdown",
                 )
             except Exception as e:
@@ -7948,13 +7982,13 @@ async def handle_manage_tasks(callback: types.CallbackQuery):
                 bot = callback.bot
                 await bot.send_message(
                     chat_id=chat_id,
-                    text="🏆 **Мои квесты**\n\n" "У вас нет активных заданий.",
+                    text=f"🏆 **{t('mytasks.title', lang)}**\n\n{t('mytasks.empty', lang)}",
                     parse_mode="Markdown",
                 )
         else:
             try:
                 await callback.message.edit_text(
-                    "🏆 **Мои квесты**\n\n" "У вас нет активных заданий.",
+                    f"🏆 **{t('mytasks.title', lang)}**\n\n{t('mytasks.empty', lang)}",
                     parse_mode="Markdown",
                 )
             except Exception as e:
@@ -7964,7 +7998,7 @@ async def handle_manage_tasks(callback: types.CallbackQuery):
                 bot = callback.bot
                 await bot.send_message(
                     chat_id=chat_id,
-                    text="🏆 **Мои квесты**\n\n" "У вас нет активных заданий.",
+                    text=f"🏆 **{t('mytasks.title', lang)}**\n\n{t('mytasks.empty', lang)}",
                     parse_mode="Markdown",
                 )
         await callback.answer()
@@ -8141,6 +8175,7 @@ async def handle_task_navigation(callback: types.CallbackQuery):
 async def handle_back_to_tasks_list(callback: types.CallbackQuery):
     """Возврат к списку заданий"""
     user_id = callback.from_user.id
+    lang = get_user_language_or_default(user_id)
     active_tasks = get_user_active_tasks(user_id)
 
     if not active_tasks:
@@ -8150,10 +8185,10 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
         rocket_balance = get_user_rockets(user_id)
 
         text = (
-            "🏆 **Мои квесты**\n\n"
-            "У вас пока нет активных заданий.\n\n"
-            f"**Баланс {rocket_balance} 🚀**\n\n"
-            "🎯 Нажмите 'Интересные места' чтобы получить новые задания!"
+            f"🏆 **{t('mytasks.title', lang)}**\n\n"
+            f"{t('mytasks.empty', lang)}\n\n"
+            f"**{format_translation('myevents.balance', lang, rocket_balance=rocket_balance).strip()}**\n\n"
+            f"🎯 {t('mytasks.empty_hint', lang)}"
         )
 
         # Для callback используем edit_text, но можно отправить новое сообщение с фото
@@ -8744,11 +8779,11 @@ async def handle_task_cancel(callback: types.CallbackQuery):
 
     if not active_tasks:
         # Нет активных заданий
+        user_lang = get_user_language_or_default(user_id)
         await callback.message.edit_text(
-            "🏆 **Мои квесты**\n\n" "У вас нет активных заданий.",
+            f"🏆 **{t('mytasks.title', user_lang)}**\n\n{t('mytasks.empty', user_lang)}",
             parse_mode="Markdown",
         )
-        user_lang = get_user_language_or_default(user_id)
         await callback.answer(t("tasks.cancelled", user_lang))
         return
 
@@ -11493,7 +11528,7 @@ async def _send_or_edit_manage_message(
             await bot.send_message(chat_id=chat_id, text=text, reply_markup=keyboard, parse_mode="Markdown")
 
 
-@main_router.message(F.text == "🏠 Главное меню")
+@main_router.message(F.text.in_(_MAIN_MENU_BUTTON_TEXTS))
 async def on_main_menu_button(message: types.Message, state: FSMContext):
     """Обработчик кнопки 'Главное меню' - очищает состояние и показывает анимацию ракеты"""
     # Очищаем состояние FSM
@@ -13395,7 +13430,9 @@ async def handle_back_to_list(callback: types.CallbackQuery):
                     .replace("[", "\\[")
                 )
 
-                text_parts.append(f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location} (закрыто)\n")
+                text_parts.append(
+                    f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location} {t('common.closed', user_lang)}\n"
+                )
 
             if len(recent_closed_events) > 3:
                 text_parts.append(
