@@ -6388,9 +6388,9 @@ async def on_location(message: types.Message, state: FSMContext):
 
 
 @main_router.message(Command("create"))
-@main_router.message(F.text == "➕ Создать")
+@main_router.message(F.text.in_({"➕ Создать", "➕ Create"}))
 async def on_create(message: types.Message, state: FSMContext):
-    """Обработчик кнопки 'Создать'"""
+    """Обработчик кнопки 'Создать' / 'Create' (reply-клавиатура)"""
     # Инкрементируем сессию World (с проверкой времени)
     if message.chat.type == "private":
         from utils.user_analytics import UserAnalytics
