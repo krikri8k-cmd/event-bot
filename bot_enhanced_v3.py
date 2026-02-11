@@ -1083,11 +1083,14 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     logger = logging.getLogger(__name__)
 
     lang = get_user_language_or_default(user_id) if user_id else "ru"
+    # При lang == "en" приоритет у title_en, иначе fallback на title (RU)
     display_title = (
         (e.get("title_en") or e.get("title") or "Событие").strip()
         if lang == "en"
         else (e.get("title") or "Событие").strip()
     )
+    if lang == "en" and e.get("title_en"):
+        logger.debug("render_event_html: lang=en, using title_en for event id=%s", e.get("id"))
     display_description = (
         (e.get("description_en") or e.get("description") or "").strip()
         if lang == "en"
