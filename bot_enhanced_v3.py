@@ -1112,6 +1112,9 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         if lang == "en"
         else (e.get("venue_name") or "").strip()
     )
+    # Локализация подписей ссылок «Источник» / «Маршрут»
+    source_link_label = "Source" if lang == "en" else "Источник"
+    route_link_label = "Route" if lang == "en" else "Маршрут"
 
     title = html.escape(display_title or "Событие")
     when = e.get("when_str", "")
@@ -1310,13 +1313,13 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         if src:
             # Используем API endpoint для отслеживания кликов
             tracking_url = _build_tracking_url("source", e, src, user_id)
-            src_part = f'🔗 <a href="{html.escape(tracking_url)}">Источник</a>'
+            src_part = f'🌐 <a href="{html.escape(tracking_url)}">{source_link_label}</a>'
         else:
-            src_part = "ℹ️ Источник не указан"
+            src_part = f"ℹ️ {source_link_label}" + (" not specified" if lang == "en" else " не указан")
 
     # Маршрут с приоритетом venue_name → address → coords
     maps_url = build_maps_url(e)
-    map_part = f'🚗 <a href="{_build_tracking_url("route", e, maps_url, user_id)}">Маршрут</a>'
+    map_part = f'🚗 <a href="{_build_tracking_url("route", e, maps_url, user_id)}">{route_link_label}</a>'
 
     # Добавляем таймер для пользовательских событий
     timer_part = ""
