@@ -10364,20 +10364,26 @@ async def process_description(message: types.Message, state: FSMContext):
         await state.clear()
         return
 
-    # Показываем итог перед подтверждением
+    # Показываем итог перед подтверждением (экранируем пользовательский ввод для Markdown)
+    safe_title = escape_markdown(data.get("title", "") or "")
+    safe_date = escape_markdown(data.get("date", "") or "")
+    safe_time = escape_markdown(data.get("time", "") or "")
+    safe_description = escape_markdown(data.get("description", "") or "")
     location_text = data.get("location", "Не указано")
     if "location_name" in data and data["location_name"]:
-        location_text = data["location_name"]
-        if "location_url" in data:
+        location_text = escape_markdown(data["location_name"])
+        if "location_url" in data and data["location_url"]:
             location_text += f"\n🌍 [Открыть на карте]({data['location_url']})"
+    else:
+        location_text = escape_markdown(location_text if location_text else "Не указано")
 
     await message.answer(
         f"📌 **Проверьте данные мероприятия:**\n\n"
-        f"**Название:** {data['title']}\n"
-        f"**Дата:** {data['date']}\n"
-        f"**Время:** {data['time']}\n"
+        f"**Название:** {safe_title}\n"
+        f"**Дата:** {safe_date}\n"
+        f"**Время:** {safe_time}\n"
         f"**Место:** {location_text}\n"
-        f"**Описание:** {data['description']}\n\n"
+        f"**Описание:** {safe_description}\n\n"
         f"Если всё верно, нажмите ✅ Сохранить. Если нужно изменить — нажмите ❌ Отмена.",
         parse_mode="Markdown",
         reply_markup=types.InlineKeyboardMarkup(
@@ -11396,24 +11402,31 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
 
     await state.clear()
 
-    # Формируем структурированное сообщение для поделиться, похожее на Community версию
+    # Формируем структурированное сообщение для поделиться (экранируем пользовательский ввод для Markdown)
+    safe_title = escape_markdown(data.get("title", "") or "")
+    safe_date = escape_markdown(data.get("date", "") or "")
+    safe_time = escape_markdown(data.get("time", "") or "")
+    safe_location = escape_markdown(location_name or "")
+    safe_description = escape_markdown(data.get("description", "") or "")
+    creator_name = callback.from_user.username or callback.from_user.first_name or "пользователь"
+    safe_creator = escape_markdown(creator_name)
+
     share_message = "🎉 **Новое событие!**\n\n"
-    share_message += f"**{data['title']}**\n"
-    share_message += f"📅 {data['date']} в {data['time']}\n"
+    share_message += f"**{safe_title}**\n"
+    share_message += f"📅 {safe_date} в {safe_time}\n"
 
     # Добавляем место на карте с активной ссылкой (компактно)
     if location_url:
-        share_message += f"📍 [{location_name}]({location_url})\n"
+        share_message += f"📍 [{safe_location}]({location_url})\n"
     else:
-        share_message += f"📍 {location_name}\n"
+        share_message += f"📍 {safe_location}\n"
 
     # Добавляем описание
     if data.get("description"):
-        share_message += f"\n📝 {data['description']}\n"
+        share_message += f"\n📝 {safe_description}\n"
 
     # Добавляем информацию о создателе
-    creator_name = callback.from_user.username or callback.from_user.first_name or "пользователь"
-    share_message += f"\n*Создано пользователем @{creator_name}*\n\n"
+    share_message += f"\n*Создано пользователем @{safe_creator}*\n\n"
     share_message += "💡 **Больше событий в боте:** [@EventAroundBot](https://t.me/EventAroundBot)"
 
     # Отправляем новое сообщение (которое можно переслать) вместо edit_text
