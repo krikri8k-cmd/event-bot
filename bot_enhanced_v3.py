@@ -1089,8 +1089,14 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         if lang == "en"
         else (e.get("title") or "Событие").strip()
     )
-    if lang == "en" and e.get("title_en"):
-        logger.debug("render_event_html: lang=en, using title_en for event id=%s", e.get("id"))
+    if lang == "en":
+        if e.get("title_en"):
+            logger.debug("render_event_html: lang=en, using title_en for event id=%s", e.get("id"))
+        else:
+            logger.warning(
+                "render_event_html: lang=en but title_en is empty for event id=%s, fallback to RU title",
+                e.get("id"),
+            )
     display_description = (
         (e.get("description_en") or e.get("description") or "").strip()
         if lang == "en"
@@ -2011,11 +2017,14 @@ async def perform_nearby_search(
                 formatted_event = {
                     "id": event.get("id"),
                     "title": event["title"],
+                    "title_en": event.get("title_en"),
                     "description": event["description"],
+                    "description_en": event.get("description_en"),
                     "time_local": event["starts_at"].strftime("%Y-%m-%d %H:%M") if event["starts_at"] else None,
                     "starts_at": event["starts_at"],
                     "city": event.get("city"),
                     "location_name": event["location_name"],
+                    "location_name_en": event.get("location_name_en"),
                     "location_url": event["location_url"],
                     "lat": event["lat"],
                     "lng": event["lng"],
@@ -2024,6 +2033,8 @@ async def perform_nearby_search(
                     "url": event.get("event_url", ""),
                     "community_name": "",
                     "community_link": "",
+                    "venue_name": event.get("venue_name"),
+                    "address": event.get("address"),
                     "organizer_id": event.get("organizer_id"),
                     "organizer_username": event.get("organizer_username"),
                     "place_id": event.get("place_id"),
@@ -5904,11 +5915,14 @@ async def on_location(message: types.Message, state: FSMContext):
                 formatted_event = {
                     "id": event.get("id"),  # Добавляем id для отслеживания кликов
                     "title": event["title"],
+                    "title_en": event.get("title_en"),  # для мультиязычности (render_event_html)
                     "description": event["description"],
+                    "description_en": event.get("description_en"),
                     "time_local": event["starts_at"].strftime("%Y-%m-%d %H:%M") if event["starts_at"] else None,
                     "starts_at": event["starts_at"],  # Добавляем поле starts_at!
                     "city": event.get("city"),  # Город события (может быть None)
                     "location_name": event["location_name"],
+                    "location_name_en": event.get("location_name_en"),
                     "location_url": event["location_url"],
                     "lat": event["lat"],
                     "lng": event["lng"],
@@ -5917,6 +5931,8 @@ async def on_location(message: types.Message, state: FSMContext):
                     "url": event.get("event_url", ""),
                     "community_name": "",
                     "community_link": "",
+                    "venue_name": event.get("venue_name"),
+                    "address": event.get("address"),
                     # Добавляем поля автора для пользовательских событий
                     "organizer_id": event.get("organizer_id"),
                     "organizer_username": event.get("organizer_username"),
@@ -8435,16 +8451,20 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         message_id=f"{callback.message.message_id}",
     )
 
-    # Конвертируем в старый формат для совместимости
+    # Конвертируем в старый формат для совместимости (с полями _en для мультиязычности)
     formatted_events = []
     for event in events:
         formatted_event = {
+            "id": event.get("id"),
             "title": event["title"],
+            "title_en": event.get("title_en"),
             "description": event["description"],
+            "description_en": event.get("description_en"),
             "time_local": event["starts_at"].strftime("%Y-%m-%d %H:%M") if event["starts_at"] else None,
             "starts_at": event["starts_at"],
             "city": event.get("city"),  # Город события (может быть None)
             "location_name": event["location_name"],
+            "location_name_en": event.get("location_name_en"),
             "location_url": event["location_url"],
             "lat": event["lat"],
             "lng": event["lng"],
@@ -8453,6 +8473,8 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             "url": event.get("event_url", ""),
             "community_name": "",
             "community_link": "",
+            "venue_name": event.get("venue_name"),
+            "address": event.get("address"),
             "organizer_id": event.get("organizer_id"),
             "organizer_username": event.get("organizer_username"),
         }
@@ -11682,17 +11704,20 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
             f"date_offset={date_offset}"
         )
 
-        # Конвертируем в старый формат для совместимости
+        # Конвертируем в старый формат для совместимости (с полями _en для мультиязычности)
         formatted_events = []
         for event in events:
             formatted_event = {
                 "id": event.get("id"),
                 "title": event["title"],
+                "title_en": event.get("title_en"),
                 "description": event["description"],
+                "description_en": event.get("description_en"),
                 "time_local": event["starts_at"].strftime("%Y-%m-%d %H:%M") if event["starts_at"] else None,
                 "starts_at": event["starts_at"],
                 "city": event.get("city"),
                 "location_name": event["location_name"],
+                "location_name_en": event.get("location_name_en"),
                 "location_url": event["location_url"],
                 "lat": event["lat"],
                 "lng": event["lng"],
@@ -11701,6 +11726,8 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
                 "url": event.get("event_url", ""),
                 "community_name": "",
                 "community_link": "",
+                "venue_name": event.get("venue_name"),
+                "address": event.get("address"),
                 "organizer_id": event.get("organizer_id"),
                 "organizer_username": event.get("organizer_username"),
             }
