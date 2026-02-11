@@ -42,6 +42,7 @@ def main():
     engine = get_engine()
     with engine.connect() as conn:
         # События без перевода (только парсерные источники)
+        # Все события без перевода, без ограничения по ID или дате
         rows = conn.execute(
             text("""
                 SELECT id, source, external_id, title, description, location_name
@@ -51,9 +52,7 @@ def main():
                   AND title IS NOT NULL
                   AND TRIM(title) != ''
                 ORDER BY id
-                LIMIT :limit
-            """),
-            {"limit": args.batch * 5},
+            """)
         ).fetchall()
 
     if not rows:

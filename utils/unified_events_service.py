@@ -480,14 +480,16 @@ class UnifiedEventsService:
             country = "ID" if city == "bali" else "RU"
             is_ai = source == "ai"
 
-            # Определяем значения _en: переводим только при новой записи или при изменении текста
+            # Определяем значения _en: переводим при новой записи, при изменении текста или если _en ещё пусты
             passed_en = title_en is not None and description_en is not None and location_name_en is not None
             text_unchanged = (
                 existing_row and existing_row[1] == title and (existing_row[2] or "") == (description or "")
             )
+            existing_has_en = existing_row and (existing_row[3] or existing_row[4] or existing_row[5])
             if passed_en:
                 pass  # переданы снаружи (например backfill)
-            elif text_unchanged:
+            elif text_unchanged and existing_has_en:
+                # Текст не менялся и перевод уже есть — не дергаем API
                 title_en = existing_row[3]
                 description_en = existing_row[4]
                 location_name_en = existing_row[5]
