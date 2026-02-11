@@ -442,7 +442,37 @@ class UnifiedEventsService:
             )
 
             print(f"✅ Создано пользовательское событие ID {user_event_id}: '{title}'")
-            return user_event_id
+
+        # Перевод RU → EN для пользовательских событий (вне транзакции, чтобы не держать её во время API)
+        trans = translate_event_to_english(
+            title,
+            description=(description or "").strip() or None,
+            location_name=(location_name or "").strip() or None,
+        )
+        if trans.get("title_en") or trans.get("description_en") or trans.get("location_name_en"):
+            with self.engine.begin() as conn:
+                conn.execute(
+                    text("""
+                        UPDATE events
+                        SET title_en = COALESCE(:title_en, title_en),
+                            description_en = COALESCE(:description_en, description_en),
+                            location_name_en = COALESCE(:location_name_en, location_name_en)
+                        WHERE id = :event_id
+                    """),
+                    {
+                        "event_id": user_event_id,
+                        "title_en": trans.get("title_en"),
+                        "description_en": trans.get("description_en"),
+                        "location_name_en": trans.get("location_name_en"),
+                    },
+                )
+            logger.info(
+                "create_user_event: обновлены EN-поля для события id=%s (title_en=%s)",
+                user_event_id,
+                bool(trans.get("title_en")),
+            )
+
+        return user_event_id
 
     def save_parser_event(
         self,
