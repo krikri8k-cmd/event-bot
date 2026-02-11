@@ -20,7 +20,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import text
 
-from database import get_engine
+from config import load_settings
+from database import get_engine, init_engine
 from utils.event_translation import translate_event_to_english
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -36,6 +37,8 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="Only log what would be updated")
     args = ap.parse_args()
 
+    settings = load_settings()
+    init_engine(settings.database_url)
     engine = get_engine()
     with engine.connect() as conn:
         # События без перевода (только парсерные источники)
