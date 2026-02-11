@@ -112,7 +112,9 @@ class Event(Base):
     )  # источник события (ics.bali, nexudus.jakarta, etc)
     external_id: Mapped[str | None] = mapped_column(String(64), index=True)  # уникальный ID из источника
     title: Mapped[str] = mapped_column(String(120), nullable=False)
+    title_en: Mapped[str | None] = mapped_column(String(255), nullable=True)  # перевод для EN
     description: Mapped[str | None] = mapped_column(Text)
+    description_en: Mapped[str | None] = mapped_column(Text, nullable=True)  # перевод для EN
     time_local: Mapped[str | None] = mapped_column(String(16))  # YYYY-MM-DD HH:MM
     event_tz: Mapped[str | None] = mapped_column(String(64))
     time_utc: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))  # legacy, используем starts_at
@@ -122,6 +124,7 @@ class Event(Base):
     referral_code: Mapped[str | None] = mapped_column(String(64))  # реферальный код для партнёров
     referral_param: Mapped[str | None] = mapped_column(String(16), default="ref")  # название параметра
     location_name: Mapped[str | None] = mapped_column(String(255))
+    location_name_en: Mapped[str | None] = mapped_column(String(255), nullable=True)  # перевод для EN
     location_url: Mapped[str | None] = mapped_column(Text)
     lat: Mapped[float | None] = mapped_column(Float)
     lng: Mapped[float | None] = mapped_column(Float)

@@ -1077,12 +1077,34 @@ def truncate_html_safely(html_text: str, max_length: int) -> str:
 
 
 def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool = False) -> str:
-    """Рендерит одну карточку события в HTML согласно ТЗ"""
+    """Рендерит одну карточку события в HTML согласно ТЗ. Для EN берёт title_en/description_en/location_name_en с fallback на RU."""
     import logging
 
     logger = logging.getLogger(__name__)
 
-    title = html.escape(e.get("title", "Событие"))
+    lang = get_user_language_or_default(user_id) if user_id else "ru"
+    display_title = (
+        (e.get("title_en") or e.get("title") or "Событие").strip()
+        if lang == "en"
+        else (e.get("title") or "Событие").strip()
+    )
+    display_description = (
+        (e.get("description_en") or e.get("description") or "").strip()
+        if lang == "en"
+        else (e.get("description") or "").strip()
+    )
+    display_location_name = (
+        (e.get("location_name_en") or e.get("location_name") or "").strip()
+        if lang == "en"
+        else (e.get("location_name") or "").strip()
+    )
+    display_venue_name = (
+        (e.get("location_name_en") or e.get("venue_name") or "").strip()
+        if lang == "en"
+        else (e.get("venue_name") or "").strip()
+    )
+
+    title = html.escape(display_title or "Событие")
     when = e.get("when_str", "")
 
     logger.info(f"🕐 render_event_html: title={title}, when_str='{when}', starts_at={e.get('starts_at')}")
@@ -1109,12 +1131,9 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
 
     logger.info(f"🔍 FINAL: event_type={event_type} для события '{e.get('title', 'Без названия')[:20]}'")
 
-    # Поддерживаем новую структуру venue и старую
-    # Приоритет: venue.name (из источника) > venue_name (из источника) > location_name (может быть из reverse geocoding)
-    # Это важно, чтобы названия из источника (например "Valle Canggu") имели приоритет над адресами из reverse geocoding
+    # Поддерживаем новую структуру venue и старую; для EN используем display_venue_name (location_name_en или venue_name)
     venue = e.get("venue", {})
-    # НЕ включаем location_name в venue_name, так как location_name может быть обогащен через reverse geocoding позже
-    venue_name = venue.get("name") or e.get("venue_name")
+    venue_name = venue.get("name") or display_venue_name or e.get("venue_name")
     # НЕ используем location_url как venue_address - это ссылка, а не название места
     venue_address = venue.get("address") or e.get("address")
 
@@ -1154,8 +1173,8 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         venue_name = None
 
     # Приоритет: venue_name → address → location_name (может быть из reverse geocoding) → coords → description
-    # Проверяем location_name из события (может быть обогащено через reverse geocoding)
-    location_name_from_event = e.get("location_name", "").strip() if e.get("location_name") else ""
+    # Для EN используем location_name_en; иначе location_name
+    location_name_from_event = display_location_name
 
     logger.info(
         f"🔍 DEBUG LOCATION: venue_name='{venue_name}', venue_address='{venue_address}', "
@@ -1210,9 +1229,9 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     elif e.get("lat") and e.get("lng"):
         venue_display = f"координаты ({e['lat']:.4f}, {e['lng']:.4f})"
         logger.info(f"🔍 DEBUG: Используем координаты: '{venue_display}'")
-    elif event_type in ["user", "community"] and e.get("description"):
+    elif event_type in ["user", "community"] and (e.get("description") or display_description):
         # Для пользовательских событий и событий от групп показываем описание вместо "Локация уточняется"
-        description = e.get("description", "").strip()
+        description = display_description
         if description:
             # Ограничиваем длину описания для красоты
             if len(description) > 100:
@@ -1331,16 +1350,14 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         author_line = f"{src_part}  {map_part}" if src_part else map_part
     logger.info(f"🔍 DEBUG: author_line='{author_line}', map_part='{map_part}'")
 
-    # Добавляем описание для пользовательских событий и событий от групп
+    # Добавляем описание для пользовательских событий и событий от групп (уже по языку: display_description)
     description_part = ""
-    if event_type in ["user", "community"] and e.get("description"):
-        description = e.get("description", "").strip()
-        if description:
-            # Ограничиваем длину описания для красоты
-            if len(description) > 150:
-                description = description[:147] + "..."
-            description_part = f"\n📝 {html.escape(description)}"
-            logger.info(f"🔍 DEBUG: Добавлено описание: '{description[:50]}...'")
+    if event_type in ["user", "community"] and display_description:
+        desc = display_description
+        if len(desc) > 150:
+            desc = desc[:147] + "..."
+        description_part = f"\n📝 {html.escape(desc)}"
+        logger.info(f"🔍 DEBUG: Добавлено описание: '{desc[:50]}...'")
 
     logger.info(f"🔍 DEBUG: ПЕРЕД final_html: venue_display='{venue_display}'")
     logger.info(f"🔍 DEBUG: venue_display repr: {repr(venue_display)}")

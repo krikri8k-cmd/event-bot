@@ -8,6 +8,7 @@ from datetime import datetime
 
 from sqlalchemy import text
 
+from utils.event_translation import translate_event_to_english
 from utils.simple_timezone import get_today_start_utc, get_tomorrow_start_utc
 from utils.structured_logging import StructuredLogger
 
@@ -88,8 +89,8 @@ class UnifiedEventsService:
                     params["city"] = city
 
                 query = text(f"""
-                    SELECT source, id, title, description, starts_at,
-                           city, lat, lng, location_name,
+                    SELECT source, id, title, description, title_en, description_en, location_name_en,
+                           starts_at, city, lat, lng, location_name,
                            location_url, url as event_url,
                            organizer_id, organizer_username, max_participants,
                            current_participants, status, created_at_utc,
@@ -127,8 +128,8 @@ class UnifiedEventsService:
                     params["city"] = city
 
                 query = text(f"""
-                    SELECT source, id, title, description, starts_at,
-                           city, lat, lng, location_name,
+                    SELECT source, id, title, description, title_en, description_en, location_name_en,
+                           starts_at, city, lat, lng, location_name,
                            location_url, url as event_url,
                            organizer_id, organizer_username, max_participants,
                            current_participants, status, created_at_utc,
@@ -162,33 +163,38 @@ class UnifiedEventsService:
 
                 event_data = {
                     "source_type": source_type,
-                    "source": row[0],  # Добавляем исходный source
+                    "source": row[0],
                     "id": row[1],
                     "title": row[2],
                     "description": row[3],
-                    "starts_at": row[4],
-                    "city": row[5],
-                    "lat": row[6],
-                    "lng": row[7],
-                    "location_name": row[8],
-                    "location_url": row[9],
-                    "event_url": row[10],
-                    "organizer_id": row[11],
-                    "organizer_username": row[12],
-                    "max_participants": row[13],
-                    "current_participants": row[14],
-                    "status": row[15],
-                    "created_at_utc": row[16],
-                    "community_name": row[17] if len(row) > 17 else None,
-                    "chat_id": row[18] if len(row) > 18 else None,
-                    "place_id": row[19] if len(row) > 19 else None,
+                    "title_en": row[4] if len(row) > 4 else None,
+                    "description_en": row[5] if len(row) > 5 else None,
+                    "location_name_en": row[6] if len(row) > 6 else None,
+                    "starts_at": row[7],
+                    "city": row[8],
+                    "lat": row[9],
+                    "lng": row[10],
+                    "location_name": row[11],
+                    "location_url": row[12],
+                    "event_url": row[13],
+                    "organizer_id": row[14],
+                    "organizer_username": row[15],
+                    "max_participants": row[16],
+                    "current_participants": row[17],
+                    "status": row[18],
+                    "created_at_utc": row[19],
+                    "community_name": row[20] if len(row) > 20 else None,
+                    "chat_id": row[21] if len(row) > 21 else None,
+                    "venue_name": row[22] if len(row) > 22 else None,
+                    "address": row[23] if len(row) > 23 else None,
+                    "place_id": row[24] if len(row) > 24 else None,
                 }
 
                 # Логируем пользовательские события
                 if row[0] == "user":
                     logger.info(
                         f"🔍 DB EVENT: title='{row[2]}', source='{row[0]}', "
-                        f"organizer_id={row[11]}, organizer_username='{row[12]}'"
+                        f"organizer_id={row[14]}, organizer_username='{row[15]}'"
                     )
 
                 events.append(event_data)
@@ -207,8 +213,8 @@ class UnifiedEventsService:
                     )
                     # Fallback: поиск без радиуса по временным границам региона
                     fallback_query = text("""
-                        SELECT source, id, title, description, starts_at,
-                               city, lat, lng, location_name,
+                        SELECT source, id, title, description, title_en, description_en, location_name_en,
+                               starts_at, city, lat, lng, location_name,
                                location_url, url as event_url,
                                organizer_id, organizer_username, max_participants,
                                current_participants, status, created_at_utc,
@@ -239,22 +245,27 @@ class UnifiedEventsService:
                             "id": row[1],
                             "title": row[2],
                             "description": row[3],
-                            "starts_at": row[4],
-                            "city": row[5],
-                            "lat": row[6],
-                            "lng": row[7],
-                            "location_name": row[8],
-                            "location_url": row[9],
-                            "event_url": row[10],
-                            "organizer_id": row[11],
-                            "organizer_username": row[12],
-                            "max_participants": row[13],
-                            "current_participants": row[14],
-                            "status": row[15],
-                            "created_at_utc": row[16],
-                            "community_name": row[17] if len(row) > 17 else None,
-                            "chat_id": row[18] if len(row) > 18 else None,
-                            "place_id": row[19] if len(row) > 19 else None,
+                            "title_en": row[4] if len(row) > 4 else None,
+                            "description_en": row[5] if len(row) > 5 else None,
+                            "location_name_en": row[6] if len(row) > 6 else None,
+                            "starts_at": row[7],
+                            "city": row[8],
+                            "lat": row[9],
+                            "lng": row[10],
+                            "location_name": row[11],
+                            "location_url": row[12],
+                            "event_url": row[13],
+                            "organizer_id": row[14],
+                            "organizer_username": row[15],
+                            "max_participants": row[16],
+                            "current_participants": row[17],
+                            "status": row[18],
+                            "created_at_utc": row[19],
+                            "community_name": row[20] if len(row) > 20 else None,
+                            "chat_id": row[21] if len(row) > 21 else None,
+                            "venue_name": row[22] if len(row) > 22 else None,
+                            "address": row[23] if len(row) > 23 else None,
+                            "place_id": row[24] if len(row) > 24 else None,
                         }
                         events.append(event_data)
                     if events:
@@ -447,15 +458,20 @@ class UnifiedEventsService:
         location_url: str = None,
         url: str = None,
         place_id: str = None,
+        title_en: str = None,
+        description_en: str = None,
+        location_name_en: str = None,
     ) -> int:
         """
-        Сохранение парсерного события в единую таблицу events
+        Сохранение парсерного события в единую таблицу events.
+        При создании или при изменении текста вызывается перевод RU→EN (title_en, description_en, location_name_en).
+        При ошибке API перевода _en остаются NULL.
         """
         with self.engine.begin() as conn:
-            # Проверяем дубликаты в единой таблице events
-            existing = conn.execute(
+            existing_row = conn.execute(
                 text("""
-                SELECT id FROM events
+                SELECT id, title, description, title_en, description_en, location_name_en
+                FROM events
                 WHERE source = :source AND external_id = :external_id
             """),
                 {"source": source, "external_id": external_id},
@@ -464,25 +480,51 @@ class UnifiedEventsService:
             country = "ID" if city == "bali" else "RU"
             is_ai = source == "ai"
 
-            if existing:
-                # Обновляем существующее событие в events
+            # Определяем значения _en: переводим только при новой записи или при изменении текста
+            passed_en = title_en is not None and description_en is not None and location_name_en is not None
+            text_unchanged = (
+                existing_row and existing_row[1] == title and (existing_row[2] or "") == (description or "")
+            )
+            if passed_en:
+                pass  # переданы снаружи (например backfill)
+            elif text_unchanged:
+                title_en = existing_row[3]
+                description_en = existing_row[4]
+                location_name_en = existing_row[5]
+            else:
+                trans = translate_event_to_english(
+                    title=title or "",
+                    description=description,
+                    location_name=location_name,
+                )
+                title_en = title_en if title_en is not None else trans.get("title_en")
+                description_en = description_en if description_en is not None else trans.get("description_en")
+                location_name_en = location_name_en if location_name_en is not None else trans.get("location_name_en")
+
+            if existing_row:
+                event_id = existing_row[0]
                 conn.execute(
                     text("""
                     UPDATE events
-                    SET title = :title, description = :description, starts_at = :starts_at,
-                        city = :city, lat = :lat, lng = :lng, location_name = :location_name,
+                    SET title = :title, title_en = :title_en,
+                        description = :description, description_en = :description_en,
+                        location_name = :location_name, location_name_en = :location_name_en,
+                        starts_at = :starts_at, city = :city, lat = :lat, lng = :lng,
                         location_url = :location_url, url = :url, country = :country,
                         place_id = :place_id, updated_at_utc = NOW()
                     WHERE source = :source AND external_id = :external_id
                 """),
                     {
                         "title": title,
+                        "title_en": title_en,
                         "description": description,
+                        "description_en": description_en,
+                        "location_name": location_name,
+                        "location_name_en": location_name_en,
                         "starts_at": starts_at_utc,
                         "city": city,
                         "lat": lat,
                         "lng": lng,
-                        "location_name": location_name,
                         "location_url": location_url,
                         "url": url,
                         "country": country,
@@ -491,28 +533,30 @@ class UnifiedEventsService:
                         "external_id": external_id,
                     },
                 )
-
-                event_id = existing[0]
                 print(f"🔄 Обновлено парсерное событие ID {event_id}: '{title}'")
             else:
-                # Создаем новое событие в events
                 result = conn.execute(
                     text("""
                     INSERT INTO events
-                    (source, external_id, title, description, starts_at, city, lat, lng,
-                     location_name, location_url, url, country, is_generated_by_ai, status,
+                    (source, external_id, title, title_en, description, description_en,
+                     starts_at, city, lat, lng, location_name, location_name_en,
+                     location_url, url, country, is_generated_by_ai, status,
                      current_participants, place_id)
                     VALUES
-                    (:source, :external_id, :title, :description, :starts_at, :city, :lat, :lng,
-                     :location_name, :location_url, :url, :country, :is_ai, 'open', 0, :place_id)
+                    (:source, :external_id, :title, :title_en, :description, :description_en,
+                     :starts_at, :city, :lat, :lng, :location_name, :location_name_en,
+                     :location_url, :url, :country, :is_ai, 'open', 0, :place_id)
                     ON CONFLICT (source, external_id) DO UPDATE SET
                         title = EXCLUDED.title,
+                        title_en = EXCLUDED.title_en,
                         description = EXCLUDED.description,
+                        description_en = EXCLUDED.description_en,
+                        location_name = EXCLUDED.location_name,
+                        location_name_en = EXCLUDED.location_name_en,
                         starts_at = EXCLUDED.starts_at,
                         city = EXCLUDED.city,
                         lat = EXCLUDED.lat,
                         lng = EXCLUDED.lng,
-                        location_name = EXCLUDED.location_name,
                         location_url = EXCLUDED.location_url,
                         url = EXCLUDED.url,
                         country = EXCLUDED.country,
@@ -523,12 +567,15 @@ class UnifiedEventsService:
                         "source": source,
                         "external_id": external_id,
                         "title": title,
+                        "title_en": title_en,
                         "description": description,
+                        "description_en": description_en,
                         "starts_at": starts_at_utc,
                         "city": city,
                         "lat": lat,
                         "lng": lng,
                         "location_name": location_name,
+                        "location_name_en": location_name_en,
                         "location_url": location_url,
                         "url": url,
                         "country": country,
@@ -536,7 +583,6 @@ class UnifiedEventsService:
                         "place_id": place_id,
                     },
                 )
-
                 event_id = result.fetchone()[0]
                 print(f"✅ Создано парсерное событие ID {event_id}: '{title}'")
 
