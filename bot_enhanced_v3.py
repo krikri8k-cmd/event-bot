@@ -1112,9 +1112,9 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         if lang == "en"
         else (e.get("venue_name") or "").strip()
     )
-    # Локализация подписей ссылок «Источник» / «Маршрут»
-    source_link_label = "Source" if lang == "en" else "Источник"
-    route_link_label = "Route" if lang == "en" else "Маршрут"
+    # Локализация подписей ссылок по языку пользователя
+    source_link_label = t("event.source_link", lang)
+    route_link_label = t("event.route_link", lang)
 
     title = html.escape(display_title or "Событие")
     when = e.get("when_str", "")
@@ -5028,10 +5028,11 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
         if data.get("location_url"):
             # URL не экранируем, так как он должен быть кликабельным
             event_text += f"🔗 {data['location_url']}\n"
+        lang_community = get_user_language_or_default(callback.from_user.id)
         event_text += (
             "\n"
             f"📝 {safe_description}\n\n"
-            f"*Создано пользователем @{safe_username}*\n\n"
+            f"*{format_translation('event.created_by', lang_community, username=safe_username)}*\n\n"
             f"👉 Нажмите /joinevent{event_id} чтобы записаться\n\n"
             f"💡 **Создавай через команду /start**"
         )
@@ -11403,6 +11404,7 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
     await state.clear()
 
     # Формируем структурированное сообщение для поделиться (экранируем пользовательский ввод для Markdown)
+    user_lang = get_user_language_or_default(callback.from_user.id)
     safe_title = escape_markdown(data.get("title", "") or "")
     safe_date = escape_markdown(data.get("date", "") or "")
     safe_time = escape_markdown(data.get("time", "") or "")
@@ -11425,8 +11427,8 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
     if data.get("description"):
         share_message += f"\n📝 {safe_description}\n"
 
-    # Добавляем информацию о создателе
-    share_message += f"\n*Создано пользователем @{safe_creator}*\n\n"
+    # Добавляем информацию о создателе (локализованно)
+    share_message += "\n*" + format_translation("event.created_by", user_lang, username=safe_creator) + "*\n\n"
     share_message += "💡 **Больше событий в боте:** [@EventAroundBot](https://t.me/EventAroundBot)"
 
     # Отправляем новое сообщение (которое можно переслать) вместо edit_text
@@ -11437,7 +11439,6 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
         reply_markup=main_menu_kb(user_id=user_id),
     )
 
-    user_lang = get_user_language_or_default(callback.from_user.id)
     await callback.answer(t("event.created", user_lang))
 
     # Показываем крутую анимацию после сохранения
@@ -12831,9 +12832,11 @@ async def handle_share_event(callback: types.CallbackQuery):
     if event.get("description"):
         share_message += f"\n📝 {event['description']}\n"
 
-    # Добавляем информацию о создателе
+    # Добавляем информацию о создателе (локализованно)
+    user_lang = get_user_language_or_default(callback.from_user.id)
     creator_name = callback.from_user.username or callback.from_user.first_name or "пользователь"
-    share_message += f"\n*Создано пользователем @{creator_name}*\n\n"
+    safe_creator = escape_markdown(creator_name)
+    share_message += "\n*" + format_translation("event.created_by", user_lang, username=safe_creator) + "*\n\n"
     share_message += "💡 **Больше событий в боте:** [@EventAroundBot](https://t.me/EventAroundBot)"
 
     # Отправляем сообщение, которое можно переслать
@@ -12841,7 +12844,6 @@ async def handle_share_event(callback: types.CallbackQuery):
         share_message,
         parse_mode="Markdown",
     )
-    user_lang = get_user_language_or_default(callback.from_user.id)
     await callback.answer(t("event.ready_to_forward", user_lang))
 
 

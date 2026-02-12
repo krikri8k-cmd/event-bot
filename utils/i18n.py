@@ -295,9 +295,13 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "events.suggestion.change_radius": "💡 Попробуй изменить радиус до {radius} км\n",
         "events.suggestion.repeat_search": "💡 Попробуй изменить радиус и повторить поиск\n",
         "events.suggestion.create_your_own": "➕ Или создай своё событие и собери свою компанию!",
+        # Карточка события (подписи ссылок и создатель)
+        "event.source_link": "Источник",
+        "event.route_link": "Маршрут",
+        "event.created_by": "Создано пользователем @{username}",
         # Заголовок списка событий
         "events.header.found_nearby": "🗺 Найдено рядом: <b>{count}</b>",
-        "events.header.found_in_radius": "🗺 В радиусе {radius} км найдено: <b>{count}</b>",
+        "events.header.found_in_radius": "📍 Найдено в радиусе {radius} км: <b>{count}</b>",
         "events.header.from_users": "• 👥 От пользователей: {count}",
         "events.header.from_groups": "• 💥 От групп: {count}",
         "events.header.from_sources": "• 🌐 Из источников: {count}",
@@ -683,9 +687,13 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "events.suggestion.change_radius": "💡 Try changing the radius to {radius} km\n",
         "events.suggestion.repeat_search": "💡 Try changing the radius and searching again\n",
         "events.suggestion.create_your_own": "➕ Or create your own event and gather your company!",
+        # Event card (link labels and creator)
+        "event.source_link": "Source",
+        "event.route_link": "Route",
+        "event.created_by": "Created by @{username}",
         # Events list header
         "events.header.found_nearby": "🗺 Found nearby: <b>{count}</b>",
-        "events.header.found_in_radius": "🗺 Found within {radius} km: <b>{count}</b>",
+        "events.header.found_in_radius": "📍 Found within {radius} km: <b>{count}</b>",
         "events.header.from_users": "• 👥 From users: {count}",
         "events.header.from_groups": "• 💥 From groups: {count}",
         "events.header.from_sources": "• 🌐 From sources: {count}",
