@@ -1083,20 +1083,18 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     logger = logging.getLogger(__name__)
 
     lang = get_user_language_or_default(user_id) if user_id else "ru"
-    # При lang == "en" приоритет у title_en, иначе fallback на title (RU)
-    display_title = (
-        (e.get("title_en") or e.get("title") or "Событие").strip()
-        if lang == "en"
-        else (e.get("title") or "Событие").strip()
-    )
+    # При lang == "en" приоритет у title_en, иначе fallback на title (RU) с пометкой (ru)
     if lang == "en":
-        if e.get("title_en"):
-            logger.debug("render_event_html: lang=en, using title_en for event id=%s", e.get("id"))
-        else:
-            logger.warning(
-                "render_event_html: lang=en but title_en is empty for event id=%s, fallback to RU title",
+        title_en = (e.get("title_en") or "").strip()
+        title_ru = (e.get("title") or "Событие").strip()
+        display_title = title_en if title_en else (title_ru + " (ru)")
+        if not title_en:
+            logger.debug(
+                "render_event_html: lang=en, title_en пустой для id=%s, показываем RU с пометкой (ru)",
                 e.get("id"),
             )
+    else:
+        display_title = (e.get("title") or "Событие").strip()
     display_description = (
         (e.get("description_en") or e.get("description") or "").strip()
         if lang == "en"
@@ -3164,11 +3162,12 @@ async def dump_commands_healthcheck(bot):
                     lang_name = lang or "default"
                     cmd_list = [c.command for c in cmds]
 
-                    logger.info(f"HEALTHCHECK: {scope_name} {lang_name} => {cmd_list}")
+                    # Явно логируем scope и язык, чтобы не путать ru/en в логах
+                    logger.info(f"HEALTHCHECK: {scope_name} язык={lang_name!r} => {cmd_list}")
 
                     # Проверяем, что start есть (без слэша, т.к. cmd_list содержит только имена команд)
                     if "start" not in cmd_list:
-                        logger.error(f"❌ КРИТИЧНО: /start отсутствует в {scope_name} {lang_name}!")
+                        logger.error(f"❌ КРИТИЧНО: /start отсутствует в {scope_name} (язык={lang_name!r})!")
                         # Автоматически восстанавливаем команды
                         try:
                             if scope_name == "BotCommandScopeAllGroupChats":
@@ -3176,16 +3175,16 @@ async def dump_commands_healthcheck(bot):
                             else:
                                 restore_cmds = public_commands
                             await bot.set_my_commands(restore_cmds, scope=scope, language_code=lang)
-                            logger.info(f"🔄 Восстановлены команды для {scope_name} {lang_name}")
+                            logger.info(f"🔄 Восстановлены команды для {scope_name} (язык={lang_name!r})")
                         except Exception as restore_error:
                             logger.error(
-                                f"❌ Не удалось восстановить команды для {scope_name} {lang_name}: {restore_error}"
+                                f"❌ Не удалось восстановить команды для {scope_name} (язык={lang_name!r}): {restore_error}"
                             )
                     else:
-                        logger.info(f"✅ /start найден в {scope_name} {lang_name}")
+                        logger.info(f"✅ /start найден в {scope_name} (язык={lang_name!r})")
 
                 except Exception as e:
-                    logger.error(f"❌ Ошибка проверки {scope.__class__.__name__} {lang}: {e}")
+                    logger.error(f"❌ Ошибка проверки {scope.__class__.__name__} (язык={lang!r}): {e}")
 
         logger.info("✅ HEALTHCHECK завершен")
 
