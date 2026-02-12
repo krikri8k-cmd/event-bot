@@ -13,8 +13,11 @@ from dotenv import load_dotenv
 # Добавляем текущую директорию в путь
 sys.path.append(".")
 
+from sqlalchemy import text
+
 from database import get_engine, init_engine
 from sources.baliforum import fetch
+from utils.event_translation import translate_titles_batch
 from utils.structured_logging import StructuredLogger
 from utils.unified_events_service import UnifiedEventsService
 
@@ -38,11 +41,9 @@ def run_baliforum_ingest():
         print(f"  Найдено событий: {len(events)}")
 
         if events:
-            # Сохраняем каждое событие
-            saved_count = 0
+            # 1. Подготавливаем события для сохранения
+            prepared = []
             skipped_no_coords = 0
-            errors = 0
-
             for event in events:
                 try:
                     # Проверяем координаты
@@ -113,25 +114,77 @@ def run_baliforum_ingest():
                         except Exception as e:
                             print(f"⚠️ Ошибка при reverse geocoding для '{event.title[:50]}': {e}")
 
-                    # ПРАВИЛЬНАЯ АРХИТЕКТУРА: Сохраняем через UnifiedEventsService
-                    # Сначала в events_parser, потом автоматически синхронизируется в events
-                    event_id = service.save_parser_event(
-                        source="baliforum",
-                        external_id=event.external_id or event.url.split("/")[-1],
-                        title=event.title,
-                        description=event.description,
-                        starts_at_utc=event.starts_at,
-                        city="bali",
-                        lat=event.lat,
-                        lng=event.lng,
-                        location_name=location_name,
-                        location_url=location_url,
-                        url=event.url,
+                    ext_id = event.external_id or event.url.split("/")[-1]
+                    prepared.append(
+                        {
+                            "source": "baliforum",
+                            "external_id": ext_id,
+                            "title": event.title,
+                            "description": event.description,
+                            "starts_at_utc": event.starts_at,
+                            "city": "bali",
+                            "lat": event.lat,
+                            "lng": event.lng,
+                            "location_name": location_name,
+                            "location_url": location_url,
+                            "url": event.url,
+                        }
                     )
 
+                except Exception as e:
+                    print(f"    ⚠️ Ошибка подготовки события: {e}")
+
+            # 2. Пакетный перевод (ТЗ): один вызов API на все заголовки, которым нужен перевод
+            title_en_map = {}
+            if prepared:
+                ext_ids = list({p["external_id"] for p in prepared})
+                with engine.connect() as conn:
+                    rows = conn.execute(
+                        text("""
+                            SELECT external_id, title_en
+                            FROM events
+                            WHERE source = 'baliforum' AND external_id = ANY(:ids)
+                        """),
+                        {"ids": ext_ids},
+                    ).fetchall()
+                has_title_en = {r[0] for r in rows if r[1] and str(r[1]).strip()}
+
+                to_translate = [
+                    (p["source"], p["external_id"], (p["title"] or "").strip())
+                    for p in prepared
+                    if p["external_id"] not in has_title_en and (p["title"] or "").strip()
+                ]
+
+                if to_translate:
+                    titles = [t for _, _, t in to_translate]
+                    results = translate_titles_batch(titles)
+                    for (src, ext_id, _), title_en in zip(to_translate, results):
+                        if title_en:
+                            title_en_map[(src, ext_id)] = title_en
+                    print(f"  📝 Пакетный перевод: {sum(1 for r in results if r)}/{len(to_translate)} заголовков")
+
+            # 3. Сохраняем события (с предзаполненным title_en из batch)
+            saved_count = 0
+            errors = 0
+            for p in prepared:
+                try:
+                    title_en = title_en_map.get((p["source"], p["external_id"]))
+                    event_id = service.save_parser_event(
+                        source=p["source"],
+                        external_id=p["external_id"],
+                        title=p["title"],
+                        description=p["description"],
+                        starts_at_utc=p["starts_at_utc"],
+                        city=p["city"],
+                        lat=p["lat"],
+                        lng=p["lng"],
+                        location_name=p["location_name"],
+                        location_url=p["location_url"],
+                        url=p["url"],
+                        title_en=title_en,
+                    )
                     if event_id:
                         saved_count += 1
-
                 except Exception as e:
                     print(f"    ❌ Ошибка сохранения события: {e}")
                     errors += 1

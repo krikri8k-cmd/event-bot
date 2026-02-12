@@ -523,28 +523,48 @@ class UnifiedEventsService:
             country = "ID" if city == "bali" else "RU"
             is_ai = source == "ai"
 
-            # Определяем значения _en: переводим при новой записи, при изменении текста или если _en ещё пусты
-            passed_en = title_en is not None and description_en is not None and location_name_en is not None
-            text_unchanged = (
-                existing_row and existing_row[1] == title and (existing_row[2] or "") == (description or "")
-            )
-            existing_has_en = existing_row and (existing_row[3] or existing_row[4] or existing_row[5])
+            # Ленивый перевод (ТЗ): переводим только один раз — когда title_en в базе ещё NULL.
+            # Если title_en передан снаружи (например из batch), используем его и не вызываем API.
+            passed_en = title_en is not None
+            existing_title_en = existing_row[3] if existing_row and len(existing_row) > 3 else None
+            existing_has_title_en = bool(existing_title_en and (existing_title_en or "").strip())
+            need_translation = not passed_en and (not existing_row or not existing_has_title_en)
+
             if passed_en:
-                pass  # переданы снаружи (например backfill)
-            elif text_unchanged and existing_has_en:
-                # Текст не менялся и перевод уже есть — не дергаем API
+                # Передан title_en снаружи (batch) — description/location оставляем из БД при наличии
+                if description_en is None and existing_row and len(existing_row) > 4:
+                    description_en = existing_row[4]
+                if location_name_en is None and existing_row and len(existing_row) > 5:
+                    location_name_en = existing_row[5]
+            elif existing_row and existing_has_title_en:
+                # В базе уже есть перевод — никогда не вызываем OpenAI повторно
                 title_en = existing_row[3]
-                description_en = existing_row[4]
-                location_name_en = existing_row[5]
-            else:
+                description_en = existing_row[4] if len(existing_row) > 4 else None
+                location_name_en = existing_row[5] if len(existing_row) > 5 else None
+            elif need_translation:
                 trans = translate_event_to_english(
                     title=title or "",
                     description=description,
                     location_name=location_name,
                 )
-                title_en = title_en if title_en is not None else trans.get("title_en")
-                description_en = description_en if description_en is not None else trans.get("description_en")
-                location_name_en = location_name_en if location_name_en is not None else trans.get("location_name_en")
+                # Fallback (ТЗ): при ошибке не писать пустоту — оставить NULL для повтора
+                title_en = (
+                    trans.get("title_en") if trans.get("title_en") else (existing_row[3] if existing_row else None)
+                )
+                description_en = (
+                    trans.get("description_en")
+                    if trans.get("description_en")
+                    else (existing_row[4] if existing_row and len(existing_row) > 4 else None)
+                )
+                location_name_en = (
+                    trans.get("location_name_en")
+                    if trans.get("location_name_en")
+                    else (existing_row[5] if existing_row and len(existing_row) > 5 else None)
+                )
+            else:
+                title_en = existing_row[3] if existing_row else None
+                description_en = existing_row[4] if existing_row and len(existing_row) > 4 else None
+                location_name_en = existing_row[5] if existing_row and len(existing_row) > 5 else None
 
             if existing_row:
                 event_id = existing_row[0]
