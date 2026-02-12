@@ -30,12 +30,13 @@ class ModernEventScheduler:
         self.scheduler = None
 
     def ingest_baliforum(self):
-        """Парсинг событий с BaliForum через правильную архитектуру"""
+        """Парсинг событий с BaliForum. Только по расписанию планировщика."""
         if not self.settings.enable_baliforum:
             logger.info("🌴 BaliForum отключен в настройках")
             return
 
         try:
+            logger.info("🚀 ЗАПУСК ПЛАНОВОГО ОБНОВЛЕНИЯ ДАННЫХ (BaliForum)")
             logger.info("🌴 Запуск парсинга BaliForum...")
             start_time = time.time()
 
@@ -332,6 +333,7 @@ class ModernEventScheduler:
                 logger.info("🎭 KudaGo отключен в настройках")
                 return
 
+            logger.info("🚀 ЗАПУСК ПЛАНОВОГО ОБНОВЛЕНИЯ ДАННЫХ (KudaGo)")
             logger.info("🎭 Запуск парсинга KudaGo...")
             start_time = time.time()
 
@@ -513,7 +515,8 @@ class ModernEventScheduler:
             logger.error(f"   ❌ Ошибка очистки: {e}")
 
     def run_full_ingest(self):
-        """Полный цикл обновления событий"""
+        """Полный цикл обновления событий. Вызывается только по расписанию, не из хендлеров."""
+        logger.info("🚀 ЗАПУСК ПЛАНОВОГО ОБНОВЛЕНИЯ ДАННЫХ")
         logger.info("🚀 === НАЧАЛО ЦИКЛА ОБНОВЛЕНИЯ СОБЫТИЙ ===")
         start_time = time.time()
 
@@ -994,7 +997,7 @@ _modern_scheduler = None
 
 
 def get_modern_scheduler() -> ModernEventScheduler:
-    """Получить экземпляр современного планировщика"""
+    """Единый экземпляр планировщика. Создаётся один раз, не на каждый запрос."""
     global _modern_scheduler
     if _modern_scheduler is None:
         _modern_scheduler = ModernEventScheduler()
@@ -1002,7 +1005,7 @@ def get_modern_scheduler() -> ModernEventScheduler:
 
 
 def start_modern_scheduler():
-    """Запустить современный планировщик"""
+    """Запустить планировщик. Вызывать только при старте приложения (webhook_attach/start_production)."""
     scheduler = get_modern_scheduler()
     scheduler.start()
 

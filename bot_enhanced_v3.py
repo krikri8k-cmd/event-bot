@@ -2016,6 +2016,7 @@ async def perform_nearby_search(
                 f"🌍 Поиск событий: координаты=({lat}, {lng}), радиус={radius}км, регион для временных границ={city}"
             )
 
+            # Только SELECT из БД; парсинг (ingest) не вызывается — данные обновляются по расписанию.
             events = events_service.search_events_today(city=city, user_lat=lat, user_lng=lng, radius_km=int(radius))
 
             formatted_events = []
