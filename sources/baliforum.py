@@ -1,6 +1,7 @@
 # sources/baliforum.py
 from __future__ import annotations
 
+import logging
 import re
 import time
 from datetime import UTC, datetime, timedelta
@@ -10,6 +11,8 @@ import requests
 from bs4 import BeautifulSoup
 
 from event_apis import RawEvent
+
+logger = logging.getLogger(__name__)
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " "AppleWebKit/537.36 (KHTML, like Gecko) " "Chrome/124.0 Safari/537.36"
 
@@ -154,7 +157,7 @@ def _ru_date_to_dt(label: str, now: datetime, tz: ZoneInfo) -> tuple[datetime | 
             if _parse_time(original_label):
                 # НЕ устанавливаем day = now.date() - это может быть событие на завтра
                 # Вместо этого возвращаем None, чтобы событие было пропущено
-                print(f"DEBUG: _ru_date_to_dt: no date found but time exists, skipping: '{original_label}'")
+                logger.debug("_ru_date_to_dt: дата не найдена, но есть время, пропуск: %r", original_label)
                 return None, None
 
         if day:
@@ -193,7 +196,7 @@ def _ru_date_to_dt(label: str, now: datetime, tz: ZoneInfo) -> tuple[datetime | 
                 # Если нет времени, устанавливаем дефолтное время 12:00
                 if not time_found:
                     start_dt = datetime(day.year, day.month, day.day, 12, 0, tzinfo=tz)
-                    print(f"DEBUG: _ru_date_to_dt: no time found, using 12:00 for '{label}'")
+                    logger.debug("_ru_date_to_dt: время не найдено, используем 12:00 для %r", label)
 
         return start_dt, end_dt
     except (ValueError, KeyError):
@@ -330,7 +333,7 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
             match = re.search(pattern, all_text)
             if match:
                 date_text = match.group(0)
-                print(f"DEBUG: baliforum: found date pattern '{pattern}' -> '{date_text}' for '{title}'")
+                logger.debug("baliforum: найден шаблон даты %r -> %r для %r", pattern, date_text, title[:50])
                 break
 
         # Парсим дату
@@ -350,9 +353,15 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
                 date_label = "завтра"
             else:
                 date_label = f"{event_date_bali}"
-            print(f"DEBUG: baliforum: parsed date '{date_text}' -> {date_label} ({start_bali}) for '{title}'")
+            logger.debug(
+                "baliforum: проанализирована дата %r -> %s (%s) для %r",
+                date_text,
+                date_label,
+                start_bali,
+                title[:50],
+            )
         else:
-            print(f"DEBUG: baliforum: failed to parse date from '{date_text}' for '{title}'")
+            logger.debug("baliforum: не удалось распарсить дату из %r для %r", date_text, title[:50])
 
         # Конвертируем в UTC для хранения в БД
         if start:
@@ -362,7 +371,7 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
 
         # Пропускаем события, если вообще не удалось извлечь дату
         if not start:
-            print(f"DEBUG: baliforum: skip (no date/time): url={url}, title={title}, date_text='{date_text}'")
+            logger.debug("baliforum: пропуск (нет даты/времени): url=%s, title=%r", url[:60], title[:50])
             skipped_no_time += 1
             continue
 
@@ -423,23 +432,28 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
                             location_url = maps_data.get("raw_link", href)
                             place_name_from_maps = maps_data.get("name")
                             place_id = maps_data.get("place_id")
-                            print(
-                                f"DEBUG: baliforum: найдены координаты на детальной странице: {lat}, {lng} "
-                                f"для '{title}', место: {place_name_from_maps}, "
-                                f"place_id: {place_id}, "
-                                f"ссылка: {location_url[:80] if location_url else None}"
+                            logger.debug(
+                                "baliforum: координаты на детальной: %s, %s для %r, место: %s, place_id: %s",
+                                lat,
+                                lng,
+                                title[:50],
+                                place_name_from_maps,
+                                place_id,
                             )
                             break
                     except Exception as e:
                         # Fallback на старый метод
-                        print(f"DEBUG: baliforum: ошибка parse_google_maps_link, используем fallback: {e}")
+                        logger.debug("baliforum: ошибка parse_google_maps_link, используем fallback: %s", e)
                         lat, lng, place_name, maps_url = _extract_latlng_from_maps(href)
                         if lat and lng:
                             location_url = maps_url
                             place_name_from_maps = place_name
-                            print(
-                                f"DEBUG: baliforum: найдены координаты (fallback): {lat}, {lng} "
-                                f"для '{title}', место: {place_name_from_maps}"
+                            logger.debug(
+                                "baliforum: координаты (fallback): %s, %s для %r, место: %s",
+                                lat,
+                                lng,
+                                title[:50],
+                                place_name_from_maps,
                             )
                             break
 
@@ -457,7 +471,12 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
                     try:
                         lat = float(elem.get("data-lat"))
                         lng = float(elem.get("data-lng"))
-                        print(f"DEBUG: baliforum: найдены координаты в data-атрибутах: {lat}, {lng} для '{title}'")
+                        logger.debug(
+                            "baliforum: координаты в data-атрибутах: %s, %s для %r",
+                            lat,
+                            lng,
+                            title[:50],
+                        )
                         break
                     except (ValueError, TypeError):
                         continue
@@ -481,12 +500,14 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
                             lng = float(match.group(2))
                             # Проверяем что координаты в разумных пределах для Бали
                             if -9.0 <= lat <= -8.0 and 114.0 <= lng <= 116.0:
-                                print(f"DEBUG: baliforum: найдены координаты в тексте: {lat}, {lng} для '{title}'")
+                                logger.debug(
+                                    "baliforum: найдены координаты в тексте: %s, %s для %r", lat, lng, title[:50]
+                                )
                                 break
                         except (ValueError, IndexError):
                             continue
         except Exception as e:
-            print(f"DEBUG: baliforum: ошибка при парсинге детальной страницы для '{title}': {e}")
+            logger.debug("baliforum: ошибка при парсинге детальной страницы для %r: %s", title[:50], e)
             ds = None
 
         # Если координаты не найдены на детальной странице, ищем в карточке
@@ -506,7 +527,7 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
 
                         from utils.geo_utils import parse_google_maps_link
 
-                        print(f"DEBUG: baliforum: пытаемся извлечь координаты из ссылки в карточке: {href[:100]}")
+                        logger.debug("baliforum: пытаемся извлечь координаты из ссылки в карточке: %s", href[:100])
 
                         # Выполняем async функцию синхронно
                         try:
@@ -530,7 +551,7 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
                         except RuntimeError:
                             maps_data = asyncio.run(parse_google_maps_link(href))
 
-                        print(f"DEBUG: baliforum: parse_google_maps_link (карточка) вернул: {maps_data}")
+                        logger.debug("baliforum: parse_google_maps_link (карточка) вернул: %s", maps_data)
 
                         if maps_data and maps_data.get("lat") and maps_data.get("lng"):
                             lat = maps_data["lat"]
@@ -538,40 +559,41 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
                             location_url = maps_data.get("raw_link", href)
                             place_name_from_maps = maps_data.get("name")
                             place_id = maps_data.get("place_id")
-                            print(
-                                f"DEBUG: baliforum: найдены координаты в карточке: {lat}, {lng} "
-                                f"для '{title}', место: {place_name_from_maps}, "
-                                f"place_id: {place_id}, "
-                                f"ссылка: {location_url[:80] if location_url else None}"
+                            logger.debug(
+                                "baliforum: найдены координаты в карточке: %s, %s для %r, место: %s, place_id: %s",
+                                lat,
+                                lng,
+                                title[:50],
+                                place_name_from_maps,
+                                place_id,
                             )
                             break
                         else:
-                            print(
-                                f"DEBUG: baliforum: parse_google_maps_link (карточка) "
-                                f"не нашел координаты в ссылке: {href[:100]}"
+                            logger.debug(
+                                "baliforum: parse_google_maps_link (карточка) не нашел координаты в ссылке: %s",
+                                href[:100],
                             )
                     except Exception as e:
                         # Fallback на старый метод
-                        print(
-                            f"DEBUG: baliforum: ошибка parse_google_maps_link в карточке, "
-                            f"используем fallback: {type(e).__name__}: {e}"
+                        logger.debug(
+                            "baliforum: ошибка parse_google_maps_link в карточке, fallback: %s: %s",
+                            type(e).__name__,
+                            e,
                         )
-                        import traceback
-
-                        traceback.print_exc()
                         lat, lng, place_name, maps_url = _extract_latlng_from_maps(href)
                         if lat and lng:
                             location_url = maps_url
                             place_name_from_maps = place_name
-                            print(
-                                f"DEBUG: baliforum: найдены координаты в карточке (fallback): {lat}, {lng} "
-                                f"для '{title}', место: {place_name_from_maps}"
+                            logger.debug(
+                                "baliforum: найдены координаты в карточке (fallback): %s, %s для %r, место: %s",
+                                lat,
+                                lng,
+                                title[:50],
+                                place_name_from_maps,
                             )
                             break
                         else:
-                            print(
-                                f"DEBUG: baliforum: fallback (карточка) тоже не нашел координаты в ссылке: {href[:100]}"
-                            )
+                            logger.debug("baliforum: fallback (карточка) не нашел координаты в ссылке: %s", href[:100])
 
         # Если координаты все еще не найдены, пробуем геокодинг по адресу/venue
         if (not lat or not lng) and venue:
@@ -608,12 +630,15 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
 
                     if coords:
                         lat, lng = coords
-                        print(
-                            f"DEBUG: baliforum: координаты получены через геокодинг адреса "
-                            f"'{address}': {lat}, {lng} для '{title}'"
+                        logger.debug(
+                            "baliforum: координаты через геокодинг адреса %r: %s, %s для %r",
+                            address[:50],
+                            lat,
+                            lng,
+                            title[:50],
                         )
             except Exception as e:
-                print(f"DEBUG: baliforum: ошибка геокодинга для '{title}': {e}")
+                logger.debug("baliforum: ошибка геокодинга для %r: %s", title[:50], e)
 
         # Создаем стабильный external_id
         import hashlib
@@ -647,7 +672,7 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
             )
             parsed_count += 1
         except Exception as e:
-            print(f"ERROR: baliforum: error processing event '{title}': {e}")
+            logger.error("baliforum: ошибка обработки события %r: %s", title[:50], e)
             errors += 1
 
         # Rate limiting
@@ -655,17 +680,19 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
 
     # Логируем сводку
     total_cards = len(cards)
-    print(
-        f"INFO baliforum: найдено карточек={total_cards}, "
-        f"обработано={min(total_cards, limit)}, "
-        f"успешно распарсено={parsed_count}, "
-        f"пропущено без времени={skipped_no_time}, "
-        f"ошибок={errors}"
+    logger.info(
+        "baliforum: найдено карточек=%s, обработано=%s, распарсено=%s, пропущено без времени=%s, ошибок=%s",
+        total_cards,
+        min(total_cards, limit),
+        parsed_count,
+        skipped_no_time,
+        errors,
     )
     if skipped_no_time > 0:
-        print(
-            f"WARNING baliforum: пропущено {skipped_no_time} событий без времени "
-            f"({skipped_no_time / min(total_cards, limit) * 100:.1f}% от обработанных)"
+        logger.warning(
+            "baliforum: пропущено %s событий без времени (%.1f%% от обработанных)",
+            skipped_no_time,
+            skipped_no_time / min(total_cards, limit) * 100 if total_cards else 0,
         )
     return events
 

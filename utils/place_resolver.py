@@ -5,6 +5,7 @@ PlaceResolver - сервис для получения названий мест
 Поддерживает кэширование результатов.
 """
 
+import asyncio
 import logging
 
 import httpx
@@ -96,6 +97,7 @@ class PlaceResolver:
                 logger.debug(f"Получено из кэша для place_id {place_id}: {cached.get('name')}")
                 return cached
 
+        await asyncio.sleep(0.5)  # Rate limiting для Google API
         try:
             url = f"{self.base_url}/places/{place_id}"
             headers = {
@@ -168,9 +170,9 @@ class PlaceResolver:
             logger.warning("Google Maps API key не установлен")
             return None
 
+        await asyncio.sleep(0.5)  # Rate limiting для Google API
         try:
-            # Используем legacy Nearby Search API (он работает и включен)
-            # Новый API требует другой формат и может быть не включен
+            # Один запрос (type=establishment), берём results[0]
             url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
             params = {
                 "location": f"{lat},{lng}",
@@ -239,13 +241,10 @@ class PlaceResolver:
                 result["place_id"] = place_id
                 return result
 
-        # Приоритет 2: Nearby Search по координатам
+        # Приоритет 2: один запрос Nearby Search (type=establishment), берём results[0]
         if lat is not None and lng is not None:
-            # Пробуем разные типы заведений
-            types_list = ["establishment", "restaurant", "bar", "cafe", "point_of_interest"]
-            for place_type in types_list:
-                result = await self.nearby_search(lat, lng, radius_meters=50, types=place_type)
-                if result:
-                    return result
+            result = await self.nearby_search(lat, lng, radius_meters=50, types="establishment")
+            if result:
+                return result
 
         return None

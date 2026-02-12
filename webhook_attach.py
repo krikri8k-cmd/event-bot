@@ -322,7 +322,7 @@ def attach_bot_to_app(app: FastAPI) -> None:
 
     @app.on_event("startup")
     async def _startup():
-        """Запускается при старте FastAPI - инициализирует бота в фоне"""
+        """Запускается один раз при старте FastAPI. Инициализирует бота и планировщик (не при каждом webhook)."""
         asyncio.create_task(init_bot())
 
     @app.on_event("shutdown")

@@ -162,6 +162,39 @@ class ModernEventScheduler:
 
                     needs_place_resolver = needs_place_resolver_by_place_id or needs_place_resolver_by_coords
 
+                    # Кэш геоданных: при наличии place_id/координат и location_name в БД — не дергаем Google
+                    if needs_place_resolver and (place_id_from_maps or (event.lat and event.lng)):
+                        with self.engine.connect() as conn:
+                            if place_id_from_maps:
+                                row = conn.execute(
+                                    text("""
+                                        SELECT location_name FROM events
+                                        WHERE place_id = :pid
+                                          AND location_name IS NOT NULL AND TRIM(location_name) != ''
+                                        LIMIT 1
+                                    """),
+                                    {"pid": place_id_from_maps},
+                                ).fetchone()
+                            else:
+                                row = conn.execute(
+                                    text("""
+                                        SELECT location_name FROM events
+                                        WHERE lat BETWEEN :lat - 0.0001 AND :lat + 0.0001
+                                          AND lng BETWEEN :lng - 0.0001 AND :lng + 0.0001
+                                          AND location_name IS NOT NULL
+                                          AND TRIM(location_name) != ''
+                                        LIMIT 1
+                                    """),
+                                    {"lat": event.lat, "lng": event.lng},
+                                ).fetchone()
+                            if row and row[0] and row[0].strip() and row[0].strip() not in generic_names:
+                                location_name = row[0].strip()
+                                needs_place_resolver = False
+                                logger.debug(
+                                    "Кэш БД: location_name для place_id=%s взят из существующей записи",
+                                    place_id_from_maps or f"({event.lat},{event.lng})",
+                                )
+
                     if needs_place_resolver:
                         try:
                             import asyncio
@@ -226,6 +259,8 @@ class ModernEventScheduler:
                                     f"⚠️ PlaceResolver вернул generic название '{place_data.get('name')}', "
                                     f"пропускаем для '{event.title[:50]}'"
                                 )
+                            # Rate limiting: пауза между запросами к Google API при обработке следующего события
+                            time.sleep(0.5)
                         except Exception as e:
                             logger.warning(f"⚠️ Ошибка при PlaceResolver для '{event.title[:50]}': {e}")
 
