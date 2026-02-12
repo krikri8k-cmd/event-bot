@@ -93,7 +93,7 @@ def translate_event_to_english(
                     {"role": "user", "content": "Переведи на английский и верни JSON:\n\n" + user_content},
                 ],
                 temperature=0.3,
-                timeout=20,
+                timeout=30,  # Достаточно времени при нестабильном соединении (ТЗ: не менее 10 с)
             )
             raw = (completion.choices[0].message.content or "").strip()
             if not raw:

@@ -24,17 +24,21 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return R * c
 
 
-async def geocode_address(address: str, region_bias: str = "bali") -> tuple[float, float] | None:
+async def geocode_address(
+    address: str, region_bias: str = "bali", language: str | None = None
+) -> tuple[float, float] | None:
     settings = load_settings()
     if not settings.google_maps_api_key:
         return None
 
     # Простой геокодинг без сложной логики привязки к регионам
-    # Google Maps API сам определит правильные координаты
+    # language: язык ответа (en, ru) — названия мест вернутся на выбранном языке
     params = {
         "address": address,
         "key": settings.google_maps_api_key,
     }
+    if language:
+        params["language"] = language
 
     async with httpx.AsyncClient(timeout=15) as client:
         r = await client.get("https://maps.googleapis.com/maps/api/geocode/json", params=params)
@@ -108,13 +112,14 @@ def _is_address(name: str) -> bool:
     return False
 
 
-async def reverse_geocode(lat: float, lng: float) -> str | None:
+async def reverse_geocode(lat: float, lng: float, language: str | None = None) -> str | None:
     """
-    Выполняет reverse geocoding для получения названия места по координатам
+    Выполняет reverse geocoding для получения названия места по координатам.
 
     Args:
         lat: Широта
         lng: Долгота
+        language: Язык ответа API (en, ru) — названия мест вернутся на выбранном языке
 
     Returns:
         Название места (establishment name) или None если не найдено
@@ -128,6 +133,8 @@ async def reverse_geocode(lat: float, lng: float) -> str | None:
         "key": settings.google_maps_api_key,
         "result_type": "establishment|premise|point_of_interest",  # Приоритет на заведения
     }
+    if language:
+        params["language"] = language
 
     try:
         # Сначала пробуем Places API для получения названия заведения
@@ -138,6 +145,8 @@ async def reverse_geocode(lat: float, lng: float) -> str | None:
                 "key": settings.google_maps_api_key,
                 "type": "establishment|point_of_interest",
             }
+            if language:
+                places_params["language"] = language
             async with httpx.AsyncClient(timeout=15) as client:
                 places_r = await client.get(
                     "https://maps.googleapis.com/maps/api/place/nearbysearch/json",

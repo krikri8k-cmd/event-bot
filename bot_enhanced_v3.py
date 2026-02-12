@@ -654,8 +654,8 @@ async def send_compact_events_list_prepared(
     # Рендерим страницу
     user_lang = get_user_language_or_default(message.from_user.id)
     header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
-    # Обогащаем события reverse geocoding для названий локаций
-    prepared_events = await enrich_events_with_reverse_geocoding(prepared_events)
+    # Обогащаем события reverse geocoding для названий локаций (язык по user_id для Google API)
+    prepared_events = await enrich_events_with_reverse_geocoding(prepared_events, message.from_user.id)
 
     events_text, total_pages = render_page(prepared_events, page + 1, page_size=8, user_id=message.from_user.id)
 
@@ -741,8 +741,8 @@ async def send_compact_events_list(
         "region": region,  # Добавляем регион
     }
 
-    # 5) Обогащаем события reverse geocoding для названий локаций
-    prepared = await enrich_events_with_reverse_geocoding(prepared)
+    # 5) Обогащаем события reverse geocoding для названий локаций (язык по user_id)
+    prepared = await enrich_events_with_reverse_geocoding(prepared, message.from_user.id)
 
     # 6) Рендерим страницу
     user_lang = get_user_language_or_default(message.from_user.id)
@@ -1313,7 +1313,7 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
             tracking_url = _build_tracking_url("source", e, src, user_id)
             src_part = f'🌐 <a href="{html.escape(tracking_url)}">{source_link_label}</a>'
         else:
-            src_part = f"ℹ️ {source_link_label}" + (" not specified" if lang == "en" else " не указан")
+            src_part = f"ℹ️ {t('event.source_not_specified', lang)}"
 
     # Маршрут с приоритетом venue_name → address → coords
     maps_url = build_maps_url(e)
@@ -1381,36 +1381,42 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n📍 {test_venue}\n{author_line}{description_part}\n"
     )
     logger.info(f"🔍 DEBUG: ПОСЛЕ final_html: venue_display='{venue_display}'")
-    logger.info(f"🔍 FINAL HTML: {final_html}")
+    logger.info(f"🔍 FINAL HTML (lang={lang!r}): %s", final_html[:300] + ("..." if len(final_html) > 300 else ""))
     return final_html
 
 
-def render_fallback(lat: float, lng: float) -> str:
-    """Fallback страница при ошибках в пайплайне"""
+def render_fallback(lat: float, lng: float, lang: str = "ru") -> str:
+    """Fallback страница при ошибках в пайплайне (локализованные подписи ссылок)."""
+    src_txt = t("event.source_not_specified", lang)
+    route_txt = t("event.route_link", lang)
+    maps_url = f"https://www.google.com/maps/search/?api=1&query={lat},{lng}"
+    link_route = f'🚗 <a href="{maps_url}">{route_txt}</a>'
+    line = f"ℹ️ {src_txt}  {link_route}"
     return (
         f"🗺 <b>Найдено рядом: 0</b>\n"
         f"• 👥 От пользователей: 0\n"
         f"• 🌐 Из источников: 0\n\n"
         f"1) <b>Попробуйте расширить поиск</b> — (0.0 км)\n"
         f"📍 Локация\n"
-        f'ℹ️ Источник не указан  🚗 <a href="https://www.google.com/maps/search/?api=1&query={lat},{lng}">Маршрут</a>\n\n'
+        f"{line}\n\n"
         f"2) <b>Создайте своё событие</b> — (0.0 км)\n"
         f"📍 Локация\n"
-        f'ℹ️ Источник не указан  🚗 <a href="https://www.google.com/maps/search/?api=1&query={lat},{lng}">Маршрут</a>\n\n'
+        f"{line}\n\n"
         f"3) <b>Проверьте позже</b> — (0.0 км)\n"
         f"📍 Локация\n"
-        f'ℹ️ Источник не указан  🚗 <a href="https://www.google.com/maps/search/?api=1&query={lat},{lng}">Маршрут</a>'
+        f"{line}"
     )
 
 
-async def enrich_events_with_reverse_geocoding(events: list[dict]) -> list[dict]:
+async def enrich_events_with_reverse_geocoding(events: list[dict], user_id: int | None = None) -> list[dict]:
     """
-    Обогащает события обратным геокодированием для получения названий локаций из координат
-    (как для пользовательских событий)
+    Обогащает события обратным геокодированием для получения названий локаций из координат.
+    user_id: если передан, в запросы Google API добавляется language=user_lang (en/ru).
     """
     import logging
 
     logger = logging.getLogger(__name__)
+    geo_lang = get_user_language_or_default(user_id) if user_id else None
 
     # Временные/календарные паттерны, которые не являются названиями мест
     time_patterns = [
@@ -1477,7 +1483,7 @@ async def enrich_events_with_reverse_geocoding(events: list[dict]) -> list[dict]
             try:
                 from utils.geo_utils import reverse_geocode
 
-                reverse_name = await reverse_geocode(lat, lng)
+                reverse_name = await reverse_geocode(lat, lng, language=geo_lang)
                 if reverse_name:
                     # Проверяем, что reverse geocoding не вернул адрес (улицу)
                     # Адреса обычно начинаются с "Jl.", содержат "No." или слишком длинные
@@ -2050,8 +2056,8 @@ async def perform_nearby_search(
                 await loading_message.delete()
             except Exception:
                 pass
-            fallback = render_fallback(lat, lng)
             user_id = message.from_user.id
+            fallback = render_fallback(lat, lng, get_user_language_or_default(user_id))
             await message.answer(
                 fallback,
                 parse_mode="HTML",
@@ -2176,7 +2182,7 @@ async def perform_nearby_search(
             }
 
             header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
-            prepared = await enrich_events_with_reverse_geocoding(prepared)
+            prepared = await enrich_events_with_reverse_geocoding(prepared, user_id)
             # Обновлено: теперь показываем 8 событий (карта отдельно)
             page_html, _ = render_page(prepared, page=1, page_size=8, user_id=user_id)
             short_caption = header_html + "\n\n" + page_html
@@ -5963,8 +5969,8 @@ async def on_location(message: types.Message, state: FSMContext):
                 await loading_message.delete()
             except Exception:
                 pass
-            fallback = render_fallback(lat, lng)
             user_id = message.from_user.id
+            fallback = render_fallback(lat, lng, get_user_language_or_default(user_id))
             await message.answer(
                 fallback,
                 parse_mode="HTML",
@@ -6136,8 +6142,8 @@ async def on_location(message: types.Message, state: FSMContext):
             user_lang = get_user_language_or_default(message.from_user.id)
             header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
 
-            # 5) Обогащаем события reverse geocoding для названий локаций
-            prepared = await enrich_events_with_reverse_geocoding(prepared)
+            # 5) Обогащаем события reverse geocoding для названий локаций (язык по user_id)
+            prepared = await enrich_events_with_reverse_geocoding(prepared, message.from_user.id)
 
             # Логируем результаты обогащения для отладки
             for i, event in enumerate(prepared[:3], 1):
@@ -6223,8 +6229,8 @@ async def on_location(message: types.Message, state: FSMContext):
                 user_lang = get_user_language_or_default(message.from_user.id)
                 header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
 
-                # 4) Обогащаем события reverse geocoding для названий локаций
-                prepared = await enrich_events_with_reverse_geocoding(prepared)
+                # 4) Обогащаем события reverse geocoding для названий локаций (язык по user_id)
+                prepared = await enrich_events_with_reverse_geocoding(prepared, message.from_user.id)
 
                 # 5) Рендерим события для первой страницы
                 # ИСПРАВЛЕНИЕ: Теперь карта и список событий отправляются отдельными сообщениями
@@ -6371,8 +6377,8 @@ async def on_location(message: types.Message, state: FSMContext):
                 lng,
                 int(settings.default_radius_km),
             )
-            fallback = render_fallback(lat, lng)
             user_id = message.from_user.id
+            fallback = render_fallback(lat, lng, get_user_language_or_default(user_id))
             await message.answer(
                 fallback,
                 parse_mode="HTML",
@@ -7240,7 +7246,7 @@ async def on_admin_event(message: types.Message):
                 f"<b>Координаты:</b> {event.lat}, {event.lng}",
                 f"<b>URL события:</b> {url}",
                 f"<b>URL места:</b> {location_url}",
-                f"<b>Источник:</b> {source}",
+                f"<b>{t('event.source_link', user_lang)}:</b> {source}",
                 f"<b>Организатор:</b> {organizer}",
                 f"<b>AI генерация:</b> {'Да' if event.is_generated_by_ai else 'Нет'}",
             ]
@@ -8594,8 +8600,8 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         f"date_filter={date_filter}, map_message_id={map_message_id} сохранен в состоянии"
     )
 
-    # Обогащаем события reverse geocoding для названий локаций
-    prepared = await enrich_events_with_reverse_geocoding(prepared)
+    # Обогащаем события reverse geocoding для названий локаций (язык по user_id)
+    prepared = await enrich_events_with_reverse_geocoding(prepared, user_id)
 
     # Рендерим страницу
     user_lang = get_user_language_or_default(user_id)
@@ -11765,8 +11771,8 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
             f"radius_km={radius}, dropped={diag.get('dropped', 0)}"
         )
 
-        # Обогащаем события reverse geocoding для названий локаций
-        prepared = await enrich_events_with_reverse_geocoding(prepared)
+        # Обогащаем события reverse geocoding для названий локаций (язык по user_id)
+        prepared = await enrich_events_with_reverse_geocoding(prepared, callback.from_user.id)
 
         # Группируем и считаем
         groups = group_by_type(prepared)
@@ -11906,8 +11912,8 @@ async def handle_pagination(callback: types.CallbackQuery):
         current_radius = state.get("radius", 5)
         date_filter = state.get("date_filter", "today")  # Получаем фильтр даты из состояния
 
-        # Обогащаем события reverse geocoding для названий локаций
-        prepared = await enrich_events_with_reverse_geocoding(prepared)
+        # Обогащаем события reverse geocoding для названий локаций (язык по user_id)
+        prepared = await enrich_events_with_reverse_geocoding(prepared, callback.from_user.id)
 
         # ВАЖНО: Карта показывается только на первой странице
         # На последующих страницах отправляем текстовые сообщения без карты

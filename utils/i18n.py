@@ -298,6 +298,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         # Карточка события (подписи ссылок и создатель)
         "event.source_link": "Источник",
         "event.route_link": "Маршрут",
+        "event.source_not_specified": "Источник не указан",
         "event.created_by": "Создано пользователем @{username}",
         # Заголовок списка событий
         "events.header.found_nearby": "🗺 Найдено рядом: <b>{count}</b>",
@@ -690,6 +691,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         # Event card (link labels and creator)
         "event.source_link": "Source",
         "event.route_link": "Route",
+        "event.source_not_specified": "Source not specified",
         "event.created_by": "Created by @{username}",
         # Events list header
         "events.header.found_nearby": "🗺 Found nearby: <b>{count}</b>",
