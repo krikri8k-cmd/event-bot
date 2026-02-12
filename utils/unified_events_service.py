@@ -63,9 +63,13 @@ class UnifiedEventsService:
             end_utc = start_utc + timedelta(days=1)
 
         date_label = "сегодня" if date_offset == 0 else "завтра" if date_offset == 1 else f"+{date_offset} дней"
-        logger.info(
-            f"🔍 SEARCH: city='{city}', user_lat={user_lat}, user_lng={user_lng}, "
-            f"radius_km={radius_km}, date={date_label} (offset={date_offset})"
+        logger.debug(
+            "🔍 SEARCH: city=%s, user_lat=%s, user_lng=%s, radius_km=%s, date=%s",
+            city,
+            user_lat,
+            user_lng,
+            radius_km,
+            date_label,
         )
 
         with self.engine.connect() as conn:
@@ -289,7 +293,7 @@ class UnifiedEventsService:
                 event_city = event.get("city", "unknown")
                 cities_found[event_city] = cities_found.get(event_city, 0) + 1
 
-            logger.info(f"🔍 SEARCH RESULT: запрашивали city='{city}', нашли события по городам: {cities_found}")
+            logger.debug("🔍 SEARCH RESULT: city=%s, cities_found=%s", city, cities_found)
 
             StructuredLogger.log_search(
                 region=city,

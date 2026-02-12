@@ -654,9 +654,7 @@ async def send_compact_events_list_prepared(
     # Рендерим страницу
     user_lang = get_user_language_or_default(message.from_user.id)
     header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
-    # Обогащаем события reverse geocoding для названий локаций (язык по user_id для Google API)
-    prepared_events = await enrich_events_with_reverse_geocoding(prepared_events, message.from_user.id)
-
+    # Данные из БД уже с location_name (ingest). Enrich в хендлере не вызываем.
     events_text, total_pages = render_page(prepared_events, page + 1, page_size=8, user_id=message.from_user.id)
 
     # Отладочная информация
@@ -701,7 +699,7 @@ async def send_compact_events_list(
 
     # 1) Сначала фильтруем и группируем (после всех проверок publishable)
     prepared, diag = prepare_events_for_feed(events, user_point=(user_lat, user_lng), with_diag=True)
-    logger.info(f"prepared: kept={diag['kept']} dropped={diag['dropped']} reasons_top3={diag['reasons_top3']}")
+    logger.debug("prepared: kept=%s dropped=%s reasons_top3=%s", diag["kept"], diag["dropped"], diag["reasons_top3"])
     logger.info(
         f"found_by_stream: source={diag['found_by_stream']['source']} ai_parsed={diag['found_by_stream']['ai_parsed']} user={diag['found_by_stream']['user']}"
     )
@@ -741,9 +739,7 @@ async def send_compact_events_list(
         "region": region,  # Добавляем регион
     }
 
-    # 5) Обогащаем события reverse geocoding для названий локаций (язык по user_id)
-    prepared = await enrich_events_with_reverse_geocoding(prepared, message.from_user.id)
-
+    # Данные из БД уже с location_name (ingest). Enrich в хендлере не вызываем.
     # 6) Рендерим страницу
     user_lang = get_user_language_or_default(message.from_user.id)
     header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
@@ -855,19 +851,20 @@ def build_maps_url(e: dict) -> str:
             has_valid_source = bool(e.get("source_url") or e.get("url") or e.get("original_url"))
             if has_valid_source:
                 # Есть валидный URL источника - можно использовать location_url
-                logger.info(
-                    f"🚗 Используем location_url для маршрута: '{location_url[:50]}...' для события '{e.get('title', 'Без названия')[:30]}'"
+                logger.debug(
+                    "🚗 Используем location_url для маршрута, событие: %s", (e.get("title") or "Без названия")[:30]
                 )
                 return location_url
             else:
                 # Нет валидного URL источника - пропускаем location_url для безопасности
                 logger.debug(
-                    f"⚠️ Пропускаем location_url для ai-события без валидного URL источника: '{e.get('title', 'Без названия')[:30]}'"
+                    "⚠️ Пропускаем location_url для ai-события без валидного URL: %s",
+                    (e.get("title") or "Без названия")[:30],
                 )
         else:
             # Для других типов событий (source, user) используем location_url
-            logger.info(
-                f"🚗 Используем location_url для маршрута: '{location_url[:50]}...' для события '{e.get('title', 'Без названия')[:30]}'"
+            logger.debug(
+                "🚗 Используем location_url для маршрута, событие: %s", (e.get("title") or "Без названия")[:30]
             )
             return location_url
 
@@ -1117,7 +1114,7 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     title = html.escape(display_title or "Событие")
     when = e.get("when_str", "")
 
-    logger.info(f"🕐 render_event_html: title={title}, when_str='{when}', starts_at={e.get('starts_at')}")
+    logger.debug("🕐 render_event_html: title=%s, when_str=%s", title[:40] if title else "", when)
 
     # Если when_str пустое, используем функцию human_when с учетом часового пояса пользователя
     if not when:
@@ -1129,7 +1126,7 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     source = e.get("source", "")
     source_type = e.get("source_type", "")
 
-    logger.info(f"🔍 DEBUG: event_type={event_type}, source={source}, source_type={source_type}")
+    logger.debug("🔍 event_type=%s, source=%s, source_type=%s", event_type, source, source_type)
 
     if not event_type:
         if source == "community":
@@ -1139,7 +1136,7 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         else:
             event_type = "source"
 
-    logger.info(f"🔍 FINAL: event_type={event_type} для события '{e.get('title', 'Без названия')[:20]}'")
+    logger.debug("🔍 FINAL: event_type=%s для события %s", event_type, (e.get("title") or "Без названия")[:20])
 
     # Поддерживаем новую структуру venue и старую; для EN используем display_venue_name (location_name_en или venue_name)
     venue = e.get("venue", {})
@@ -1147,9 +1144,12 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     # НЕ используем location_url как venue_address - это ссылка, а не название места
     venue_address = venue.get("address") or e.get("address")
 
-    logger.info(f"🔍 DEBUG VENUE: venue={venue}, venue_name='{venue_name}', venue_address='{venue_address}'")
-    logger.info(
-        f"🔍 DEBUG EVENT FIELDS: e.get('venue_name')='{e.get('venue_name')}', e.get('location_name')='{e.get('location_name')}', e.get('address')='{e.get('address')}'"
+    logger.debug("🔍 VENUE: venue_name=%s, venue_address=%s", venue_name, venue_address)
+    logger.debug(
+        "🔍 EVENT FIELDS: venue_name=%s, location_name=%s, address=%s",
+        (e.get("venue_name") or "")[:30],
+        (e.get("location_name") or "")[:30],
+        (e.get("address") or "")[:30],
     )
 
     # Проверяем, что venue_name не содержит временные/календарные слова
@@ -1186,9 +1186,11 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     # Для EN используем location_name_en; иначе location_name
     location_name_from_event = display_location_name
 
-    logger.info(
-        f"🔍 DEBUG LOCATION: venue_name='{venue_name}', venue_address='{venue_address}', "
-        f"location_name_from_event='{location_name_from_event}', lat={e.get('lat')}, lng={e.get('lng')}"
+    logger.debug(
+        "🔍 LOCATION: venue_name=%s, lat=%s, lng=%s",
+        (venue_name or "")[:30],
+        e.get("lat"),
+        e.get("lng"),
     )
 
     # Если нет названия места, но есть координаты - пробуем reverse geocoding прямо здесь
@@ -1228,17 +1230,17 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
 
     if venue_name:
         venue_display = html.escape(venue_name)
-        logger.info(f"🔍 DEBUG: Используем venue_name: '{venue_display}'")
+        logger.debug(f"🔍 DEBUG: Используем venue_name: '{venue_display}'")
     elif venue_address and venue_address not in generic_venues:
         venue_display = html.escape(venue_address)
-        logger.info(f"🔍 DEBUG: Используем venue_address: '{venue_display}'")
+        logger.debug(f"🔍 DEBUG: Используем venue_address: '{venue_display}'")
     elif location_name_from_event and location_name_from_event not in generic_venues:
         # Используем location_name (может быть из reverse geocoding или из БД)
         venue_display = html.escape(location_name_from_event)
-        logger.info(f"🔍 DEBUG: Используем location_name: '{venue_display}'")
+        logger.debug(f"🔍 DEBUG: Используем location_name: '{venue_display}'")
     elif e.get("lat") and e.get("lng"):
         venue_display = f"координаты ({e['lat']:.4f}, {e['lng']:.4f})"
-        logger.info(f"🔍 DEBUG: Используем координаты: '{venue_display}'")
+        logger.debug(f"🔍 DEBUG: Используем координаты: '{venue_display}'")
     elif event_type in ["user", "community"] and (e.get("description") or display_description):
         # Для пользовательских событий и событий от групп показываем описание вместо "Локация уточняется"
         description = display_description
@@ -1247,29 +1249,29 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
             if len(description) > 100:
                 description = description[:97] + "..."
             venue_display = html.escape(description)
-            logger.info(f"🔍 DEBUG: Используем описание: '{venue_display}'")
+            logger.debug(f"🔍 DEBUG: Используем описание: '{venue_display}'")
         else:
             # Если нет описания, проверяем location_name перед координатами
             if location_name_from_event and location_name_from_event not in generic_venues:
                 venue_display = html.escape(location_name_from_event)
-                logger.info(f"🔍 DEBUG: Описание пустое, используем location_name: '{venue_display}'")
+                logger.debug(f"🔍 DEBUG: Описание пустое, используем location_name: '{venue_display}'")
             elif e.get("lat") and e.get("lng"):
                 venue_display = f"координаты ({e['lat']:.4f}, {e['lng']:.4f})"
-                logger.info(f"🔍 DEBUG: Описание пустое, используем координаты: '{venue_display}'")
+                logger.debug(f"🔍 DEBUG: Описание пустое, используем координаты: '{venue_display}'")
             else:
                 venue_display = "Локация"
-                logger.info(f"🔍 DEBUG: Описание пустое, используем fallback: '{venue_display}'")
+                logger.debug(f"🔍 DEBUG: Описание пустое, используем fallback: '{venue_display}'")
     else:
         # Для событий от парсеров: проверяем location_name перед координатами
         if location_name_from_event and location_name_from_event not in generic_venues:
             venue_display = html.escape(location_name_from_event)
-            logger.info(f"🔍 DEBUG: Используем location_name как fallback: '{venue_display}'")
+            logger.debug(f"🔍 DEBUG: Используем location_name как fallback: '{venue_display}'")
         elif e.get("lat") and e.get("lng"):
             venue_display = f"координаты ({e['lat']:.4f}, {e['lng']:.4f})"
-            logger.info(f"🔍 DEBUG: Используем координаты как fallback: '{venue_display}'")
+            logger.debug(f"🔍 DEBUG: Используем координаты как fallback: '{venue_display}'")
         else:
             venue_display = "Локация"
-            logger.info(f"🔍 DEBUG: Используем fallback: '{venue_display}'")
+            logger.debug(f"🔍 DEBUG: Используем fallback: '{venue_display}'")
 
     # Источник/Автор - ТОЛЬКО из таблицы events
     if event_type == "user":
@@ -1343,8 +1345,8 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
             except Exception:
                 pass
 
-    logger.info(f"🕐 render_event_html ИТОГ: title={title}, when='{when}', dist={dist}")
-    logger.info(f"🔍 DEBUG: src_part='{src_part}', map_part='{map_part}'")
+    logger.debug("🕐 render_event_html ИТОГ: title=%s, when=%s, dist=%s", (title or "")[:40], when, dist)
+    logger.debug("🔍 src_part len=%s, map_part len=%s", len(src_part or ""), len(map_part or ""))
 
     # Формируем строку с автором и группой (для community событий)
     if event_type == "community":
@@ -1358,7 +1360,7 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     else:
         # Для остальных событий: автор → маршрут
         author_line = f"{src_part}  {map_part}" if src_part else map_part
-    logger.info(f"🔍 DEBUG: author_line='{author_line}', map_part='{map_part}'")
+    logger.debug("🔍 author_line len=%s", len(author_line or ""))
 
     # Добавляем описание для пользовательских событий и событий от групп (уже по языку: display_description)
     description_part = ""
@@ -1367,20 +1369,18 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         if len(desc) > 150:
             desc = desc[:147] + "..."
         description_part = f"\n📝 {html.escape(desc)}"
-        logger.info(f"🔍 DEBUG: Добавлено описание: '{desc[:50]}...'")
+        logger.debug(f"🔍 DEBUG: Добавлено описание: '{desc[:50]}...'")
 
-    logger.info(f"🔍 DEBUG: ПЕРЕД final_html: venue_display='{venue_display}'")
-    logger.info(f"🔍 DEBUG: venue_display repr: {repr(venue_display)}")
-    logger.info(f"🔍 DEBUG: venue_display len: {len(venue_display)}")
+    logger.debug("🔍 ПЕРЕД final_html: venue_display len=%s", len(venue_display or ""))
 
     # Проверяем venue_display прямо в f-string
     test_venue = venue_display
-    logger.info(f"🔍 DEBUG: test_venue='{test_venue}'")
+    logger.debug("🔍 test_venue=%s", (test_venue or "")[:30])
 
     final_html = (
         f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n📍 {test_venue}\n{author_line}{description_part}\n"
     )
-    logger.info(f"🔍 DEBUG: ПОСЛЕ final_html: venue_display='{venue_display}'")
+    logger.debug("🔍 ПОСЛЕ final_html: venue_display len=%s", len(venue_display or ""))
     logger.debug("🔍 FINAL HTML (lang=%s): %s", lang, final_html[:300] + ("..." if len(final_html) > 300 else ""))
     return final_html
 
@@ -1589,7 +1589,9 @@ def render_page(
 
     parts = []
     for idx, e in enumerate(events[start:end], start=start + 1):
-        logger.info(f"🕐 render_page: событие {idx} - starts_at={e.get('starts_at')}, title={e.get('title')}")
+        logger.debug(
+            "🕐 render_page: событие %s - starts_at=%s, title=%s", idx, e.get("starts_at"), (e.get("title") or "")[:30]
+        )
         try:
             # Для caption (первая страница с картой) обрезаем описания более агрессивно
             html = render_event_html(e, idx, user_id, is_caption=is_caption)
@@ -1679,7 +1681,7 @@ def make_counts(groups):
         "community": len(groups.get("community", [])),  # События от групп
         "sources": len(groups.get("source", [])) + ai_count,  # AI события считаются как источники
     }
-    logger.info(f"🔍 make_counts: groups={list(groups.keys())}, counts={counts}")
+    logger.debug("🔍 make_counts: groups=%s, counts=%s", list(groups.keys()), counts)
     return counts
 
 
@@ -2012,15 +2014,13 @@ async def perform_nearby_search(
             if not city:
                 logger.info(f"ℹ️ Регион не определен по координатам ({lat}, {lng}), используем UTC для временных границ")
 
-            logger.info(
-                f"🌍 Поиск событий: координаты=({lat}, {lng}), радиус={radius}км, регион для временных границ={city}"
-            )
+            logger.debug("🌍 Поиск событий: координаты=(%s, %s), радиус=%s км, регион=%s", lat, lng, radius, city)
 
             # Только SELECT из БД; парсинг (ingest) не вызывается — данные обновляются по расписанию.
             events = events_service.search_events_today(city=city, user_lat=lat, user_lng=lng, radius_km=int(radius))
 
             formatted_events = []
-            logger.info(f"🕐 Получили {len(events)} событий из UnifiedEventsService")
+            logger.debug("🕐 Получили %s событий из UnifiedEventsService", len(events))
             for event in events:
                 formatted_event = {
                     "id": event.get("id"),
@@ -2050,7 +2050,7 @@ async def perform_nearby_search(
                 formatted_events.append(formatted_event)
 
             events = sort_events_by_time(formatted_events)
-            logger.info("📅 События отсортированы по времени")
+            logger.debug("📅 События отсортированы по времени")
         except Exception:
             logger.exception("❌ Ошибка при поиске событий")
             try:
@@ -2183,8 +2183,7 @@ async def perform_nearby_search(
             }
 
             header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
-            prepared = await enrich_events_with_reverse_geocoding(prepared, user_id)
-            # Обновлено: теперь показываем 8 событий (карта отдельно)
+            # Данные из БД уже с location_name (заполняется при ingest). Enrich в хендлере не вызываем.
             page_html, _ = render_page(prepared, page=1, page_size=8, user_id=user_id)
             short_caption = header_html + "\n\n" + page_html
             if len(prepared) > 8:
@@ -2228,8 +2227,11 @@ async def perform_nearby_search(
                     logger.warning(f"⚠️ У события нет id для логирования: {event.get('title', 'Без названия')[:30]}")
                     continue
 
-                logger.info(
-                    f"📊 Логируем list_view: user_id={user_id}, event_id={event_id}, group_chat_id={group_chat_id}"
+                logger.debug(
+                    "📊 list_view: user_id=%s, event_id=%s, group_chat_id=%s",
+                    user_id,
+                    event_id,
+                    group_chat_id,
                 )
                 participation_analytics.record_list_view(
                     user_id=user_id,
@@ -5403,7 +5405,7 @@ async def on_what_nearby(message: types.Message, state: FSMContext):
     """Обработчик кнопки 'События рядом'"""
     user_id = message.from_user.id
     lang = get_user_language_or_default(user_id)
-    logger.info(f"📍 [DEBUG] Команда /nearby от пользователя {user_id}")
+    logger.debug("📍 Команда /nearby от пользователя %s", user_id)
 
     # Инкрементируем сессию World (с проверкой времени)
     if message.chat.type == "private":
@@ -5414,7 +5416,7 @@ async def on_what_nearby(message: types.Message, state: FSMContext):
     # Устанавливаем состояние для поиска событий
     await state.set_state(EventSearch.waiting_for_location)
     current_state = await state.get_state()
-    logger.info(f"📍 [DEBUG] Состояние установлено: {current_state} для пользователя {user_id}")
+    logger.debug("📍 Состояние установлено: %s для пользователя %s", current_state, user_id)
 
     # Создаем клавиатуру с кнопкой геолокации и главным меню
     location_keyboard = ReplyKeyboardMarkup(
@@ -5815,11 +5817,11 @@ async def on_location(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     lat = message.location.latitude if message.location else None
     lng = message.location.longitude if message.location else None
-    logger.info(f"📍 [DEBUG] Получена геолокация от пользователя {user_id}: lat={lat}, lng={lng}")
+    logger.debug("📍 Получена геолокация от пользователя %s: lat=%s, lng=%s", user_id, lat, lng)
 
     # Проверяем состояние - если это для заданий, не обрабатываем здесь
     current_state = await state.get_state()
-    logger.info(f"📍 [DEBUG] Обработчик событий: состояние={current_state}, user_id={user_id}")
+    logger.debug("📍 Обработчик событий: состояние=%s, user_id=%s", current_state, user_id)
 
     if current_state == TaskFlow.waiting_for_location:
         logger.info("📍 Пропускаем - это для заданий")
@@ -5903,21 +5905,17 @@ async def on_location(message: types.Message, state: FSMContext):
                 logger.info(f"ℹ️ Регион не определен по координатам ({lat}, {lng}), используем UTC для временных границ")
                 # city останется None, get_city_timezone вернет UTC
 
-            logger.info(
-                f"🌍 Поиск событий: координаты=({lat}, {lng}), радиус={radius}км, регион для временных границ={city}"
-            )
-
-            # Ищем события (поиск идет по радиусу, независимо от региона)
-            logger.info(f"🔍 SEARCH COORDS: lat={lat}, lng={lng}, radius={radius}")
+            logger.debug("🌍 Поиск: координаты=(%s, %s), радиус=%s км, регион=%s", lat, lng, radius, city)
+            logger.debug("🔍 SEARCH COORDS: lat=%s, lng=%s, radius=%s", lat, lng, radius)
             events = events_service.search_events_today(city=city, user_lat=lat, user_lng=lng, radius_km=int(radius))
 
             # Конвертируем в старый формат для совместимости
             formatted_events = []
-            logger.info(f"🕐 Получили {len(events)} событий из UnifiedEventsService")
+            logger.debug("🕐 Получили %s событий из UnifiedEventsService", len(events))
             for event in events:
                 starts_at_value = event.get("starts_at")
-                logger.info(
-                    f"🕐 ДО конвертации: {event.get('title')} - starts_at: {starts_at_value} (тип: {type(starts_at_value)})"
+                logger.debug(
+                    "🕐 ДО конвертации: %s - starts_at: %s", event.get("title", "")[:40], type(starts_at_value).__name__
                 )
 
                 formatted_event = {
@@ -5946,8 +5944,10 @@ async def on_location(message: types.Message, state: FSMContext):
                     "organizer_username": event.get("organizer_username"),
                 }
 
-                logger.info(
-                    f"🕐 ПОСЛЕ конвертации: {formatted_event.get('title')} - starts_at: {formatted_event.get('starts_at')}"
+                logger.debug(
+                    "🕐 ПОСЛЕ конвертации: %s - starts_at: %s",
+                    formatted_event.get("title", "")[:40],
+                    formatted_event.get("starts_at"),
                 )
 
                 # Логируем конвертацию для пользовательских событий
@@ -5960,7 +5960,7 @@ async def on_location(message: types.Message, state: FSMContext):
                 formatted_events.append(formatted_event)
 
             events = formatted_events
-            logger.info(f"✅ Поиск завершен, найдено {len(events)} событий")
+            logger.debug("✅ Поиск завершен, найдено %s событий", len(events))
         except Exception:
             logger.exception("❌ Ошибка при поиске событий")
             # Удаляем сообщение загрузки при ошибке
@@ -5980,7 +5980,7 @@ async def on_location(message: types.Message, state: FSMContext):
 
         # Сортируем события по времени (ближайшие первыми)
         events = sort_events_by_time(events)
-        logger.info("📅 События отсортированы по времени")
+        logger.debug("📅 События отсортированы по времени")
 
         # Ракеты за поиск убраны из системы
 
@@ -5989,7 +5989,9 @@ async def on_location(message: types.Message, state: FSMContext):
             prepared, diag = prepare_events_for_feed(
                 events, user_point=(lat, lng), radius_km=int(radius), with_diag=True
             )
-            logger.info(f"prepared: kept={diag['kept']} dropped={diag['dropped']} reasons_top3={diag['reasons_top3']}")
+            logger.debug(
+                "prepared: kept=%s dropped=%s reasons_top3=%s", diag["kept"], diag["dropped"], diag["reasons_top3"]
+            )
             logger.info(
                 f"kept_by_type: ai={diag['kept_by_type'].get('ai_parsed', 0)} user={diag['kept_by_type'].get('user', 0)} source={diag['kept_by_type'].get('source', 0)}"
             )
@@ -6141,16 +6143,7 @@ async def on_location(message: types.Message, state: FSMContext):
             user_lang = get_user_language_or_default(message.from_user.id)
             header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
 
-            # 5) Обогащаем события reverse geocoding для названий локаций (язык по user_id)
-            prepared = await enrich_events_with_reverse_geocoding(prepared, message.from_user.id)
-
-            # Логируем результаты обогащения для отладки
-            for i, event in enumerate(prepared[:3], 1):
-                logger.info(
-                    f"🔍 После обогащения событие {i}: '{event.get('title', 'Без названия')[:30]}' - "
-                    f"location_name='{event.get('location_name')}', lat={event.get('lat')}, lng={event.get('lng')}"
-                )
-
+            # Данные из БД уже с location_name (ingest). Enrich в хендлере не вызываем — убираем дублирование.
             # 6) Рендерим события для первой страницы (теперь 8 событий, так как карта отдельно)
             page_html, total_pages = render_page(prepared, page=1, page_size=8, user_id=message.from_user.id)
             short_caption = header_html + "\n\n" + page_html
@@ -6173,7 +6166,13 @@ async def on_location(message: types.Message, state: FSMContext):
                 if event_lat is not None and event_lng is not None:
                     if -90 <= event_lat <= 90 and -180 <= event_lng <= 180:
                         points.append((str(i), event_lat, event_lng))  # Метки 1, 2, 3
-                        logger.info(f"Событие {i}: {event['title']} - координаты ({event_lat:.6f}, {event_lng:.6f})")
+                        logger.debug(
+                            "Событие %s: %s - координаты (%.6f, %.6f)",
+                            i,
+                            (event.get("title") or "")[:30],
+                            event_lat,
+                            event_lng,
+                        )
                     else:
                         logger.warning(f"Событие {i}: неверные координаты ({event_lat}, {event_lng})")
                 else:
@@ -6224,12 +6223,9 @@ async def on_location(message: types.Message, state: FSMContext):
                 groups = group_by_type(prepared)
                 counts = make_counts(groups)
 
-                # 3) Создаем заголовок с событиями
+                # 3) Создаем заголовок с событиями (prepared уже из БД, второй вызов enrich убран)
                 user_lang = get_user_language_or_default(message.from_user.id)
                 header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
-
-                # 4) Обогащаем события reverse geocoding для названий локаций (язык по user_id)
-                prepared = await enrich_events_with_reverse_geocoding(prepared, message.from_user.id)
 
                 # 5) Рендерим события для первой страницы
                 # ИСПРАВЛЕНИЕ: Теперь карта и список событий отправляются отдельными сообщениями
@@ -6239,7 +6235,7 @@ async def on_location(message: types.Message, state: FSMContext):
                     prepared, page=1, page_size=page_size, user_id=message.from_user.id, is_caption=False
                 )
                 events_text = header_html + "\n\n" + page_html
-                logger.info(f"🔍 page_size для первой страницы: {page_size} событий (карта и список разделены)")
+                logger.debug("🔍 page_size для первой страницы: %s событий", page_size)
 
                 # 4.5) Логируем показ событий в списке (list_view)
                 from database import get_engine
@@ -6257,8 +6253,11 @@ async def on_location(message: types.Message, state: FSMContext):
                 for event in shown_events:
                     event_id = event.get("id")
                     if event_id:
-                        logger.info(
-                            f"📊 Логируем list_view: user_id={message.from_user.id}, event_id={event_id}, group_chat_id={group_chat_id}"
+                        logger.debug(
+                            "📊 list_view: user_id=%s, event_id=%s, group_chat_id=%s",
+                            message.from_user.id,
+                            event_id,
+                            group_chat_id,
                         )
                         participation_analytics.record_list_view(
                             user_id=message.from_user.id,
@@ -8599,9 +8598,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         f"date_filter={date_filter}, map_message_id={map_message_id} сохранен в состоянии"
     )
 
-    # Обогащаем события reverse geocoding для названий локаций (язык по user_id)
-    prepared = await enrich_events_with_reverse_geocoding(prepared, user_id)
-
+    # Данные из БД уже с location_name (ingest). Enrich в хендлере не вызываем.
     # Рендерим страницу
     user_lang = get_user_language_or_default(user_id)
     header_html = render_header(counts, radius_km=new_radius, lang=user_lang)
@@ -11626,7 +11623,7 @@ async def echo_message(message: types.Message, state: FSMContext):
     """Обработчик всех остальных сообщений (кроме FSM состояний)"""
     # Пропускаем геолокацию - она обрабатывается отдельным обработчиком
     if message.location:
-        logger.info("📍 [DEBUG] echo_message: получена геолокация, пропускаем для отдельного обработчика")
+        logger.debug("📍 echo_message: получена геолокация, пропускаем для отдельного обработчика")
         return
 
     current_state = await state.get_state()
@@ -11770,9 +11767,7 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
             f"radius_km={radius}, dropped={diag.get('dropped', 0)}"
         )
 
-        # Обогащаем события reverse geocoding для названий локаций (язык по user_id)
-        prepared = await enrich_events_with_reverse_geocoding(prepared, callback.from_user.id)
-
+        # Данные из БД уже с location_name (ingest). Enrich в хендлере не вызываем.
         # Группируем и считаем
         groups = group_by_type(prepared)
         counts = make_counts(groups)
@@ -11834,7 +11829,7 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
 
             page_html = "\n".join(page_html_parts)
             total_pages = max(1, ceil(len(prepared) / max(page_size, 1)))
-            logger.info(f"🔍 Динамический page_size для первой страницы с картой: {page_size} событий")
+            logger.debug("🔍 Динамический page_size для первой страницы с картой: %s событий", page_size)
         else:
             page_size = 8  # Текстовые сообщения - 8 событий
             page_html, total_pages = render_page(
@@ -11911,9 +11906,7 @@ async def handle_pagination(callback: types.CallbackQuery):
         current_radius = state.get("radius", 5)
         date_filter = state.get("date_filter", "today")  # Получаем фильтр даты из состояния
 
-        # Обогащаем события reverse geocoding для названий локаций (язык по user_id)
-        prepared = await enrich_events_with_reverse_geocoding(prepared, callback.from_user.id)
-
+        # Данные из БД уже с location_name (ingest). Enrich в хендлере не вызываем.
         # ВАЖНО: Карта показывается только на первой странице
         # На последующих страницах отправляем текстовые сообщения без карты
         is_photo_message = callback.message.photo is not None
