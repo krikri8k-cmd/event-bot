@@ -10,6 +10,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy.engine import Engine
 
 from utils.analytics_service import AnalyticsService
+from utils.i18n import get_bot_username
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ async def handle_analytics_command(message: Message, engine: Engine):
     )
 
     await message.answer(
-        "📊 **Панель аналитики EventAroundBot**\n\n" "Выберите раздел для просмотра:",
+        f"📊 **Панель аналитики {get_bot_username()}**\n\nВыберите раздел для просмотра:",
         reply_markup=keyboard,
         parse_mode="Markdown",
     )

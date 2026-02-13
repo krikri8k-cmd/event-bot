@@ -153,12 +153,12 @@ def attach_bot_to_app(app: FastAPI) -> None:
                 webhook_url = PUBLIC_URL.rstrip("/") + WEBHOOK_PATH
                 logger.info(f"🔗 Устанавливаем webhook на URL: {webhook_url}")
                 try:
-                    # Сначала удаляем старый webhook
-                    await bot.delete_webhook(drop_pending_updates=False)
+                    # Сначала удаляем старый webhook (один раз при старте)
+                    await bot.delete_webhook(drop_pending_updates=True)
                     logger.info("✅ Старый webhook удален")
 
                     # Устанавливаем новый webhook
-                    result = await bot.set_webhook(url=webhook_url, drop_pending_updates=False)
+                    result = await bot.set_webhook(url=webhook_url)
                     logger.info(f"✅ setWebhook вызван, результат: {result}")
 
                     # Проверяем что webhook установлен
@@ -170,6 +170,7 @@ def attach_bot_to_app(app: FastAPI) -> None:
                             f"❌ Webhook URL не совпадает! Ожидалось: {webhook_url}, получено: {webhook_info.url}"
                         )
                     else:
+                        logger.info("✅ Webhook successfully set")
                         logger.info(f"✅ Webhook установлен успешно: {webhook_url}")
                 except Exception as e:
                     logger.error(f"❌ Ошибка установки webhook: {e}")

@@ -55,7 +55,7 @@ from tasks_service import (
     get_user_active_tasks,
 )
 from utils.geo_utils import get_timezone, haversine_km
-from utils.i18n import format_translation, t
+from utils.i18n import format_translation, get_bot_username, t
 from utils.static_map import build_static_map_url, fetch_static_map
 from utils.unified_events_service import UnifiedEventsService
 from utils.user_language import (
@@ -8946,7 +8946,7 @@ async def show_tasks_for_category(
 
     # Получаем username бота для создания deep links
     bot_info = await message_or_callback.bot.get_me() if hasattr(message_or_callback, "bot") else None
-    bot_username = bot_info.username if bot_info else "EventAroundBot"
+    bot_username = bot_info.username if bot_info else get_bot_username()
 
     # Добавляем каждое место с ссылкой "Забрать квест" в тексте
     for idx, place in enumerate(page_places, start=start_idx + 1):
@@ -11430,7 +11430,8 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
 
     # Добавляем информацию о создателе (локализованно)
     share_message += "\n*" + format_translation("event.created_by", user_lang, username=safe_creator) + "*\n\n"
-    share_message += "💡 **Больше событий в боте:** [@EventAroundBot](https://t.me/EventAroundBot)"
+    _ub = get_bot_username()
+    share_message += f"💡 **Больше событий в боте:** [@{_ub}](https://t.me/{_ub})"
 
     # Отправляем новое сообщение (которое можно переслать) вместо edit_text
     user_id = callback.from_user.id
@@ -12834,7 +12835,8 @@ async def handle_share_event(callback: types.CallbackQuery):
     creator_name = callback.from_user.username or callback.from_user.first_name or "пользователь"
     safe_creator = escape_markdown(creator_name)
     share_message += "\n*" + format_translation("event.created_by", user_lang, username=safe_creator) + "*\n\n"
-    share_message += "💡 **Больше событий в боте:** [@EventAroundBot](https://t.me/EventAroundBot)"
+    _ub = get_bot_username()
+    share_message += f"💡 **Больше событий в боте:** [@{_ub}](https://t.me/{_ub})"
 
     # Отправляем сообщение, которое можно переслать
     await callback.message.answer(

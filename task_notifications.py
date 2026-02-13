@@ -8,6 +8,7 @@ import logging
 import os
 
 from aiogram import Bot
+from aiogram.exceptions import TelegramForbiddenError
 from dotenv import load_dotenv
 
 from tasks_service import get_tasks_approaching_deadline, mark_tasks_as_expired
@@ -57,6 +58,8 @@ async def send_deadline_notifications():
             try:
                 await bot.send_message(chat_id=user_id, text=message, parse_mode="Markdown")
                 logger.info(f"Отправлено уведомление пользователю {user_id} о задании {task_title}")
+            except TelegramForbiddenError as e:
+                logger.warning("User %s blocked bot or did not /start new bot (403), skip: %s", user_id, e)
             except Exception as e:
                 logger.error(f"Ошибка отправки уведомления пользователю {user_id}: {e}")
 

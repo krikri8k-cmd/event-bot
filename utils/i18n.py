@@ -16,7 +16,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "language.button.en": "🇬🇧 English",
         # Главное меню
         "menu.greeting": (
-            'Привет! @EventAroundBot версия "World" - твой цифровой помощник по активностям.\n\n'
+            'Привет! @{bot_username} версия "World" - твой цифровой помощник по активностям.\n\n'
             "📍 События рядом: находи события в радиусе 5–20 км\n"
             "🎯 Интересные места: промокоды и AI развлечения вокруг\n\n"
             "➕ Создать: организуй встречи и приглашай друзей\n"
@@ -43,7 +43,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "command.help": "💬 Написать отзыв Разработчику",
         "help.feedback.text": (
             "💬 **Написать отзыв Разработчику**\n\n"
-            "Спасибо за использование EventAroundBot! 🚀\n\n"
+            "Спасибо за использование {bot_username}! 🚀\n\n"
             "Если у вас есть предложения, замечания или просто хотите поблагодарить - "
             "напишите мне лично:\n\n"
             "👨‍💻 **@Fincontro**\n\n"
@@ -63,13 +63,13 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "💡 **Совет:** Используйте кнопки меню для удобной навигации!"
         ),
         # Групповой чат
-        "group.greeting": '👋 Привет! Я EventAroundBot - версия "Community".\n\n'
+        "group.greeting": '👋 Привет! Я {bot_username} - версия "Community".\n\n'
         "🎯 **В этом чате я помогаю:**\n"
         "• Создавать события участников чата\n"
         "• Показывать все события, созданные в этом чате\n"
         "• Переходить к полному боту для поиска по геолокации\n\n"
         "💡 **Выберите действие:**",
-        "group.panel.text": '👋 Привет! Я EventAroundBot - версия "Community".\n\n'
+        "group.panel.text": '👋 Привет! Я {bot_username} - версия "Community".\n\n'
         "🎯 Что умею:\n"
         "• Создавать события участников чата\n"
         "• Показывать события этого чата\n"
@@ -116,15 +116,15 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         ),
         "group.load_error": "❌ Ошибка при загрузке события",
         "group.panel.what_can_do": (
-            '👋 Привет! Я EventAroundBot - версия "Community".\n\n'
+            '👋 Привет! Я {bot_username} - версия "Community".\n\n'
             "🎯 Что умею:\n\n"
             "• Создавать события\n"
             "• Показывать события этого чата\n"
             '• Полная версия "World"\n\n'
             "💡 Выберите действие:"
         ),
-        "group.nudge_commands": "ℹ️ Чтобы открыть команды, нажмите `/` или введите `/start@EventAroundBot`.",
-        "group.activated": "🤖 EventAroundBot активирован!",
+        "group.nudge_commands": "ℹ️ Чтобы открыть команды, нажмите `/` или введите `/start@{bot_username}`.",
+        "group.activated": "🤖 {bot_username} активирован!",
         "group.hide_toast": "Скрываем сервисные сообщения бота…",
         "group.message_deleted": "✅ Сообщение удалено",
         "group.message_delete_failed": "❌ Не удалось удалить сообщение",
@@ -567,7 +567,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "language.button.ru": "🇷🇺 Русский",
         "language.button.en": "🇬🇧 English",
         # Main menu
-        "menu.greeting": 'Hello! @EventAroundBot "World" version - your digital activity assistant.\n\n'
+        "menu.greeting": 'Hello! @{bot_username} "World" version - your digital activity assistant.\n\n'
         "📍 Nearby events: find events within 5–20 km radius\n"
         "🎯 Interesting places: promo codes and AI entertainment around\n\n"
         "➕ Create: organize meetings and invite friends\n"
@@ -593,7 +593,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "command.help": "💬 Write feedback to Developer",
         "help.feedback.text": (
             "💬 **Write feedback to Developer**\n\n"
-            "Thanks for using EventAroundBot! 🚀\n\n"
+            "Thanks for using {bot_username}! 🚀\n\n"
             "If you have suggestions, feedback or just want to say thanks - "
             "write to me personally:\n\n"
             "👨‍💻 **@Fincontro**\n\n"
@@ -613,13 +613,13 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "💡 **Tip:** Use menu buttons for easy navigation!"
         ),
         # Group chat
-        "group.greeting": '👋 Hello! I am EventAroundBot - "Community" version.\n\n'
+        "group.greeting": '👋 Hello! I am {bot_username} - "Community" version.\n\n'
         "🎯 **In this chat I help:**\n"
         "• Create community member events\n"
         "• Show all events created in this chat\n"
         "• Go to full bot for geolocation search\n\n"
         "💡 **Choose an action:**",
-        "group.panel.text": '👋 Hello! I am EventAroundBot - "Community" version.\n\n'
+        "group.panel.text": '👋 Hello! I am {bot_username} - "Community" version.\n\n'
         "🎯 What I can do:\n"
         "• Create community member events\n"
         "• Show events in this chat\n"
@@ -665,15 +665,15 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         ),
         "group.load_error": "❌ Error loading event",
         "group.panel.what_can_do": (
-            '👋 Hello! I am EventAroundBot - "Community" version.\n\n'
+            '👋 Hello! I am {bot_username} - "Community" version.\n\n'
             "🎯 What I can do:\n\n"
             "• Create events\n"
             "• Show events in this chat\n"
             '• Full "World" version\n\n'
             "💡 Choose an action:"
         ),
-        "group.nudge_commands": "ℹ️ To open commands, press `/` or type `/start@EventAroundBot`.",
-        "group.activated": "🤖 EventAroundBot activated!",
+        "group.nudge_commands": "ℹ️ To open commands, press `/` or type `/start@{bot_username}`.",
+        "group.activated": "🤖 {bot_username} activated!",
         "group.hide_toast": "Hiding bot service messages…",
         "group.message_deleted": "✅ Message deleted",
         "group.message_delete_failed": "❌ Failed to delete message",
@@ -1093,6 +1093,18 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
 }
 
 
+def get_bot_username() -> str:
+    """Username бота для подстановки в тексты (без @). Из BOT_USERNAME или config."""
+    try:
+        from config import load_settings
+
+        return load_settings().bot_username
+    except Exception:
+        import os
+
+        return (os.getenv("BOT_USERNAME") or "MyGuide_EventBot").strip()
+
+
 def t(key: str, lang: str = "ru") -> str:
     """
     Получить перевод по ключу
@@ -1120,6 +1132,9 @@ def t(key: str, lang: str = "ru") -> str:
         if result is None:
             return f"[{key}]"
 
+    # Подстановка username бота (из BOT_USERNAME / config)
+    if result and "{bot_username}" in result:
+        result = result.replace("{bot_username}", get_bot_username())
     return result
 
 

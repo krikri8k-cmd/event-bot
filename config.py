@@ -82,6 +82,9 @@ class Settings:
     maps_cb_fails: int
     maps_cb_cooldown_min: int
 
+    # Bot display username (для ссылок и текстов; без @). Fallback если bot_info ещё не получен.
+    bot_username: str
+
 
 def _parse_admin_ids(value: str | None) -> set[int]:
     if not value:
@@ -188,6 +191,9 @@ def load_settings(require_bot: bool = False) -> Settings:
     # (например, https://your-app.up.railway.app)
     api_base_url = os.getenv("API_BASE_URL")
 
+    # Username бота для ссылок/текстов (без @). Задаётся через BOT_USERNAME.
+    bot_username = (os.getenv("BOT_USERNAME") or "MyGuide_EventBot").strip()
+
     return Settings(
         telegram_token=telegram_token,
         database_url=database_url,
@@ -242,4 +248,5 @@ def load_settings(require_bot: bool = False) -> Settings:
         maps_cb_fails=int(os.getenv("MAPS_CB_FAILS", "3")),
         maps_cb_cooldown_min=int(os.getenv("MAPS_CB_COOLDOWN_MIN", "60")),
         api_base_url=api_base_url,
+        bot_username=bot_username,
     )

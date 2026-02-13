@@ -23,7 +23,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import CommunityEvent
-from utils.i18n import format_translation, t
+from utils.i18n import format_translation, get_bot_username, t
 from utils.messaging_utils import delete_all_tracked, is_chat_admin
 from utils.user_language import get_user_language_or_default
 
@@ -888,13 +888,13 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                 [
                     InlineKeyboardButton(
                         text=t("group.button.create_event", panel_lang),
-                        url=f"https://t.me/EventAroundBot?start=group_{message.chat.id}",
+                        url=f"https://t.me/{get_bot_username()}?start=group_{message.chat.id}",
                     )
                 ],
                 [InlineKeyboardButton(text=t("group.button.events_list", panel_lang), callback_data="group_list")],
                 [
                     InlineKeyboardButton(
-                        text=t("group.button.full_version", panel_lang), url="https://t.me/EventAroundBot"
+                        text=t("group.button.full_version", panel_lang), url=f"https://t.me/{get_bot_username()}"
                     )
                 ],
                 [InlineKeyboardButton(text=t("group.button.hide_bot", panel_lang), callback_data="group_hide_execute")],
@@ -951,7 +951,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
             start_keyboard = ReplyKeyboardMarkup(
-                keyboard=[[KeyboardButton(text="/start@EventAroundBot 🎉")]],
+                keyboard=[[KeyboardButton(text=f"/start@{get_bot_username()} 🎉")]],
                 resize_keyboard=True,
                 one_time_keyboard=False,
                 persistent=True,
@@ -1159,14 +1159,14 @@ def group_kb(chat_id: int, lang: str = "ru") -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(
                     text=t("group.button.create_event", lang),
-                    url=f"https://t.me/EventAroundBot?start=group_{chat_id}",
+                    url=f"https://t.me/{get_bot_username()}?start=group_{chat_id}",
                 )
             ],
             [InlineKeyboardButton(text=t("group.button.events_list", lang), callback_data="group_list")],
             [
                 InlineKeyboardButton(
                     text=t("group.button.full_version", lang),
-                    url="https://t.me/EventAroundBot",
+                    url=f"https://t.me/{get_bot_username()}",
                 )
             ],
             [InlineKeyboardButton(text=t("group.button.hide_bot", lang), callback_data="group_hide_execute")],
@@ -2035,7 +2035,7 @@ async def group_show_commands(callback: CallbackQuery, bot: Bot, session: AsyncS
         "• `/start` - Открыть панель Community\n\n"
         "💻 **Как открыть команды на MacBook:**\n"
         "1. Нажмите `/` в поле ввода сообщения\n"
-        "2. Или введите `/start@EventAroundBot`\n"
+        f"2. Или введите `/start@{get_bot_username()}`\n"
         "3. Или нажмите на кнопку **⌨️ Команды бота** в панели\n\n"
         "📱 **На мобильных устройствах:**\n"
         "Нажмите на иконку меню (☰) рядом с полем ввода"
@@ -2759,7 +2759,7 @@ async def _show_community_manage_event(
 
     # Получаем username бота для deep-link
     bot_info = await bot.get_me()
-    bot_username = bot_info.username or "EventAroundBot"
+    bot_username = bot_info.username or get_bot_username()
 
     # Получаем кнопки управления (передаем также updated_at для проверки времени закрытия)
     buttons = get_community_status_buttons(event.id, event.status, event.updated_at, chat_id, bot_username)
@@ -3825,7 +3825,7 @@ async def group_edit_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
 
     # Получаем username бота для deep-link
     bot_info = await bot.get_me()
-    bot_username = bot_info.username or "EventAroundBot"
+    bot_username = bot_info.username or get_bot_username()
 
     # Создаем deep-link для редактирования в основном боте
     edit_link = f"https://t.me/{bot_username}?start=edit_group_{event_id}_{chat_id}"
@@ -3944,7 +3944,7 @@ async def group_edit_finish(callback: CallbackQuery, bot: Bot, session: AsyncSes
                 text = f"✅ **Событие обновлено!**\n\n{format_community_event_for_display(event)}"
                 # Получаем username бота для deep-link
                 bot_info = await bot.get_me()
-                bot_username = bot_info.username or "EventAroundBot"
+                bot_username = bot_info.username or get_bot_username()
                 buttons = get_community_status_buttons(event.id, event.status, event.updated_at, chat_id, bot_username)
                 keyboard = InlineKeyboardMarkup(
                     inline_keyboard=[
