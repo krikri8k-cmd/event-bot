@@ -542,10 +542,10 @@ class UnifiedEventsService:
                     location_name_en = existing_row[5]
             elif existing_row and existing_has_title_en:
                 # В базе уже есть перевод — никогда не вызываем OpenAI повторно
+                logger.debug("[TRANSLATION-SKIP] Using existing EN for external_id=%s", external_id)
                 title_en = existing_row[3]
-                description_en = existing_row[4] if len(existing_row) > 4 else None
-                location_name_en = existing_row[5] if len(existing_row) > 5 else None
             elif need_translation:
+                # Новая запись или существующая с title_en NULL — вызываем перевод (догоняющий для старых)
                 trans = translate_event_to_english(
                     title=title or "",
                     description=description,

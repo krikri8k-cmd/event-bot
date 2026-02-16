@@ -305,6 +305,7 @@ class ModernEventScheduler:
                     if p["external_id"] not in has_title_en and (p["title"] or "").strip()
                 ]
                 if to_translate:
+                    logger.info("[INGEST] Missing translations: %s", len(to_translate))
                     titles = [t for _, _, t in to_translate]
                     results = translate_titles_batch(titles)
                     for (src, ext_id, _), title_en in zip(to_translate, results):
@@ -358,7 +359,7 @@ class ModernEventScheduler:
             logger.error(f"   ❌ Ошибка парсинга BaliForum: {e}")
 
     async def ingest_kudago(self):
-        """Парсинг событий с KudaGo через правильную архитектуру"""
+        """Парсинг событий с KudaGo: сбор всех событий → batch-перевод → сохранение."""
         try:
             from config import load_settings
 
@@ -372,165 +373,193 @@ class ModernEventScheduler:
             logger.info("🎭 Запуск парсинга KudaGo...")
             start_time = time.time()
 
-            # Координаты центров городов для парсинга
             cities_coords = [
-                (55.7558, 37.6173, "moscow"),  # Москва
-                (59.9343, 30.3351, "spb"),  # СПб
+                (55.7558, 37.6173, "moscow"),
+                (59.9343, 30.3351, "spb"),
             ]
-
-            total_saved = 0
-            total_errors = 0
 
             from sources.kudago_source import KudaGoSource
 
             kudago_source = KudaGoSource()
+            prepared = []
 
             for lat, lng, city in cities_coords:
                 try:
                     logger.info(f"   🌍 Парсим {city}...")
-
-                    # Получаем события через KudaGo источник
-                    # Увеличиваем радиус до 100км для парсинга большего количества событий в большом городе
-                    events = await kudago_source.fetch_events(lat, lng, 100)  # 100км радиус для города
-
-                    saved_count = 0
-                    error_count = 0
-
+                    events = await kudago_source.fetch_events(lat, lng, 100)
                     for event in events:
-                        try:
-                            # Логируем дату события для отладки
-                            if event.get("starts_at"):
-                                from datetime import datetime, timedelta
-                                from zoneinfo import ZoneInfo
+                        ext_id = str(event.get("source_id", event.get("title", "")))
+                        prepared.append(
+                            {
+                                "external_id": ext_id,
+                                "title": (event.get("title") or "").strip(),
+                                "event": event,
+                            }
+                        )
+                except Exception as e:
+                    logger.error(f"   ❌ Ошибка парсинга {city}: {e}")
 
-                                now_msk = datetime.now(ZoneInfo("Europe/Moscow"))
-                                event_date_msk = event.get("starts_at").astimezone(ZoneInfo("Europe/Moscow")).date()
-                                today_msk = now_msk.date()
-                                tomorrow_msk = today_msk + timedelta(days=1)
+            if not prepared:
+                logger.info("   KudaGo: событий не найдено")
+                return
 
-                                date_label = (
-                                    "сегодня"
-                                    if event_date_msk == today_msk
-                                    else "завтра"
-                                    if event_date_msk == tomorrow_msk
-                                    else f"{event_date_msk}"
-                                )
-                                logger.info(
-                                    f"   📅 KudaGo событие: '{event.get('title', '')}' - {date_label} "
-                                    f"({event.get('starts_at')})"
-                                )
+            # Batch-перевод: только те, у кого в БД нет title_en
+            ext_ids = list({p["external_id"] for p in prepared})
+            with self.engine.connect() as conn:
+                rows = conn.execute(
+                    text(
+                        "SELECT external_id, title_en FROM events WHERE source = 'kudago' AND external_id = ANY(:ids)"
+                    ),
+                    {"ids": ext_ids},
+                ).fetchall()
+            has_title_en = {r[0] for r in rows if r[1] and str(r[1]).strip()}
+            to_translate = [
+                (p["external_id"], p["title"]) for p in prepared if p["external_id"] not in has_title_en and p["title"]
+            ]
+            title_en_map = {}
+            if to_translate:
+                logger.info("[INGEST] Missing translations (KudaGo): %s", len(to_translate))
+                titles = [t for _, t in to_translate]
+                results = translate_titles_batch(titles)
+                for (ext_id, _), title_en in zip(to_translate, results):
+                    if title_en:
+                        title_en_map[ext_id] = title_en
+                n_ok = sum(1 for r in results if r)
+                logger.info("   📝 KudaGo пакетный перевод: %s/%s заголовков", n_ok, len(to_translate))
 
-                            # ПРАВИЛЬНАЯ АРХИТЕКТУРА: Сохраняем через UnifiedEventsService
-                            event_id = self.service.save_parser_event(
-                                source="kudago",
-                                external_id=str(event.get("source_id", event.get("title", ""))),
-                                title=event["title"],
-                                description=event.get("description", ""),
-                                starts_at_utc=event["starts_at"],
-                                city=event["city"],
-                                lat=event.get("lat", 0.0),
-                                lng=event.get("lon", 0.0),
-                                location_name=event.get("venue_name", ""),
-                                location_url=event.get("address", ""),
-                                url=event.get("source_url", ""),
-                            )
-
-                            if event_id:
-                                saved_count += 1
-
-                        except Exception as e:
-                            error_count += 1
-                            logger.error(
-                                f"   ❌ Ошибка сохранения KudaGo события '{event.get('title', 'Unknown')}': {e}"
-                            )
-
-                    total_saved += saved_count
-                    total_errors += error_count
-
-                    logger.info(f"   ✅ {city}: сохранено={saved_count}, ошибок={error_count}")
-
+            total_saved = 0
+            total_errors = 0
+            for p in prepared:
+                try:
+                    ev = p["event"]
+                    title_en = title_en_map.get(p["external_id"])
+                    event_id = self.service.save_parser_event(
+                        source="kudago",
+                        external_id=p["external_id"],
+                        title=ev["title"],
+                        description=ev.get("description", ""),
+                        starts_at_utc=ev["starts_at"],
+                        city=ev["city"],
+                        lat=ev.get("lat", 0.0),
+                        lng=ev.get("lon", 0.0),
+                        location_name=ev.get("venue_name", ""),
+                        location_url=ev.get("address", ""),
+                        url=ev.get("source_url", ""),
+                        title_en=title_en,
+                    )
+                    if event_id:
+                        total_saved += 1
                 except Exception as e:
                     total_errors += 1
-                    logger.error(f"   ❌ Ошибка парсинга {city}: {e}")
+                    logger.error("   ❌ Ошибка сохранения KudaGo: %s", e)
 
             duration = (time.time() - start_time) * 1000
             logger.info(
-                f"   ✅ KudaGo: всего сохранено={total_saved}, " f"ошибок={total_errors}, время={duration:.0f}мс"
+                "   ✅ KudaGo: всего сохранено=%s, ошибок=%s, время=%.0fмс",
+                total_saved,
+                total_errors,
+                duration,
             )
 
         except Exception as e:
-            logger.error(f"   ❌ Ошибка парсинга KudaGo: {e}")
+            logger.error("   ❌ Ошибка парсинга KudaGo: %s", e)
 
     async def ingest_ai_events(self):
-        """Генерация AI событий через правильную архитектуру"""
+        """Генерация AI событий: сбор всех → batch-перевод → сохранение."""
         if not self.settings.ai_parse_enable:
             logger.info("🤖 AI парсинг отключен в настройках")
             return
 
         try:
-            logger.info("🤖 Запуск AI генерации событий...")
-            start_time = time.time()
-
-            # Координаты центра Бали
-            bali_coords = [
-                (-8.6705, 115.2126),  # Denpasar
-                (-8.5069, 115.2625),  # Ubud
-                (-8.6482, 115.1342),  # Canggu
-                (-8.7089, 115.1681),  # Seminyak
-            ]
-
             import hashlib
             from datetime import datetime
 
             from ai_utils import fetch_ai_events_nearby
 
-            total_ai_events = 0
-            error_count = 0
+            logger.info("🤖 Запуск AI генерации событий...")
+            start_time = time.time()
 
+            bali_coords = [
+                (-8.6705, 115.2126),
+                (-8.5069, 115.2625),
+                (-8.6482, 115.1342),
+                (-8.7089, 115.1681),
+            ]
+
+            prepared = []
             for lat, lng in bali_coords:
                 try:
                     ai_events = await fetch_ai_events_nearby(lat, lng)
-
                     for event in ai_events:
-                        try:
-                            # Парсим время
-                            starts_at = datetime.strptime(event["time_local"], "%Y-%m-%d %H:%M")
+                        starts_at = datetime.strptime(event["time_local"], "%Y-%m-%d %H:%M")
+                        raw_id = f"ai_{event['title']}_{event['time_local']}_{lat}_{lng}"
+                        external_id = hashlib.sha1(raw_id.encode()).hexdigest()[:16]
+                        prepared.append(
+                            {
+                                "external_id": external_id,
+                                "title": (event.get("title") or "").strip(),
+                                "starts_at": starts_at,
+                                "event": event,
+                            }
+                        )
+                except Exception as e:
+                    logger.error("   ❌ Ошибка AI парсинга для (%s, %s): %s", lat, lng, e)
 
-                            # Создаем стабильный external_id
-                            raw_id = f"ai_{event['title']}_{event['time_local']}_{lat}_{lng}"
-                            external_id = hashlib.sha1(raw_id.encode()).hexdigest()[:16]
+            if not prepared:
+                logger.info("   AI: событий не найдено")
+                return
 
-                            # ПРАВИЛЬНАЯ АРХИТЕКТУРА: Сохраняем через UnifiedEventsService
-                            event_id = self.service.save_parser_event(
-                                source="ai",
-                                external_id=external_id,
-                                title=event["title"],
-                                description=event.get("description", ""),
-                                starts_at_utc=starts_at,
-                                city="bali",
-                                lat=event["lat"],
-                                lng=event["lng"],
-                                location_name=event.get("location_name", ""),
-                                location_url=event.get("location_url", ""),
-                                url=event.get("community_link", ""),
-                            )
+            ext_ids = [p["external_id"] for p in prepared]
+            with self.engine.connect() as conn:
+                rows = conn.execute(
+                    text("SELECT external_id, title_en FROM events WHERE source = 'ai' AND external_id = ANY(:ids)"),
+                    {"ids": ext_ids},
+                ).fetchall()
+            has_title_en = {r[0] for r in rows if r[1] and str(r[1]).strip()}
+            to_translate = [
+                (p["external_id"], p["title"]) for p in prepared if p["external_id"] not in has_title_en and p["title"]
+            ]
+            title_en_map = {}
+            if to_translate:
+                logger.info("[INGEST] Missing translations (AI): %s", len(to_translate))
+                titles = [t for _, t in to_translate]
+                results = translate_titles_batch(titles)
+                for (ext_id, _), title_en in zip(to_translate, results):
+                    if title_en:
+                        title_en_map[ext_id] = title_en
+                n_ok = sum(1 for r in results if r)
+                logger.info("   📝 AI пакетный перевод: %s/%s заголовков", n_ok, len(to_translate))
 
-                            if event_id:
-                                total_ai_events += 1
-
-                        except Exception as e:
-                            error_count += 1
-                            logger.error(f"   ❌ Ошибка сохранения AI события '{event.get('title', 'Unknown')}': {e}")
-
+            total_ai_events = 0
+            error_count = 0
+            for p in prepared:
+                try:
+                    ev = p["event"]
+                    event_id = self.service.save_parser_event(
+                        source="ai",
+                        external_id=p["external_id"],
+                        title=ev["title"],
+                        description=ev.get("description", ""),
+                        starts_at_utc=p["starts_at"],
+                        city="bali",
+                        lat=ev["lat"],
+                        lng=ev["lng"],
+                        location_name=ev.get("location_name", ""),
+                        location_url=ev.get("location_url", ""),
+                        url=ev.get("community_link", ""),
+                        title_en=title_en_map.get(p["external_id"]),
+                    )
+                    if event_id:
+                        total_ai_events += 1
                 except Exception as e:
                     error_count += 1
-                    logger.error(f"   ❌ Ошибка AI парсинга для ({lat}, {lng}): {e}")
+                    logger.error("   ❌ Ошибка сохранения AI: %s", e)
 
             duration = (time.time() - start_time) * 1000
-            logger.info(f"   ✅ AI: создано={total_ai_events}, ошибок={error_count}, время={duration:.0f}мс")
+            logger.info("   ✅ AI: создано=%s, ошибок=%s, время=%.0fмс", total_ai_events, error_count, duration)
 
         except Exception as e:
-            logger.error(f"   ❌ Ошибка AI парсинга: {e}")
+            logger.error("   ❌ Ошибка AI парсинга: %s", e)
 
     def cleanup_old_events(self):
         """Очистка старых событий"""
@@ -1009,8 +1038,26 @@ class ModernEventScheduler:
                 else:
                     logger.warning(f"   ⚠️ Задача '{job.id}' не имеет следующего времени запуска")
 
-        # Запускаем первый цикл сразу
-        self.run_full_ingest()
+        # Авто-backfill переводов один раз при старте (без полного ingest)
+        try:
+            with self.engine.connect() as conn:
+                count = conn.execute(
+                    text(
+                        "SELECT COUNT(*) FROM events WHERE title_en IS NULL "
+                        "AND title IS NOT NULL AND TRIM(COALESCE(title, '')) != ''"
+                    )
+                ).scalar()
+            if count and count > 0:
+                logger.info("[AUTO-BACKFILL] Found %s events without EN", count)
+                logger.info("[AUTO-BACKFILL] Starting backfill...")
+                from utils.backfill_translation import run_backfill
+
+                result = run_backfill()
+                logger.info("[AUTO-BACKFILL] Completed. translated=%s", result.get("translated", 0))
+            else:
+                logger.debug("[AUTO-BACKFILL] No events without EN, skip")
+        except Exception as e:
+            logger.warning("[AUTO-BACKFILL] Failed: %s", e)
 
         # Запускаем проверку напоминаний и уведомлений сразу для тестирования
         logger.info("🔔 Запускаем проверку напоминаний и уведомлений сразу после старта...")

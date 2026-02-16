@@ -70,3 +70,16 @@ def run_ingest_now():
 
     ingest_once()
     return {"ok": True}
+
+
+@router.post("/translation/backfill")
+def translation_backfill():
+    """Запуск догоняющего перевода title_en для событий с NULL. Возвращает статистику."""
+    from utils.backfill_translation import run_backfill
+
+    result = run_backfill()
+    return {
+        "processed": result["processed"],
+        "translated": result["translated"],
+        "skipped": result["skipped"],
+    }
