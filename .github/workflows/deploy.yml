@@ -123,29 +123,7 @@ jobs:
         echo ""
         echo "✅ Code is ready for production deployment!"
     
-    - name: 🚂 Deploy to Railway
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      env:
-        # Опционально: если секрет RAILWAY_TOKEN не задан, шаг просто пропустит деплой (Railway может деплоить по интеграции с GitHub)
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      run: |
-        echo "🚂 Deploying to Railway..."
-        
-        # Проверяем наличие Railway token
-        if [ -z "$RAILWAY_TOKEN" ]; then
-          echo "⚠️ RAILWAY_TOKEN not set - skipping Railway deployment"
-          echo "💡 Railway will auto-deploy via GitHub integration if configured"
-          exit 0
-        fi
-        
-        # Устанавливаем Railway CLI
-        curl -fsSL https://railway.app/install.sh | sh
-        
-        # Токен уже в env (RAILWAY_TOKEN) — CLI подхватывает его автоматически, login не нужен
-        railway up --detach
-        
-        echo "✅ Railway deployment triggered!"
-        
+    # Деплой на Railway — через интеграцию GitHub (автодеплой при пуше). Секрет RAILWAY_TOKEN не нужен.
     - name: 🏷️ Create release tag
       if: github.ref == 'refs/heads/main'
       run: |
