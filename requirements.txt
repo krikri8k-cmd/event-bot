@@ -16,7 +16,7 @@ icalendar==7.0.0
 beautifulsoup4==4.12.3
 requests==2.31.0
 lxml>=5.2.1
-python-dateutil==2.8.2
+python-dateutil==2.9.0.post0
 aiohttp>=3.9.0
 googlemaps>=4.10.0
 psutil>=5.9.0  # Для мониторинга памяти (Memory guard)
