@@ -47,15 +47,22 @@ jobs:
         
     - name: 🎯 Set environment variables
       run: |
-        echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> $GITHUB_ENV
-        echo "TELEGRAM_TOKEN=${{ secrets.TELEGRAM_TOKEN }}" >> $GITHUB_ENV
-        echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
+        # На push в main используем секреты; на pull_request — заглушки, чтобы validate не падал
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          echo "📋 pull_request: используем заглушки для проверки конфига (без реальных секретов)"
+          echo "DATABASE_URL=postgresql://ci:ci@localhost:5432/ci" >> $GITHUB_ENV
+          echo "TELEGRAM_TOKEN=0000000000:CI_PLACEHOLDER_TOKEN" >> $GITHUB_ENV
+          echo "OPENAI_API_KEY=sk-ci-placeholder" >> $GITHUB_ENV
+        else
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> $GITHUB_ENV
+          echo "TELEGRAM_TOKEN=${{ secrets.TELEGRAM_TOKEN }}" >> $GITHUB_ENV
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
+        fi
         echo "MOMENTS_ENABLE=0" >> $GITHUB_ENV
         echo "AI_PARSE_ENABLE=1" >> $GITHUB_ENV
         echo "ENABLE_BALIFORUM=1" >> $GITHUB_ENV
         echo "ENABLE_KUDAGO=1" >> $GITHUB_ENV
         
-        # Debug: Check if DATABASE_URL is set
         echo "🔍 Debug: Checking environment variables..."
         if [ -n "$DATABASE_URL" ]; then
           echo "✅ DATABASE_URL is set (length: ${#DATABASE_URL})"
@@ -68,6 +75,7 @@ jobs:
         python validate_config.py
         
     - name: 🗄️ Check database connection
+      if: github.event_name != 'pull_request'
       run: |
         python -c "
         import os
