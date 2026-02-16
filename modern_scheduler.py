@@ -1052,7 +1052,7 @@ class ModernEventScheduler:
                 logger.info("[AUTO-BACKFILL] Starting backfill...")
                 from utils.backfill_translation import run_backfill
 
-                result = run_backfill()
+                result = run_backfill(full=False)
                 logger.info("[AUTO-BACKFILL] Completed. translated=%s", result.get("translated", 0))
             else:
                 logger.debug("[AUTO-BACKFILL] No events without EN, skip")
