@@ -126,6 +126,7 @@ jobs:
     - name: 🚂 Deploy to Railway
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       env:
+        # Опционально: если секрет RAILWAY_TOKEN не задан, шаг просто пропустит деплой (Railway может деплоить по интеграции с GitHub)
         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       run: |
         echo "🚂 Deploying to Railway..."
@@ -140,10 +141,7 @@ jobs:
         # Устанавливаем Railway CLI
         curl -fsSL https://railway.app/install.sh | sh
         
-        # Логинимся через token
-        echo "$RAILWAY_TOKEN" | railway login --token
-        
-        # Деплоим
+        # Токен уже в env (RAILWAY_TOKEN) — CLI подхватывает его автоматически, login не нужен
         railway up --detach
         
         echo "✅ Railway deployment triggered!"
