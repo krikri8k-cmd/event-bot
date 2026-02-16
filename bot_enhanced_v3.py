@@ -2016,7 +2016,7 @@ async def perform_nearby_search(
 
             logger.debug("🌍 Поиск событий: координаты=(%s, %s), радиус=%s км, регион=%s", lat, lng, radius, city)
 
-            # Только SELECT из БД; парсинг (ingest) не вызывается — данные обновляются по расписанию.
+            # Только SELECT из БД; парсинг (BaliForum, KudaGo, AI) не вызывается — данные обновляются по расписанию.
             events = events_service.search_events_today(city=city, user_lat=lat, user_lng=lng, radius_km=int(radius))
 
             formatted_events = []
@@ -5907,6 +5907,7 @@ async def on_location(message: types.Message, state: FSMContext):
 
             logger.debug("🌍 Поиск: координаты=(%s, %s), радиус=%s км, регион=%s", lat, lng, radius, city)
             logger.debug("🔍 SEARCH COORDS: lat=%s, lng=%s, radius=%s", lat, lng, radius)
+            # Только SELECT из БД; парсинг (BaliForum, KudaGo, AI) по расписанию, не по запросу
             events = events_service.search_events_today(city=city, user_lat=lat, user_lng=lng, radius_km=int(radius))
 
             # Конвертируем в старый формат для совместимости
