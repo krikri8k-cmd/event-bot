@@ -73,6 +73,9 @@ def run_backfill(batch_size: int = BACKFILL_BATCH_SIZE) -> dict[str, Any]:
         logger.info("[BACKFILL] Batch translated %s", updated_this_batch)
         if len(rows) < batch_size:
             break
+        if updated_this_batch == 0:
+            logger.warning("[BACKFILL] No progress (API failed?), stopping to avoid infinite loop")
+            break
 
     logger.info("[BACKFILL] Completed. processed=%s translated=%s skipped=%s", processed, translated, skipped)
     return {"processed": processed, "translated": translated, "skipped": skipped}
