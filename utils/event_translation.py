@@ -164,9 +164,10 @@ def translate_event_to_english(
                     )
                     time.sleep(delay)
                 else:
-                    logger.warning(
-                        "event_translation: ошибка перевода (оставляем _en пустыми, выводим оригинал): %s",
+                    logger.error(
+                        "event_translation: ошибка OpenAI (перевод не выполнен, _en остаются пустыми): %s",
                         e,
+                        exc_info=True,
                     )
                     return result
         return result
@@ -261,7 +262,11 @@ async def translate_event_to_english_async(
                     )
                     await asyncio.sleep(delay)
                 else:
-                    logger.warning("event_translation (async): ошибка перевода: %s", e)
+                    logger.error(
+                        "event_translation (async): ошибка OpenAI (перевод не выполнен): %s",
+                        e,
+                        exc_info=True,
+                    )
                     return result
         return result
 
@@ -351,7 +356,11 @@ def translate_titles_batch(titles: list[str]) -> list[str | None]:
                     )
                     time.sleep(delay)
                 else:
-                    logger.warning("event_translation batch: ошибка (оставляем NULL для повтора): %s", e)
+                    logger.error(
+                        "event_translation batch: ошибка OpenAI (оставляем NULL для повтора): %s",
+                        e,
+                        exc_info=True,
+                    )
                     return [None] * len(titles)
         return [None] * len(titles)
     finally:
