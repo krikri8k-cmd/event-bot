@@ -378,11 +378,11 @@ def prepare_events_for_feed(
     kept = []
     kept_by_type = {"source": 0, "user": 0, "community": 0, "ai_parsed": 0}
 
-    logger.info(f"🔍 PROCESSING {len(events)} events for filtering")
+    logger.debug(f"🔍 PROCESSING {len(events)} events for filtering")
     for e in events:
         # 0) Сначала обогащаем локацию из текста
         e = enrich_venue_from_text(e)
-        logger.info(
+        logger.debug(
             f"🔍 EVENT: {e.get('title')}, coords: {e.get('lat')}, {e.get('lng')}, type: {e.get('type')}, source: {e.get('source')}"
         )
 
@@ -464,7 +464,7 @@ def prepare_events_for_feed(
 
             # Для пользовательских событий используем радиус пользователя
             user_radius = radius_km
-            logger.info(f"🔍 FILTERING USER EVENTS: user_radius={user_radius}, user_point={user_point}")
+            logger.debug(f"🔍 FILTERING USER EVENTS: user_radius={user_radius}, user_point={user_point}")
             if user_point and user_radius is not None:
                 # Получаем координаты события
                 event_lat = None
@@ -475,19 +475,19 @@ def prepare_events_for_feed(
                 if venue.get("lat") is not None and venue.get("lon") is not None:
                     event_lat = venue.get("lat")
                     event_lng = venue.get("lon")
-                    logger.info(f"🔍 COORDS FROM VENUE: {event_lat}, {event_lng}")
+                    logger.debug(f"🔍 COORDS FROM VENUE: {event_lat}, {event_lng}")
                 # Проверяем старую структуру
                 elif e.get("lat") is not None and e.get("lng") is not None:
                     event_lat = e.get("lat")
                     event_lng = e.get("lng")
-                    logger.info(f"🔍 COORDS FROM EVENT: {event_lat}, {event_lng}")
+                    logger.debug(f"🔍 COORDS FROM EVENT: {event_lat}, {event_lng}")
 
                 if event_lat is not None and event_lng is not None:
                     # Вычисляем расстояние
                     from utils.geo_utils import haversine_km
 
                     distance = haversine_km(user_point[0], user_point[1], event_lat, event_lng)
-                    logger.info(
+                    logger.debug(
                         f"🔍 FILTER CHECK: event='{title}', event_coords=({event_lat},{event_lng}), user_coords=({user_point[0]},{user_point[1]}), distance={distance:.2f}km, user_radius={user_radius}km"
                     )
                     if distance > user_radius:
@@ -497,7 +497,7 @@ def prepare_events_for_feed(
                         drop.add("user_event_out_of_radius", title)
                         continue
                     else:
-                        logger.info(f"✅ KEPT: '{title}' - distance {distance:.2f}km <= radius {user_radius}km")
+                        logger.debug(f"✅ KEPT: '{title}' - distance {distance:.2f}km <= radius {user_radius}km")
                     # Добавляем расстояние к событию
                     e["distance_km"] = round(distance, 2)
 
@@ -2269,7 +2269,7 @@ async def perform_nearby_search(
                     parse_mode="HTML",
                     reply_markup=combined_keyboard,
                 )
-                logger.info("✅ Список событий отправлен отдельным сообщением (send_compact_events_list)")
+                logger.debug("✅ Список событий отправлен отдельным сообщением (send_compact_events_list)")
 
                 # Сохраняем message_id списка событий в состоянии для последующего редактирования
                 if message.chat.id in user_state:
@@ -2994,8 +2994,16 @@ def _build_group_commands(lang: str) -> list:
     return [types.BotCommand(command="start", description=t("command.group.start", lang))]
 
 
+# Флаг: команды уже установлены в этой сессии (процесса) — не вызывать set_my_commands повторно при каждом /start
+_bot_commands_set_this_session = False
+
+
 async def setup_bot_commands():
     """ЭТАЛОН: Устанавливает команды бота для всех языков и скоупов"""
+    global _bot_commands_set_this_session
+    if _bot_commands_set_this_session:
+        logger.debug("Команды уже установлены в этой сессии, пропускаем set_my_commands")
+        return
     try:
         from aiogram.types import BotCommandScopeAllGroupChats, BotCommandScopeAllPrivateChats, BotCommandScopeDefault
 
@@ -3030,7 +3038,7 @@ async def setup_bot_commands():
                     cmd_lang = "ru" if lang is None else lang
                     commands = build_commands(cmd_lang)
                     await bot.set_my_commands(commands, scope=scope, language_code=lang)
-                    logger.info(f"✅ Команды установлены: {scope.__class__.__name__} {lang or 'default'}")
+                    logger.debug(f"✅ Команды установлены: {scope.__class__.__name__} {lang or 'default'}")
                 except Exception as e:
                     logger.error(f"❌ Ошибка установки команд {scope.__class__.__name__} {lang}: {e}")
 
@@ -3039,10 +3047,11 @@ async def setup_bot_commands():
             from aiogram.types import MenuButtonCommands
 
             await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
-            logger.info("✅ Menu Button установлен для принудительного показа команд")
+            logger.debug("✅ Menu Button установлен для принудительного показа команд")
         except Exception as e:
             logger.warning(f"⚠️ Не удалось установить Menu Button: {e}")
 
+        _bot_commands_set_this_session = True
         logger.info("✅ Команды бота установлены для всех языков и скоупов")
 
     except Exception as e:
@@ -5850,7 +5859,7 @@ async def on_location(message: types.Message, state: FSMContext):
     lng = message.location.longitude
 
     # Логируем получение геолокации
-    logger.info(f"📍 Получена геолокация для событий: lat={lat} lon={lng} (источник=пользователь)")
+    logger.debug(f"📍 Получена геолокация для событий: lat={lat} lon={lng} (источник=пользователь)")
 
     # Показываем индикатор загрузки
     user_id = message.from_user.id
@@ -5884,11 +5893,11 @@ async def on_location(message: types.Message, state: FSMContext):
                 session.commit()
 
         # Логируем параметры поиска
-        logger.info(f"🔎 Поиск с координатами=({lat}, {lng}) радиус={radius}км источник=пользователь")
+        logger.debug(f"🔎 Поиск с координатами=({lat}, {lng}) радиус={radius}км источник=пользователь")
 
         # Ищем события из всех источников
         try:
-            logger.info(f"🔍 Начинаем поиск событий для координат ({lat}, {lng}) с радиусом {radius} км")
+            logger.debug(f"🔍 Начинаем поиск событий для координат ({lat}, {lng}) с радиусом {radius} км")
 
             # Используем новую упрощенную архитектуру
             from database import get_engine
@@ -5953,7 +5962,7 @@ async def on_location(message: types.Message, state: FSMContext):
 
                 # Логируем конвертацию для пользовательских событий
                 if event.get("source") == "user":
-                    logger.info(
+                    logger.debug(
                         f"🔍 CONVERT USER EVENT: title='{event.get('title')}', "
                         f"organizer_id={event.get('organizer_id')} -> {formatted_event.get('organizer_id')}, "
                         f"organizer_username='{event.get('organizer_username')}' -> '{formatted_event.get('organizer_username')}'"
@@ -6312,7 +6321,7 @@ async def on_location(message: types.Message, state: FSMContext):
                         reply_markup=combined_keyboard,
                         parse_mode="HTML",
                     )
-                    logger.info("✅ Список событий отправлен отдельным сообщением")
+                    logger.debug("✅ Список событий отправлен отдельным сообщением")
 
                     # Сохраняем message_id списка событий в состоянии для последующего редактирования
                     if message.chat.id in user_state:
@@ -6335,7 +6344,7 @@ async def on_location(message: types.Message, state: FSMContext):
                         reply_markup=combined_keyboard,
                         parse_mode="HTML",
                     )
-                    logger.info("✅ События отправлены в одном сообщении без карты")
+                    logger.debug("✅ События отправлены в одном сообщении без карты")
 
                     # Сохраняем message_id списка событий в состоянии для последующего редактирования
                     if message.chat.id in user_state:
@@ -6426,7 +6435,7 @@ async def cancel_creation(message: types.Message, state: FSMContext):
 async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_private: bool):
     """Вспомогательная функция для обработки 'Мои события' через bot напрямую"""
     lang = get_user_language_or_default(user_id)
-    logger.info(f"🔍 _handle_my_events_via_bot: запрос от пользователя {user_id}")
+    logger.debug(f"🔍 _handle_my_events_via_bot: запрос от пользователя {user_id}")
 
     # Инкрементируем сессию World (с проверкой времени)
     if is_private:
@@ -6443,7 +6452,7 @@ async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_pri
 
     # Получаем события пользователя
     events = get_user_events(user_id)
-    logger.info(
+    logger.debug(
         f"🔍 _handle_my_events_via_bot: найдено {len(events) if events else 0} событий для пользователя {user_id}"
     )
 
@@ -6748,7 +6757,7 @@ async def on_my_events(message: types.Message):
     """Обработчик кнопки 'Мои события' с управлением статусами"""
     user_id = message.from_user.id
     lang = get_user_language_or_default(user_id)
-    logger.info(f"🔍 on_my_events: запрос от пользователя {user_id}")
+    logger.debug(f"🔍 on_my_events: запрос от пользователя {user_id}")
 
     # Инкрементируем сессию World (с проверкой времени)
     if message.chat.type == "private":
@@ -6763,7 +6772,7 @@ async def on_my_events(message: types.Message):
 
     # Получаем события пользователя
     events = get_user_events(user_id)
-    logger.info(f"🔍 on_my_events: найдено {len(events) if events else 0} событий для пользователя {user_id}")
+    logger.debug(f"🔍 on_my_events: найдено {len(events) if events else 0} событий для пользователя {user_id}")
 
     # Получаем события с участием (все добавленные события)
     all_participations = []
@@ -8402,7 +8411,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     chat_id = callback.message.chat.id
 
-    logger.info(f"🔍 handle_expand_radius: пользователь {user_id} расширяет радиус до {new_radius} км")
+    logger.debug(f"🔍 handle_expand_radius: пользователь {user_id} расширяет радиус до {new_radius} км")
 
     # Получаем сохраненное состояние
     state_data = user_state.get(chat_id)
@@ -8448,7 +8457,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     date_filter = state_data.get("date_filter", "today")
     date_offset = 0 if date_filter == "today" else 1
 
-    logger.info(f"🔍 РАСШИРЕНИЕ РАДИУСА: radius={new_radius} км, date_filter={date_filter}, date_offset={date_offset}")
+    logger.debug(f"🔍 РАСШИРЕНИЕ РАДИУСА: radius={new_radius} км, date_filter={date_filter}, date_offset={date_offset}")
 
     events = events_service.search_events_today(
         city=city,
@@ -10183,7 +10192,7 @@ async def process_location_link(message: types.Message, state: FSMContext):
     from utils.geo_utils import parse_google_maps_link
 
     location_data = await parse_google_maps_link(link)
-    logger.info(f"🔍 parse_google_maps_link результат: {location_data}")
+    logger.debug(f"🔍 parse_google_maps_link результат: {location_data}")
 
     if not location_data:
         logger.warning(f"❌ Не удалось распознать ссылку: {link}")
@@ -11271,9 +11280,9 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
             session.commit()
 
         # Объединяем дату и время
-        logger.info(f"🔍 DATA: {data}")
+        logger.debug(f"🔍 DATA: {data}")
         time_local = f"{data['date']} {data['time']}"
-        logger.info(f"🔍 TIME_LOCAL: {time_local}")
+        logger.debug(f"🔍 TIME_LOCAL: {time_local}")
 
         # Определяем предварительный город (для правильного часового пояса)
         # Позже будет уточнен по координатам
@@ -11303,7 +11312,7 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
             import re
 
             time_local_fixed = re.sub(r"(\d{2}\.\d{2}\.\d{4}) (\d{2})\.(\d{2})", r"\1 \2:\3", time_local)
-            logger.info(f"🔍 TIME_LOCAL_FIXED: {time_local_fixed}")
+            logger.debug(f"🔍 TIME_LOCAL_FIXED: {time_local_fixed}")
 
             # Парсим время как локальное для региона
             naive_dt = datetime.strptime(time_local_fixed, "%d.%m.%Y %H:%M")
@@ -12356,7 +12365,7 @@ async def main():
         # ДИАГНОСТИКА: проверяем, что команды установлены
         try:
             current_commands = await bot.get_my_commands(scope=BotCommandScopeAllGroupChats())
-            logger.info(f"🔍 Текущие команды для групп: {[cmd.command for cmd in current_commands]}")
+            logger.debug(f"🔍 Текущие команды для групп: {[cmd.command for cmd in current_commands]}")
         except Exception as e:
             logger.error(f"❌ Ошибка получения команд: {e}")
 
@@ -12394,7 +12403,7 @@ async def main():
         try:
             # Проверяем текущий Menu Button
             menu_button = await bot.get_chat_menu_button()
-            logger.info(f"🔍 Текущий Menu Button: {menu_button}")
+            logger.debug(f"🔍 Текущий Menu Button: {menu_button}")
 
             # Если Menu Button = WebApp, сбрасываем на Commands
             if hasattr(menu_button, "type") and menu_button.type == "web_app":
@@ -12418,7 +12427,7 @@ async def main():
                 ("PrivateChats", BotCommandScopeAllPrivateChats()),
                 ("GroupChats", BotCommandScopeAllGroupChats()),
             ]:
-                logger.info(f"🔍 Проверяем команды для {scope_name}:")
+                logger.debug(f"🔍 Проверяем команды для {scope_name}:")
 
                 # Без языка
                 try:
