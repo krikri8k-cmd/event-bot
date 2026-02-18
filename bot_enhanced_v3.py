@@ -2747,24 +2747,24 @@ def update_event_field(event_id: int, field: str, value: str, user_id: int) -> b
         return False
 
 
-async def send_spinning_menu(message):
-    """Отправляет анимированное меню с эпической ракетой"""
-    # Последовательность для эффекта эпического полета ракеты с взрывами
+async def send_spinning_menu(message, lang: str | None = None):
+    """Отправляет анимированное меню с эпической ракетой. Если передан lang, клавиатура в этом языке (чтобы не переключаться на русский после создания события)."""
     rocket_frames = ["🚀", "🔥", "💥", "⚡", "🎯"]
     user_id = message.from_user.id
+    reply_kb = main_menu_kb(lang=lang, user_id=user_id if lang is None else None)
 
-    # Отправляем первый кадр
-    menu_message = await message.answer(rocket_frames[0], reply_markup=main_menu_kb(user_id=user_id))
+    # Отправляем первый кадр (reply-клавиатура только у answer, edit_text не меняет reply keyboard)
+    menu_message = await message.answer(rocket_frames[0], reply_markup=reply_kb)
 
     # Анимируем эпический полет (динамичная анимация)
     try:
         for frame in rocket_frames[1:]:
             await asyncio.sleep(0.5)  # Пауза между кадрами для эффектности
-            await menu_message.edit_text(frame, reply_markup=main_menu_kb(user_id=user_id))
+            await menu_message.edit_text(frame)
     except Exception:
         # Если редактирование не удалось, просто оставляем мишень
         try:
-            await menu_message.edit_text("🎯", reply_markup=main_menu_kb(user_id=user_id))
+            await menu_message.edit_text("🎯")
         except Exception:
             pass
 
@@ -11281,12 +11281,15 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
 
     # Создаём событие в БД
     with get_session() as session:
-        # Сначала создаем пользователя, если его нет
+        # Сначала создаем пользователя, если его нет (язык по умолчанию из Telegram, чтобы клавиатура не переключалась на русский)
         user = session.get(User, callback.from_user.id)
         if not user:
+            tg_lang = (getattr(callback.from_user, "language_code", None) or "").strip().lower()[:2]
+            default_lang = "en" if tg_lang == "en" else "ru"
             user = User(
                 id=callback.from_user.id,
                 username=callback.from_user.username,
+                language_code=default_lang,
             )
             session.add(user)
             session.commit()
@@ -11455,18 +11458,18 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
     _ub = get_bot_username()
     share_message += f"💡 **{t('share.more_events_in_bot', user_lang)}** [@{_ub}](https://t.me/{_ub})"
 
-    # Отправляем новое сообщение (которое можно переслать) вместо edit_text
-    user_id = callback.from_user.id
+    # Отправляем новое сообщение (которое можно переслать) вместо edit_text.
+    # Клавиатура по lang, чтобы не переключалась на русский после создания события.
     await callback.message.answer(
         share_message,
         parse_mode="Markdown",
-        reply_markup=main_menu_kb(user_id=user_id),
+        reply_markup=main_menu_kb(lang=user_lang),
     )
 
     await callback.answer(t("event.created", user_lang))
 
-    # Показываем крутую анимацию после сохранения
-    await send_spinning_menu(callback.message)
+    # Показываем крутую анимацию после сохранения (тот же язык для клавиатуры)
+    await send_spinning_menu(callback.message, lang=user_lang)
 
 
 @main_router.callback_query(F.data == "event_cancel")
