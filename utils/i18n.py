@@ -758,7 +758,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.enter_date": "📅 **Enter date** (e.g.: {example_date}):",
         "create.date_saved": "**Date saved:** {date} ✅\n\n⏰ **Enter time** (e.g.: 19:00):",
         "create.enter_time": "⏰ **Enter time** (e.g.: 19:00):",
-        "create.time_saved": "**Time saved:** {time} ✅\n\n📍 **Select a location method**",
+        "create.time_saved": "**Time saved:** {time} ✅",
         "create.enter_location": "📍 **Select a location method**",
         "create.location_saved": (
             "**Location saved** ✅\n{location_text}\n\n"
