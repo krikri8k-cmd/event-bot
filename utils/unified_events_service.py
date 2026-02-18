@@ -9,7 +9,11 @@ from datetime import datetime
 
 from sqlalchemy import text
 
-from utils.event_translation import translate_event_to_english
+from utils.event_translation import (
+    detect_event_language,
+    translate_event_to_english,
+    translate_event_to_russian,
+)
 from utils.simple_timezone import get_today_start_utc, get_tomorrow_start_utc
 from utils.structured_logging import StructuredLogger
 
@@ -448,45 +452,87 @@ class UnifiedEventsService:
 
             print(f"✅ Создано пользовательское событие ID {user_event_id}: '{title}'")
 
-        # Перевод RU → EN в фоне, чтобы не блокировать ответ пользователю при таймаутах/ошибках OpenAI
-        def _translate_and_update_en():
+        # Автоперевод пользовательского события: RU→EN или EN→RU в фоне
+        def _translate_and_update():
             try:
-                trans = translate_event_to_english(
-                    title,
-                    description=(description or "").strip() or None,
-                    location_name=(location_name or "").strip() or None,
-                )
-                if trans.get("title_en") or trans.get("description_en") or trans.get("location_name_en"):
+                lang = detect_event_language(title, description or "")
+                if lang == "ru":
+                    trans = translate_event_to_english(
+                        title,
+                        description=(description or "").strip() or None,
+                        location_name=(location_name or "").strip() or None,
+                    )
+                    if trans.get("title_en") or trans.get("description_en") or trans.get("location_name_en"):
+                        with self.engine.begin() as conn:
+                            conn.execute(
+                                text("""
+                                    UPDATE events
+                                    SET title_en = COALESCE(:title_en, title_en),
+                                        description_en = COALESCE(:description_en, description_en),
+                                        location_name_en = COALESCE(:location_name_en, location_name_en)
+                                    WHERE id = :event_id
+                                """),
+                                {
+                                    "event_id": user_event_id,
+                                    "title_en": trans.get("title_en"),
+                                    "description_en": trans.get("description_en"),
+                                    "location_name_en": trans.get("location_name_en"),
+                                },
+                            )
+                        logger.debug(
+                            "Пользовательское событие переведено: [RU] -> [EN] (id=%s)",
+                            user_event_id,
+                        )
+                        logger.info(
+                            "create_user_event: обновлены EN-поля для события id=%s (title_en=%s)",
+                            user_event_id,
+                            bool(trans.get("title_en")),
+                        )
+                    else:
+                        logger.debug(
+                            "create_user_event: перевод для id=%s не получен (API недоступен или пустой ответ)",
+                            user_event_id,
+                        )
+                else:
+                    trans_ru = translate_event_to_russian(
+                        title,
+                        description=(description or "").strip() or None,
+                        location_name=(location_name or "").strip() or None,
+                    )
                     with self.engine.begin() as conn:
                         conn.execute(
                             text("""
                                 UPDATE events
-                                SET title_en = COALESCE(:title_en, title_en),
-                                    description_en = COALESCE(:description_en, description_en),
-                                    location_name_en = COALESCE(:location_name_en, location_name_en)
+                                SET title = COALESCE(:title_ru, title),
+                                    description = COALESCE(:description_ru, description),
+                                    location_name = COALESCE(:location_name_ru, location_name),
+                                    title_en = :title_en,
+                                    description_en = :description_en,
+                                    location_name_en = :location_name_en
                                 WHERE id = :event_id
                             """),
                             {
                                 "event_id": user_event_id,
-                                "title_en": trans.get("title_en"),
-                                "description_en": trans.get("description_en"),
-                                "location_name_en": trans.get("location_name_en"),
+                                "title_ru": trans_ru.get("title"),
+                                "description_ru": trans_ru.get("description"),
+                                "location_name_ru": trans_ru.get("location_name"),
+                                "title_en": title,
+                                "description_en": description or None,
+                                "location_name_en": location_name or None,
                             },
                         )
-                    logger.info(
-                        "create_user_event: обновлены EN-поля для события id=%s (title_en=%s)",
-                        user_event_id,
-                        bool(trans.get("title_en")),
-                    )
-                else:
                     logger.debug(
-                        "create_user_event: перевод для id=%s не получен (API недоступен или пустой ответ)",
+                        "Пользовательское событие переведено: [EN] -> [RU] (id=%s)",
+                        user_event_id,
+                    )
+                    logger.info(
+                        "create_user_event: обновлены поля (EN: оригинал в _en, RU: перевод в title/description) id=%s",
                         user_event_id,
                     )
             except Exception as e:
                 logger.warning("create_user_event: фоновый перевод для id=%s не удался: %s", user_event_id, e)
 
-        t = threading.Thread(target=_translate_and_update_en, daemon=True)
+        t = threading.Thread(target=_translate_and_update, daemon=True)
         t.start()
 
         return user_event_id

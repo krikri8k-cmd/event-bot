@@ -33,6 +33,26 @@ SYSTEM_PROMPT = (
     "например: Izobilie (Abundance). Возвращай только валидный JSON без комментариев и пояснений."
 )
 
+SYSTEM_PROMPT_RU = (
+    "Ты — профессиональный переводчик афиши мероприятий. "
+    "Переведи название и текст события на русский язык. Сохраняй смысл и эмоциональный окрас. "
+    "Названия заведений и брендов можно оставлять на латинице или транслитерировать. "
+    "Возвращай только валидный JSON без комментариев и пояснений."
+)
+
+
+def detect_event_language(title: str, description: str | None = None) -> str:
+    """
+    Определяет язык текста события по доле кириллицы (эвристика).
+    Возвращает 'ru' или 'en'.
+    """
+    text = (title or "") + " " + (description or "")
+    letters = [c for c in text if c.isalpha()]
+    if not letters:
+        return "en"
+    cyrillic = sum(1 for c in letters if "\u0400" <= c <= "\u04ff")
+    return "ru" if cyrillic >= len(letters) / 2 else "en"
+
 
 def _make_client():
     """Синхронный клиент для вызовов из потоков (create_user_event, save_parser_event)."""
@@ -169,6 +189,90 @@ def translate_event_to_english(
                         e,
                         exc_info=True,
                     )
+                    return result
+        return result
+    finally:
+        _sync_semaphore.release()
+
+
+def translate_event_to_russian(
+    title: str,
+    description: str | None = None,
+    location_name: str | None = None,
+) -> dict[str, str | None]:
+    """
+    Переводит title, description, location_name с английского на русский.
+    Возвращает {"title": ..., "description": ..., "location_name": ...} для полей на русском.
+    """
+    result: dict[str, str | None] = {
+        "title": None,
+        "description": None,
+        "location_name": None,
+    }
+    title = (title or "").strip()
+    if not title:
+        return result
+
+    client = _make_client()
+    if not client:
+        logger.debug("event_translation: OpenAI ключ не настроен, пропускаем перевод EN->RU")
+        return result
+
+    parts = [f"title: {title}"]
+    if description and (description or "").strip():
+        parts.append(f"description: {(description or '').strip()}")
+    if location_name and (location_name or "").strip():
+        parts.append(f"location_name: {(location_name or '').strip()}")
+
+    user_content = "\n\n".join(parts)
+    format_instruction = (
+        ' Формат ответа: {"title": "...", "description": "...", '
+        '"location_name": "..."}. Пустые поля — пустая строка или null.'
+    )
+    _sync_semaphore.acquire()
+    try:
+        for attempt in range(MAX_RETRIES):
+            try:
+                completion = client.chat.completions.create(
+                    model=OPENAI_MODEL,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT_RU + format_instruction},
+                        {"role": "user", "content": "Translate to Russian and return JSON:\n\n" + user_content},
+                    ],
+                    temperature=0.3,
+                    timeout=OPENAI_TIMEOUT,
+                )
+                raw = (completion.choices[0].message.content or "").strip()
+                if not raw:
+                    return result
+                if raw.startswith("```"):
+                    raw = raw.split("```")[1]
+                    if raw.startswith("json"):
+                        raw = raw[4:]
+                    raw = raw.strip()
+                data = json.loads(raw)
+                result["title"] = (data.get("title") or "").strip() or None
+                result["description"] = (data.get("description") or "").strip() or None
+                result["location_name"] = (data.get("location_name") or "").strip() or None
+                if result["title"]:
+                    logger.debug(
+                        "event_translation: переведено EN->RU title %r -> %r",
+                        title[:50],
+                        (result["title"] or "")[:50],
+                    )
+                return result
+            except json.JSONDecodeError as e:
+                logger.warning("event_translation: невалидный JSON от GPT (EN->RU): %s", e)
+                return result
+            except Exception as e:
+                is_retryable = ("connection" in str(e).lower() or "timeout" in str(e).lower()) and (
+                    attempt < MAX_RETRIES - 1
+                )
+                if is_retryable:
+                    delay = min(INITIAL_DELAY_SEC * (2**attempt), MAX_DELAY_SEC)
+                    time.sleep(delay)
+                else:
+                    logger.warning("event_translation: ошибка OpenAI (EN->RU): %s", e)
                     return result
         return result
     finally:
