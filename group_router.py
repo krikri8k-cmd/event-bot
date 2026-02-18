@@ -3895,7 +3895,12 @@ async def group_edit_location_choice(callback: CallbackQuery, state: FSMContext)
     # Показываем кнопку с картой
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🌍 Открыть Google Maps", url="https://www.google.com/maps")],
+            [
+                InlineKeyboardButton(
+                    text=t("create.button_open_google_maps", get_user_language_or_default(callback.from_user.id)),
+                    url="https://www.google.com/maps",
+                )
+            ],
         ]
     )
 
