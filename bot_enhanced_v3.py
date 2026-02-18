@@ -2247,7 +2247,7 @@ async def perform_nearby_search(
             if map_bytes:
                 # Отправляем карту отдельным сообщением
                 map_file = BufferedInputFile(map_bytes, filename="map.jpg")
-                map_caption = "📍 Карта событий"  # Единая подпись без указания радиуса
+                map_caption = ""  # Без подписи — карта и так понятна
                 map_message = await message.answer_photo(
                     map_file,
                     caption=map_caption,
@@ -6294,7 +6294,7 @@ async def on_location(message: types.Message, state: FSMContext):
                     from aiogram.types import BufferedInputFile
 
                     map_file = BufferedInputFile(map_bytes, filename="map.png")
-                    map_caption = "📍 Карта событий"  # Единая подпись без указания радиуса
+                    map_caption = ""  # Без подписи — карта и так понятна
                     map_message = await message.answer_photo(
                         map_file,
                         caption=map_caption,
@@ -8661,7 +8661,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             map_file = BufferedInputFile(map_bytes, filename="map.png")
             # Освобождаем память после создания файла
             del map_bytes
-            map_caption = "📍 Карта событий"
+            map_caption = ""
 
             # Используем сохраненный map_message_id (получен ДО обновления состояния)
             # map_message_id уже получен выше, перед обновлением user_state
