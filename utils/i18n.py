@@ -758,15 +758,17 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.enter_date": "📅 **Enter date** (e.g.: {example_date}):",
         "create.date_saved": "**Date saved:** {date} ✅\n\n⏰ **Enter time** (e.g.: 19:00):",
         "create.enter_time": "⏰ **Enter time** (e.g.: 19:00):",
-        "create.time_saved": "**Time saved:** {time} ✅\n\n📍 **Send location or enter place:**",
-        "create.enter_location": "📍 **Send location or enter place:**",
+        "create.time_saved": "**Time saved:** {time} ✅\n\n📍 **Select a location method**",
+        "create.enter_location": "📍 **Select a location method**",
         "create.location_saved": (
             "**Location saved** ✅\n{location_text}\n\n"
             "📝 **Enter event description**\n(what will happen, who it's for):"
         ),
         "create.enter_description": ("📝 **Enter event description**\n(what will happen, who it's for):"),
-        "create.location_prompt": "📍 **How to set the place?**\n\nChoose one of the options:",
-        "create.city_saved": "**City saved:** {city} ✅\n\n📍 **How to set the place?**\n\nChoose one of the options:",
+        "create.location_prompt": "📍 **Select a location method**\n\nChoose one of the options:",
+        "create.city_saved": (
+            "**City saved:** {city} ✅\n\n📍 **Select a location method**\n\nChoose one of the options:"
+        ),
         "create.enter_city": "🏙️ **Enter city** (e.g.: Moscow):",
         "create.place_by_coords": "📍 **Place set by coordinates:** {lat}, {lng} ✅\n\n",
         "create.place_saved_then_desc": (
