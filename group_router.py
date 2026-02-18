@@ -3899,8 +3899,9 @@ async def group_edit_location_choice(callback: CallbackQuery, state: FSMContext)
         ]
     )
 
+    lang = get_user_language_or_default(callback.from_user.id)
     await callback.message.answer(
-        "🌍 Открой карту, найди место и вставь ссылку сюда 👇",
+        t("edit.location_map_prompt", lang),
         reply_markup=keyboard,
     )
     await callback.answer()

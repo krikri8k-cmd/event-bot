@@ -5032,18 +5032,18 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
         safe_location_name = escape_markdown(data.get("location_name", "Место по ссылке"))
         safe_description = escape_markdown(data.get("description", ""))
         safe_username = escape_markdown(callback.from_user.username or callback.from_user.first_name or "Пользователь")
-
+        lang_community = get_user_language_or_default(callback.from_user.id)
+        time_at = t("share.time_at", lang_community)
         event_text = (
-            f"🎉 **Новое событие!**\n\n"
+            f"🎉 **{t('share.new_event', lang_community)}**\n\n"
             f"**{safe_title}**\n"
-            f"📅 {safe_date} в {safe_time}\n"
+            f"📅 {safe_date} {time_at} {safe_time}\n"
             f"🏙️ {safe_city}\n"
             f"📍 {safe_location_name}\n"
         )
         if data.get("location_url"):
             # URL не экранируем, так как он должен быть кликабельным
             event_text += f"🔗 {data['location_url']}\n"
-        lang_community = get_user_language_or_default(callback.from_user.id)
         event_text += (
             "\n"
             f"📝 {safe_description}\n\n"
@@ -5665,8 +5665,9 @@ async def on_location_text_input_tasks(message: types.Message, state: FSMContext
                 [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
             ]
         )
+        user_lang = get_user_language_or_default(user_id)
         await message.answer(
-            "🌍 Открой карту, найди место и вставь ссылку сюда 👇",
+            t("edit.location_map_prompt", user_lang),
             reply_markup=maps_keyboard,
         )
         return
@@ -9935,13 +9936,14 @@ async def handle_location_map_choice(callback: types.CallbackQuery, state: FSMCo
         inline_keyboard=[[InlineKeyboardButton(text="🌍 Открыть Google Maps", url="https://www.google.com/maps")]]
     )
 
+    lang = get_user_language_or_default(callback.from_user.id)
     if current_state == TaskFlow.waiting_for_custom_location:
         # Для заданий
-        await callback.message.answer("🌍 Открой карту, найди место и вставь ссылку сюда 👇", reply_markup=keyboard)
+        await callback.message.answer(t("edit.location_map_prompt", lang), reply_markup=keyboard)
     else:
         # Для событий
         await state.set_state(EventCreation.waiting_for_location_link)
-        await callback.message.answer("🌍 Открой карту, найди место и вставь ссылку сюда 👇", reply_markup=keyboard)
+        await callback.message.answer(t("edit.location_map_prompt", lang), reply_markup=keyboard)
 
     await callback.answer()
 
@@ -9992,7 +9994,8 @@ async def handle_community_location_map_choice(callback: types.CallbackQuery, st
         inline_keyboard=[[InlineKeyboardButton(text="🌍 Открыть Google Maps", url="https://www.google.com/maps")]]
     )
     await state.set_state(CommunityEventCreation.waiting_for_location_url)
-    await callback.message.answer("🌍 Открой карту, найди место и вставь ссылку сюда 👇", reply_markup=keyboard)
+    lang = get_user_language_or_default(callback.from_user.id)
+    await callback.message.answer(t("edit.location_map_prompt", lang), reply_markup=keyboard)
     await callback.answer()
 
 
@@ -10240,33 +10243,39 @@ async def process_location_link(message: types.Message, state: FSMContext):
             )
             return
 
+    lang = get_user_language_or_default(message.from_user.id)
+    place_default = t("create.place_on_map", lang)
     # Сохраняем данные локации
     await state.update_data(
-        location_name=location_data.get("name", "Место на карте"),
+        location_name=location_data.get("name", place_default),
         location_lat=lat,
         location_lng=lng,
         location_url=location_data["raw_link"],
     )
 
     # Показываем подтверждение
-    location_name = location_data.get("name", "Место на карте")
+    location_name = location_data.get("name", place_default)
 
     # Создаем кнопки подтверждения
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🌍 Открыть на карте", url=link)],
+            [InlineKeyboardButton(text=t("create.button_open_on_map", lang), url=link)],
             [
-                InlineKeyboardButton(text="✅ Да", callback_data="location_confirm"),
-                InlineKeyboardButton(text="❌ Изменить", callback_data="location_change"),
+                InlineKeyboardButton(text=t("create.button_yes", lang), callback_data="location_confirm"),
+                InlineKeyboardButton(text=t("create.button_change", lang), callback_data="location_change"),
             ],
         ]
     )
 
     # Формируем сообщение в зависимости от наличия координат
+    loc_label = t("create.location_label", lang)
+    coords_label = t("create.coordinates_label", lang)
+    q = t("create.confirm_location_question", lang)
+    link_saved = t("create.location_link_saved", lang)
     if lat is not None and lng is not None:
-        location_text = f"📍 **Локация:** {location_name}\n🌍 Координаты: {lat:.6f}, {lng:.6f}\n\nВсё верно?"
+        location_text = f"📍 **{loc_label}** {location_name}\n🌍 {coords_label} {lat:.6f}, {lng:.6f}\n\n{q}"
     else:
-        location_text = f"📍 **Локация:** {location_name}\n🌍 Ссылка на карту сохранена\n\nВсё верно?"
+        location_text = f"📍 **{loc_label}** {location_name}\n🌍 {link_saved}\n\n{q}"
 
     await message.answer(
         location_text,
@@ -10381,28 +10390,29 @@ async def process_description(message: types.Message, state: FSMContext):
     safe_date = escape_markdown(data.get("date", "") or "")
     safe_time = escape_markdown(data.get("time", "") or "")
     safe_description = escape_markdown(data.get("description", "") or "")
-    location_text = data.get("location", "Не указано")
+    not_spec = t("common.not_specified", user_lang)
+    location_text = data.get("location", not_spec)
     if "location_name" in data and data["location_name"]:
         location_text = escape_markdown(data["location_name"])
         if "location_url" in data and data["location_url"]:
-            location_text += f"\n🌍 [Открыть на карте]({data['location_url']})"
+            location_text += f"\n🌍 [{t('create.button_open_on_map', user_lang)}]({data['location_url']})"
     else:
-        location_text = escape_markdown(location_text if location_text else "Не указано")
+        location_text = escape_markdown(location_text if location_text else not_spec)
 
     await message.answer(
-        f"📌 **Проверьте данные мероприятия:**\n\n"
-        f"**Название:** {safe_title}\n"
-        f"**Дата:** {safe_date}\n"
-        f"**Время:** {safe_time}\n"
-        f"**Место:** {location_text}\n"
-        f"**Описание:** {safe_description}\n\n"
-        f"Если всё верно, нажмите ✅ Сохранить. Если нужно изменить — нажмите ❌ Отмена.",
+        f"📌 **{t('create.check_event_data', user_lang)}**\n\n"
+        f"**{t('create.label_title', user_lang)}** {safe_title}\n"
+        f"**{t('create.label_date', user_lang)}** {safe_date}\n"
+        f"**{t('create.label_time', user_lang)}** {safe_time}\n"
+        f"**{t('create.label_place', user_lang)}** {location_text}\n"
+        f"**{t('create.label_description', user_lang)}** {safe_description}\n\n"
+        f"{t('create.confirm_instruction', user_lang)}",
         parse_mode="Markdown",
         reply_markup=types.InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    types.InlineKeyboardButton(text="✅ Сохранить", callback_data="event_confirm"),
-                    types.InlineKeyboardButton(text="❌ Отмена", callback_data="event_cancel"),
+                    types.InlineKeyboardButton(text=t("create.button_save", user_lang), callback_data="event_confirm"),
+                    types.InlineKeyboardButton(text=t("common.cancel", user_lang), callback_data="event_cancel"),
                 ]
             ]
         ),
@@ -10596,24 +10606,25 @@ async def handle_community_description_step(message: types.Message, state: FSMCo
 
     description = message.text.strip()
     data = await state.get_data()
+    lang = get_user_language_or_default(message.from_user.id)
 
     # Показываем итог перед подтверждением
     await message.answer(
-        f"📌 **Проверьте данные события сообщества:**\n\n"
-        f"**Название:** {data['title']}\n"
-        f"**Дата:** {data['date']}\n"
-        f"**Время:** {data['time']}\n"
-        f"**Город:** {data['city']}\n"
-        f"**Место:** {data['location_name']}\n"
-        f"**Ссылка:** {data['location_url']}\n"
-        f"**Описание:** {description}\n\n"
-        f"Если всё верно, нажмите ✅ Сохранить. Если нужно изменить — нажмите ❌ Отмена.",
+        f"📌 **{t('create.check_event_data', lang)}**\n\n"
+        f"**{t('create.label_title', lang)}** {data['title']}\n"
+        f"**{t('create.label_date', lang)}** {data['date']}\n"
+        f"**{t('create.label_time', lang)}** {data['time']}\n"
+        f"**{t('create.label_city', lang)}** {data['city']}\n"
+        f"**{t('create.label_place', lang)}** {data['location_name']}\n"
+        f"**{t('create.label_link', lang)}** {data['location_url']}\n"
+        f"**{t('create.label_description', lang)}** {description}\n\n"
+        f"{t('create.confirm_instruction', lang)}",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton(text="✅ Сохранить", callback_data="community_event_confirm"),
-                    InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create"),
+                    InlineKeyboardButton(text=t("create.button_save", lang), callback_data="community_event_confirm"),
+                    InlineKeyboardButton(text=t("common.cancel", lang), callback_data="group_cancel_create"),
                 ]
             ]
         ),
@@ -11114,24 +11125,25 @@ async def process_community_description_group(message: types.Message, state: FSM
     await state.update_data(description=description)
     data = await state.get_data()
     await state.set_state(CommunityEventCreation.confirmation)
+    lang = get_user_language_or_default(message.from_user.id)
 
     # Показываем итог перед подтверждением
     await message.answer(
-        f"📌 **Проверьте данные события сообщества:**\n\n"
-        f"**Название:** {data['title']}\n"
-        f"**Дата:** {data['date']}\n"
-        f"**Время:** {data['time']}\n"
-        f"**Город:** {data['city']}\n"
-        f"**Место:** {data['location_name']}\n"
-        f"**Ссылка:** {data['location_url']}\n"
-        f"**Описание:** {data['description']}\n\n"
-        f"Если всё верно, нажмите ✅ Сохранить. Если нужно изменить — нажмите ❌ Отмена.",
+        f"📌 **{t('create.check_event_data', lang)}**\n\n"
+        f"**{t('create.label_title', lang)}** {data['title']}\n"
+        f"**{t('create.label_date', lang)}** {data['date']}\n"
+        f"**{t('create.label_time', lang)}** {data['time']}\n"
+        f"**{t('create.label_city', lang)}** {data['city']}\n"
+        f"**{t('create.label_place', lang)}** {data['location_name']}\n"
+        f"**{t('create.label_link', lang)}** {data['location_url']}\n"
+        f"**{t('create.label_description', lang)}** {data['description']}\n\n"
+        f"{t('create.confirm_instruction', lang)}",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton(text="✅ Сохранить", callback_data="community_event_confirm"),
-                    InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create"),
+                    InlineKeyboardButton(text=t("create.button_save", lang), callback_data="community_event_confirm"),
+                    InlineKeyboardButton(text=t("common.cancel", lang), callback_data="group_cancel_create"),
                 ]
             ]
         ),
@@ -11424,9 +11436,9 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
     creator_name = callback.from_user.username or callback.from_user.first_name or "пользователь"
     safe_creator = escape_markdown(creator_name)
 
-    share_message = "🎉 **Новое событие!**\n\n"
+    share_message = f"🎉 **{t('share.new_event', user_lang)}**\n\n"
     share_message += f"**{safe_title}**\n"
-    share_message += f"📅 {safe_date} в {safe_time}\n"
+    share_message += f"📅 {safe_date} {t('share.time_at', user_lang)} {safe_time}\n"
 
     # Добавляем место на карте с активной ссылкой (компактно)
     if location_url:
@@ -11441,7 +11453,7 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
     # Добавляем информацию о создателе (локализованно)
     share_message += "\n*" + format_translation("event.created_by", user_lang, username=safe_creator) + "*\n\n"
     _ub = get_bot_username()
-    share_message += f"💡 **Больше событий в боте:** [@{_ub}](https://t.me/{_ub})"
+    share_message += f"💡 **{t('share.more_events_in_bot', user_lang)}** [@{_ub}](https://t.me/{_ub})"
 
     # Отправляем новое сообщение (которое можно переслать) вместо edit_text
     user_id = callback.from_user.id
@@ -12799,8 +12811,9 @@ async def handle_share_event(callback: types.CallbackQuery):
         await callback.answer(t("event.not_found", user_lang))
         return
 
+    user_lang = get_user_language_or_default(user_id)
     # Формируем структурированное сообщение (как после создания события)
-    share_message = "🎉 **Новое событие!**\n\n"
+    share_message = f"🎉 **{t('share.new_event', user_lang)}**\n\n"
     share_message += f"**{event['title']}**\n"
 
     # Форматируем дату и время
@@ -12824,7 +12837,7 @@ async def handle_share_event(callback: types.CallbackQuery):
         local_time = event["starts_at"].astimezone(tz)
         date_str = local_time.strftime("%d.%m.%Y")
         time_str = local_time.strftime("%H:%M")
-        share_message += f"📅 {date_str} в {time_str}\n"
+        share_message += f"📅 {date_str} {t('share.time_at', user_lang)} {time_str}\n"
     else:
         share_message += "📅 Время не указано\n"
 
@@ -12841,12 +12854,11 @@ async def handle_share_event(callback: types.CallbackQuery):
         share_message += f"\n📝 {event['description']}\n"
 
     # Добавляем информацию о создателе (локализованно)
-    user_lang = get_user_language_or_default(callback.from_user.id)
     creator_name = callback.from_user.username or callback.from_user.first_name or "пользователь"
     safe_creator = escape_markdown(creator_name)
     share_message += "\n*" + format_translation("event.created_by", user_lang, username=safe_creator) + "*\n\n"
     _ub = get_bot_username()
-    share_message += f"💡 **Больше событий в боте:** [@{_ub}](https://t.me/{_ub})"
+    share_message += f"💡 **{t('share.more_events_in_bot', user_lang)}** [@{_ub}](https://t.me/{_ub})"
 
     # Отправляем сообщение, которое можно переслать
     await callback.message.answer(
@@ -13064,7 +13076,8 @@ async def handle_edit_location_map_choice(callback: types.CallbackQuery, state: 
     )
 
     await state.set_state(EventEditing.waiting_for_location)
-    await callback.message.answer("🌍 Открой карту, найди место и вставь ссылку сюда 👇", reply_markup=keyboard)
+    lang = get_user_language_or_default(callback.from_user.id)
+    await callback.message.answer(t("edit.location_map_prompt", lang), reply_markup=keyboard)
     await callback.answer()
 
 
