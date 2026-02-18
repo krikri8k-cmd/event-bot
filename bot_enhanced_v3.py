@@ -9933,7 +9933,14 @@ async def handle_location_map_choice(callback: types.CallbackQuery, state: FSMCo
 
     # Создаем кнопку для открытия Google Maps
     keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="🌍 Открыть Google Maps", url="https://www.google.com/maps")]]
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=t("create.button_open_google_maps", get_user_language_or_default(callback.from_user.id)),
+                    url="https://www.google.com/maps",
+                )
+            ]
+        ]
     )
 
     lang = get_user_language_or_default(callback.from_user.id)
@@ -9953,21 +9960,18 @@ async def handle_location_coords_choice(callback: types.CallbackQuery, state: FS
     """Выбор ввода координат"""
     current_state = await state.get_state()
 
+    lang = get_user_language_or_default(callback.from_user.id)
     if current_state == TaskFlow.waiting_for_custom_location:
         # Для заданий
         await callback.message.answer(
-            "📍 Введите координаты в формате: **широта, долгота**\n\n"
-            "Например: 55.7558, 37.6176\n"
-            "Или: -8.67, 115.21",
+            t("edit.location_coords_prompt", lang),
             parse_mode="Markdown",
         )
     else:
         # Для событий
         await state.set_state(EventCreation.waiting_for_location_link)
         await callback.message.answer(
-            "📍 Введите координаты в формате: **широта, долгота**\n\n"
-            "Например: 55.7558, 37.6176\n"
-            "Или: -8.67, 115.21",
+            t("edit.location_coords_prompt", lang),
             parse_mode="Markdown",
         )
 
@@ -9991,7 +9995,14 @@ async def handle_community_location_map_choice(callback: types.CallbackQuery, st
     """Выбор поиска на карте в Community режиме"""
     # Создаем кнопку для открытия Google Maps
     keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="🌍 Открыть Google Maps", url="https://www.google.com/maps")]]
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=t("create.button_open_google_maps", get_user_language_or_default(callback.from_user.id)),
+                    url="https://www.google.com/maps",
+                )
+            ]
+        ]
     )
     await state.set_state(CommunityEventCreation.waiting_for_location_url)
     lang = get_user_language_or_default(callback.from_user.id)
@@ -10003,8 +10014,9 @@ async def handle_community_location_map_choice(callback: types.CallbackQuery, st
 async def handle_community_location_coords_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор ввода координат в Community режиме"""
     await state.set_state(CommunityEventCreation.waiting_for_location_url)
+    lang = get_user_language_or_default(callback.from_user.id)
     await callback.message.answer(
-        "📍 Введите координаты в формате: **широта, долгота**\n\n" "Например: 55.7558, 37.6176\n" "Или: -8.67, 115.21",
+        t("edit.location_coords_prompt", lang),
         parse_mode="Markdown",
         reply_markup=get_community_cancel_kb(callback.from_user.id),
     )
@@ -13075,7 +13087,14 @@ async def handle_edit_location_map_choice(callback: types.CallbackQuery, state: 
 
     # Создаем кнопку для открытия Google Maps
     keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="🌍 Открыть Google Maps", url="https://www.google.com/maps")]]
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=t("create.button_open_google_maps", get_user_language_or_default(callback.from_user.id)),
+                    url="https://www.google.com/maps",
+                )
+            ]
+        ]
     )
 
     await state.set_state(EventEditing.waiting_for_location)
@@ -13091,8 +13110,9 @@ async def handle_edit_location_coords_choice(callback: types.CallbackQuery, stat
     await state.update_data(event_id=event_id)
 
     await state.set_state(EventEditing.waiting_for_location)
+    lang = get_user_language_or_default(callback.from_user.id)
     await callback.message.answer(
-        "📍 Введите координаты в формате: **широта, долгота**\n\n" "Например: 55.7558, 37.6176\n" "Или: -8.67, 115.21",
+        t("edit.location_coords_prompt", lang),
         parse_mode="Markdown",
     )
     await callback.answer()
