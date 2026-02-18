@@ -27,20 +27,28 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_BATCH = 10
 
+# Ограничение по умолчанию при вызове из планировщика (чтобы не грузить API надолго)
+SCHEDULER_LIMIT = 50
 
-def main():
-    ap = argparse.ArgumentParser(description="Доперевод событий без title_en через OpenAI")
-    ap.add_argument("--batch", type=int, default=DEFAULT_BATCH, help="Размер батча (default %s)" % DEFAULT_BATCH)
-    ap.add_argument("--limit", type=int, default=None, help="Макс. число событий (по умолчанию — все)")
-    ap.add_argument("--dry-run", action="store_true", help="Только показать, что бы обновили")
-    args = ap.parse_args()
 
-    settings = load_settings()
-    if not getattr(settings, "openai_api_key", None):
-        logger.error("OPENAI_API_KEY не задан. Задайте в .env или app.local.env")
-        sys.exit(1)
-    init_engine(settings.database_url)
-    engine = get_engine()
+def run_fix_missing_translations(
+    batch: int = DEFAULT_BATCH,
+    limit: int | None = None,
+    engine=None,
+    dry_run: bool = False,
+):
+    """
+    Находит события с title_en IS NULL, переводит через OpenAI и обновляет БД.
+    Можно вызывать из кода (например из modern_scheduler) или из CLI через main().
+
+    :param batch: размер батча
+    :param limit: макс. число событий (None = все)
+    :param engine: SQLAlchemy engine (если None, используется get_engine())
+    :param dry_run: только логировать, не писать в БД
+    :return: (updated_count, errors_count)
+    """
+    if engine is None:
+        engine = get_engine()
 
     with engine.connect() as conn:
         query = text("""
@@ -51,27 +59,27 @@ def main():
               AND TRIM(title) != ''
             ORDER BY id
         """)
-        if args.limit:
-            rows = conn.execute(query).fetchmany(args.limit)
+        if limit:
+            rows = conn.execute(query).fetchmany(limit)
         else:
             rows = conn.execute(query).fetchall()
 
     if not rows:
         logger.info("Нет событий без перевода (title_en везде заполнен или нет подходящих записей).")
-        return
+        return 0, 0
 
-    logger.info("Найдено событий для доперевода: %s (батч по %s)", len(rows), args.batch)
+    logger.info("Найдено событий для доперевода: %s (батч по %s)", len(rows), batch)
     updated = 0
     errors = 0
 
-    for i in range(0, len(rows), args.batch):
-        batch = rows[i : i + args.batch]
-        for row in batch:
+    for i in range(0, len(rows), batch):
+        batch_rows = rows[i : i + batch]
+        for row in batch_rows:
             event_id, title, description, location_name = row
             title = (title or "").strip()
             if not title:
                 continue
-            if args.dry_run:
+            if dry_run:
                 logger.info("[dry-run] id=%s title=%r", event_id, title[:50])
                 updated += 1
                 continue
@@ -119,6 +127,24 @@ def main():
                 logger.exception("id=%s: ошибка UPDATE: %s", event_id, e)
 
     logger.info("Готово. Обновлено: %s, ошибок/пропусков: %s", updated, errors)
+    return updated, errors
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Доперевод событий без title_en через OpenAI")
+    ap.add_argument("--batch", type=int, default=DEFAULT_BATCH, help="Размер батча (default %s)" % DEFAULT_BATCH)
+    ap.add_argument("--limit", type=int, default=None, help="Макс. число событий (по умолчанию — все)")
+    ap.add_argument("--dry-run", action="store_true", help="Только показать, что бы обновили")
+    args = ap.parse_args()
+
+    settings = load_settings()
+    if not getattr(settings, "openai_api_key", None):
+        logger.error("OPENAI_API_KEY не задан. Задайте в .env или app.local.env")
+        sys.exit(1)
+    init_engine(settings.database_url)
+    engine = get_engine()
+
+    run_fix_missing_translations(batch=args.batch, limit=args.limit, engine=engine, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":

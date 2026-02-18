@@ -52,8 +52,8 @@ def get_events_nearby(lat: float, lon: float, radius_km: float = None, limit: in
             rows = (
                 session.execute(
                     text("""
-                SELECT id, title, description, time_utc, starts_at,
-                       lat, lng, location_name, source, url,
+                SELECT id, title, description, title_en, description_en, location_name_en,
+                       time_utc, starts_at, lat, lng, location_name, source, url,
                        status, created_at_utc, updated_at_utc,
                        city, country, organizer_id, organizer_url
                 FROM events
@@ -156,8 +156,8 @@ def get_events_nearby_today(
             rows = (
                 session.execute(
                     text("""
-                SELECT id, title, description, time_utc, starts_at,
-                       lat, lng, location_name, source, url,
+                SELECT id, title, description, title_en, description_en, location_name_en,
+                       time_utc, starts_at, lat, lng, location_name, source, url,
                        status, created_at_utc, updated_at_utc, city, country
                 FROM events
                 WHERE lat IS NOT NULL AND lng IS NOT NULL

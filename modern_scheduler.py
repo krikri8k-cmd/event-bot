@@ -578,6 +578,24 @@ class ModernEventScheduler:
         except Exception as e:
             logger.error(f"   ❌ Ошибка очистки: {e}")
 
+    def _run_fix_missing_translations(self):
+        """После парсинга допереводит события с title_en IS NULL (база «долечивает» себя сама)."""
+        if not getattr(self.settings, "openai_api_key", None):
+            logger.debug("OPENAI_API_KEY не задан — доперевод пропущен")
+            return
+        try:
+            from scripts.fix_missing_translations import SCHEDULER_LIMIT, run_fix_missing_translations
+
+            logger.info("🌐 Доперевод событий без title_en...")
+            run_fix_missing_translations(
+                batch=10,
+                limit=SCHEDULER_LIMIT,
+                engine=self.engine,
+                dry_run=False,
+            )
+        except Exception as e:
+            logger.warning("⚠️ Доперевод событий не выполнен: %s", e)
+
     def run_full_ingest(self):
         """Полный цикл обновления событий. Вызывается только по расписанию, не из хендлеров."""
         logger.info("🚀 ЗАПУСК ПЛАНОВОГО ОБНОВЛЕНИЯ ДАННЫХ")
@@ -625,6 +643,9 @@ class ModernEventScheduler:
         else:
             logger.info("🤖 AI генерация пропущена (отключена в настройках)")
 
+        # 3.5. Доперевод событий без title_en (база «долечивает» себя сама)
+        self._run_fix_missing_translations()
+
         # 4. Очищаем старые события
         self.cleanup_old_events()
 
@@ -667,6 +688,9 @@ class ModernEventScheduler:
                         loop.close()
         else:
             logger.info("🎭 KudaGo пропущен (отключен в настройках)")
+
+        # Доперевод событий без title_en (в т.ч. только что загруженных KudaGo)
+        self._run_fix_missing_translations()
 
         duration = time.time() - start_time
         logger.info(f"✅ === ЦИКЛ KUDAGO ЗАВЕРШЕН ЗА {duration:.1f}с ===")
