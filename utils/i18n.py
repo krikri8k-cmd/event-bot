@@ -369,7 +369,11 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.enter_description": ("📝 **Введите описание события**\n(что будет происходить, кому интересно):"),
         "create.location_prompt": "📍 **Как укажем место?**\n\nВыберите один из способов:",
         "create.city_saved": "**Город сохранен:** {city} ✅\n\n📍 **Как укажем место?**\n\nВыберите один из способов:",
+        "create.city_saved_ask_place": (
+            "**Город сохранен:** {city} ✅\n\n📍 **Введите название места** (например: Кафе 'Уют'):"
+        ),
         "create.enter_city": "🏙️ **Введите город** (например: Москва):",
+        "create.time_saved_ask_city": "**Время сохранено:** {time} ✅\n\n🏙️ **Введите город** (например: Москва):",
         "create.place_by_coords": "📍 **Место определено по координатам:** {lat}, {lng} ✅\n\n",
         "create.place_saved_then_desc": (
             "**Место сохранено** ✅\n{location_text}\n\n"
@@ -765,11 +769,13 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "📝 **Enter event description**\n(what will happen, who it's for):"
         ),
         "create.enter_description": ("📝 **Enter event description**\n(what will happen, who it's for):"),
-        "create.location_prompt": "📍 **Select a location method**\n\nChoose one of the options:",
+        "create.location_prompt": "📍 **How would you like to set the location?**\n\nChoose one of the options:",
         "create.city_saved": (
-            "**City saved:** {city} ✅\n\n📍 **Select a location method**\n\nChoose one of the options:"
+            "**City saved:** {city} ✅\n\n📍 **How would you like to set the location?**\n\nChoose one of the options:"
         ),
+        "create.city_saved_ask_place": "**City saved:** {city} ✅\n\n📍 **Enter place name** (e.g.: Café):",
         "create.enter_city": "🏙️ **Enter city** (e.g.: Moscow):",
+        "create.time_saved_ask_city": "**Time saved:** {time} ✅\n\n🏙️ **Enter city** (e.g.: Moscow):",
         "create.place_by_coords": "📍 **Place set by coordinates:** {lat}, {lng} ✅\n\n",
         "create.place_saved_then_desc": (
             "**Place saved** ✅\n{location_text}\n\n" "📝 **Enter event description** (what will happen, who it's for):"

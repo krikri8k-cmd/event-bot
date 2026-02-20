@@ -673,10 +673,10 @@ async def send_compact_events_list_prepared(
         logger.info(f"✅ Страница {page + 1} событий отправлена (HTML)")
     except Exception as e:
         logger.error(f"❌ Ошибка отправки страницы {page + 1}: {e}")
-        # Fallback - отправляем без форматирования
+        # Fallback - отправляем без форматирования (без превью ссылок)
         user_lang = get_user_language_or_default(message.from_user.id)
         header = format_translation("events.page", user_lang, page=page + 1, total=total_pages)
-        await message.answer(f"{header}\n\n{text}", reply_markup=keyboard)
+        await message.answer(f"{header}\n\n{text}", reply_markup=keyboard, disable_web_page_preview=True)
 
 
 async def send_compact_events_list(
@@ -755,10 +755,10 @@ async def send_compact_events_list(
         logger.info(f"✅ Страница {page + 1} событий отправлена (HTML)")
     except Exception as e:
         logger.error(f"❌ Ошибка отправки страницы {page + 1}: {e}")
-        # Fallback - отправляем без форматирования
+        # Fallback - отправляем без форматирования (без превью ссылок)
         user_lang = get_user_language_or_default(message.from_user.id)
         header = format_translation("events.page", user_lang, page=page + 1, total=total_pages)
-        await message.answer(f"{header}\n\n{text}", reply_markup=inline_kb)
+        await message.answer(f"{header}\n\n{text}", reply_markup=inline_kb, disable_web_page_preview=True)
 
     # Главное меню будет отправлено в последнем сообщении со списком событий
 
@@ -10525,8 +10525,9 @@ async def handle_community_time_step(message: types.Message, state: FSMContext):
         return
 
     await state.update_data(time=time, step="city")
+    lang = get_user_language_or_default(message.from_user.id)
     await message.answer(
-        f"**Время сохранено:** {time} ✅\n\n🏙️ **Введите город** (например: Москва):",
+        t("create.time_saved_ask_city", lang, time=time),
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
@@ -10537,8 +10538,9 @@ async def handle_community_time_step(message: types.Message, state: FSMContext):
 async def handle_community_city_step(message: types.Message, state: FSMContext):
     """Обработка города события"""
     if not message.text:
+        lang = get_user_language_or_default(message.from_user.id)
         await message.answer(
-            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n" "🏙️ **Введите город** (например: Москва):",
+            t("create.validation.no_text", lang, next_prompt=t("create.enter_city", lang)),
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
@@ -10548,8 +10550,9 @@ async def handle_community_city_step(message: types.Message, state: FSMContext):
 
     city = message.text.strip()
     await state.update_data(city=city, step="location_name")
+    lang = get_user_language_or_default(message.from_user.id)
     await message.answer(
-        f"**Город сохранен:** {city} ✅\n\n📍 **Введите название места** (например: Кафе 'Уют'):",
+        t("create.city_saved_ask_place", lang, city=city),
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
@@ -10867,8 +10870,9 @@ async def process_community_time_group(message: types.Message, state: FSMContext
     await state.update_data(time=time)
     await state.set_state(CommunityEventCreation.waiting_for_city)
 
+    lang = get_user_language_or_default(message.from_user.id)
     await message.answer(
-        f"**Время сохранено:** {time} ✅\n\n🏙️ **Введите город** (например: Москва):",
+        t("create.time_saved_ask_city", lang, time=time),
         parse_mode="Markdown",
         reply_markup=ForceReply(selective=True),
     )
@@ -10882,6 +10886,7 @@ async def process_community_time_group(message: types.Message, state: FSMContext
 )
 async def process_community_city_group(message: types.Message, state: FSMContext):
     """Обработка города события в групповых чатах"""
+    lang = get_user_language_or_default(message.from_user.id)
     logger.info(
         f"🔥 process_community_city_group: получено сообщение от пользователя {message.from_user.id} в чате {message.chat.id}, текст: '{message.text}'"
     )
@@ -10889,7 +10894,7 @@ async def process_community_city_group(message: types.Message, state: FSMContext
     # Проверяем, что сообщение содержит текст
     if not message.text:
         await message.answer(
-            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n" "🏙️ **Введите город** (например: Москва):",
+            t("create.validation.no_text", lang, next_prompt=t("create.enter_city", lang)),
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="group_cancel_create")]]
