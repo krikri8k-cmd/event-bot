@@ -17,8 +17,8 @@ def read_text(p: Path) -> str:
     return p.read_text(encoding="utf-8", errors="ignore") if p.exists() else ""
 
 
-def test_python_version_is_313_or_higher():
-    assert sys.version_info >= (3, 13), f"Python is {sys.version}"
+def test_python_version_is_311_or_higher():
+    assert sys.version_info >= (3, 11), f"Python is {sys.version}"
 
 
 def test_env_template_uses_psycopg2_scheme():
@@ -41,8 +41,8 @@ def test_no_psycopg_v3_dsn_in_repo():
     assert not bad_hits, f"Found psycopg v3 DSN usage in: {bad_hits}"
 
 
-def test_pyproject_has_target_py312_and_requires_312():
-    """Проверяем ruff target-version = py312 и requires-python >= 3.12."""
+def test_pyproject_has_target_py311_and_requires_311():
+    """Проверяем ruff target-version = py311 и requires-python >= 3.11,<3.12."""
     pj = ROOT / "pyproject.toml"
     assert pj.exists(), "pyproject.toml is missing"
 
@@ -50,13 +50,14 @@ def test_pyproject_has_target_py312_and_requires_312():
         data = tomllib.loads(read_text(pj))
         # requires-python
         req = (data.get("project") or {}).get("requires-python") or ""
-        assert ">=3.12" in req, f"requires-python must be >=3.12, got: {req!r}"
+        assert ">=3.11" in req, f"requires-python must be >=3.11, got: {req!r}"
+        assert "3.12" in req or "<3.12" in req, f"requires-python should restrict to 3.11.x, got: {req!r}"
         # ruff target-version
         ruff = (data.get("tool") or {}).get("ruff") or {}
         target = ruff.get("target-version") or ""
-        assert target in {"py312", "py3.12"}, f"unexpected ruff target-version: {target!r}"
+        assert target in {"py311", "py3.11"}, f"unexpected ruff target-version: {target!r}"
     else:
         # fallback: грубая проверка по тексту
         text = read_text(pj)
-        assert ">=3.12" in text
-        assert "target-version" in text and "py312" in text
+        assert ">=3.11" in text
+        assert "target-version" in text and "py311" in text
