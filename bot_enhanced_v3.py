@@ -4731,6 +4731,7 @@ async def handle_group_create_event(callback: types.CallbackQuery, state: FSMCon
 async def handle_group_chat_events(callback: types.CallbackQuery):
     """Обработчик кнопки 'События этого чата' в групповых чатах"""
     chat_id = callback.message.chat.id
+    user_lang = get_user_language_or_default(callback.from_user.id)
 
     # Получаем события сообщества через новый сервис
     from utils.community_events_service import CommunityEventsService
@@ -4750,9 +4751,19 @@ async def handle_group_chat_events(callback: types.CallbackQuery):
         from utils.simple_timezone import get_city_from_coordinates, get_city_timezone
 
         for i, event in enumerate(events, 1):
-            text += f"**{i}. {event['title']}**\n"
-            if event["description"]:
-                text += f"   {event['description'][:100]}{'...' if len(event['description']) > 100 else ''}\n"
+            desc = (
+                (event.get("description_en") or event.get("description") or "").strip()
+                if user_lang == "en"
+                else (event.get("description") or "").strip()
+            )
+            title_display = (
+                (event.get("title_en") or event.get("title") or "").strip()
+                if user_lang == "en"
+                else (event.get("title") or "").strip()
+            )
+            text += f"**{i}. {title_display}**\n"
+            if desc:
+                text += f"   {desc[:100]}{'...' if len(desc) > 100 else ''}\n"
             # Определяем timezone события по его координатам
             event_tz = "UTC"
             if event.get("lat") and event.get("lng"):
@@ -12855,9 +12866,14 @@ async def handle_share_event(callback: types.CallbackQuery):
     else:
         share_message += f"📍 {location_name}\n"
 
-    # Добавляем описание
-    if event.get("description"):
-        share_message += f"\n📝 {event['description']}\n"
+    # Добавляем описание (для EN — description_en, иначе description)
+    desc = (
+        (event.get("description_en") or event.get("description") or "").strip()
+        if user_lang == "en"
+        else (event.get("description") or "").strip()
+    )
+    if desc:
+        share_message += f"\n📝 {desc}\n"
 
     # Добавляем информацию о создателе (локализованно)
     creator_name = callback.from_user.username or callback.from_user.first_name or "пользователь"
