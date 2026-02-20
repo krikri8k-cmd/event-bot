@@ -1074,13 +1074,12 @@ def truncate_html_safely(html_text: str, max_length: int) -> str:
 
 
 def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool = False) -> str:
-    """Рендерит одну карточку события в HTML согласно ТЗ. Для EN берёт title_en/description_en/location_name_en с fallback на RU."""
+    """Рендерит одну карточку в HTML. EN: title_en/description_en с fallback на RU; локация — всегда оригинальный location_name (без GPT)."""
     import logging
 
     logger = logging.getLogger(__name__)
 
     lang = get_user_language_or_default(user_id) if user_id else "ru"
-    # Приоритет: при user_lang == 'en' сначала title_en, иначе оригинальный заголовок без пометок (ТЗ)
     if lang == "en":
         title_en = (e.get("title_en") or "").strip()
         title_ru = (e.get("title") or "Событие").strip()
@@ -1097,16 +1096,9 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         if lang == "en"
         else (e.get("description") or "").strip()
     )
-    display_location_name = (
-        (e.get("location_name_en") or e.get("location_name") or "").strip()
-        if lang == "en"
-        else (e.get("location_name") or "").strip()
-    )
-    display_venue_name = (
-        (e.get("location_name_en") or e.get("venue_name") or "").strip()
-        if lang == "en"
-        else (e.get("venue_name") or "").strip()
-    )
+    # Локация всегда только оригинал (location_name), не переводим названия заведений
+    display_location_name = (e.get("location_name") or "").strip()
+    display_venue_name = (e.get("venue_name") or e.get("location_name") or "").strip()
     # Локализация подписей ссылок по языку пользователя
     source_link_label = t("event.source_link", lang)
     route_link_label = t("event.route_link", lang)
@@ -1182,8 +1174,7 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         logger.warning(f"🔍 DEBUG: venue_name невалидное: '{venue_name}', пропускаем")
         venue_name = None
 
-    # Приоритет: venue_name → address → location_name (может быть из reverse geocoding) → coords → description
-    # Для EN используем location_name_en; иначе location_name
+    # Приоритет: venue_name → address → location_name → coords → description (локация всегда оригинал)
     location_name_from_event = display_location_name
 
     logger.debug(

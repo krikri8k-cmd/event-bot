@@ -1,9 +1,7 @@
 """
-Перевод полей события (title, description, location_name) с русского на английский
-для отображения в боте при выборе языка EN. Использует gpt-4o-mini.
-При ошибке API возвращает пустые значения — парсер не должен падать.
-Повторные попытки с экспоненциальной задержкой при сетевых сбоях.
-Ограничение очереди: семафор (3) — не более 3 запросов к OpenAI одновременно.
+Перевод полей события (title, description) с русского на английский для отображения в боте при EN.
+location_name не переводится — названия локаций сохраняем как есть (Google Maps style).
+Использует gpt-4o-mini. При ошибке API возвращаем пустые значения (NULL), чтобы можно было повторить позже.
 """
 
 import json
@@ -28,6 +26,7 @@ _sync_semaphore = threading.Semaphore(3)
 SYSTEM_PROMPT = (
     "Ты — профессиональный переводчик афиши мероприятий. "
     "Переведи название и текст события на английский язык. Сохраняй смысл и эмоциональный окрас. "
+    "Сохраняй все эмодзи на своих местах. "
     "Названия заведений и брендов оставляй на латинице. "
     "Если название — имя собственное (игра, практика), можно транслитерация и перевод в скобках, "
     "например: Izobilie (Abundance). Возвращай только валидный JSON без комментариев и пояснений."
@@ -98,9 +97,10 @@ def translate_event_to_english(
     location_name: str | None = None,
 ) -> dict[str, str | None]:
     """
-    Переводит title, description, location_name с русского на английский.
-    Возвращает {"title_en": ..., "description_en": ..., "location_name_en": ...}.
-    При любой ошибке возвращает пустые значения (None) для полей перевода.
+    Переводит title и description с русского на английский.
+    location_name не переводится (названия локаций — как есть). Возвращает location_name_en: None.
+    Если текст уже на английском (detect_event_language), GPT не вызывается — копируем оригинал в _en.
+    При ошибке или пустом ответе возвращаем None (в БД не писать, оставить NULL для повтора).
     """
     result: dict[str, str | None] = {
         "title_en": None,
@@ -111,25 +111,29 @@ def translate_event_to_english(
     if not title:
         return result
 
+    # Уже английский — не вызываем GPT, копируем оригинал в _en
+    if detect_event_language(title, description or "") == "en":
+        result["title_en"] = title
+        result["description_en"] = (description or "").strip() or None
+        logger.debug("event_translation: текст уже EN, GPT не вызываем")
+        return result
+
     client = _make_client()
     if not client:
         logger.debug("event_translation: OpenAI ключ не настроен, пропускаем перевод")
         return result
 
-    # Собираем поля для перевода (пропускаем пустые)
+    # Только title и description; location_name не переводим
     parts = [f"title: {title}"]
     if description and (description or "").strip():
         parts.append(f"description: {(description or '').strip()}")
-    if location_name and (location_name or "").strip():
-        parts.append(f"location_name: {(location_name or '').strip()}")
 
     user_content = "\n\n".join(parts)
     if user_content.strip() == "title: ":
         return result
 
     format_instruction = (
-        ' Формат ответа: {"title_en": "...", "description_en": "...", '
-        '"location_name_en": "..."}. Пустые поля — пустая строка или null.'
+        ' Формат ответа: {"title_en": "...", "description_en": "..."}. ' "Пустые поля — пустая строка или null."
     )
     _sync_semaphore.acquire()
     try:
@@ -146,6 +150,7 @@ def translate_event_to_english(
                 )
                 raw = (completion.choices[0].message.content or "").strip()
                 if not raw:
+                    logger.warning("event_translation: пустой ответ от OpenAI, не записываем в БД")
                     return result
                 if raw.startswith("```"):
                     raw = raw.split("```")[1]
@@ -153,9 +158,9 @@ def translate_event_to_english(
                         raw = raw[4:]
                     raw = raw.strip()
                 data = json.loads(raw)
+                # Пустую строку не записываем в БД — оставляем NULL для повтора
                 result["title_en"] = (data.get("title_en") or "").strip() or None
                 result["description_en"] = (data.get("description_en") or "").strip() or None
-                result["location_name_en"] = (data.get("location_name_en") or "").strip() or None
                 if result["title_en"]:
                     logger.debug(
                         "event_translation: переведено title %r -> %r",
@@ -289,8 +294,8 @@ async def translate_event_to_english_async(
     location_name: str | None = None,
 ) -> dict[str, str | None]:
     """
-    Асинхронный перевод (AsyncOpenAI). Использовать из async-кода, чтобы не блокировать поток бота.
-    До 3 попыток при APIConnectionError/timeout, timeout=20 с. Не более 3 запросов одновременно (семафор).
+    Асинхронный перевод (AsyncOpenAI). location_name не переводится.
+    Если текст уже EN (detect_event_language) — копируем оригинал, GPT не вызываем.
     """
     import asyncio
 
@@ -307,6 +312,11 @@ async def translate_event_to_english_async(
     if not title:
         return result
 
+    if detect_event_language(title, description or "") == "en":
+        result["title_en"] = title
+        result["description_en"] = (description or "").strip() or None
+        return result
+
     client = _make_async_client()
     if not client:
         return result
@@ -314,15 +324,12 @@ async def translate_event_to_english_async(
     parts = [f"title: {title}"]
     if description and (description or "").strip():
         parts.append(f"description: {(description or '').strip()}")
-    if location_name and (location_name or "").strip():
-        parts.append(f"location_name: {(location_name or '').strip()}")
     user_content = "\n\n".join(parts)
     if user_content.strip() == "title: ":
         return result
 
     format_instruction = (
-        ' Формат ответа: {"title_en": "...", "description_en": "...", '
-        '"location_name_en": "..."}. Пустые поля — пустая строка или null.'
+        ' Формат ответа: {"title_en": "...", "description_en": "..."}. ' "Пустые поля — пустая строка или null."
     )
     async with _async_semaphore:
         for attempt in range(MAX_RETRIES):
@@ -347,7 +354,6 @@ async def translate_event_to_english_async(
                 data = json.loads(raw)
                 result["title_en"] = (data.get("title_en") or "").strip() or None
                 result["description_en"] = (data.get("description_en") or "").strip() or None
-                result["location_name_en"] = (data.get("location_name_en") or "").strip() or None
                 return result
             except json.JSONDecodeError:
                 return result
@@ -379,6 +385,7 @@ async def translate_event_to_english_async(
 BATCH_SYSTEM_PROMPT = (
     "Ты — профессиональный переводчик афиши мероприятий. "
     "Переведи список названий событий на английский. Сохраняй смысл и порядок. "
+    "Сохраняй все эмодзи на своих местах. "
     "Верни только JSON-массив строк в том же порядке, без комментариев. "
     'Пример: ["Title 1", "Title 2"].'
 )
@@ -394,6 +401,9 @@ def translate_titles_batch(titles: list[str]) -> list[str | None]:
     titles = [(t or "").strip() for t in titles]
     if all(not t for t in titles):
         return [None] * len(titles)
+
+    count = sum(1 for t in titles if t)
+    logger.info("[TRANSLATION-BATCH] Translating %s events.", count)
 
     client = _make_client()
     if not client:

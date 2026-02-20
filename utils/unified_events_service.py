@@ -462,7 +462,9 @@ class UnifiedEventsService:
                         description=(description or "").strip() or None,
                         location_name=(location_name or "").strip() or None,
                     )
-                    if trans.get("title_en") or trans.get("description_en") or trans.get("location_name_en"):
+                    # Локация не переводится — в _en пишем оригинал
+                    loc_en = (location_name or "").strip() or trans.get("location_name_en")
+                    if trans.get("title_en") or trans.get("description_en") or loc_en:
                         with self.engine.begin() as conn:
                             conn.execute(
                                 text("""
@@ -476,7 +478,7 @@ class UnifiedEventsService:
                                     "event_id": user_event_id,
                                     "title_en": trans.get("title_en"),
                                     "description_en": trans.get("description_en"),
-                                    "location_name_en": trans.get("location_name_en"),
+                                    "location_name_en": loc_en,
                                 },
                             )
                         logger.debug(
@@ -597,7 +599,7 @@ class UnifiedEventsService:
                     description=description,
                     location_name=location_name,
                 )
-                # Fallback (ТЗ): при ошибке не писать пустоту — оставить NULL для повтора
+                # Пустой ответ не пишем в БД — оставляем NULL для повтора
                 title_en = (
                     trans.get("title_en") if trans.get("title_en") else (existing_row[3] if existing_row else None)
                 )
@@ -606,10 +608,9 @@ class UnifiedEventsService:
                     if trans.get("description_en")
                     else (existing_row[4] if existing_row and len(existing_row) > 4 else None)
                 )
-                location_name_en = (
-                    trans.get("location_name_en")
-                    if trans.get("location_name_en")
-                    else (existing_row[5] if existing_row and len(existing_row) > 5 else None)
+                # Локация не переводится — всегда оригинал (Google Maps style)
+                location_name_en = location_name or (
+                    existing_row[5] if existing_row and len(existing_row) > 5 else None
                 )
             else:
                 title_en = existing_row[3] if existing_row else None

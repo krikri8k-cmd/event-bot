@@ -72,13 +72,15 @@ def upsert_event(engine: Engine, row: dict[str, Any]) -> None:
                 title_en = trans["title_en"]
             if trans.get("description_en"):
                 description_en = trans["description_en"]
-            if trans.get("location_name_en"):
-                location_name_en = trans["location_name_en"]
+            # location_name не переводим — в _en пишем оригинал (Google Maps style)
         except Exception as e:
             logger.warning("ingest/upsert: перевод не выполнен для %r: %s", (title or "")[:50], e)
 
     # ICS/Nexudus отдают venue_address или raw_location, SQL ожидает location_name
     location_name_value = row.get("location_name") or row.get("venue_address") or row.get("raw_location")
+    # Локация не переводится: location_name_en = оригинал (или NULL), для вывода в боте всегда location_name
+    if location_name_en is None and location_name_value:
+        location_name_en = location_name_value
 
     row_with_defaults = {
         "referral_code": None,
