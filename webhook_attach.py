@@ -56,13 +56,9 @@ if not PUBLIC_URL:
 def attach_bot_to_app(app: FastAPI) -> None:
     """
     Регистрирует /health, /webhook и инициализирует бота после старта FastAPI.
-
-    Args:
-        app: FastAPI приложение к которому нужно подключить бота
+    Импорт bot_enhanced_v3 не выполняется здесь — только в lifespan и в webhook,
+    чтобы сервер поднялся быстро и Railway health check прошёл.
     """
-    # Импортируем bot и dp из основного модуля (после того как они созданы)
-    from bot_enhanced_v3 import bot, dp
-
     # Флаг готовности
     if not hasattr(app.state, "ready"):
         app.state.ready = False
@@ -75,6 +71,8 @@ def attach_bot_to_app(app: FastAPI) -> None:
     @app.post(WEBHOOK_PATH)
     async def telegram_webhook(req: Request):
         """Обработчик webhook от Telegram"""
+        from bot_enhanced_v3 import bot, dp
+
         try:
             # Получаем JSON данные от Telegram
             data = await req.json()
@@ -101,15 +99,17 @@ def attach_bot_to_app(app: FastAPI) -> None:
         """
         Инициализация бота после старта FastAPI.
         Выполняет все длительные операции: БД, команды, роутеры и т.д.
+        Импорт bot_enhanced_v3 здесь — сервер уже слушает, /health уже отвечает.
         """
+        import bot_enhanced_v3
+        from bot_enhanced_v3 import bot
+
         try:
             logger.info("🚀 Начало инициализации бота...")
 
             # Инициализируем BOT_ID для корректной фильтрации в групповых чатах
             bot_info = await bot.me()
             # Обновляем BOT_ID глобально
-            import bot_enhanced_v3
-
             bot_enhanced_v3.BOT_ID = bot_info.id
             logger.info(f"BOT_ID инициализирован: {bot_info.id}")
 
@@ -144,7 +144,7 @@ def attach_bot_to_app(app: FastAPI) -> None:
 
             # Устанавливаем команды бота
             try:
-                await setup_bot_commands_and_menu()
+                await setup_bot_commands_and_menu(bot)
             except Exception as e:
                 logger.warning(f"Не удалось установить команды бота: {e}")
 
@@ -228,8 +228,8 @@ def attach_bot_to_app(app: FastAPI) -> None:
             # Не помечаем как ready если была ошибка
             app.state.ready = False
 
-    async def setup_bot_commands_and_menu():
-        """Устанавливает команды бота и menu button"""
+    async def setup_bot_commands_and_menu(bot):
+        """Устанавливает команды бота и menu button (bot передаётся из init_bot)."""
         from aiogram import types
         from aiogram.types import (
             BotCommandScopeAllGroupChats,
@@ -330,6 +330,8 @@ def attach_bot_to_app(app: FastAPI) -> None:
     async def _shutdown():
         """Запускается при остановке FastAPI - закрывает соединения бота"""
         try:
+            from bot_enhanced_v3 import bot
+
             logger.info("🛑 Остановка бота...")
             await bot.session.close()
             logger.info("✅ Бот остановлен")
