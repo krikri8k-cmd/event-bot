@@ -1,29 +1,24 @@
-# Dockerfile для Telegram бота
+# Принудительная фиксация среды: Python 3.11 (Railway игнорирует runtime.txt)
 FROM python:3.11-slim
-
-# Настройки Python
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
-
-# Рабочая директория
-WORKDIR /app
 
 # Системные зависимости
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl ca-certificates \
+    curl \
+    ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
-# Обновим pip и установим зависимости
-COPY requirements.txt ./requirements.txt
-RUN python -m pip install --upgrade pip wheel setuptools \
- && pip install -r requirements.txt
+WORKDIR /app
 
-# Копируем проект
+# Установка Python зависимостей
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir -r requirements.txt
+
+# Копирование кода
 COPY . .
 
-# Делаем скрипт запуска исполняемым
+# Права на запуск скрипта (если используется)
 RUN chmod +x railway-bot-start.sh
 
-# Запускаем Telegram бота через скрипт с keep-alive
-CMD ["./railway-bot-start.sh"]
+# Запуск через uvicorn (порт из переменной окружения)
+CMD ["sh", "-c", "uvicorn api.app:app --host 0.0.0.0 --port ${PORT:-8000}"]
