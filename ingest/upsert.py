@@ -57,8 +57,9 @@ def upsert_event(engine: Engine, row: dict[str, Any]) -> None:
     description_en = row.get("description_en")
     location_name_en = row.get("location_name_en")
 
-    # Перевод при сохранении: только если ещё не передан и есть что переводить
-    if title_en is None and (title or description or location_name):
+    # Перевод при сохранении: только если ещё не передан (или пустая строка) и есть что переводить
+    need_translation = (title_en is None or (title_en or "").strip() == "") and (title or description or location_name)
+    if need_translation:
         try:
             from utils.event_translation import translate_event_to_english
 
