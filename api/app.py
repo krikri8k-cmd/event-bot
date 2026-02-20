@@ -252,8 +252,7 @@ def create_app() -> FastAPI:
 
         @app.post("/events/sources/meetup/sync")
         async def sync_meetup(lat: float, lng: float, radius_km: float = 5.0):
-            """Синхронизация событий из Meetup API"""
-            # Валидация входных данных
+            """Синхронизация событий из Meetup API. Использует ingest.upsert.upsert_event с переводом RU→EN."""
             if not (-90 <= lat <= 90):
                 raise HTTPException(status_code=400, detail="lat must be between -90 and 90")
             if not (-180 <= lng <= 180):
@@ -262,18 +261,13 @@ def create_app() -> FastAPI:
                 raise HTTPException(status_code=400, detail="radius_km must be between 1 and 20")
 
             try:
-                # Получаем события из Meetup
                 import sources.meetup
                 from ingest import upsert_events
 
                 events = await sources.meetup.fetch(lat, lng, radius_km)
-
-                # Вставляем в базу данных
                 engine = get_engine()
                 inserted_count = upsert_events(events, engine)
-
                 return {"inserted": inserted_count}
-
             except Exception as e:
                 return {"error": str(e), "inserted": 0}
 
@@ -282,8 +276,7 @@ def create_app() -> FastAPI:
 
         @app.post("/events/sources/baliforum/sync")
         async def sync_baliforum(lat: float, lng: float, radius_km: float = 5.0):
-            """Синхронизация событий из BaliForum"""
-            # Валидация входных данных
+            """Синхронизация событий из BaliForum. Использует ingest.upsert.upsert_event с переводом RU→EN."""
             if not (-90 <= lat <= 90):
                 raise HTTPException(status_code=400, detail="lat must be between -90 and 90")
             if not (-180 <= lng <= 180):
@@ -292,18 +285,13 @@ def create_app() -> FastAPI:
                 raise HTTPException(status_code=400, detail="radius_km must be between 1 and 20")
 
             try:
-                # Получаем события из BaliForum
                 import sources.baliforum
                 from ingest import upsert_events
 
                 events = sources.baliforum.fetch(limit=100)
-
-                # Вставляем в базу данных
                 engine = get_engine()
                 inserted_count = upsert_events(events, engine)
-
                 return {"inserted": inserted_count}
-
             except Exception as e:
                 return {"error": str(e), "inserted": 0}
 
