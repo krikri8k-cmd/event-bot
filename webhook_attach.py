@@ -8,7 +8,6 @@ import asyncio
 import logging
 import os
 
-from aiogram.types import Update
 from fastapi import FastAPI, Request
 
 logger = logging.getLogger(__name__)
@@ -59,18 +58,15 @@ def attach_bot_to_app(app: FastAPI) -> None:
     Импорт bot_enhanced_v3 не выполняется здесь — только в lifespan и в webhook,
     чтобы сервер поднялся быстро и Railway health check прошёл.
     """
-    # Флаг готовности
+    # Флаг готовности (/health уже зарегистрирован в api.app до импорта webhook)
     if not hasattr(app.state, "ready"):
         app.state.ready = False
-
-    @app.get("/health")
-    async def health():
-        """Health check endpoint для Railway"""
-        return {"ok": True, "ready": app.state.ready}
 
     @app.post(WEBHOOK_PATH)
     async def telegram_webhook(req: Request):
         """Обработчик webhook от Telegram"""
+        from aiogram.types import Update
+
         from bot_enhanced_v3 import bot, dp
 
         try:

@@ -32,6 +32,14 @@ def create_app() -> FastAPI:
     logger.info("🚀 Creating FastAPI application...")
     app = FastAPI(title="EventBot API (CI)")
 
+    # /health регистрируется первым, до любого импорта webhook/aiogram (Railway, избежание circular import)
+    app.state.ready = False
+
+    @app.get("/health")
+    async def health():
+        """Health check для Railway; ready обновляется после init_bot()."""
+        return {"ok": True, "ready": getattr(app.state, "ready", False)}
+
     # Загружаем настройки
     logger.info("📋 Loading settings...")
     settings = load_settings()
@@ -120,8 +128,7 @@ def create_app() -> FastAPI:
         # Подключаем OAuth роутер
         app.include_router(oauth_router)
 
-    # Health check endpoint будет добавлен через attach_bot_to_app
-    # Не дублируем здесь, чтобы избежать конфликтов
+    # /health уже зарегистрирован в начале create_app() (до импорта webhook/aiogram)
 
     @app.get("/click")
     async def track_click(
