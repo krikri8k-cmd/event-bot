@@ -18,6 +18,12 @@ from database import get_engine, init_engine
 
 
 def main():
+    # Консоль Windows (cp1252) не выводит кириллицу — переключаем stdout на UTF-8
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except (AttributeError, OSError):
+        pass
+
     parser = argparse.ArgumentParser(description="Найти события по подстроке title")
     parser.add_argument("queries", nargs="+", help="Подстроки для поиска (ILIKE)")
     parser.add_argument("--limit", type=int, default=20, help="Макс. событий на запрос (по умолч. 20)")
