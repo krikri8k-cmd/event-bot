@@ -11444,13 +11444,18 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
                 # Если город не определен, используем регион из состояния или None (будет UTC)
                 city = data.get("region")  # Может быть None
 
-            # Перевод RU→EN перед сохранением (тот же модуль, что и у парсера), без отдельного сообщения пользователю
+            # ТЗ: показать «Секунду, перевожу...», после перевода обновить на «Готово», затем итог
+            translating_msg = await callback.message.answer(t("create.translating", user_lang))
             trans = translate_event_to_english(
                 title=data["title"],
                 description=data.get("description") or "",
             )
             title_en = trans.get("title_en") if trans else None
             description_en = trans.get("description_en") if trans else None
+            try:
+                await translating_msg.edit_text(t("create.translated", user_lang))
+            except Exception:
+                pass
 
             # Создаем событие через упрощенный сервис (с уже заполненными title_en, description_en)
             event_id = events_service.create_user_event(

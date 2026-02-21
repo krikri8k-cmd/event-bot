@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 MAX_RETRIES = 3
 INITIAL_DELAY_SEC = 1.0
 MAX_DELAY_SEC = 30.0
-OPENAI_TIMEOUT = 20.0  # ТЗ: если за это время ответа нет — оригинал, ошибка в лог
+OPENAI_TIMEOUT = 60.0  # ТЗ: 60 сек, чтобы соединение не рвалось на длинных описаниях
 
 # Модель: в 10 раз дешевле и быстрее, для перевода заголовков достаточно (ТЗ)
 OPENAI_MODEL = "gpt-4o-mini"

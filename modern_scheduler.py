@@ -829,6 +829,19 @@ class ModernEventScheduler:
         except Exception as e:
             logger.error(f"❌ Ошибка проверки удаленных чатов: {e}")
 
+    def _run_backfill_translations(self):
+        """Догоняющий перевод событий без EN (не чаще 10 мин, пауза при ошибке — внутри run_backfill)."""
+        try:
+            from utils.backfill_translation import run_backfill
+
+            result = run_backfill(full=False)
+            if result.get("paused"):
+                logger.debug("[BACKFILL] Skipped this run (paused after OpenAI error)")
+            elif result.get("translated", 0) > 0:
+                logger.info("[BACKFILL] Translated %s events", result["translated"])
+        except Exception as e:
+            logger.warning("[BACKFILL] Job failed: %s", e)
+
     def send_community_reminders(self):
         """Отправка напоминаний о Community событиях за 24 часа"""
         try:
@@ -1037,6 +1050,17 @@ class ModernEventScheduler:
         )
         logger.info("   ✅ Зарегистрирована задача: уведомления о начале событий (каждые 5 минут)")
 
+        # ТЗ: backfill переводов не чаще раза в 10 минут (хвосты без title_en)
+        self.scheduler.add_job(
+            self._run_backfill_translations,
+            "interval",
+            minutes=10,
+            id="backfill-translations",
+            max_instances=1,
+            coalesce=True,
+        )
+        logger.info("   ✅ Зарегистрирована задача: backfill переводов (каждые 10 минут)")
+
         self.scheduler.start()
         logger.info("🚀 Современный планировщик запущен!")
         logger.info("   📅 Полный цикл: каждые 12 часов (2 раза в день)")
@@ -1047,11 +1071,12 @@ class ModernEventScheduler:
         logger.info("   🔍 Проверка удаленных чатов: каждые 24 часа")
         logger.info("   🔔 Напоминания о событиях: каждые 30 минут")
         logger.info("   🎉 Уведомления о начале событий: каждые 5 минут")
+        logger.info("   📝 Backfill переводов: каждые 10 минут")
 
         # Показываем следующее время выполнения задач
         jobs = self.scheduler.get_jobs()
         for job in jobs:
-            if job.id in ["community-reminders", "event-start-notifications"]:
+            if job.id in ["community-reminders", "event-start-notifications", "backfill-translations"]:
                 next_run = job.next_run_time
                 if next_run:
                     from datetime import UTC, datetime
@@ -1062,26 +1087,24 @@ class ModernEventScheduler:
                 else:
                     logger.warning(f"   ⚠️ Задача '{job.id}' не имеет следующего времени запуска")
 
-        # Авто-backfill переводов один раз при старте (без полного ingest)
-        try:
-            with self.engine.connect() as conn:
-                count = conn.execute(
-                    text(
-                        "SELECT COUNT(*) FROM events WHERE title_en IS NULL "
-                        "AND title IS NOT NULL AND TRIM(COALESCE(title, '')) != ''"
-                    )
-                ).scalar()
-            if count and count > 0:
-                logger.info("[AUTO-BACKFILL] Found %s events without EN", count)
-                logger.info("[AUTO-BACKFILL] Starting backfill...")
+        # ТЗ: тяжёлый backfill в фоне — не блокировать /health и старт
+        import threading
+
+        def _initial_backfill():
+            try:
                 from utils.backfill_translation import run_backfill
 
                 result = run_backfill(full=False)
-                logger.info("[AUTO-BACKFILL] Completed. translated=%s", result.get("translated", 0))
-            else:
-                logger.debug("[AUTO-BACKFILL] No events without EN, skip")
-        except Exception as e:
-            logger.warning("[AUTO-BACKFILL] Failed: %s", e)
+                if result.get("paused"):
+                    logger.info("[AUTO-BACKFILL] Skipped (paused after error)")
+                else:
+                    logger.info("[AUTO-BACKFILL] Completed. translated=%s", result.get("translated", 0))
+            except Exception as e:
+                logger.warning("[AUTO-BACKFILL] Failed: %s", e)
+
+        t = threading.Thread(target=_initial_backfill, daemon=True)
+        t.start()
+        logger.info("[AUTO-BACKFILL] Started in background")
 
         # Запускаем проверку напоминаний и уведомлений сразу для тестирования
         logger.info("🔔 Запускаем проверку напоминаний и уведомлений сразу после старта...")
