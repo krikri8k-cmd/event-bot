@@ -107,14 +107,36 @@ def run_hint_backfill(
     return processed, translated
 
 
+def _count_places_needing_hint_translation() -> int:
+    """Количество записей task_places с пустым task_hint_en и непустым task_hint."""
+    engine = get_engine()
+    if not engine:
+        return 0
+    with engine.connect() as conn:
+        r = conn.execute(
+            text(
+                """
+                SELECT COUNT(*) FROM task_places
+                WHERE (task_hint_en IS NULL OR TRIM(COALESCE(task_hint_en, '')) = '')
+                  AND task_hint IS NOT NULL
+                  AND TRIM(COALESCE(task_hint, '')) != ''
+                """
+            )
+        ).scalar()
+    return r or 0
+
+
 def run_full_backfill(
     batch_size: int = HINT_BATCH_SIZE,
 ) -> dict[str, Any]:
     """
     Сначала зеркалирует name -> name_en, затем переводит task_hint -> task_hint_en.
     В лог: [TASK-BACKFILL] Processed X places. Names mirrored, hints translated.
+    [GPT] Запущен перевод task_hint для X мест.
     """
     names_mirrored = run_name_mirror()
+    places_to_translate = _count_places_needing_hint_translation()
+    logger.info("[GPT] Запущен перевод task_hint для %s мест.", places_to_translate)
     processed, translated = run_hint_backfill(batch_size=batch_size)
     total_places = names_mirrored + processed  # приблизительно уникальных мест за цикл
     logger.info(

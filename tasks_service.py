@@ -8,202 +8,9 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import and_
 
-from database import Task, User, UserTask, get_session
+from database import User, UserTask, get_session
 
 logger = logging.getLogger(__name__)
-
-# Дата начала системы заданий (фиксированная дата)
-START_DATE = datetime(2025, 10, 3, 0, 0, 0, tzinfo=UTC)  # 3 октября 2025
-
-
-def get_all_available_tasks(category: str, task_type: str = "urban") -> list[Task]:
-    """
-    Получает все доступные задания для указанной категории и типа задания
-
-    Args:
-        category: 'food', 'health' или 'places'
-        task_type: 'urban' (городские) или 'island' (островные)
-
-    Returns:
-        Список всех активных заданий, отсортированных по order_index
-    """
-    with get_session() as session:
-        tasks = (
-            session.query(Task)
-            .filter(
-                and_(
-                    Task.category == category,
-                    Task.task_type == task_type,
-                    Task.is_active == True,  # noqa: E712
-                )
-            )
-            .order_by(Task.order_index)
-            .all()
-        )
-        logger.info(f"Получены все доступные задания для {category}, тип {task_type}: {len(tasks)} заданий")
-        return tasks
-
-
-def get_daily_tasks(category: str, task_type: str = "urban", date: datetime | None = None) -> list[Task]:
-    """
-    Получает 3 задания на день для указанной категории и типа задания
-
-    Args:
-        category: 'food', 'health' или 'places'
-        task_type: 'urban' (городские) или 'island' (островные)
-        date: дата для получения заданий (по умолчанию сегодня)
-
-    Returns:
-        Список из 3 заданий
-    """
-    if date is None:
-        date = datetime.now(UTC)
-
-    # Вычисляем день с начала (1-5, потом по кругу)
-    days_since_start = (date - START_DATE).days
-    day_number = (days_since_start % 5) + 1  # 1-5, потом снова 1
-
-    # Получаем 3 задания подряд (используем order_index 1-15 напрямую)
-    start_index = (day_number - 1) * 3 + 1
-    end_index = start_index + 2
-
-    with get_session() as session:
-        tasks = (
-            session.query(Task)
-            .filter(
-                and_(
-                    Task.category == category,
-                    Task.task_type == task_type,  # Фильтр по типу задания
-                    Task.is_active == True,  # noqa: E712
-                    Task.order_index >= start_index,
-                    Task.order_index <= end_index,
-                )
-            )
-            .order_by(Task.order_index)
-            .all()
-        )
-
-        logger.info(
-            f"Получены задания для {category}, тип {task_type}, день {day_number}: {len(tasks)} заданий "
-            f"(индексы {start_index}-{end_index})"
-        )
-
-        # Если не найдено заданий, попробуем получить любые 3 активных задания нужного типа
-        if not tasks:
-            logger.warning(
-                f"Задания не найдены для {category}, тип {task_type} "
-                f"с индексами {start_index}-{end_index}, пробуем любые активные"
-            )
-            tasks = (
-                session.query(Task)
-                .filter(
-                    and_(
-                        Task.category == category,
-                        Task.task_type == task_type,  # Фильтр по типу задания
-                        Task.is_active == True,  # noqa: E712
-                    )
-                )
-                .order_by(Task.order_index)
-                .limit(3)
-                .all()
-            )
-            logger.info(f"Получены альтернативные задания для {category}, тип {task_type}: {len(tasks)} заданий")
-
-        return tasks
-
-
-def accept_task(user_id: int, task_id: int, user_lat: float = None, user_lng: float = None) -> bool:
-    """
-    Принимает задание пользователем
-
-    Args:
-        user_id: ID пользователя
-        task_id: ID задания
-        user_lat: Широта пользователя (для определения часового пояса)
-        user_lng: Долгота пользователя (для определения часового пояса)
-
-    Returns:
-        True если задание принято успешно
-    """
-    try:
-        with get_session() as session:
-            # Проверяем, что задание существует и активно
-            task = session.query(Task).filter(and_(Task.id == task_id, Task.is_active == True)).first()  # noqa: E712
-
-            if not task:
-                logger.error(f"Задание {task_id} не найдено или неактивно")
-                return False
-
-            # Проверяем дубликаты: для заданий без конкретного места (place_id is None)
-            # разрешаем только одно активное задание с таким task_id
-            # Для заданий с местами (place_id is not None) разрешаем несколько заданий
-            # с одним task_id, но разными place_id
-            existing_task = (
-                session.query(UserTask)
-                .filter(
-                    and_(
-                        UserTask.user_id == user_id,
-                        UserTask.task_id == task_id,
-                        UserTask.status == "active",
-                        UserTask.place_id.is_(None),  # Проверяем только задания без конкретного места
-                    )
-                )
-                .first()
-            )
-
-            if existing_task:
-                logger.warning(f"Пользователь {user_id} уже имеет активное задание {task_id} без конкретного места")
-                return False
-
-            # Определяем часовой пояс пользователя
-            if user_lat is not None and user_lng is not None:
-                from zoneinfo import ZoneInfo
-
-                from utils.simple_timezone import get_city_from_coordinates, get_city_timezone
-
-                city = get_city_from_coordinates(user_lat, user_lng)
-                if city:
-                    tz_name = get_city_timezone(city)
-                    user_tz = ZoneInfo(tz_name)
-                else:
-                    # Если город не определен, используем UTC
-                    user_tz = ZoneInfo("UTC")
-
-                # Используем местное время пользователя
-                accepted_at_local = datetime.now(user_tz)
-                accepted_at = accepted_at_local.astimezone(UTC)
-
-                logger.info(
-                    f"Пользователь {user_id} в городе {city} (часовой пояс {tz_name}), "
-                    f"местное время: {accepted_at_local.strftime('%Y-%m-%d %H:%M:%S')}"
-                )
-            else:
-                # Fallback на UTC если координаты не переданы
-                accepted_at = datetime.now(UTC)
-                logger.info(f"Пользователь {user_id} без координат, используется UTC время")
-
-            # Устанавливаем очень большое время истечения (10 лет) - ограничение по времени отключено
-            expires_at = accepted_at + timedelta(days=3650)
-
-            user_task = UserTask(
-                user_id=user_id, task_id=task_id, status="active", accepted_at=accepted_at, expires_at=expires_at
-            )
-
-            session.add(user_task)
-
-            # Обновляем счетчик принятых заданий
-            user = session.get(User, user_id)
-            if user:
-                user.tasks_accepted_total = (user.tasks_accepted_total or 0) + 1
-
-            session.commit()
-
-            logger.info(f"Пользователь {user_id} принял задание {task_id}, истекает {expires_at}")
-            return True
-
-    except Exception as e:
-        logger.error(f"Ошибка принятия задания {task_id} пользователем {user_id}: {e}")
-        return False
 
 
 def create_task_from_place(
@@ -250,59 +57,8 @@ def create_task_from_place(
                 logger.warning(f"Пользователь {user_id} уже имеет активное задание для места {place_id} ({place.name})")
                 return False, f"⚠️ Квест для места '{place.name}' уже добавлен в Мои квесты"
 
-            # ИЕРАРХИЯ ИСТОЧНИКОВ (по совету друга):
-            # 1. GPT Hint (place.task_hint) - приоритет
-            # 2. Шаблон (tasks) - fallback для старых мест
-            # 3. Default - если ничего нет
-
-            task = None
-            task_id_for_db = None
-
             if place.task_hint:
-                # У места есть GPT-подсказка - это динамическое задание
-                # task_id = NULL (не привязываем к шаблону)
-                logger.info(f"✅ GPT-задание для места {place.id} ({place.name}): task_id будет NULL")
-            else:
-                # Нет GPT-подсказки - ищем шаблон (fallback для старых мест)
-                task = (
-                    session.query(Task)
-                    .filter(
-                        and_(
-                            Task.category == place.category,
-                            Task.task_type == place.task_type,
-                            Task.is_active == True,  # noqa: E712
-                        )
-                    )
-                    .order_by(Task.order_index)
-                    .first()
-                )
-
-                # Если нет задания для нужного типа, пробуем найти любое задание для категории
-                if not task:
-                    logger.warning(
-                        f"Задание не найдено для места {place_id} с типом {place.task_type}, "
-                        f"ищем любое задание для категории {place.category}"
-                    )
-                    task = (
-                        session.query(Task)
-                        .filter(
-                            and_(
-                                Task.category == place.category,
-                                Task.is_active == True,  # noqa: E712
-                            )
-                        )
-                        .order_by(Task.order_index)
-                        .first()
-                    )
-
-                if task:
-                    task_id_for_db = task.id
-                    logger.info(f"✅ Найден шаблон {task.id} для места {place.id} (fallback)")
-                else:
-                    # Если даже шаблона нет - используем default текст
-                    logger.warning(
-                        f"⚠️ Нет ни GPT-подсказки, ни шаблона для места {place_id}. " f"Используем default текст."
-                    )
+                logger.info(f"✅ GPT-задание для места {place.id} ({place.name}): task_id NULL")
 
             # Определяем часовой пояс пользователя
             if user_lat is not None and user_lng is not None:
@@ -325,37 +81,24 @@ def create_task_from_place(
             # Устанавливаем очень большое время истечения (10 лет) - ограничение по времени отключено
             expires_at = accepted_at + timedelta(days=3650)
 
-            # ИЕРАРХИЯ ИСТОЧНИКОВ: Определяем frozen данные
-            # 1. GPT Hint (place.task_hint) - приоритет
-            # 2. Шаблон (task) - fallback
-            # 3. Default - если ничего нет
-
+            # Frozen данные: task_hint или default (таблица tasks не используется)
             if place.task_hint:
-                # 1. GPT-подсказка (приоритет)
                 frozen_title = place.task_hint
                 frozen_description = place.task_hint
                 frozen_task_hint = place.task_hint
                 logger.info(
                     f"✅ Используем GPT task_hint из места {place.id} ({place.name}): " f"'{place.task_hint[:50]}...'"
                 )
-            elif task:
-                # 2. Шаблон (fallback для старых мест)
-                frozen_title = task.title
-                frozen_description = task.description
-                frozen_task_hint = None
-                logger.info(f"✅ Используем шаблон {task.id} для места {place.id} ({place.name})")
             else:
-                # 3. Default текст (если ничего нет)
                 frozen_title = f"Посети {place.name}"
                 frozen_description = "Посети это место и сделай фото"
                 frozen_task_hint = None
-                logger.warning(f"⚠️ Используем default текст для места {place.id} ({place.name})")
+                logger.info(f"✅ Default текст для места {place.id} ({place.name})")
 
             # Создаем UserTask с информацией о конкретном месте и замороженными данными
             # task_id может быть NULL для GPT-генерированных заданий
             user_task_kwargs = {
                 "user_id": user_id,
-                "task_id": task_id_for_db,  # NULL для GPT-заданий, ID шаблона для fallback
                 "status": "active",
                 "accepted_at": accepted_at,
                 "expires_at": expires_at,
@@ -445,40 +188,23 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
             except Exception as e:
                 logger.warning(f"Не удалось определить часовой пояс для пользователя {user_id}: {e}")
 
-        # LEFT JOIN, так как task_id может быть NULL для GPT-генерированных заданий
-        user_tasks = (
-            session.query(UserTask, Task)
-            .outerjoin(Task)  # LEFT JOIN вместо JOIN
-            .filter(and_(UserTask.user_id == user_id, UserTask.status == "active"))
-            .all()
+        user_tasks_rows = (
+            session.query(UserTask).filter(and_(UserTask.user_id == user_id, UserTask.status == "active")).all()
         )
 
         result = []
-        for user_task, task in user_tasks:
-            # Проверка на просрочку отключена - показываем все активные задания
-
-            # Конвертируем время в местный часовой пояс
+        for user_task in user_tasks_rows:
             accepted_at = user_task.accepted_at
             expires_at = user_task.expires_at
 
             if user_tz is not None:
-                # Конвертируем UTC время в местное время пользователя
                 if accepted_at.tzinfo is None:
                     accepted_at = accepted_at.replace(tzinfo=UTC)
                 if expires_at.tzinfo is None:
                     expires_at = expires_at.replace(tzinfo=UTC)
-
                 accepted_at = accepted_at.astimezone(user_tz)
                 expires_at = expires_at.astimezone(user_tz)
 
-            # КРИТИЧЕСКИ ВАЖНО: Используем замороженные данные, если они есть
-            # Это гарантирует, что задание всегда показывает то же описание, которое видел пользователь
-            #
-            # ПРАВИЛО: user_tasks - единственный источник правды для UI
-            # tasks используется ТОЛЬКО для XP/наград/аналитики, НЕ для отображения
-
-            # Проверяем наличие frozen данных
-            # Поля теперь всегда есть в модели (раскомментированы)
             has_frozen_fields = (
                 user_task.frozen_title is not None
                 and user_task.frozen_description is not None
@@ -486,53 +212,36 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                 and user_task.frozen_description
             )
 
-            # ИЕРАРХИЯ ИСТОЧНИКОВ (как в совете друга):
-            # 1. Frozen данные (display_text) - приоритет
-            # 2. Шаблон (task) - fallback
-            # 3. Default - если ничего нет
-
             if has_frozen_fields:
-                # 1. Frozen данные (единственный источник правды)
                 task_title = user_task.frozen_title
                 task_description = user_task.frozen_description
-                task_category = user_task.frozen_category or (task.category if task else None)
+                task_category = user_task.frozen_category
                 task_hint = user_task.frozen_task_hint
-                task_id_for_dict = user_task.task_id  # Может быть NULL
-                logger.debug(
-                    f"✅ Используем frozen данные для UserTask {user_task.id}: " f"title='{task_title[:50]}...'"
-                )
-            elif task:
-                # 2. Шаблон (fallback для старых заданий без frozen)
-                task_title = task.title
-                task_description = task.description
-                task_category = task.category
-                task_hint = None
-                task_id_for_dict = task.id
-                logger.warning(
-                    f"⚠️ Используем шаблон {task.id} для UserTask {user_task.id} (нет frozen данных). "
-                    f"Рекомендуется запустить скрипт миграции старых заданий."
-                )
             else:
-                # 3. Default (если нет ни frozen, ни task)
                 task_title = user_task.place_name or "Задание"
                 task_description = f"Посети {user_task.place_name or 'это место'} и сделай фото"
                 task_category = user_task.frozen_category
                 task_hint = None
-                task_id_for_dict = None
-                logger.warning(f"⚠️ Используем default текст для UserTask {user_task.id} (нет ни frozen, ни task)")
+
+            task_type_from_place = None
+            if user_task.place_id:
+                from database import TaskPlace
+
+                place = session.query(TaskPlace).filter(TaskPlace.id == user_task.place_id).first()
+                if place:
+                    task_type_from_place = getattr(place, "task_type", None)
 
             task_dict = {
                 "id": user_task.id,
-                "task_id": task_id_for_dict,  # Может быть NULL для GPT-заданий
                 "title": task_title,
                 "description": task_description,
                 "category": task_category,
-                "location_url": task.location_url if task else None,
+                "location_url": user_task.place_url,
                 "accepted_at": accepted_at,
                 "expires_at": expires_at,
                 "status": user_task.status,
-                "task_type": task.task_type if task else None,
-                "task_hint": task_hint,  # Добавляем подсказку, если есть
+                "task_type": task_type_from_place,
+                "task_hint": task_hint,
             }
 
             # Получаем информацию о месте и промокоде
@@ -607,26 +316,22 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                     region = get_user_region(user.last_lat, user.last_lng)
                     region_type = get_user_region_type(user.last_lat, user.last_lng)
 
-                    # Используем task_type из задания
-                    task_type = task.task_type or "urban"  # По умолчанию urban
+                    task_type = task_type_from_place or "urban"
                     logger.info(
-                        f"Поиск места для задания {task.id}: category={task.category}, "
+                        f"Поиск места для UserTask {user_task.id}: category={task_category}, "
                         f"task_type={task_type}, region={region}, region_type={region_type}, user_id={user_id}"
                     )
 
-                    # Если регион unknown - используем поисковые запросы вместо конкретных мест
                     if region == "unknown":
-                        logger.info(f"Регион unknown: используем поисковые запросы для задания {task.id}")
+                        logger.info(f"Регион unknown: используем поисковые запросы для UserTask {user_task.id}")
 
-                        # Сначала проверяем, есть ли location_url в задании
-                        if task.location_url:
-                            task_dict["place_url"] = task.location_url
-                            # Пытаемся извлечь название из URL или используем общее
-                            if "?q=" in task.location_url:
+                        if user_task.place_url:
+                            task_dict["place_url"] = user_task.place_url
+                            if "?q=" in user_task.place_url:
                                 # Извлекаем запрос из URL
                                 from urllib.parse import parse_qs, urlparse
 
-                                parsed = urlparse(task.location_url)
+                                parsed = urlparse(user_task.place_url)
                                 query_params = parse_qs(parsed.query)
                                 query = query_params.get("query", ["Место на карте"])[0]
                                 task_dict["place_name"] = query
@@ -649,7 +354,7 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                                     "culture",
                                 ],
                             }
-                            place_types = category_place_types.get(task.category, ["park"])
+                            place_types = category_place_types.get(task_category, ["park"])
                             place_type = place_types[0]  # Берем первый тип места
 
                             search_url = generate_search_query_url(
@@ -661,16 +366,14 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                             task_dict["place_url"] = search_url
                             task_dict["place_name"] = "Ближайшее место"
                     else:
-                        # Для известных регионов ищем конкретные места в БД
-                        # Сначала проверяем, есть ли уже location_url в задании
-                        if task.location_url:
-                            # У задания уже есть место - используем его
-                            task_dict["place_url"] = task.location_url
-                            # Пытаемся найти название места по URL в БД
+                        if user_task.place_url:
+                            task_dict["place_url"] = user_task.place_url
                             from database import TaskPlace
 
                             place_from_db = (
-                                session.query(TaskPlace).filter(TaskPlace.google_maps_url == task.location_url).first()
+                                session.query(TaskPlace)
+                                .filter(TaskPlace.google_maps_url == user_task.place_url)
+                                .first()
                             )
                             if place_from_db:
                                 task_dict["place_name"] = place_from_db.name
@@ -686,12 +389,11 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                                     )
                                     task_dict["distance_km"] = round(distance, 1)
                             else:
-                                # Если место не найдено в БД, используем общее название
                                 task_dict["place_name"] = "Место на карте"
-                            logger.debug(f"✅ Используем существующее место для задания {task.id}: {task.location_url}")
+                            logger.debug(
+                                f"✅ Используем существующее место для UserTask {user_task.id}: {user_task.place_url}"
+                            )
                         else:
-                            # У задания нет места - ищем новое
-                            # Пробуем разные типы мест для категории
                             place = None
                             category_place_types = {
                                 "food": ["cafe", "restaurant", "street_food", "market", "bakery"],
@@ -708,15 +410,15 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                                     "culture",
                                 ],
                             }
-                            place_types = category_place_types.get(task.category, ["park"])
+                            place_types = category_place_types.get(task_category, ["park"])
 
                             for place_type in place_types:
                                 logger.info(
-                                    f"Попытка найти место: category={task.category}, "
+                                    f"Попытка найти место: category={task_category}, "
                                     f"place_type={place_type}, task_type={task_type}"
                                 )
                                 place = find_nearest_available_place(
-                                    category=task.category,
+                                    category=task_category,
                                     place_type=place_type,
                                     task_type=task_type,
                                     user_lat=user.last_lat,
@@ -734,7 +436,7 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
 
                                 for place_type in place_types:
                                     place = find_oldest_unshown_place_in_region(
-                                        category=task.category,
+                                        category=task_category,
                                         place_type=place_type,
                                         region=region,
                                         user_id=user_id,
@@ -768,7 +470,7 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                                     # if not user_task.frozen_description:
                                     #     user_task.frozen_description = task.description
                                     # if not user_task.frozen_category:
-                                    #     user_task.frozen_category = task.category
+                                    #     user_task.frozen_category = task_category
                                     # if place.task_hint and not user_task.frozen_task_hint:
                                     #     user_task.frozen_task_hint = place.task_hint
                                     session.commit()
@@ -777,16 +479,21 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                                     )
 
                                 logger.info(
-                                    f"✅ Место найдено для задания {task.id}: {place.name}, "
+                                    f"✅ Место найдено для UserTask {user_task.id}: {place.name}, "
                                     f"промокод={place.promo_code}"
                                 )
                             else:
                                 logger.warning(
-                                    f"⚠️ Место не найдено для задания {task.id}: "
-                                    f"category={task.category}, task_type={task_type}"
+                                    f"⚠️ Место не найдено для UserTask {user_task.id}: "
+                                    f"category={task_category}, task_type={task_type}"
                                 )
                 except Exception as e:
-                    logger.error(f"❌ Ошибка получения информации о месте для задания {task.id}: {e}", exc_info=True)
+                    logger.error(
+                        "❌ Ошибка получения информации о месте для UserTask %s: %s",
+                        user_task.id,
+                        e,
+                        exc_info=True,
+                    )
 
             result.append(task_dict)
 
@@ -807,7 +514,7 @@ def get_user_completed_tasks_today(user_id: int) -> list[int]:
 
     with get_session() as session:
         completed_tasks = (
-            session.query(UserTask.task_id)
+            session.query(UserTask.id)
             .filter(
                 and_(
                     UserTask.user_id == user_id,
@@ -817,8 +524,7 @@ def get_user_completed_tasks_today(user_id: int) -> list[int]:
             )
             .all()
         )
-
-        return [task_id for (task_id,) in completed_tasks]
+        return [uid for (uid,) in completed_tasks]
 
 
 def complete_task(user_task_id: int, feedback: str) -> bool:
@@ -950,8 +656,7 @@ def get_tasks_approaching_deadline(hours_before: int = 2) -> list[dict]:
 
     with get_session() as session:
         approaching_tasks = (
-            session.query(UserTask, Task)
-            .join(Task)
+            session.query(UserTask)
             .filter(
                 and_(
                     UserTask.status == "active",
@@ -961,16 +666,15 @@ def get_tasks_approaching_deadline(hours_before: int = 2) -> list[dict]:
             )
             .all()
         )
-
         result = []
-        for user_task, task in approaching_tasks:
+        for user_task in approaching_tasks:
+            title = user_task.frozen_title or user_task.place_name or "Задание"
             result.append(
                 {
                     "user_id": user_task.user_id,
-                    "task_title": task.title,
+                    "task_title": title,
                     "expires_at": user_task.expires_at,
                     "hours_left": (user_task.expires_at - datetime.now(UTC)).total_seconds() / 3600,
                 }
             )
-
         return result

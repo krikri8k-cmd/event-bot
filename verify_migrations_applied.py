@@ -27,26 +27,8 @@ print("=" * 70)
 print()
 
 with engine.connect() as conn:
-    # Проверка категорий в tasks
-    print("1. Checking categories in 'tasks' table:")
-    result = conn.execute(
-        text("""
-        SELECT category, COUNT(*) as count
-        FROM tasks
-        GROUP BY category
-        ORDER BY category
-    """)
-    )
-
-    tasks_by_category = {}
-    for row in result:
-        tasks_by_category[row[0]] = row[1]
-        print(f"   - {row[0]}: {row[1]} tasks")
-
-    print()
-
-    # Проверка категорий в task_places
-    print("2. Checking categories in 'task_places' table:")
+    # Проверка категорий в task_places (таблица tasks удалена)
+    print("1. Checking categories in 'task_places' table:")
     result = conn.execute(
         text("""
         SELECT category, COUNT(*) as count
@@ -64,58 +46,41 @@ with engine.connect() as conn:
     print()
 
     # Проверка старых категорий (не должно быть)
-    print("3. Checking for old categories (should be 0):")
-    result = conn.execute(
-        text("""
-        SELECT COUNT(*) FROM tasks WHERE category IN ('body', 'spirit')
-        UNION ALL
-        SELECT COUNT(*) FROM task_places WHERE category IN ('body', 'spirit')
-    """)
-    )
+    print("2. Checking for old categories in task_places (should be 0):")
+    result = conn.execute(text("SELECT COUNT(*) FROM task_places WHERE category IN ('body', 'spirit')"))
+    old_places = result.scalar()
 
-    old_tasks = result.fetchone()[0]
-    old_places = result.fetchone()[0] if result.rowcount > 1 else 0
-
-    print(f"   - Old 'body'/'spirit' in tasks: {old_tasks}")
     print(f"   - Old 'body'/'spirit' in task_places: {old_places}")
 
     print()
     print("=" * 70)
 
-    # Итоговая проверка
     success = True
     issues = []
-
-    if "body" in tasks_by_category or "spirit" in tasks_by_category:
-        success = False
-        issues.append("Old categories still exist in tasks")
 
     if "body" in places_by_category or "spirit" in places_by_category:
         success = False
         issues.append("Old categories still exist in task_places")
 
-    if "food" not in tasks_by_category:
+    if "food" not in places_by_category:
         success = False
-        issues.append("Food category not found in tasks")
-    elif tasks_by_category["food"] < 15:
-        success = False
-        issues.append(f"Food category has only {tasks_by_category['food']} tasks, expected 15")
+        issues.append("Food category not found in task_places")
 
-    if "health" not in tasks_by_category:
+    if "health" not in places_by_category:
         success = False
-        issues.append("Health category not found in tasks")
+        issues.append("Health category not found in task_places")
 
-    if "places" not in tasks_by_category:
+    if "places" not in places_by_category:
         success = False
-        issues.append("Places category not found in tasks")
+        issues.append("Places category not found in task_places")
 
     if success:
         print("SUCCESS: All migrations applied correctly!")
         print()
-        print("Summary:")
-        print(f"  - Health tasks: {tasks_by_category.get('health', 0)}")
-        print(f"  - Places tasks: {tasks_by_category.get('places', 0)}")
-        print(f"  - Food tasks: {tasks_by_category.get('food', 0)}")
+        print("Summary (task_places):")
+        print(f"  - Food: {places_by_category.get('food', 0)}")
+        print(f"  - Health: {places_by_category.get('health', 0)}")
+        print(f"  - Places: {places_by_category.get('places', 0)}")
     else:
         print("ERROR: Issues found:")
         for issue in issues:

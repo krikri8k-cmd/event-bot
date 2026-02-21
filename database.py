@@ -63,26 +63,11 @@ class User(Base):
     language_code: Mapped[str | None] = mapped_column(String(5))  # 'ru', 'en' или NULL
 
 
-class Task(Base):
-    __tablename__ = "tasks"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    category: Mapped[str] = mapped_column(String(20), nullable=False)  # 'food', 'health', 'places'
-    title: Mapped[str] = mapped_column(String(200), nullable=False)
-    description: Mapped[str] = mapped_column(Text, nullable=False)
-    location_url: Mapped[str | None] = mapped_column(String(500))
-    task_type: Mapped[str] = mapped_column(String(20), default="urban")  # 'urban' или 'island'
-    order_index: Mapped[int] = mapped_column(Integer, nullable=False)  # порядок показа (1-15)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-
 class UserTask(Base):
     __tablename__ = "user_tasks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    task_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("tasks.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="active")  # 'active', 'completed', 'cancelled', 'expired'
     feedback: Mapped[str | None] = mapped_column(Text)
     accepted_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
