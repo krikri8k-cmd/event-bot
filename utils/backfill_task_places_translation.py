@@ -47,9 +47,13 @@ def run_name_mirror() -> int:
     return count
 
 
-def run_hint_backfill(batch_size: int = HINT_BATCH_SIZE) -> tuple[int, int]:
+def run_hint_backfill(
+    batch_size: int = HINT_BATCH_SIZE,
+    max_batches: int | None = None,
+) -> tuple[int, int]:
     """
     Выбирает записи с task_hint_en IS NULL, переводит task_hint пачкой, пишет в task_hint_en.
+    max_batches: если задан, после N пачек выходим (для одного цикла по 10 мест — batch_size=10, max_batches=1).
     Возвращает (processed, translated).
     """
     engine = get_engine()
@@ -57,14 +61,17 @@ def run_hint_backfill(batch_size: int = HINT_BATCH_SIZE) -> tuple[int, int]:
         return 0, 0
     processed = 0
     translated = 0
+    batches_done = 0
     while True:
+        if max_batches is not None and batches_done >= max_batches:
+            break
         with engine.begin() as conn:
             rows = conn.execute(
                 text(
                     """
                     SELECT id, task_hint
                     FROM task_places
-                    WHERE task_hint_en IS NULL
+                    WHERE (task_hint_en IS NULL OR TRIM(COALESCE(task_hint_en, '')) = '')
                       AND task_hint IS NOT NULL
                       AND TRIM(COALESCE(task_hint, '')) != ''
                     ORDER BY id
@@ -74,10 +81,13 @@ def run_hint_backfill(batch_size: int = HINT_BATCH_SIZE) -> tuple[int, int]:
                 {"limit": batch_size},
             ).fetchall()
         if not rows:
+            if batches_done == 0:
+                logger.info("[TASK-GPT] Нет записей для перевода (task_hint_en пустой и task_hint задан).")
             break
         ids = [r[0] for r in rows]
         hints = [r[1] for r in rows]
         results = translate_task_hints_batch(hints)
+        batch_translated = 0
         with engine.begin() as conn:
             for place_id, hint_en in zip(ids, results):
                 processed += 1
@@ -87,6 +97,13 @@ def run_hint_backfill(batch_size: int = HINT_BATCH_SIZE) -> tuple[int, int]:
                         {"id": place_id, "val": hint_en},
                     )
                     translated += 1
+                    batch_translated += 1
+        if batch_translated > 0:
+            logger.info(
+                "[TASK-GPT] Переведено %s описаний квестов.",
+                batch_translated,
+            )
+        batches_done += 1
     return processed, translated
 
 
