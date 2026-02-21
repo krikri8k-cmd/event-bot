@@ -8,6 +8,7 @@ from datetime import datetime
 from sqlalchemy import text
 
 from config import load_settings
+from utils.event_translation import translate_event_to_english
 
 
 class CommunityEventsService:
@@ -42,9 +43,12 @@ class CommunityEventsService:
         location_url: str = None,
         admin_id: int = None,
         admin_ids: list[int] = None,
+        title_en: str | None = None,
+        description_en: str | None = None,
     ) -> int:
         """
-        Создание события в сообществе
+        Создание события в сообществе.
+        Если title_en/description_en не переданы, вызывается перевод RU→EN (тот же модуль, что для events).
 
         Args:
             group_id: ID группового чата
@@ -85,15 +89,25 @@ class CommunityEventsService:
         print(f"🔥 admin_ids_json: {admin_ids_json}")
         print(f"🔥 admin_count = {admin_count}")
 
+        # Перевод RU→EN для полноты в events_community (тот же модуль, что для events)
+        if (title_en is None or (title_en or "").strip() == "") and (title or "").strip():
+            trans = translate_event_to_english(
+                title=title or "",
+                description=description,
+            )
+            if trans:
+                title_en = trans.get("title_en")
+                description_en = description_en or trans.get("description_en")
+
         with self.engine.begin() as conn:
-            # Создаем событие
+            # Создаем событие (с title_en, description_en)
             query = text("""
                 INSERT INTO events_community
-                (chat_id, organizer_id, organizer_username, admin_id, admin_ids, admin_count, title, starts_at,
-                 description, city, location_name, location_url, status)
+                (chat_id, organizer_id, organizer_username, admin_id, admin_ids, admin_count, title, title_en,
+                 description, description_en, starts_at, city, location_name, location_url, status)
                 VALUES
-                (:chat_id, :organizer_id, :organizer_username, :admin_id, :admin_ids, :admin_count, :title, :starts_at,
-                 :description, :city, :location_name, :location_url, 'open')
+                (:chat_id, :organizer_id, :organizer_username, :admin_id, :admin_ids, :admin_count, :title, :title_en,
+                 :description, :description_en, :starts_at, :city, :location_name, :location_url, 'open')
                 RETURNING id
             """)
 
@@ -105,8 +119,10 @@ class CommunityEventsService:
                 "admin_ids": admin_ids_json,
                 "admin_count": admin_count,
                 "title": title,
-                "starts_at": date,
+                "title_en": title_en,
                 "description": description,
+                "description_en": description_en,
+                "starts_at": date,
                 "city": city,
                 "location_name": location_name,
                 "location_url": location_url,
@@ -211,13 +227,13 @@ class CommunityEventsService:
                 INSERT INTO events_community_archive (
                     id, chat_id, organizer_id, organizer_username,
                     admin_id, admin_ids, admin_count,
-                    title, starts_at, description, city,
+                    title, title_en, description, description_en, starts_at, city,
                     location_name, location_url, created_at,
                     status, archived_at_utc
                 )
                 SELECT id, chat_id, organizer_id, organizer_username,
                        admin_id, admin_ids, admin_count,
-                       title, starts_at, description, city,
+                       title, title_en, description, description_en, starts_at, city,
                        location_name, location_url, created_at,
                        status, NOW()
                 FROM events_community
@@ -257,13 +273,13 @@ class CommunityEventsService:
                 INSERT INTO events_community_archive (
                     id, chat_id, organizer_id, organizer_username,
                     admin_id, admin_ids, admin_count,
-                    title, starts_at, description, city,
+                    title, title_en, description, description_en, starts_at, city,
                     location_name, location_url, created_at,
                     status, archived_at_utc
                 )
                 SELECT id, chat_id, organizer_id, organizer_username,
                        admin_id, admin_ids, admin_count,
-                       title, starts_at, description, city,
+                       title, title_en, description, description_en, starts_at, city,
                        location_name, location_url, created_at,
                        status, NOW()
                 FROM events_community

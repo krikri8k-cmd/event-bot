@@ -460,6 +460,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.cancelled_full": "❌ Создание мероприятия отменено.",
         "create.wait_already_started": "⏳ Подождите, создание события уже запущено...",
         "create.wait_in_progress": "⏳ Подождите, событие уже создается...",
+        "create.translating": "⏳ Секунду, перевожу на английский...",
         "create.validation.no_text": "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n{next_prompt}",
         "create.validation.invalid_date_format": (
             "❌ **Неверный формат даты!**\n\n" "📅 Введите дату в формате **ДД.ММ.ГГГГ**\n" "Например: 15.12.2024"
@@ -859,6 +860,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.cancelled_full": "❌ Event creation cancelled.",
         "create.wait_already_started": "⏳ Please wait, event creation is already in progress...",
         "create.wait_in_progress": "⏳ Please wait, event is being created...",
+        "create.translating": "⏳ One moment, translating to English...",
         "create.validation.no_text": "❌ **Please send a text message!**\n\n{next_prompt}",
         "create.validation.invalid_date_format": (
             "❌ **Invalid date format!**\n\n" "📅 Enter date in format **DD.MM.YYYY**\n" "Example: 15.12.2024"

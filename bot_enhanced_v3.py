@@ -54,6 +54,7 @@ from tasks_service import (
     create_task_from_place,
     get_user_active_tasks,
 )
+from utils.event_translation import translate_event_to_english
 from utils.geo_utils import get_timezone, haversine_km
 from utils.i18n import format_translation, get_bot_username, t
 from utils.static_map import build_static_map_url, fetch_static_map
@@ -5208,6 +5209,30 @@ async def publish_community_event_to_world(
 
         external_id = f"community:{chat_id}:{community_event_id}"
 
+        # Берём title_en/description_en из events_community (уже переведено при создании) — без повторного вызова API
+        title_en = None
+        description_en = None
+        try:
+            with engine.connect() as conn:
+                from sqlalchemy import text
+
+                row = conn.execute(
+                    text("SELECT title_en, description_en FROM events_community WHERE id = :id AND chat_id = :chat_id"),
+                    {"id": community_event_id, "chat_id": chat_id},
+                ).fetchone()
+                if row and (row[0] or row[1]):
+                    title_en = row[0]
+                    description_en = row[1]
+        except Exception as e:
+            logger.debug("publish_community_event_to_world: не удалось взять EN из events_community: %s", e)
+        if not title_en and not description_en:
+            trans = translate_event_to_english(
+                title=event_data["title"],
+                description=event_data.get("description") or "",
+            )
+            title_en = trans.get("title_en") if trans else None
+            description_en = trans.get("description_en") if trans else None
+
         world_event_id = events_service.create_user_event(
             organizer_id=organizer_id,
             title=event_data["title"],
@@ -5224,6 +5249,8 @@ async def publish_community_event_to_world(
             source="community",
             external_id=external_id,
             community_name=community_name,
+            title_en=title_en,
+            description_en=description_en,
         )
 
         return {"success": True, "world_event_id": world_event_id}
@@ -11296,6 +11323,7 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
 async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
     """Шаг 6: Подтверждение создания события"""
     data = await state.get_data()
+    user_lang = get_user_language_or_default(callback.from_user.id)
     logger.info(f"confirm_event: подтверждение создания события от пользователя {callback.from_user.id}")
 
     # Создаём событие в БД
@@ -11416,7 +11444,16 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
                 # Если город не определен, используем регион из состояния или None (будет UTC)
                 city = data.get("region")  # Может быть None
 
-            # Создаем событие через упрощенный сервис
+            # Перевод RU→EN перед сохранением (тот же модуль, что и у парсера)
+            await callback.message.answer(t("create.translating", user_lang))
+            trans = translate_event_to_english(
+                title=data["title"],
+                description=data.get("description") or "",
+            )
+            title_en = trans.get("title_en") if trans else None
+            description_en = trans.get("description_en") if trans else None
+
+            # Создаем событие через упрощенный сервис (с уже заполненными title_en, description_en)
             event_id = events_service.create_user_event(
                 organizer_id=callback.from_user.id,
                 title=data["title"],
@@ -11430,6 +11467,8 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
                 max_participants=data.get("max_participants"),
                 chat_id=data.get("chat_id"),  # Добавляем chat_id для групповых чатов
                 organizer_username=callback.from_user.username,
+                title_en=title_en,
+                description_en=description_en,
             )
 
             logger.info(f"✅ Событие создано с ID: {event_id}")

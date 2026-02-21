@@ -226,7 +226,9 @@ class CommunityEvent(Base):
     )  # JSON массив ID всех администраторов группы на момент создания события
     admin_count: Mapped[int | None] = mapped_column(Integer)  # Количество админов в группе
     title: Mapped[str] = mapped_column(String(255), nullable=False)
+    title_en: Mapped[str | None] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text)
+    description_en: Mapped[str | None] = mapped_column(Text)
     starts_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=False), nullable=False, index=True
     )  # БЕЗ timezone для Community - сохраняем как указал пользователь

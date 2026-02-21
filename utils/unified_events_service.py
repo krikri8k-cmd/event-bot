@@ -378,22 +378,26 @@ class UnifiedEventsService:
         source: str = "user",
         external_id: str | None = None,
         community_name: str | None = None,
+        title_en: str | None = None,
+        description_en: str | None = None,
     ) -> int:
         """
-        Создание пользовательского события в единую таблицу events
+        Создание пользовательского события в единую таблицу events.
+        Если переданы title_en/description_en (например после перевода в боте), они сохраняются сразу;
+        иначе запускается фоновый перевод RU→EN/EN→RU с последующим UPDATE.
         """
         with self.engine.begin() as conn:
-            # Создаем событие напрямую в events
+            # Создаем событие напрямую в events (с EN-полями, если уже переведено)
             user_event_query = text("""
                 INSERT INTO events (
-                    source, external_id, title, description, starts_at, ends_at,
+                    source, external_id, title, title_en, description, description_en, starts_at, ends_at,
                     url, location_name, location_url, lat, lng, country, city,
                     organizer_id, organizer_username, max_participants, current_participants,
                     participants_ids, status, created_at_utc, updated_at_utc, is_generated_by_ai, chat_id,
                     community_name
                 )
                 VALUES (
-                    :source, :external_id, :title, :description, :starts_at, NULL,
+                    :source, :external_id, :title, :title_en, :description, :description_en, :starts_at, NULL,
                     NULL, :location_name, :location_url, :lat, :lng, :country, :city,
                     :organizer_id, :organizer_username, :max_participants, 0,
                     NULL, 'open', NOW(), NOW(), false, :chat_id, :community_name
@@ -423,7 +427,9 @@ class UnifiedEventsService:
                     "organizer_id": organizer_id,
                     "organizer_username": organizer_username,
                     "title": title,
+                    "title_en": title_en,
                     "description": description,
+                    "description_en": description_en,
                     "starts_at": starts_at_utc,
                     "city": city,
                     "lat": lat,
@@ -451,6 +457,14 @@ class UnifiedEventsService:
             )
 
             print(f"✅ Создано пользовательское событие ID {user_event_id}: '{title}'")
+
+        # Автоперевод только если EN-поля не переданы (перевод уже сделан в боте до сохранения)
+        en_provided = (title_en is not None and (title_en or "").strip()) or (
+            description_en is not None and (description_en or "").strip()
+        )
+        if en_provided:
+            logger.debug("create_user_event: EN-поля переданы, фоновый перевод не запускаем (id=%s)", user_event_id)
+            return user_event_id
 
         # Автоперевод пользовательского события: RU→EN или EN→RU в фоне
         def _translate_and_update():
