@@ -138,7 +138,12 @@ def run_full_backfill(
     places_to_translate = _count_places_needing_hint_translation()
     logger.info("[GPT] Запущен перевод task_hint для %s мест.", places_to_translate)
     processed, translated = run_hint_backfill(batch_size=batch_size)
-    total_places = names_mirrored + processed  # приблизительно уникальных мест за цикл
+    remaining = _count_places_needing_hint_translation()
+    if remaining == 0:
+        logger.info("[TASK-BACKFILL] В базе не осталось пустых task_hint_en.")
+    else:
+        logger.info("[TASK-BACKFILL] Осталось без перевода: %s мест.", remaining)
+    total_places = names_mirrored + processed
     logger.info(
         "[TASK-BACKFILL] Processed %s places. Names mirrored, hints translated.",
         total_places or translated or names_mirrored or "0",
@@ -147,4 +152,5 @@ def run_full_backfill(
         "names_mirrored": names_mirrored,
         "hints_processed": processed,
         "hints_translated": translated,
+        "remaining_empty_hint_en": remaining,
     }

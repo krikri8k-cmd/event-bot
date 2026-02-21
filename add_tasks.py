@@ -1,21 +1,28 @@
 #!/usr/bin/env python3
 """
-Скрипт для добавления заданий в базу данных
+DEPRECATED: Таблица tasks удалена. Квесты только из task_places. Скрипт не используется.
 """
 
-import os
+import sys
 
-import psycopg2
-from dotenv import load_dotenv
+if __name__ == "__main__":
+    print("DEPRECATED: Таблица tasks удалена. Используйте task_places.", file=sys.stderr)
+    sys.exit(0)
 
-load_dotenv("app.local.env")
+# Ниже старый код — не выполняется (таблица tasks удалена)
+import os  # noqa: F401
+
+import psycopg2  # noqa: F401
+from dotenv import load_dotenv  # noqa: F401
+
+load_dotenv("app.local.env")  # noqa: F405
 
 
 def add_tasks():
+    print("DEPRECATED: Таблица tasks удалена. Используйте task_places.", file=sys.stderr)
+    sys.exit(0)
     conn = psycopg2.connect(os.getenv("DATABASE_URL"))
     cur = conn.cursor()
-
-    # Проверяем, есть ли уже задания
     cur.execute("SELECT COUNT(*) FROM tasks")
     count = cur.fetchone()[0]
     print(f"Current tasks count: {count}")

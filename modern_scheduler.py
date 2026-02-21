@@ -842,6 +842,17 @@ class ModernEventScheduler:
         except Exception as e:
             logger.warning("[BACKFILL] Job failed: %s", e)
 
+    def _run_task_places_hint_backfill(self):
+        """Периодический перевод task_hint → task_hint_en для task_places (до 158 мест)."""
+        try:
+            from utils.backfill_task_places_translation import run_full_backfill
+
+            result = run_full_backfill()
+            if result.get("remaining_empty_hint_en") == 0:
+                logger.info("[TASK-BACKFILL] В базе не осталось пустых task_hint_en.")
+        except Exception as e:
+            logger.warning("[TASK-BACKFILL] Job failed: %s", e)
+
     def send_community_reminders(self):
         """Отправка напоминаний о Community событиях за 24 часа"""
         try:
@@ -1060,6 +1071,17 @@ class ModernEventScheduler:
             coalesce=True,
         )
         logger.info("   ✅ Зарегистрирована задача: backfill переводов (каждые 10 минут)")
+
+        # Перевод подсказок task_places (task_hint → task_hint_en) каждые 15 минут
+        self.scheduler.add_job(
+            self._run_task_places_hint_backfill,
+            "interval",
+            minutes=15,
+            id="task-places-hint-backfill",
+            max_instances=1,
+            coalesce=True,
+        )
+        logger.info("   ✅ Зарегистрирована задача: task_places hint backfill (каждые 15 минут)")
 
         self.scheduler.start()
         logger.info("🚀 Современный планировщик запущен!")
