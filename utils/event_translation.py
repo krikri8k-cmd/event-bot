@@ -62,11 +62,11 @@ def _make_client():
         from config import load_settings
 
         settings = load_settings()
-        if not settings.openai_api_key:
+        api_key = (settings.openai_api_key or "").strip()
+        if not api_key:
             return None
-        api_key = settings.openai_api_key
         if api_key.startswith("sk-proj-") and settings.openai_organization:
-            return OpenAI(api_key=api_key, organization=settings.openai_organization)
+            return OpenAI(api_key=api_key, organization=(settings.openai_organization or "").strip())
         return OpenAI(api_key=api_key)
     except Exception as e:
         logger.warning("event_translation: не удалось создать OpenAI client: %s", e)
@@ -81,11 +81,11 @@ def _make_async_client():
         from config import load_settings
 
         settings = load_settings()
-        if not settings.openai_api_key:
+        api_key = (settings.openai_api_key or "").strip()
+        if not api_key:
             return None
-        api_key = settings.openai_api_key
         if api_key.startswith("sk-proj-") and settings.openai_organization:
-            return AsyncOpenAI(api_key=api_key, organization=settings.openai_organization)
+            return AsyncOpenAI(api_key=api_key, organization=(settings.openai_organization or "").strip())
         return AsyncOpenAI(api_key=api_key)
     except Exception as e:
         logger.warning("event_translation: не удалось создать AsyncOpenAI client: %s", e)
@@ -283,6 +283,42 @@ def translate_event_to_russian(
         return result
     finally:
         _sync_semaphore.release()
+
+
+def ensure_bilingual(
+    title: str,
+    description: str | None = None,
+) -> dict[str, str | None]:
+    """
+    Двусторонний перевод: всегда заполняем и RU, и EN.
+    Если оригинал RU -> переводим в title_en/description_en.
+    Если оригинал EN -> сохраняем в title_en/description_en, переводим в title/description (RU).
+    Возвращает {"title": ru, "description": ru, "title_en": en, "description_en": en}.
+    """
+    title = (title or "").strip()
+    description = (description or "").strip() or None
+    if not title:
+        return {"title": None, "description": description, "title_en": None, "description_en": description}
+
+    lang = detect_event_language(title, description or "")
+    if lang == "ru":
+        trans = translate_event_to_english(title=title, description=description)
+        return {
+            "title": title,
+            "description": description,
+            "title_en": (trans.get("title_en") or "").strip() or None if trans else None,
+            "description_en": (trans.get("description_en") or "").strip() or None if trans else None,
+        }
+    # EN: оригинал в _en, переводим в RU для основных полей; при ошибке перевода оставляем EN в обоих
+    trans_ru = translate_event_to_russian(title=title, description=description)
+    ru_title = (trans_ru.get("title") or "").strip() if trans_ru else None
+    ru_desc = (trans_ru.get("description") or "").strip() if trans_ru else None
+    return {
+        "title": ru_title or title,
+        "description": ru_desc or description,
+        "title_en": title,
+        "description_en": description,
+    }
 
 
 # Семафор для async: создаётся при первом вызове в async-контексте

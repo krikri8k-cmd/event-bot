@@ -54,7 +54,7 @@ from tasks_service import (
     create_task_from_place,
     get_user_active_tasks,
 )
-from utils.event_translation import translate_event_to_english
+from utils.event_translation import ensure_bilingual
 from utils.geo_utils import get_timezone, haversine_km
 from utils.i18n import format_translation, get_bot_username, t
 from utils.static_map import build_static_map_url, fetch_static_map
@@ -5225,18 +5225,22 @@ async def publish_community_event_to_world(
                     description_en = row[1]
         except Exception as e:
             logger.debug("publish_community_event_to_world: не удалось взять EN из events_community: %s", e)
+        title_for_world = event_data["title"]
+        description_for_world = event_data["description"]
         if not title_en and not description_en:
-            trans = translate_event_to_english(
+            bilingual = ensure_bilingual(
                 title=event_data["title"],
                 description=event_data.get("description") or "",
             )
-            title_en = trans.get("title_en") if trans else None
-            description_en = trans.get("description_en") if trans else None
+            title_for_world = bilingual.get("title") or event_data["title"]
+            description_for_world = bilingual.get("description") or event_data["description"]
+            title_en = bilingual.get("title_en")
+            description_en = bilingual.get("description_en")
 
         world_event_id = events_service.create_user_event(
             organizer_id=organizer_id,
-            title=event_data["title"],
-            description=event_data["description"],
+            title=title_for_world,
+            description=description_for_world,
             starts_at_utc=starts_at_utc,  # Конвертированное время в UTC для World режима
             city=city,
             lat=lat,
@@ -11444,19 +11448,21 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
                 # Если город не определен, используем регион из состояния или None (будет UTC)
                 city = data.get("region")  # Может быть None
 
-            # Перевод в тишине (без сообщений пользователю); event_source=user — backfill повторит через 30 сек при ошибке
-            trans = translate_event_to_english(
+            # Двусторонний перевод RU<->EN: всегда заполняем title/title_en и description/description_en
+            bilingual = ensure_bilingual(
                 title=data["title"],
                 description=data.get("description") or "",
             )
-            title_en = trans.get("title_en") if trans else None
-            description_en = trans.get("description_en") if trans else None
+            title_ru = bilingual.get("title") or data["title"]
+            description_ru = bilingual.get("description") or data.get("description")
+            title_en = bilingual.get("title_en")
+            description_en = bilingual.get("description_en")
 
             # Создаем событие
             event_id = events_service.create_user_event(
                 organizer_id=callback.from_user.id,
-                title=data["title"],
-                description=data["description"],
+                title=title_ru,
+                description=description_ru,
                 starts_at_utc=starts_at,
                 city=city,
                 lat=lat,

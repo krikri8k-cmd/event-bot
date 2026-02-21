@@ -107,7 +107,7 @@ def load_settings(require_bot: bool = False) -> Settings:
 
     telegram_token = (os.getenv("TELEGRAM_TOKEN") or "").strip()
     database_url = (os.getenv("DATABASE_URL") or "").strip()
-    openai_api_key = os.getenv("OPENAI_API_KEY")
+    openai_api_key = (os.getenv("OPENAI_API_KEY") or "").strip() or None
     openai_organization = os.getenv("OPENAI_ORGANIZATION")
     eventbrite_api_key = os.getenv("EVENTBRITE_API_KEY")
     meetup_api_key = os.getenv("MEETUP_API_KEY")
