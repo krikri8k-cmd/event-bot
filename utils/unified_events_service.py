@@ -390,14 +390,14 @@ class UnifiedEventsService:
             # Создаем событие напрямую в events (с EN-полями, если уже переведено)
             user_event_query = text("""
                 INSERT INTO events (
-                    source, external_id, title, title_en, description, description_en, starts_at, ends_at,
+                    source, external_id, event_source, title, title_en, description, description_en, starts_at, ends_at,
                     url, location_name, location_url, lat, lng, country, city,
                     organizer_id, organizer_username, max_participants, current_participants,
                     participants_ids, status, created_at_utc, updated_at_utc, is_generated_by_ai, chat_id,
                     community_name
                 )
                 VALUES (
-                    :source, :external_id, :title, :title_en, :description, :description_en, :starts_at, NULL,
+                    :source, :external_id, 'user', :title, :title_en, :description, :description_en, :starts_at, NULL,
                     NULL, :location_name, :location_url, :lat, :lng, :country, :city,
                     :organizer_id, :organizer_username, :max_participants, 0,
                     NULL, 'open', NOW(), NOW(), false, :chat_id, :community_name
@@ -641,7 +641,7 @@ class UnifiedEventsService:
                         location_name = :location_name, location_name_en = :location_name_en,
                         starts_at = :starts_at, city = :city, lat = :lat, lng = :lng,
                         location_url = :location_url, url = :url, country = :country,
-                        place_id = :place_id, updated_at_utc = NOW()
+                        place_id = :place_id, event_source = 'parser', updated_at_utc = NOW()
                     WHERE source = :source AND external_id = :external_id
                 """),
                     {
@@ -668,12 +668,12 @@ class UnifiedEventsService:
                 result = conn.execute(
                     text("""
                     INSERT INTO events
-                    (source, external_id, title, title_en, description, description_en,
+                    (source, external_id, event_source, title, title_en, description, description_en,
                      starts_at, city, lat, lng, location_name, location_name_en,
                      location_url, url, country, is_generated_by_ai, status,
                      current_participants, place_id)
                     VALUES
-                    (:source, :external_id, :title, :title_en, :description, :description_en,
+                    (:source, :external_id, 'parser', :title, :title_en, :description, :description_en,
                      :starts_at, :city, :lat, :lng, :location_name, :location_name_en,
                      :location_url, :url, :country, :is_ai, 'open', 0, :place_id)
                     ON CONFLICT (source, external_id) DO UPDATE SET
@@ -683,6 +683,7 @@ class UnifiedEventsService:
                         description_en = EXCLUDED.description_en,
                         location_name = EXCLUDED.location_name,
                         location_name_en = EXCLUDED.location_name_en,
+                        event_source = 'parser',
                         starts_at = EXCLUDED.starts_at,
                         city = EXCLUDED.city,
                         lat = EXCLUDED.lat,

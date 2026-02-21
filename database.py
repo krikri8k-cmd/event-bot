@@ -358,6 +358,7 @@ def _ensure_events_community_en_columns() -> None:
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS description_en TEXT"),
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS translation_retry_count INT DEFAULT 0"),
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS translation_failed BOOLEAN DEFAULT false"),
+        ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS event_source VARCHAR(32)"),
     ]
     with engine.begin() as conn:
         for table, sql in statements:

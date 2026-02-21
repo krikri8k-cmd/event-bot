@@ -1,7 +1,6 @@
 """
 Догоняющий перевод событий (title_en, description_en, location_name_en).
-Полный режим: один вызов GPT на событие — заполняются все три поля для качества EN.
-ТЗ: batch 5–10, пауза 10 мин при ошибке OpenAI, после 3 неудач — translation_failed.
+ТЗ: две очереди — User (retry 30 сек) и Parser (пауза 10 мин при ошибке).
 """
 
 import logging
@@ -15,12 +14,18 @@ from utils.event_translation import translate_event_to_english, translate_titles
 
 logger = logging.getLogger(__name__)
 
-BACKFILL_BATCH_SIZE = 8  # ТЗ: 5–10 событий за раз, чтобы не было таймаутов и рестартов
-OPENAI_ERROR_PAUSE_SEC = 600  # 10 минут не вызывать API после ошибки соединения/таймаута
+BACKFILL_BATCH_SIZE = 8
+OPENAI_ERROR_PAUSE_SEC_USER = 30  # User (Create): повторить через 30 сек
+OPENAI_ERROR_PAUSE_SEC_PARSER = 600  # Parser/Backfill: пауза 10 мин
 MAX_TRANSLATION_RETRIES = 3
 
-# Время последней ошибки OpenAI (соединение/таймаут) — не вызывать API 10 мин
-_last_openai_error_at: float | None = None
+# Ошибки OpenAI по очереди: user — короткое окно, parser — длинное
+_last_openai_error_at: dict[str, float | None] = {"user": None, "parser": None}
+
+WHERE_TAIL = """
+    AND (translation_failed IS NULL OR translation_failed = false)
+    AND (translation_retry_count IS NULL OR translation_retry_count < :max_retries)
+"""
 
 
 def run_backfill(
@@ -28,27 +33,67 @@ def run_backfill(
     full: bool = True,
 ) -> dict[str, Any]:
     """
-    События без title_en: перевести и записать в БД.
-    full=True: один вызов translate_event_to_english на событие.
-    full=False: только заголовки батчем.
-    После ошибки соединения/таймаута не вызываем API 10 минут.
-    События с translation_retry_count >= 3 пропускаем (translation_failed).
+    Две очереди: сначала user (event_source='user', пауза 30 сек при ошибке),
+    затем parser (event_source IS NULL OR 'parser', пауза 10 мин).
     """
     global _last_openai_error_at
     engine = get_engine()
+    total_processed = 0
+    total_translated = 0
+    total_skipped = 0
+
+    now = time.time()
+
+    # 1) Очередь User — приоритет, короткое окно повтора
+    if _last_openai_error_at["user"] is None or (now - _last_openai_error_at["user"]) >= OPENAI_ERROR_PAUSE_SEC_USER:
+        p, t, s = _process_queue(engine, batch_size, full, "user", "event_source = 'user'", "user")
+        total_processed += p
+        total_translated += t
+        total_skipped += s
+    else:
+        logger.debug("[BACKFILL] User queue paused (30 sec after error)")
+
+    # 2) Очередь Parser — пауза 10 мин при ошибке
+    if (
+        _last_openai_error_at["parser"] is None
+        or (now - _last_openai_error_at["parser"]) >= OPENAI_ERROR_PAUSE_SEC_PARSER
+    ):
+        p, t, s = _process_queue(
+            engine,
+            batch_size,
+            full,
+            "parser",
+            "(event_source IS NULL OR event_source = 'parser')",
+            "parser",
+        )
+        total_processed += p
+        total_translated += t
+        total_skipped += s
+    else:
+        logger.info("[BACKFILL] Parser queue paused (10 min after error)")
+
+    if total_translated > 0:
+        logger.info(
+            "[BACKFILL] ✓ Цикл завершён: переведено %s событий (пачка без рестарта контейнера)",
+            total_translated,
+        )
+    return {"processed": total_processed, "translated": total_translated, "skipped": total_skipped}
+
+
+def _process_queue(
+    engine,
+    batch_size: int,
+    full: bool,
+    queue_name: str,
+    event_source_condition: str,
+    error_key: str,
+) -> tuple[int, int, int]:
+    """Обрабатывает одну очередь (user или parser). Возвращает (processed, translated, skipped)."""
+    global _last_openai_error_at
     processed = 0
     translated = 0
     skipped = 0
 
-    # ТЗ: пауза 10 мин после ошибки OpenAI
-    if _last_openai_error_at is not None and (time.time() - _last_openai_error_at) < OPENAI_ERROR_PAUSE_SEC:
-        logger.info("[BACKFILL] Paused after OpenAI error, skip this run (next in 10 min)")
-        return {"processed": 0, "translated": 0, "skipped": 0, "paused": True}
-
-    where_tail = """
-        AND (translation_failed IS NULL OR translation_failed = false)
-        AND (translation_retry_count IS NULL OR translation_retry_count < :max_retries)
-    """
     while True:
         with engine.connect() as conn:
             if full:
@@ -60,8 +105,9 @@ def run_backfill(
                         WHERE (title_en IS NULL OR title_en = '')
                           AND title IS NOT NULL
                           AND TRIM(COALESCE(title, '')) != ''
-                        """
-                        + where_tail
+                          AND """
+                        + event_source_condition
+                        + WHERE_TAIL
                         + """
                         ORDER BY id
                         LIMIT :limit
@@ -78,8 +124,9 @@ def run_backfill(
                         WHERE (title_en IS NULL OR title_en = '')
                           AND title IS NOT NULL
                           AND TRIM(COALESCE(title, '')) != ''
-                        """
-                        + where_tail
+                          AND """
+                        + event_source_condition
+                        + WHERE_TAIL
                         + """
                         ORDER BY id
                         LIMIT :limit
@@ -91,7 +138,7 @@ def run_backfill(
         if not rows:
             break
 
-        logger.info("[BACKFILL] Found %s events without EN (full=%s)", len(rows), full)
+        logger.info("[BACKFILL] [%s] Found %s events without EN (full=%s)", queue_name, len(rows), full)
 
         if full:
             updated_this_batch = 0
@@ -145,10 +192,11 @@ def run_backfill(
                     updated_this_batch += 1
                     translated += 1
                 except Exception as e:
-                    logger.warning("[BACKFILL] Event id=%s: %s", event_id, e)
+                    logger.warning("[BACKFILL] [%s] Event id=%s: %s", queue_name, event_id, e)
                     skipped += 1
                     if "connection" in str(e).lower() or "timeout" in str(e).lower():
-                        _last_openai_error_at = time.time()
+                        _last_openai_error_at[error_key] = time.time()
+                        logger.warning("[BACKFILL] [%s] Ошибка соединения/таймаут, пауза", queue_name)
                         break
                     with engine.begin() as conn2:
                         conn2.execute(
@@ -169,8 +217,8 @@ def run_backfill(
             titles = [(r[1] or "").strip() for r in rows]
             results = translate_titles_batch(titles)
             if not results:
-                logger.warning("[BACKFILL] translate_titles_batch returned empty (API error?), pause 10 min")
-                _last_openai_error_at = time.time()
+                logger.warning("[BACKFILL] [%s] translate_titles_batch empty (API error?), пауза", queue_name)
+                _last_openai_error_at[error_key] = time.time()
                 skipped += len(rows)
                 processed += len(rows)
                 break
@@ -189,7 +237,8 @@ def run_backfill(
                     updated_this_batch += 1
                     translated += 1
             logger.info(
-                "[BACKFILL] Batch translated %s (titles only)%s",
+                "[BACKFILL] [%s] Batch translated %s (titles only)%s",
+                queue_name,
                 updated_this_batch,
                 " — пачка успешно переведена без рестарта" if updated_this_batch > 0 else "",
             )
@@ -197,13 +246,14 @@ def run_backfill(
         if len(rows) < batch_size:
             break
         if not full and updated_this_batch == 0:
-            logger.warning("[BACKFILL] No progress (API failed?), stopping to avoid infinite loop")
+            logger.warning("[BACKFILL] [%s] No progress, stop", queue_name)
             break
 
-    logger.info("[BACKFILL] Completed. processed=%s translated=%s skipped=%s", processed, translated, skipped)
-    if translated > 0:
-        logger.info(
-            "[BACKFILL] ✓ Цикл завершён: переведено %s событий (пачка без рестарта контейнера)",
-            translated,
-        )
-    return {"processed": processed, "translated": translated, "skipped": skipped}
+    logger.info(
+        "[BACKFILL] [%s] Completed. processed=%s translated=%s skipped=%s",
+        queue_name,
+        processed,
+        translated,
+        skipped,
+    )
+    return (processed, translated, skipped)
