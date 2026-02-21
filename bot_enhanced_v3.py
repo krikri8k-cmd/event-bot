@@ -5550,10 +5550,8 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
     # Если пользователь нажал "Главное меню", вызываем соответствующий обработчик
     if text in _MAIN_MENU_BUTTON_TEXTS:
         logger.info(f"📍 [TEXT_INPUT] Обнаружена кнопка 'Главное меню', возвращаем в меню для пользователя {user_id}")
-        # Очищаем состояние FSM
         await state.clear()
-        # Показываем анимацию ракеты с главным меню
-        await send_spinning_menu(message)
+        await send_spinning_menu(message, lang=user_lang)
         return
 
     # Если пользователь нажал "🌍 Найти на карте", показываем inline-кнопку с картой
@@ -5682,10 +5680,9 @@ async def on_location_text_input_tasks(message: types.Message, state: FSMContext
         logger.info(
             f"📍 [TEXT_INPUT_TASKS] Обнаружена кнопка 'Главное меню', возвращаем в меню для пользователя {user_id}"
         )
-        # Очищаем состояние FSM
         await state.clear()
-        # Показываем анимацию ракеты с главным меню
-        await send_spinning_menu(message)
+        user_lang = get_user_language_or_default(user_id)
+        await send_spinning_menu(message, lang=user_lang)
         return
 
     # Если пользователь нажал "🌍 Найти на карте", показываем inline-кнопку с картой
@@ -9132,12 +9129,10 @@ async def handle_start_task(callback: types.CallbackQuery):
 
 @main_router.callback_query(F.data == "back_to_main")
 async def handle_back_to_main_tasks(callback: types.CallbackQuery, state: FSMContext):
-    """Обработчик возврата в главное меню из заданий"""
-    # Очищаем состояние FSM
+    """Обработчик возврата в главное меню из заданий. Явно передаём язык, чтобы reply-клавиатура была на выбранном языке."""
     await state.clear()
-
-    # Показываем анимацию ракеты с главным меню
-    await send_spinning_menu(callback.message)
+    user_lang = get_user_language_or_default(callback.from_user.id)
+    await send_spinning_menu(callback.message, lang=user_lang)
     await callback.answer()
 
 
@@ -13141,7 +13136,7 @@ async def handle_back_to_main(callback: types.CallbackQuery):
     """Возврат в главное меню (старый обработчик для совместимости)"""
     user_lang = get_user_language_or_default(callback.from_user.id)
     await callback.answer(t("carousel.back_to_menu", user_lang))
-    await send_spinning_menu(callback.message)
+    await send_spinning_menu(callback.message, lang=user_lang)
 
 
 @main_router.callback_query(F.data.startswith("back_to_list_"))
