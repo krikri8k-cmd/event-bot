@@ -188,7 +188,11 @@ def run_backfill(
                     )
                     updated_this_batch += 1
                     translated += 1
-            logger.info("[BACKFILL] Batch translated %s (titles only)", updated_this_batch)
+            logger.info(
+                "[BACKFILL] Batch translated %s (titles only)%s",
+                updated_this_batch,
+                " — пачка успешно переведена без рестарта" if updated_this_batch > 0 else "",
+            )
 
         if len(rows) < batch_size:
             break
@@ -197,4 +201,9 @@ def run_backfill(
             break
 
     logger.info("[BACKFILL] Completed. processed=%s translated=%s skipped=%s", processed, translated, skipped)
+    if translated > 0:
+        logger.info(
+            "[BACKFILL] ✓ Цикл завершён: переведено %s событий (пачка без рестарта контейнера)",
+            translated,
+        )
     return {"processed": processed, "translated": translated, "skipped": skipped}
