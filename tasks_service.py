@@ -255,6 +255,13 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                     task_dict["place_name"] = place_from_db.name
                     task_dict["place_url"] = place_from_db.google_maps_url
                     task_dict["promo_code"] = place_from_db.promo_code
+                    # Английский текст задания для экрана «Мои квесты» (fallback на task_hint/ru)
+                    hint_en = getattr(place_from_db, "task_hint_en", None)
+                    if hint_en and str(hint_en).strip():
+                        task_dict["title_en"] = hint_en
+                    else:
+                        task_dict["title_en"] = place_from_db.task_hint or task_dict["title"]
+                    task_dict["place_name_en"] = getattr(place_from_db, "name_en", None) or place_from_db.name
 
                     # Обновляем поля в UserTask, если они отсутствуют или изменились
                     if not user_task.place_name or user_task.place_name != place_from_db.name:

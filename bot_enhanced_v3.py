@@ -6713,34 +6713,43 @@ async def _handle_my_tasks_via_bot(bot: Bot, chat_id: int, user_id: int, is_priv
             ]
         )
     else:
-        message_text = "📋 **Ваши активные задания:**\n\n"
-        message_text += "Прохождение + 3 🚀\n\n"
+        message_text = t("mytasks.active_header", lang) + "\n\n"
+        message_text += t("mytasks.reward_line", lang) + "\n\n"
         message_text += format_translation("myevents.balance", lang, rocket_balance=rocket_balance)
 
+        km_suffix = t("mytasks.km_suffix", lang)
+        place_label = t("mytasks.place_label", lang)
         for i, task in enumerate(active_tasks, 1):
             category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
             category_emoji = category_emojis.get(task["category"], "📋")
+            task_title = (task.get("title_en") if lang == "en" else None) or task["title"]
 
-            message_text += f"{i}) {category_emoji} **{task['title']}**\n"
+            message_text += f"{i}) {category_emoji} **{task_title}**\n"
 
             if task.get("place_name") or task.get("place_url"):
-                place_name = task.get("place_name", t("group.list.place_on_map", lang))
+                place_name = (
+                    (task.get("place_name_en") if lang == "en" else None)
+                    or task.get("place_name")
+                    or t("group.list.place_on_map", lang)
+                )
                 place_url = task.get("place_url")
                 distance = task.get("distance_km")
 
                 if place_url:
                     if distance:
-                        message_text += f"📍 **Место:** [{place_name} ({distance:.1f} км)]({place_url})\n"
+                        message_text += (
+                            f"📍 **{place_label}** [{place_name} ({distance:.1f} {km_suffix})]({place_url})\n"
+                        )
                     else:
-                        message_text += f"📍 **Место:** [{place_name}]({place_url})\n"
+                        message_text += f"📍 **{place_label}** [{place_name}]({place_url})\n"
                 else:
                     if distance:
-                        message_text += f"📍 **Место:** {place_name} ({distance:.1f} км)\n"
+                        message_text += f"📍 **{place_label}** {place_name} ({distance:.1f} {km_suffix})\n"
                     else:
-                        message_text += f"📍 **Место:** {place_name}\n"
+                        message_text += f"📍 **{place_label}** {place_name}\n"
 
             if task.get("promo_code"):
-                message_text += f"🎁 **Промокод:** `{task['promo_code']}`\n"
+                message_text += format_translation("tasks.promo_code", lang, code=task["promo_code"]) + "\n"
 
             message_text += "\n"
 
@@ -7800,39 +7809,44 @@ async def on_my_tasks(message: types.Message):
             ]
         )
     else:
-        # Формируем сообщение со списком активных заданий
-        message_text = "📋 **Ваши активные задания:**\n\n"
-        message_text += "Прохождение + 3 🚀\n\n"
-        message_text += f"**Баланс {rocket_balance} 🚀**\n\n"
+        # Формируем сообщение со списком активных заданий (i18n + title_en для EN)
+        message_text = t("mytasks.active_header", lang) + "\n\n"
+        message_text += t("mytasks.reward_line", lang) + "\n\n"
+        message_text += format_translation("myevents.balance", lang, rocket_balance=rocket_balance) + "\n\n"
 
+        km_suffix = t("mytasks.km_suffix", lang)
+        place_label = t("mytasks.place_label", lang)
         for i, task in enumerate(active_tasks, 1):
-            # Время выполнения больше не показываем - ограничение по времени снято
-
             category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
             category_emoji = category_emojis.get(task["category"], "📋")
+            task_title = (task.get("title_en") if lang == "en" else None) or task["title"]
 
-            message_text += f"{i}) {category_emoji} **{task['title']}**\n"
+            message_text += f"{i}) {category_emoji} **{task_title}**\n"
 
-            # Показываем локацию, если есть
             if task.get("place_name") or task.get("place_url"):
-                place_name = task.get("place_name", "Место на карте")
+                place_name = (
+                    (task.get("place_name_en") if lang == "en" else None)
+                    or task.get("place_name")
+                    or t("group.list.place_on_map", lang)
+                )
                 place_url = task.get("place_url")
                 distance = task.get("distance_km")
 
                 if place_url:
                     if distance:
-                        message_text += f"📍 **Место:** [{place_name} ({distance:.1f} км)]({place_url})\n"
+                        message_text += (
+                            f"📍 **{place_label}** [{place_name} ({distance:.1f} {km_suffix})]({place_url})\n"
+                        )
                     else:
-                        message_text += f"📍 **Место:** [{place_name}]({place_url})\n"
+                        message_text += f"📍 **{place_label}** [{place_name}]({place_url})\n"
                 else:
                     if distance:
-                        message_text += f"📍 **Место:** {place_name} ({distance:.1f} км)\n"
+                        message_text += f"📍 **{place_label}** {place_name} ({distance:.1f} {km_suffix})\n"
                     else:
-                        message_text += f"📍 **Место:** {place_name}\n"
+                        message_text += f"📍 **{place_label}** {place_name}\n"
 
-            # Показываем промокод, если есть
             if task.get("promo_code"):
-                message_text += f"🎁 **Промокод:** `{task['promo_code']}`\n"
+                message_text += format_translation("tasks.promo_code", lang, code=task["promo_code"]) + "\n"
 
             message_text += "\n"
 
@@ -7982,39 +7996,44 @@ async def cmd_mytasks(message: types.Message):
         # Клавиатура не нужна, когда нет заданий
         keyboard = None
     else:
-        # Формируем сообщение со списком активных заданий
-        message_text = "📋 **Ваши активные задания:**\n\n"
-        message_text += "Прохождение + 3 🚀\n\n"
+        # Формируем сообщение со списком активных заданий (i18n + title_en для EN)
+        message_text = t("mytasks.active_header", lang) + "\n\n"
+        message_text += t("mytasks.reward_line", lang) + "\n\n"
         message_text += format_translation("myevents.balance", lang, rocket_balance=rocket_balance)
 
+        km_suffix = t("mytasks.km_suffix", lang)
+        place_label = t("mytasks.place_label", lang)
         for i, task in enumerate(active_tasks, 1):
-            # Время выполнения больше не показываем - ограничение по времени снято
-
             category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
             category_emoji = category_emojis.get(task["category"], "📋")
+            task_title = (task.get("title_en") if lang == "en" else None) or task["title"]
 
-            message_text += f"{i}) {category_emoji} **{task['title']}**\n"
+            message_text += f"{i}) {category_emoji} **{task_title}**\n"
 
-            # Показываем локацию, если есть
             if task.get("place_name") or task.get("place_url"):
-                place_name = task.get("place_name", "Место на карте")
+                place_name = (
+                    (task.get("place_name_en") if lang == "en" else None)
+                    or task.get("place_name")
+                    or t("group.list.place_on_map", lang)
+                )
                 place_url = task.get("place_url")
                 distance = task.get("distance_km")
 
                 if place_url:
                     if distance:
-                        message_text += f"📍 **Место:** [{place_name} ({distance:.1f} км)]({place_url})\n"
+                        message_text += (
+                            f"📍 **{place_label}** [{place_name} ({distance:.1f} {km_suffix})]({place_url})\n"
+                        )
                     else:
-                        message_text += f"📍 **Место:** [{place_name}]({place_url})\n"
+                        message_text += f"📍 **{place_label}** [{place_name}]({place_url})\n"
                 else:
                     if distance:
-                        message_text += f"📍 **Место:** {place_name} ({distance:.1f} км)\n"
+                        message_text += f"📍 **{place_label}** {place_name} ({distance:.1f} {km_suffix})\n"
                     else:
-                        message_text += f"📍 **Место:** {place_name}\n"
+                        message_text += f"📍 **{place_label}** {place_name}\n"
 
-            # Показываем промокод, если есть
             if task.get("promo_code"):
-                message_text += f"🎁 **Промокод:** `{task['promo_code']}`\n"
+                message_text += format_translation("tasks.promo_code", lang, code=task["promo_code"]) + "\n"
 
             message_text += "\n"
 
@@ -8137,34 +8156,38 @@ async def show_task_detail(callback_or_message, tasks: list, task_index: int, us
 
     category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
     category_emoji = category_emojis.get(task["category"], "📋")
-    category_names = {"food": "Еда", "health": "Здоровье", "places": "Интересные места"}
-    category_name = category_names.get(task["category"], task["category"])
+    category_name = t(f"tasks.category.{task['category']}", lang) if task.get("category") else task.get("category", "")
+    task_title = (task.get("title_en") if lang == "en" else None) or task["title"]
+    task_description = (task.get("title_en") if lang == "en" else None) or task["description"]
 
-    message_text = f"📋 **{task['title']}**\n\n"
-    message_text += f"{category_emoji} **Категория:** {category_name}\n"
-    message_text += f"📝 **Описание:** {task['description']}\n"
-    # Время выполнения больше не показываем - ограничение по времени снято
+    message_text = f"📋 **{task_title}**\n\n"
+    message_text += f"{category_emoji} **{t('mytasks.label_category', lang)}** {category_name}\n"
+    message_text += f"📝 **{t('mytasks.label_description', lang)}** {task_description}\n"
 
-    # Показываем локацию, если есть
+    km_suffix = t("mytasks.km_suffix", lang)
+    place_label = t("mytasks.place_label", lang)
     if task.get("place_name") or task.get("place_url"):
-        place_name = task.get("place_name", "Место на карте")
+        place_name = (
+            (task.get("place_name_en") if lang == "en" else None)
+            or task.get("place_name")
+            or t("group.list.place_on_map", lang)
+        )
         place_url = task.get("place_url")
         distance = task.get("distance_km")
 
         if place_url:
             if distance:
-                message_text += f"📍 **Место:** [{place_name} ({distance:.1f} км)]({place_url})\n"
+                message_text += f"📍 **{place_label}** [{place_name} ({distance:.1f} {km_suffix})]({place_url})\n"
             else:
-                message_text += f"📍 **Место:** [{place_name}]({place_url})\n"
+                message_text += f"📍 **{place_label}** [{place_name}]({place_url})\n"
         else:
             if distance:
-                message_text += f"📍 **Место:** {place_name} ({distance:.1f} км)\n"
+                message_text += f"📍 **{place_label}** {place_name} ({distance:.1f} {km_suffix})\n"
             else:
-                message_text += f"📍 **Место:** {place_name}\n"
+                message_text += f"📍 **{place_label}** {place_name}\n"
 
-    # Показываем промокод, если есть
     if task.get("promo_code"):
-        message_text += f"🎁 **Промокод:** `{task['promo_code']}`\n"
+        message_text += format_translation("tasks.promo_code", lang, code=task["promo_code"]) + "\n"
 
     # Создаем клавиатуру для навигации
     keyboard = []
@@ -8336,55 +8359,56 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
 
     rocket_balance = get_user_rockets(user_id)
 
-    # Формируем сообщение со списком активных заданий
-    message_text = "📋 **Ваши активные задания:**\n\n"
-    message_text += "Прохождение + 3 🚀\n"
-    message_text += "⏰ Для мотивации даем 24 часа\n\n"
-    message_text += f"**Баланс {rocket_balance} 🚀**\n\n"
+    # Формируем сообщение со списком активных заданий (i18n + title_en для EN)
+    message_text = t("mytasks.active_header", lang) + "\n\n"
+    message_text += t("mytasks.reward_line", lang) + "\n"
+    message_text += t("mytasks.motivation_line", lang) + "\n\n"
+    message_text += format_translation("myevents.balance", lang, rocket_balance=rocket_balance) + "\n\n"
 
+    km_suffix = t("mytasks.km_suffix", lang)
+    place_label = t("mytasks.place_label", lang)
+    time_label = t("mytasks.time_to_complete", lang)
     for i, task in enumerate(active_tasks, 1):
-        # Вычисляем оставшееся время
         expires_at = task["expires_at"]
         if expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=UTC)
-        time_left = expires_at - datetime.now(UTC)
-        int(time_left.total_seconds() / 3600)
-
-        category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
-        category_emoji = category_emojis.get(task["category"], "📋")
-        # Форматируем время выполнения в компактном виде
         start_time = task["accepted_at"]
         end_time = expires_at
         time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')}"
 
-        message_text += f"{i}) {category_emoji} **{task['title']}**\n"
-        message_text += f"⏰ **Время на выполнение:** {time_period}\n"
+        category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
+        category_emoji = category_emojis.get(task["category"], "📋")
+        task_title = (task.get("title_en") if lang == "en" else None) or task["title"]
 
-        # Показываем локацию, если есть
+        message_text += f"{i}) {category_emoji} **{task_title}**\n"
+        message_text += f"⏰ **{time_label}** {time_period}\n"
+
         if task.get("place_name") or task.get("place_url"):
-            place_name = task.get("place_name", "Место на карте")
+            place_name = (
+                (task.get("place_name_en") if lang == "en" else None)
+                or task.get("place_name")
+                or t("group.list.place_on_map", lang)
+            )
             place_url = task.get("place_url")
             distance = task.get("distance_km")
 
             if place_url:
                 if distance:
-                    message_text += f"📍 **Место:** [{place_name} ({distance:.1f} км)]({place_url})\n"
+                    message_text += f"📍 **{place_label}** [{place_name} ({distance:.1f} {km_suffix})]({place_url})\n"
                 else:
-                    message_text += f"📍 **Место:** [{place_name}]({place_url})\n"
+                    message_text += f"📍 **{place_label}** [{place_name}]({place_url})\n"
             else:
                 if distance:
-                    message_text += f"📍 **Место:** {place_name} ({distance:.1f} км)\n"
+                    message_text += f"📍 **{place_label}** {place_name} ({distance:.1f} {km_suffix})\n"
                 else:
-                    message_text += f"📍 **Место:** {place_name}\n"
+                    message_text += f"📍 **{place_label}** {place_name}\n"
 
-        # Показываем промокод, если есть
         if task.get("promo_code"):
-            message_text += f"🎁 **Промокод:** `{task['promo_code']}`\n"
+            message_text += format_translation("tasks.promo_code", lang, code=task["promo_code"]) + "\n"
 
         message_text += "\n"
 
     # Добавляем кнопку управления заданиями
-    lang = get_user_language_or_default(callback.from_user.id)
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=t("myevents.button.manage_tasks", lang), callback_data="manage_tasks")],
