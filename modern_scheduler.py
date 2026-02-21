@@ -1106,6 +1106,18 @@ class ModernEventScheduler:
         t.start()
         logger.info("[AUTO-BACKFILL] Started in background")
 
+        def _initial_task_places_backfill():
+            try:
+                from utils.backfill_task_places_translation import run_full_backfill
+
+                run_full_backfill()
+            except Exception as e:
+                logger.warning("[TASK-BACKFILL] Failed: %s", e)
+
+        t_places = threading.Thread(target=_initial_task_places_backfill, daemon=True)
+        t_places.start()
+        logger.info("[TASK-BACKFILL] Started in background")
+
         # Запускаем проверку напоминаний и уведомлений сразу для тестирования
         logger.info("🔔 Запускаем проверку напоминаний и уведомлений сразу после старта...")
         try:

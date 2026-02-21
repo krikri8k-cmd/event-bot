@@ -427,6 +427,14 @@ BATCH_SYSTEM_PROMPT = (
     'Пример: ["Title 1", "Title 2"].'
 )
 
+# Промпт для перевода подсказок к квестам (Interesting Places): коротко и дружелюбно
+TASK_HINT_BATCH_SYSTEM_PROMPT = (
+    "You translate short cafe/place quest hints from Russian to English. "
+    "Keep each translation concise and friendly. Preserve meaning and tone. "
+    "Return only a JSON array of strings in the same order, no comments. "
+    'Example: ["Hint 1", "Hint 2"].'
+)
+
 
 def translate_titles_batch(titles: list[str]) -> list[str | None]:
     """
@@ -514,6 +522,90 @@ def translate_titles_batch(titles: list[str]) -> list[str | None]:
                     )
                     return [None] * len(titles)
         return [None] * len(titles)
+    finally:
+        _sync_semaphore.release()
+
+
+def translate_task_hints_batch(hints: list[str]) -> list[str | None]:
+    """
+    Переводит список подсказок к квестам (task_hint) на английский. Только task_hint, названия не трогаем.
+    Возвращает список той же длины; при ошибке — None для повтора.
+    """
+    if not hints:
+        return []
+    hints = [(h or "").strip() for h in hints]
+    if all(not h for h in hints):
+        return [None] * len(hints)
+
+    client = _make_client()
+    if not client:
+        return [None] * len(hints)
+
+    numbered = [f"{i + 1}. {h}" for i, h in enumerate(hints) if h]
+    if not numbered:
+        return [None] * len(hints)
+    user_content = (
+        "Translate these cafe/place quest hints into English. Keep each concise and friendly.\n\n"
+        + "\n\n".join(numbered)
+        + "\n\nReturn a JSON array of translated strings in the same order."
+    )
+
+    _sync_semaphore.acquire()
+    try:
+        for attempt in range(MAX_RETRIES):
+            try:
+                completion = client.chat.completions.create(
+                    model=OPENAI_MODEL,
+                    messages=[
+                        {"role": "system", "content": TASK_HINT_BATCH_SYSTEM_PROMPT},
+                        {"role": "user", "content": user_content},
+                    ],
+                    temperature=0.3,
+                    timeout=OPENAI_TIMEOUT,
+                )
+                raw = (completion.choices[0].message.content or "").strip()
+                if not raw:
+                    return [None] * len(hints)
+                if raw.startswith("```"):
+                    raw = raw.split("```")[1]
+                    if raw.startswith("json"):
+                        raw = raw[4:]
+                    raw = raw.strip()
+                data = json.loads(raw)
+                if not isinstance(data, list):
+                    logger.warning("translate_task_hints_batch: response not a list: %s", type(data))
+                    return [None] * len(hints)
+                result = [None] * len(hints)
+                non_empty_idx = 0
+                for i, h in enumerate(hints):
+                    if not h:
+                        continue
+                    if non_empty_idx < len(data):
+                        val = data[non_empty_idx]
+                        result[i] = (str(val).strip() or None) if val else None
+                    non_empty_idx += 1
+                return result
+            except json.JSONDecodeError as e:
+                logger.warning("translate_task_hints_batch: invalid JSON: %s", e)
+                return [None] * len(hints)
+            except Exception as e:
+                is_retryable = (
+                    "connection" in str(e).lower() or "timeout" in str(e).lower()
+                ) and attempt < MAX_RETRIES - 1
+                if is_retryable:
+                    delay = min(INITIAL_DELAY_SEC * (2**attempt), MAX_DELAY_SEC)
+                    logger.warning(
+                        "translate_task_hints_batch attempt %s/%s error (%s), retry in %.1fs",
+                        attempt + 1,
+                        MAX_RETRIES,
+                        e,
+                        delay,
+                    )
+                    time.sleep(delay)
+                else:
+                    logger.error("translate_task_hints_batch: OpenAI error: %s", e, exc_info=True)
+                    return [None] * len(hints)
+        return [None] * len(hints)
     finally:
         _sync_semaphore.release()
 
