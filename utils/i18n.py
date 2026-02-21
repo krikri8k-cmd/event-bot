@@ -425,6 +425,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "share.more_events_in_bot": "Больше событий в боте:",
         "create.label_city": "Город:",
         "create.label_link": "Ссылка:",
+        "create.paste_google_maps_link": "🔗 Вставьте сюда ссылку из Google Maps:",
         "create.group.enter_title": "✍️ **Введите название мероприятия:**",
         "create.group.title_saved_ask_date": (
             "**Название сохранено:** *{title}* ✅\n\n" "📅 **Укажите дату** (например: 10.10.2025 18:00):"
@@ -827,6 +828,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "share.more_events_in_bot": "More events in the bot:",
         "create.label_city": "City:",
         "create.label_link": "Link:",
+        "create.paste_google_maps_link": "🔗 Paste your Google Maps link here:",
         "create.group.enter_title": "✍️ **Enter event title:**",
         "create.group.title_saved_ask_date": (
             "**Title saved:** *{title}* ✅\n\n" "📅 **Enter date and time** (e.g.: 10.10.2025 18:00):"

@@ -9946,15 +9946,16 @@ async def handle_location_type_text(message: types.Message, state: FSMContext):
 @main_router.callback_query(F.data == "location_link")
 async def handle_location_link_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор ввода готовой ссылки"""
+    lang = get_user_language_or_default(callback.from_user.id)
     current_state = await state.get_state()
 
     if current_state == TaskFlow.waiting_for_custom_location:
         # Для заданий
-        await callback.message.answer("🔗 Вставьте сюда ссылку из Google Maps:")
+        await callback.message.answer(t("create.paste_google_maps_link", lang))
     else:
         # Для событий
         await state.set_state(EventCreation.waiting_for_location_link)
-        await callback.message.answer("🔗 Вставьте сюда ссылку из Google Maps:")
+        await callback.message.answer(t("create.paste_google_maps_link", lang))
 
     await callback.answer()
 
@@ -10015,9 +10016,10 @@ async def handle_location_coords_choice(callback: types.CallbackQuery, state: FS
 @main_router.callback_query(F.data == "community_location_link")
 async def handle_community_location_link_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор ввода готовой ссылки в Community режиме"""
+    lang = get_user_language_or_default(callback.from_user.id)
     await state.set_state(CommunityEventCreation.waiting_for_location_url)
     await callback.message.answer(
-        "🔗 Вставьте сюда ссылку из Google Maps:",
+        t("create.paste_google_maps_link", lang),
         reply_markup=get_community_cancel_kb(callback.from_user.id),
     )
     await callback.answer()
@@ -13128,10 +13130,11 @@ async def handle_edit_location_choice(callback: types.CallbackQuery, state: FSMC
 @main_router.callback_query(F.data.regexp(r"^edit_location_link_\d+$"))
 async def handle_edit_location_link_choice(callback: types.CallbackQuery, state: FSMContext):
     """Выбор ввода готовой ссылки для редактирования"""
+    lang = get_user_language_or_default(callback.from_user.id)
     event_id = int(callback.data.split("_")[-1])
     await state.update_data(event_id=event_id)
     await state.set_state(EventEditing.waiting_for_location)
-    await callback.message.answer("🔗 Вставьте сюда ссылку из Google Maps:")
+    await callback.message.answer(t("create.paste_google_maps_link", lang))
     await callback.answer()
 
 
