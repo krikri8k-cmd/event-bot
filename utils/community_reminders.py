@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from aiogram import Bot
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import load_only
 
 from config import load_settings
 from database import BotMessage, CommunityEvent, init_engine
@@ -40,9 +41,27 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
             f"ищем события между {time_min_utc} и {time_max_utc} UTC"
         )
 
-        # Получаем ВСЕ открытые Community события (из таблицы events_community)
-        stmt = select(CommunityEvent).where(CommunityEvent.status == "open").order_by(CommunityEvent.starts_at)
-
+        # Открытые Community события (title_en/description_en не в запросе — не падать до миграции)
+        stmt = (
+            select(CommunityEvent)
+            .options(
+                load_only(
+                    CommunityEvent.id,
+                    CommunityEvent.chat_id,
+                    CommunityEvent.organizer_id,
+                    CommunityEvent.organizer_username,
+                    CommunityEvent.title,
+                    CommunityEvent.description,
+                    CommunityEvent.starts_at,
+                    CommunityEvent.city,
+                    CommunityEvent.location_name,
+                    CommunityEvent.location_url,
+                    CommunityEvent.status,
+                )
+            )
+            .where(CommunityEvent.status == "open")
+            .order_by(CommunityEvent.starts_at)
+        )
         result = await session.execute(stmt)
         all_events = result.scalars().all()
 
@@ -353,10 +372,28 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
             f"ищем события между {time_min_utc} и {time_max_utc} UTC (через ~24 часа)"
         )
 
-        # Получаем ВСЕ открытые Community события (из таблицы events_community)
+        # Открытые Community события (без title_en/description_en — не падать до миграции)
         logger.info("🔔 Выполняем запрос к БД для получения открытых Community событий...")
-        stmt = select(CommunityEvent).where(CommunityEvent.status == "open").order_by(CommunityEvent.starts_at)
-
+        stmt = (
+            select(CommunityEvent)
+            .options(
+                load_only(
+                    CommunityEvent.id,
+                    CommunityEvent.chat_id,
+                    CommunityEvent.organizer_id,
+                    CommunityEvent.organizer_username,
+                    CommunityEvent.title,
+                    CommunityEvent.description,
+                    CommunityEvent.starts_at,
+                    CommunityEvent.city,
+                    CommunityEvent.location_name,
+                    CommunityEvent.location_url,
+                    CommunityEvent.status,
+                )
+            )
+            .where(CommunityEvent.status == "open")
+            .order_by(CommunityEvent.starts_at)
+        )
         result = await session.execute(stmt)
         logger.info("🔔 Запрос к БД выполнен, получаем результаты...")
         all_events = result.scalars().all()

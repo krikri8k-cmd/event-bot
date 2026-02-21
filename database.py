@@ -338,6 +338,33 @@ def make_async_engine(database_url: str):
         return None
 
 
+def _ensure_events_community_en_columns() -> None:
+    """Добавляет title_en, description_en в events_community, archive и events, если их нет (миграция при старте)."""
+    if engine is None:
+        return
+    log = logging.getLogger(__name__)
+    statements = [
+        ("events_community", "ALTER TABLE events_community ADD COLUMN IF NOT EXISTS title_en TEXT"),
+        ("events_community", "ALTER TABLE events_community ADD COLUMN IF NOT EXISTS description_en TEXT"),
+        (
+            "events_community_archive",
+            "ALTER TABLE events_community_archive ADD COLUMN IF NOT EXISTS title_en TEXT",
+        ),
+        (
+            "events_community_archive",
+            "ALTER TABLE events_community_archive ADD COLUMN IF NOT EXISTS description_en TEXT",
+        ),
+        ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS title_en VARCHAR(255)"),
+        ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS description_en TEXT"),
+    ]
+    with engine.begin() as conn:
+        for table, sql in statements:
+            try:
+                conn.execute(text(sql))
+            except Exception as e:
+                log.warning("ensure_events_community_en_columns %s: %s", table, e)
+
+
 def init_engine(database_url: str) -> None:
     global engine, Session, async_engine, async_session_maker
     if engine is None:
@@ -346,6 +373,7 @@ def init_engine(database_url: str) -> None:
             # Test connection immediately to fail fast
             with engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
+            _ensure_events_community_en_columns()
             Session = sessionmaker(bind=engine, expire_on_commit=False)
 
             # Инициализируем async engine (опционально)
