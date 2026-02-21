@@ -8955,17 +8955,17 @@ async def show_tasks_for_category(
         logger.error(f"Ошибка получения мест: {e}", exc_info=True)
         all_places = []
 
-    # Определяем названия категорий
-    category_names = {"food": "🍔 Еда", "health": "💪 Здоровье", "places": "🌟 Интересные места"}
-    category_name = category_names.get(category, category)
+    lang = get_user_language_or_default(user_id)
+    category_name = t(f"tasks.category.{category}", lang)
+    no_places_text = t("tasks.no_places_in_category", lang)
 
     # Если мест нет
     if not all_places:
-        text = f"🎯 **{category_name}**\n\n" "❌ Места для этой категории пока не добавлены."
+        text = f"🎯 **{category_name}**\n\n{no_places_text}"
         reply_markup = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_tasks")],
-                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+                [InlineKeyboardButton(text=t("pager.prev", lang), callback_data="back_to_tasks")],
+                [InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main")],
             ]
         )
         if hasattr(message_or_callback, "edit_text"):
@@ -8986,41 +8986,44 @@ async def show_tasks_for_category(
 
     # Формируем текст сообщения
     text = f"🎯 **{category_name}**\n\n"
-    text += f"📍 Найдено мест: {len(all_places)}\n\n"
+    text += t("tasks.places_found", lang).format(count=len(all_places)) + "\n\n"
 
     # Получаем username бота для создания deep links
     bot_info = await message_or_callback.bot.get_me() if hasattr(message_or_callback, "bot") else None
     bot_username = bot_info.username if bot_info else get_bot_username()
 
+    take_quest_label = t("tasks.take_quest", lang)
+
     # Добавляем каждое место с ссылкой "Забрать квест" в тексте
     for idx, place in enumerate(page_places, start=start_idx + 1):
-        # Название места (кликабельная ссылка на Google Maps, если есть)
+        # Название места по языку (name_en для EN, иначе name)
+        place_display_name = (getattr(place, "name_en", None) or place.name) if lang == "en" else place.name
         if place.google_maps_url:
-            # В Markdown ссылки: [текст](url)
-            # Экранируем специальные символы в названии для Markdown
-            escaped_name = place.name.replace("[", "\\[").replace("]", "\\]").replace("(", "\\(").replace(")", "\\)")
+            escaped_name = (
+                place_display_name.replace("[", "\\[").replace("]", "\\]").replace("(", "\\(").replace(")", "\\)")
+            )
             text += f"**{idx}. [{escaped_name}]({place.google_maps_url})**\n"
         else:
-            text += f"**{idx}. {place.name}**\n"
+            text += f"**{idx}. {place_display_name}**\n"
 
         # Расстояние
         if hasattr(place, "distance_km") and place.distance_km:
-            text += f"📍 {place.distance_km:.1f} км от вас\n"
+            text += t("tasks.km_from_you", lang).format(distance=place.distance_km) + "\n"
 
         # Промокод
         if place.promo_code:
-            text += f"🎁 Промокод: `{place.promo_code}`\n"
+            text += t("tasks.promo_code", lang).format(code=place.promo_code) + "\n"
 
-        # Короткое задание (task_hint)
-        if place.task_hint:
-            text += f"💡 {place.task_hint}\n"
+        # Короткое задание (task_hint) по языку
+        hint_text = (
+            (getattr(place, "task_hint_en", None) or place.task_hint) if lang == "en" else (place.task_hint or "")
+        )
+        if hint_text:
+            text += f"💡 {hint_text}\n"
 
-        # Добавляем скрытую ссылку "Забрать квест" под каждым местом в тексте
-        # Используем deep link (будет показывать /start, но это особенность Telegram)
+        # Ссылка "Забрать квест"
         deep_link = f"https://t.me/{bot_username}?start=add_quest_{place.id}"
-        text += f"[🎯 Забрать квест]({deep_link})\n"
-
-        text += "\n"
+        text += f"[{take_quest_label}]({deep_link})\n\n"
 
     # Создаем клавиатуру только с кнопками пагинации (без кнопок мест)
     keyboard = []
@@ -9028,22 +9031,32 @@ async def show_tasks_for_category(
     # Кнопки пагинации
     nav_buttons = []
     if page > 1:
-        nav_buttons.append(InlineKeyboardButton(text="◀️ Назад", callback_data=f"places_page:{category}:{page-1}"))
+        nav_buttons.append(
+            InlineKeyboardButton(text=t("pager.prev", lang), callback_data=f"places_page:{category}:{page-1}")
+        )
     if page < total_pages:
-        nav_buttons.append(InlineKeyboardButton(text="Вперёд ▶️", callback_data=f"places_page:{category}:{page+1}"))
+        nav_buttons.append(
+            InlineKeyboardButton(text=t("pager.next", lang), callback_data=f"places_page:{category}:{page+1}")
+        )
 
     if nav_buttons:
         keyboard.append(nav_buttons)
 
     # Информация о странице
     if total_pages > 1:
-        keyboard.append([InlineKeyboardButton(text=f"Стр. {page}/{total_pages}", callback_data="places_page:noop")])
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    text=t("pager.page", lang).format(page=page, total=total_pages), callback_data="places_page:noop"
+                )
+            ]
+        )
 
     # Кнопки управления
     keyboard.append(
         [
-            InlineKeyboardButton(text="📋 Список", callback_data="back_to_tasks"),
-            InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
+            InlineKeyboardButton(text=t("tasks.button.list", lang), callback_data="back_to_tasks"),
+            InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main"),
         ]
     )
 

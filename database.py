@@ -181,6 +181,8 @@ class TaskPlace(Base):
     task_type: Mapped[str] = mapped_column(String(20), default="urban")  # 'urban' или 'island'
     promo_code: Mapped[str | None] = mapped_column(String(100))  # Промокод или реферальный код для партнеров
     task_hint: Mapped[str | None] = mapped_column(String(200))  # Короткое задание/подсказка (1 предложение)
+    name_en: Mapped[str | None] = mapped_column(String(255))  # название на английском
+    task_hint_en: Mapped[str | None] = mapped_column(String(200))  # задание/подсказка на английском
     created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -359,6 +361,8 @@ def _ensure_events_community_en_columns() -> None:
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS translation_retry_count INT DEFAULT 0"),
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS translation_failed BOOLEAN DEFAULT false"),
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS event_source VARCHAR(32)"),
+        ("task_places", "ALTER TABLE task_places ADD COLUMN IF NOT EXISTS name_en VARCHAR(255)"),
+        ("task_places", "ALTER TABLE task_places ADD COLUMN IF NOT EXISTS task_hint_en VARCHAR(200)"),
     ]
     with engine.begin() as conn:
         for table, sql in statements:

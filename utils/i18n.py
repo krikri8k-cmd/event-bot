@@ -162,6 +162,12 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.category.food": "🍔 Еда",
         "tasks.category.health": "💪 Здоровье",
         "tasks.category.places": "🌟 Интересные места",
+        "tasks.places_found": "📍 Найдено мест: {count}",
+        "tasks.km_from_you": "📍 {distance:.1f} км от вас",
+        "tasks.promo_code": "🎁 Промокод: `{code}`",
+        "tasks.take_quest": "🎯 Забрать квест",
+        "tasks.button.list": "📋 Список",
+        "tasks.no_places_in_category": "❌ Места для этой категории пока не добавлены.",
         "tasks.location_received": (
             "✅ **Геолокация получена!**\n\n"
             "Выберите категорию для получения персонализированных заданий:\n\n"
@@ -929,6 +935,12 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.category.food": "🍔 Food",
         "tasks.category.health": "💪 Health",
         "tasks.category.places": "🌟 Interesting places",
+        "tasks.places_found": "📍 Places found: {count}",
+        "tasks.km_from_you": "📍 {distance:.1f} km from you",
+        "tasks.promo_code": "🎁 Promo code: `{code}`",
+        "tasks.take_quest": "🎯 Take quest",
+        "tasks.button.list": "📋 List",
+        "tasks.no_places_in_category": "❌ No places in this category yet.",
         "tasks.location_received": (
             "✅ **Location received!**\n\n"
             "Choose category for personalized tasks:\n\n"
