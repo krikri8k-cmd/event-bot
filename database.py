@@ -365,14 +365,40 @@ def _ensure_events_community_en_columns() -> None:
                 log.warning("ensure_events_community_en_columns %s: %s", table, e)
 
 
+def _mask_db_url_for_log(url) -> str:
+    """Для диагностики: host, database, port без пароля."""
+    try:
+        u = url if hasattr(url, "host") else url
+        host = getattr(u, "host", None) or ""
+        port = getattr(u, "port", None) or ""
+        database = getattr(u, "database", None) or ""
+        return f"host={host!r} port={port!r} database={database!r}"
+    except Exception:
+        return "(could not parse)"
+
+
 def init_engine(database_url: str) -> None:
     global engine, Session, async_engine, async_session_maker
     if engine is None:
         try:
+            # Диагностика: к какой БД подключаемся (без пароля в логе)
+            _log = logging.getLogger(__name__)
+            from urllib.parse import urlparse
+
+            try:
+                p = urlparse(database_url)
+                _log.info(
+                    "DATABASE_URL (masked): host=%r port=%r database=%r",
+                    p.hostname,
+                    p.port or 5432,
+                    (p.path or "").strip("/") or "postgres",
+                )
+            except Exception as e:
+                _log.warning("DATABASE_URL parse for log: %s", e)
             engine = make_engine(database_url)
-            # Test connection immediately to fail fast
             with engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
+            _log.info("Connected DB (engine.url): %s", _mask_db_url_for_log(engine.url))
             _ensure_events_community_en_columns()
             Session = sessionmaker(bind=engine, expire_on_commit=False)
 

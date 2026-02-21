@@ -19,12 +19,31 @@ def get_engine() -> Engine:
     """Создаёт Engine один раз по первому вызову, беря строку из config."""
     global _engine
     if _engine is None:
-        from config import load_settings
+        from urllib.parse import urlparse
 
         settings = load_settings()
         if not settings.database_url:
             raise RuntimeError("DATABASE_URL is not set")
+        try:
+            p = urlparse(settings.database_url)
+            logger.info(
+                "API get_engine: DATABASE_URL (masked) host=%r port=%r database=%r",
+                p.hostname,
+                p.port or 5432,
+                (p.path or "").strip("/") or "postgres",
+            )
+        except Exception as e:
+            logger.warning("API get_engine: could not parse URL for log: %s", e)
         _engine = create_engine(settings.database_url, future=True, pool_pre_ping=True)
+        try:
+            logger.info(
+                "API Connected DB (engine.url): host=%r port=%r database=%r",
+                _engine.url.host,
+                _engine.url.port,
+                _engine.url.database,
+            )
+        except Exception:
+            pass
     return _engine
 
 
