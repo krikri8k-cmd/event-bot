@@ -6982,8 +6982,8 @@ async def on_my_events(message: types.Message):
     # Добавляем кнопки навигации: Главное меню и Мои квесты на одной линии
     keyboard_buttons.append(
         [
-            InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
-            InlineKeyboardButton(text="🏆 Мои квесты", callback_data="show_my_tasks"),
+            InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main"),
+            InlineKeyboardButton(text=t("myevents.button.my_quests", lang), callback_data="show_my_tasks"),
         ]
     )
 
@@ -7712,13 +7712,13 @@ async def on_tasks_goal(message: types.Message, state: FSMContext):
 @main_router.message(F.text.in_(_MY_ACTIVITIES_BUTTON_TEXTS))
 async def on_my_activities(message: types.Message):
     """Обработчик кнопки 'Мои активности' - показывает выбор между событиями и квестами"""
+    user_lang = get_user_language_or_default(message.from_user.id)
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="📋 Мои события", callback_data="show_my_events")],
-            [InlineKeyboardButton(text="🏆 Мои квесты", callback_data="show_my_tasks")],
+            [InlineKeyboardButton(text=t("myevents.button.my_events", user_lang), callback_data="show_my_events")],
+            [InlineKeyboardButton(text=t("myevents.button.my_quests", user_lang), callback_data="show_my_tasks")],
         ]
     )
-    user_lang = get_user_language_or_default(message.from_user.id)
     await message.answer(t("tasks.choose_section", user_lang), reply_markup=keyboard)
 
 
@@ -7842,10 +7842,10 @@ async def on_my_tasks(message: types.Message):
         # Добавляем кнопку управления заданиями
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="🔧 Управление заданиями", callback_data="manage_tasks")],
+                [InlineKeyboardButton(text=t("myevents.button.manage_tasks", lang), callback_data="manage_tasks")],
                 [
-                    InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
-                    InlineKeyboardButton(text="📋 Мои события", callback_data="show_my_events"),
+                    InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main"),
+                    InlineKeyboardButton(text=t("myevents.button.my_events", lang), callback_data="show_my_events"),
                 ],
             ]
         )
@@ -8024,10 +8024,10 @@ async def cmd_mytasks(message: types.Message):
         # Добавляем кнопку управления заданиями
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="🔧 Управление заданиями", callback_data="manage_tasks")],
+                [InlineKeyboardButton(text=t("myevents.button.manage_tasks", lang), callback_data="manage_tasks")],
                 [
-                    InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main"),
-                    InlineKeyboardButton(text="📋 Мои события", callback_data="show_my_events"),
+                    InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main"),
+                    InlineKeyboardButton(text=t("myevents.button.my_events", lang), callback_data="show_my_events"),
                 ],
             ]
         )
@@ -8128,6 +8128,7 @@ async def show_task_detail(callback_or_message, tasks: list, task_index: int, us
         task_index: Индекс текущего задания
         user_id: ID пользователя
     """
+    lang = get_user_language_or_default(user_id)
     task = tasks[task_index]
 
     # Вычисляем оставшееся время
@@ -8192,8 +8193,8 @@ async def show_task_detail(callback_or_message, tasks: list, task_index: int, us
         keyboard.append(nav_buttons)
 
     # Кнопки возврата
-    keyboard.append([InlineKeyboardButton(text="🔧 К списку заданий", callback_data="my_tasks_list")])
-    keyboard.append([InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")])
+    keyboard.append([InlineKeyboardButton(text=t("mytasks.button.back_to_list", lang), callback_data="my_tasks_list")])
+    keyboard.append([InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main")])
 
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
@@ -8386,10 +8387,11 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
         message_text += "\n"
 
     # Добавляем кнопку управления заданиями
+    lang = get_user_language_or_default(callback.from_user.id)
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🔧 Управление заданиями", callback_data="manage_tasks")],
-            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+            [InlineKeyboardButton(text=t("myevents.button.manage_tasks", lang), callback_data="manage_tasks")],
+            [InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main")],
         ]
     )
 
@@ -9148,8 +9150,8 @@ async def handle_show_bot_commands(callback: types.CallbackQuery):
     # Создаем клавиатуру с кнопкой возврата
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="◀️ Назад к заданиям", callback_data="back_to_tasks")],
-            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")],
+            [InlineKeyboardButton(text=t("mytasks.button.back_to_tasks", lang), callback_data="back_to_tasks")],
+            [InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main")],
         ]
     )
 
