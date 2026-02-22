@@ -25,7 +25,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import CommunityEvent
 from utils.i18n import format_translation, get_bot_username, t
 from utils.messaging_utils import delete_all_tracked, is_chat_admin
-from utils.user_language import get_user_language_or_default
+from utils.user_language import (
+    get_event_description,
+    get_event_title,
+    get_user_language_async,
+)
 
 # Константы для восстановления команд
 LANGS = (None, "ru", "en")  # default + ru + en
@@ -259,8 +263,7 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
     """Обработчик команды /join_event_123 для записи на событие"""
     chat_id = message.chat.id
     user_id = message.from_user.id
-
-    lang = get_user_language_or_default(user_id)
+    lang = await get_user_language_async(user_id, chat_id)
     # Извлекаем ID события из команды
     if not command.args:
         await message.answer(t("group.join.use_command", lang))
@@ -429,7 +432,8 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
             text = format_translation("group.list.header", lang, count=len(events))
             for i, event in enumerate(events, 1):
                 date_str = format_community_event_time(event, "%d.%m.%Y %H:%M")
-                safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
+                title = get_event_title(event, lang)
+                safe_title = title.replace("*", "").replace("_", "").replace("`", "'")
                 text += f"{i}. {safe_title}\n"
                 text += f"   📅 {date_str}\n"
 
@@ -440,8 +444,9 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
                     safe_city = city_to_show.replace("*", "").replace("_", "").replace("`", "'")
                     text += f"   🏙️ {safe_city}\n"
 
-                if event.description:
-                    desc = event.description[:80] + "..." if len(event.description) > 80 else event.description
+                desc_raw = get_event_description(event, lang) or event.description
+                if desc_raw:
+                    desc = desc_raw[:80] + "..." if len(desc_raw) > 80 else desc_raw
                     safe_desc = desc.replace("*", "").replace("_", "").replace("`", "'")
                     text += f"   📝 {safe_desc}\n"
 
@@ -527,7 +532,7 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
         logger.error(traceback.format_exc())
         from utils.messaging_utils import send_tracked
 
-        lang = get_user_language_or_default(message.from_user.id)
+        lang = await get_user_language_async(message.from_user.id, chat_id)
         await send_tracked(
             bot,
             session,
@@ -559,7 +564,7 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
 
     chat_id = message.chat.id
     user_id = message.from_user.id
-    lang = get_user_language_or_default(user_id)
+    lang = await get_user_language_async(user_id, chat_id)
 
     # Извлекаем ID события из текста команды
     import re
@@ -709,7 +714,7 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
         logger.error(traceback.format_exc())
         from utils.messaging_utils import send_tracked
 
-        lang = get_user_language_or_default(message.from_user.id)
+        lang = await get_user_language_async(message.from_user.id, chat_id)
         await send_tracked(
             bot,
             session,
@@ -722,9 +727,9 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
 @group_router.message(Command("leave_event"))
 async def handle_leave_event_command(message: Message, bot: Bot, session: AsyncSession, command: CommandObject):
     """Обработчик команды /leave_event_123 для отмены записи на событие"""
+    chat_id = message.chat.id
     user_id = message.from_user.id
-
-    lang = get_user_language_or_default(user_id)
+    lang = await get_user_language_async(user_id, chat_id)
     # Извлекаем ID события из команды
     if not command.args:
         await message.answer(t("group.leave.use_command", lang))
@@ -762,12 +767,11 @@ async def handle_leave_event_command(message: Message, bot: Bot, session: AsyncS
 @group_router.message(F.text.regexp(r"^/leaveevent(\d+)(@\w+)?$"))
 async def handle_leave_event_command_short(message: Message, bot: Bot, session: AsyncSession):
     """Обработчик команды /leaveevent123 для отмены записи на событие (без подчеркивания)"""
+    chat_id = message.chat.id
     user_id = message.from_user.id
-
-    # Извлекаем ID события из текста команды
     import re
 
-    lang = get_user_language_or_default(user_id)
+    lang = await get_user_language_async(user_id, chat_id)
     match = re.match(r"^/leaveevent(\d+)(@\w+)?$", message.text)
     if not match:
         await message.answer(t("group.leave.use_command_short", lang))
@@ -881,7 +885,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
     # Убираем промежуточное сообщение с командой
 
     # Показываем панель Community с InlineKeyboard под сообщением
-    panel_lang = get_user_language_or_default(message.from_user.id)
+    panel_lang = await get_user_language_async(message.from_user.id, message.chat.id)
     try:
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
@@ -1054,7 +1058,7 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             )
             return
         try:
-            fallback_lang = get_user_language_or_default(message.from_user.id)
+            fallback_lang = await get_user_language_async(message.from_user.id, message.chat.id)
             fallback_msg = await message.answer(t("group.activated", fallback_lang))
             # Удаляем fallback сообщение через 3 секунды
             try:
@@ -1585,7 +1589,7 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
     """Показать список событий этого чата с пагинацией"""
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id
-    lang = get_user_language_or_default(user_id)
+    lang = await get_user_language_async(user_id, chat_id)
     events_per_page = 10
 
     # Получаем thread_id для форумов
@@ -1702,17 +1706,13 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                 text = format_translation("group.list.header", lang, count=total_events)
 
             for i, event in enumerate(events, 1):
-                # Номер события на текущей странице (с учетом offset)
                 event_number = offset + i
-                # Форматируем дату с конвертацией в часовой пояс города
                 date_str = format_community_event_time(event, "%d.%m.%Y %H:%M")
-
-                # Добавляем событие в список (безопасная версия)
-                safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
+                title = get_event_title(event, lang)
+                safe_title = title.replace("*", "").replace("_", "").replace("`", "'")
                 text += f"{event_number}. {safe_title}\n"
                 text += f"   📅 {date_str}\n"
 
-                # Город (приоритет: ручной ввод, затем автоматическое извлечение)
                 city_to_show = None
                 if event.city:
                     city_to_show = event.city
@@ -1723,9 +1723,9 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                     safe_city = city_to_show.replace("*", "").replace("_", "").replace("`", "'")
                     text += f"   🏙️ {safe_city}\n"
 
-                # Описание (если есть)
-                if event.description:
-                    desc = event.description[:80] + "..." if len(event.description) > 80 else event.description
+                desc_raw = get_event_description(event, lang) or event.description
+                if desc_raw:
+                    desc = desc_raw[:80] + "..." if len(desc_raw) > 80 else desc_raw
                     safe_desc = desc.replace("*", "").replace("_", "").replace("`", "'")
                     text += f"   📝 {safe_desc}\n"
 
@@ -1970,7 +1970,7 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                     logger.error(f"❌ Ошибка отправки нового сообщения: {e2}")
                     # Последний fallback: отправляем без клавиатуры
                 try:
-                    _lang = get_user_language_or_default(callback.from_user.id)
+                    _lang = await get_user_language_async(callback.from_user.id, callback.message.chat.id)
                     answer_kwargs = {
                         "text": format_translation("group.list.header", _lang, count=0)
                         .replace(" (0 событий)", "")
@@ -1989,7 +1989,7 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
     except Exception as e:
         logger.error(f"❌ Ошибка получения событий: {e}")
         # Отправляем сообщение об ошибке пользователю
-        _lang = get_user_language_or_default(callback.from_user.id)
+        _lang = await get_user_language_async(callback.from_user.id, callback.message.chat.id)
         header = (
             format_translation("group.list.header", _lang, count=0)
             .replace(" (0 событий)", "")
@@ -2059,7 +2059,7 @@ async def group_back_to_panel(callback: CallbackQuery, bot: Bot, session: AsyncS
     chat_id = callback.message.chat.id
     message_id = callback.message.message_id
     user_id = callback.from_user.id
-    lang = get_user_language_or_default(user_id)
+    lang = await get_user_language_async(user_id, chat_id)
     logger.info(f"🔥 group_back_to_panel: возврат к панели в чате {chat_id}")
 
     await callback.answer()
@@ -2144,7 +2144,7 @@ async def group_hide_confirm(callback: CallbackQuery, bot: Bot, session: AsyncSe
     """Показ диалога подтверждения скрытия бота - редактируем панель"""
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id
-    lang = get_user_language_or_default(user_id)
+    lang = await get_user_language_async(user_id, chat_id)
     logger.info(f"🔥 group_hide_confirm: пользователь {user_id} запросил подтверждение скрытия бота в чате {chat_id}")
 
     await callback.answer("Показываем подтверждение...", show_alert=False)
@@ -2346,8 +2346,9 @@ async def community_show_members(callback: CallbackQuery, bot: Bot, session: Asy
         participants = await get_participants_optimized(session, event_id)
         participants_count = len(participants)
 
-        # Формируем текст сообщения
-        safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
+        lang = await get_user_language_async(user_id, chat_id)
+        title = get_event_title(event, lang)
+        safe_title = title.replace("*", "").replace("_", "").replace("`", "'")
         text = f"👥 **Участники события: {safe_title}**\n\n"
         text += f"**Всего:** {participants_count}\n\n"
 
@@ -2455,8 +2456,9 @@ async def community_join_event(callback: CallbackQuery, bot: Bot, session: Async
             await callback.message.answer("ℹ️ Вы уже записаны на это событие")
             return
 
-        # Формируем текст подтверждения
-        safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
+        lang = await get_user_language_async(user_id, chat_id)
+        title = get_event_title(event, lang)
+        safe_title = title.replace("*", "").replace("_", "").replace("`", "'")
         date_str = format_community_event_time(event, "%d.%m.%Y %H:%M") if event.starts_at else "Дата не указана"
 
         confirmation_text = (
@@ -2550,8 +2552,9 @@ async def community_join_confirm(callback: CallbackQuery, bot: Bot, session: Asy
             await callback.answer("ℹ️ Вы уже записаны на это событие", show_alert=True)
             return
 
-        # Показываем успешное сообщение с кнопкой возврата к списку
-        safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
+        lang = await get_user_language_async(user_id, chat_id)
+        title = get_event_title(event, lang)
+        safe_title = title.replace("*", "").replace("_", "").replace("`", "'")
         success_text = (
             f"✅ **Вы записались на событие!**\n\n"
             f"**{safe_title}**\n\n"
@@ -2700,7 +2703,7 @@ async def group_manage_events(callback: CallbackQuery, bot: Bot, session: AsyncS
     """Обработчик кнопки Управление событиями (главная кнопка, как в World режиме)"""
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id
-    lang = get_user_language_or_default(user_id)
+    lang = await get_user_language_async(user_id, chat_id)
 
     logger.info(f"🔥 group_manage_events: пользователь {user_id} открывает управление событиями в чате {chat_id}")
 
@@ -2774,8 +2777,9 @@ async def _show_community_manage_event(
         await callback.answer("❌ У вас нет прав для управления этим событием", show_alert=True)
         return
 
+    lang = await get_user_language_async(user_id, chat_id)
     header = f"🔧 Управление событием ({index + 1}/{total}):\n\n"
-    text = f"{header}{format_community_event_for_display(event)}"
+    text = f"{header}{format_community_event_for_display(event, lang)}"
 
     # Получаем username бота для deep-link
     bot_info = await bot.get_me()
@@ -2905,9 +2909,9 @@ async def _show_community_view_event(
 
     event = events[index]
 
-    # Формируем текст события
+    lang = await get_user_language_async(user_id, chat_id)
     header = f"📅 Событие ({index + 1}/{total}):\n\n"
-    text = f"{header}{format_community_event_for_display(event)}"
+    text = f"{header}{format_community_event_for_display(event, lang)}"
 
     # Добавляем информацию об участниках
     from utils.community_participants_service_optimized import (
@@ -3252,8 +3256,9 @@ async def group_manage_event(callback: CallbackQuery, bot: Bot, session: AsyncSe
 
         participants_count = await get_participants_count_optimized(session, event_id)
 
-        # Формируем текст с информацией о событии
-        safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
+        lang = await get_user_language_async(user_id, chat_id)
+        title = get_event_title(event, lang)
+        safe_title = title.replace("*", "").replace("_", "").replace("`", "'")
         date_str = format_community_event_time(event, "%d.%m.%Y %H:%M") if event.starts_at else "Дата не указана"
 
         text = "⚙️ **Управление событием**\n\n"
@@ -3630,34 +3635,30 @@ def format_community_event_time(event: CommunityEvent, format_str: str = "%d.%m.
     return result
 
 
-def format_community_event_for_display(event: CommunityEvent) -> str:
-    """Форматирует Community событие для отображения в Telegram"""
+def format_community_event_for_display(event: CommunityEvent, lang: str = "ru") -> str:
+    """Форматирует Community событие для отображения в Telegram с учётом языка."""
     lines = []
-
-    # Заголовок
-    safe_title = event.title.replace("*", "").replace("_", "").replace("`", "'")
+    title = get_event_title(event, lang)
+    description = get_event_description(event, lang)
+    safe_title = (title or "").replace("*", "").replace("_", "").replace("`", "'")
     status_emoji = "🟢" if event.status == "open" else "🔴" if event.status == "closed" else "⚫"
     lines.append(f"{status_emoji} **{safe_title}**")
 
-    # Время (конвертируем из UTC в локальный часовой пояс города)
     if event.starts_at:
         date_str = format_community_event_time(event, "%d.%m.%Y | %H:%M")
         lines.append(f"📅 {date_str}")
     else:
         lines.append("📅 Время не указано")
 
-    # Место
     if event.location_name:
         safe_location = event.location_name.replace("*", "").replace("_", "").replace("`", "'")
         lines.append(f"📍 {safe_location}")
 
-    # Статус
     status_desc = "Активно" if event.status == "open" else "Закрыто" if event.status == "closed" else "Отменено"
     lines.append(f"📊 Статус: {status_desc}")
 
-    # Описание (если есть)
-    if event.description:
-        desc = event.description[:100] + "..." if len(event.description) > 100 else event.description
+    if description:
+        desc = description[:100] + "..." if len(description) > 100 else description
         safe_desc = desc.replace("*", "").replace("_", "").replace("`", "'")
         lines.append(f"📄 {safe_desc}")
 
@@ -3708,10 +3709,11 @@ def get_community_status_buttons(
     return buttons
 
 
-def format_event_short(event: CommunityEvent) -> str:
-    """Краткое форматирование события для списка"""
+def format_event_short(event: CommunityEvent, lang: str = "ru") -> str:
+    """Краткое форматирование события для списка с учётом языка."""
     date_str = format_community_event_time(event, "%d.%m %H:%M")
-    text = f"**{event.title}**\n📅 {date_str}"
+    title = get_event_title(event, lang)
+    text = f"**{title}**\n📅 {date_str}"
 
     # Город (приоритет: ручной ввод, затем автоматическое извлечение)
     city_to_show = None
@@ -3908,23 +3910,24 @@ async def group_edit_time_choice(callback: CallbackQuery, state: FSMContext):
 @group_router.callback_query(F.data.startswith("group_edit_location_"))
 async def group_edit_location_choice(callback: CallbackQuery, state: FSMContext):
     """Выбор редактирования локации"""
+    chat_id = callback.message.chat.id
+    user_id = callback.from_user.id
+    lang = await get_user_language_async(user_id, chat_id)
     event_id = int(callback.data.split("_")[-1])
     await state.update_data(event_id=event_id)
     await state.set_state(CommunityEventEditing.waiting_for_location)
 
-    # Показываем кнопку с картой
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=t("create.button_open_google_maps", get_user_language_or_default(callback.from_user.id)),
+                    text=t("create.button_open_google_maps", lang),
                     url="https://www.google.com/maps",
                 )
             ],
         ]
     )
 
-    lang = get_user_language_or_default(callback.from_user.id)
     await callback.message.answer(
         t("edit.location_map_prompt", lang),
         reply_markup=keyboard,
@@ -3967,7 +3970,8 @@ async def group_edit_finish(callback: CallbackQuery, bot: Bot, session: AsyncSes
             # Если событие не найдено, получаем его напрямую
             event = await session.get(CommunityEvent, event_id)
             if event and event.chat_id == chat_id:
-                text = f"✅ **Событие обновлено!**\n\n{format_community_event_for_display(event)}"
+                lang = await get_user_language_async(user_id, chat_id)
+                text = f"✅ **Событие обновлено!**\n\n{format_community_event_for_display(event, lang)}"
                 # Получаем username бота для deep-link
                 bot_info = await bot.get_me()
                 bot_username = bot_info.username or get_bot_username()
