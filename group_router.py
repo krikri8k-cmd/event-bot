@@ -2058,13 +2058,19 @@ async def group_back_to_panel(callback: CallbackQuery, bot: Bot, session: AsyncS
     """Возврат к главной панели"""
     chat_id = callback.message.chat.id
     message_id = callback.message.message_id
+    user_id = callback.from_user.id
+    lang = get_user_language_or_default(user_id)
     logger.info(f"🔥 group_back_to_panel: возврат к панели в чате {chat_id}")
 
     await callback.answer()
 
+    # Текст без parse_mode: в тексте подставляется bot_username (например MyGuide_EventBot),
+    # подчёркивание в Markdown ломает разбор и даёт ошибку "невозможно проанализировать объекты"
+    panel_text = t("group.panel.text", lang)
+    keyboard = group_kb(chat_id, lang)
+
     try:
-        panel_text = t("group.panel.text", "ru")
-        await callback.message.edit_text(panel_text, reply_markup=group_kb(chat_id, "ru"), parse_mode="Markdown")
+        await callback.message.edit_text(panel_text, reply_markup=keyboard)
 
         # Обновляем запись в БД и перезапускаем автоудаление
         import asyncio
@@ -2117,6 +2123,20 @@ async def group_back_to_panel(callback: CallbackQuery, bot: Bot, session: AsyncS
 
     except Exception as e:
         logger.error(f"❌ Ошибка редактирования сообщения: {e}")
+        # Fallback: отправляем новое сообщение с панелью, чтобы кнопка "Назад" всегда срабатывала
+        try:
+            from utils.messaging_utils import send_tracked
+
+            is_forum = getattr(callback.message.chat, "is_forum", False)
+            thread_id = getattr(callback.message, "message_thread_id", None)
+            send_kwargs = {"reply_markup": keyboard, "tag": "panel"}
+            if is_forum and thread_id:
+                send_kwargs["message_thread_id"] = thread_id
+
+            await send_tracked(bot, session, chat_id=chat_id, text=panel_text, **send_kwargs)
+            logger.info(f"✅ group_back_to_panel: панель отправлена новым сообщением (fallback) в чате {chat_id}")
+        except Exception as send_err:
+            logger.error(f"❌ Fallback отправка панели не удалась: {send_err}")
 
 
 @group_router.callback_query(F.data == "group_hide_confirm")
