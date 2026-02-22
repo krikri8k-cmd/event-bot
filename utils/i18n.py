@@ -78,6 +78,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "group.button.create_event": "➕ Создать событие",
         "group.button.events_list": "📋 События этого чата",
         "group.button.full_version": '🚀 Полная версия "World"',
+        "group.button.language_ru": "🌐 Язык (RU)",
+        "group.button.language_en": "🌐 Language (EN)",
         "group.button.hide_bot": "👁️‍🗨️ Спрятать бота",
         "group.button.manage_events": "🔧 Управление событиями",
         "group.button.back": "◀️ Назад",
@@ -115,6 +117,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
         ),
         "group.load_error": "❌ Ошибка при загрузке события",
+        "group.language_changed": "✅ Язык изменён",
         "group.panel.what_can_do": (
             '👋 Привет! Я {bot_username} - версия "Community".\n\n'
             "🎯 Что умею:\n\n"
@@ -674,6 +677,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "group.button.create_event": "➕ Create event",
         "group.button.events_list": "📋 Events in this chat",
         "group.button.full_version": '🚀 Full "World" version',
+        "group.button.language_ru": "🌐 Язык (RU)",
+        "group.button.language_en": "🌐 Language (EN)",
         "group.button.hide_bot": "👁️‍🗨️ Hide bot",
         "group.button.manage_events": "🔧 Manage events",
         "group.button.back": "◀️ Back",
@@ -710,6 +715,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "💡 Tap ➕ Create event to add your own!"
         ),
         "group.load_error": "❌ Error loading event",
+        "group.language_changed": "✅ Language changed",
         "group.panel.what_can_do": (
             '👋 Hello! I am {bot_username} - "Community" version.\n\n'
             "🎯 What I can do:\n\n"

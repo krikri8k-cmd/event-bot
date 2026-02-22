@@ -29,6 +29,7 @@ from utils.user_language import (
     get_event_description,
     get_event_title,
     get_user_language_async,
+    set_user_language,
 )
 
 # Константы для восстановления команд
@@ -884,27 +885,10 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
 
     # Убираем промежуточное сообщение с командой
 
-    # Показываем панель Community с InlineKeyboard под сообщением
+    # Показываем панель Community с InlineKeyboard (та же group_kb, что и «Назад к панели»)
     panel_lang = await get_user_language_async(message.from_user.id, message.chat.id)
     try:
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text=t("group.button.create_event", panel_lang),
-                        url=f"https://t.me/{get_bot_username()}?start=group_{message.chat.id}",
-                    )
-                ],
-                [InlineKeyboardButton(text=t("group.button.events_list", panel_lang), callback_data="group_list")],
-                [
-                    InlineKeyboardButton(
-                        text=t("group.button.full_version", panel_lang), url=f"https://t.me/{get_bot_username()}"
-                    )
-                ],
-                [InlineKeyboardButton(text=t("group.button.hide_bot", panel_lang), callback_data="group_hide_execute")],
-            ]
-        )
-
+        keyboard = group_kb(message.chat.id, panel_lang)
         try:
             from utils.messaging_utils import send_tracked
 
@@ -1156,8 +1140,8 @@ group_router.callback_query.filter(F.message.chat.type.in_({"group", "supergroup
 
 
 def group_kb(chat_id: int, lang: str = "ru") -> InlineKeyboardMarkup:
-    """Клавиатура для панели группового чата"""
-    # Используем статический username для надежности
+    """Клавиатура для панели группового чата. Нижний ряд: Полная версия World + Язык (RU/EN)."""
+    lang_key = "group.button.language_ru" if lang == "ru" else "group.button.language_en"
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -1171,7 +1155,8 @@ def group_kb(chat_id: int, lang: str = "ru") -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text=t("group.button.full_version", lang),
                     url=f"https://t.me/{get_bot_username()}",
-                )
+                ),
+                InlineKeyboardButton(text=t(lang_key, lang), callback_data="group_toggle_lang"),
             ],
             [InlineKeyboardButton(text=t("group.button.hide_bot", lang), callback_data="group_hide_execute")],
         ]
@@ -2137,6 +2122,37 @@ async def group_back_to_panel(callback: CallbackQuery, bot: Bot, session: AsyncS
             logger.info(f"✅ group_back_to_panel: панель отправлена новым сообщением (fallback) в чате {chat_id}")
         except Exception as send_err:
             logger.error(f"❌ Fallback отправка панели не удалась: {send_err}")
+
+
+@group_router.callback_query(F.data == "group_toggle_lang")
+async def group_toggle_lang(callback: CallbackQuery, bot: Bot, session: AsyncSession):
+    """Переключение языка панели: обновляем language_code пользователя и перерисовываем панель."""
+    chat_id = callback.message.chat.id
+    user_id = callback.from_user.id
+    current_lang = await get_user_language_async(user_id, chat_id)
+    new_lang = "en" if current_lang == "ru" else "ru"
+    set_user_language(user_id, new_lang)
+    logger.info(f"🔥 group_toggle_lang: пользователь {user_id} переключил язык на {new_lang} в чате {chat_id}")
+
+    await callback.answer(t("group.language_changed", new_lang), show_alert=False)
+
+    panel_text = t("group.panel.text", new_lang)
+    keyboard = group_kb(chat_id, new_lang)
+    try:
+        await callback.message.edit_text(panel_text, reply_markup=keyboard)
+    except Exception as e:
+        logger.error("❌ Ошибка редактирования панели при смене языка: %s", e)
+        try:
+            from utils.messaging_utils import send_tracked
+
+            is_forum = getattr(callback.message.chat, "is_forum", False)
+            thread_id = getattr(callback.message, "message_thread_id", None)
+            send_kwargs = {"reply_markup": keyboard, "tag": "panel"}
+            if is_forum and thread_id:
+                send_kwargs["message_thread_id"] = thread_id
+            await send_tracked(bot, session, chat_id=chat_id, text=panel_text, **send_kwargs)
+        except Exception as send_err:
+            logger.error("❌ Fallback отправка панели не удалась: %s", send_err)
 
 
 @group_router.callback_query(F.data == "group_hide_confirm")
