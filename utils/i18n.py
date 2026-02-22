@@ -411,7 +411,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         ),
         "create.enter_city": "🏙️ **Введите город** (например: Москва):",
         "create.time_saved_ask_city": "**Время сохранено:** {time} ✅\n\n🏙️ **Введите город** (например: Москва):",
-        "create.place_by_coords": "📍 **Место определено по координатам:** {lat}, {lng} ✅\n\n",
+        "create.place_by_coords_message": "📍 **Место определено по координатам:** {lat}, {lng} ✅\n\n",
         "create.place_saved_then_desc": (
             "**Место сохранено** ✅\n{location_text}\n\n"
             "📝 **Введите описание события** (что будет происходить, кому интересно):"
@@ -449,6 +449,9 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.button_yes": "✅ Да",
         "create.button_change": "❌ Изменить",
         "create.place_on_map": "Место на карте",
+        "create.place_by_link": "Место по ссылке",
+        "create.place_by_coords": "Место по координатам",
+        "create.place_yandex": "Место на Яндекс.Картах",
         "create.check_event_data": "Проверьте данные мероприятия:",
         "create.label_title": "Название:",
         "create.label_date": "Дата:",
@@ -835,7 +838,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.city_saved_ask_place": "**City saved:** {city} ✅\n\n📍 **Enter place name** (e.g.: Café):",
         "create.enter_city": "🏙️ **Enter city** (e.g.: Moscow):",
         "create.time_saved_ask_city": "**Time saved:** {time} ✅\n\n🏙️ **Enter city** (e.g.: Moscow):",
-        "create.place_by_coords": "📍 **Place set by coordinates:** {lat}, {lng} ✅\n\n",
+        "create.place_by_coords_message": "📍 **Place set by coordinates:** {lat}, {lng} ✅\n\n",
         "create.place_saved_then_desc": (
             "**Place saved** ✅\n{location_text}\n\n" "📝 **Enter event description** (what will happen, who it's for):"
         ),
@@ -870,6 +873,9 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.button_yes": "✅ Yes",
         "create.button_change": "❌ Change",
         "create.place_on_map": "Place on map",
+        "create.place_by_link": "Place by link",
+        "create.place_by_coords": "Place by coordinates",
+        "create.place_yandex": "Place on Yandex Maps",
         "create.check_event_data": "Check event data:",
         "create.label_title": "Title:",
         "create.label_date": "Date:",

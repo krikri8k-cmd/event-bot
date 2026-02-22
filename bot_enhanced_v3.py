@@ -4465,6 +4465,7 @@ async def process_community_city_pm(message: types.Message, state: FSMContext):
 async def handle_community_location_type_text(message: types.Message, state: FSMContext):
     """Обработка текстовых сообщений в состоянии выбора типа локации в Community режиме"""
     text = message.text.strip()
+    lang = get_user_language_or_default(message.from_user.id)
 
     # Проверяем, является ли это Google Maps ссылкой
     if any(domain in text.lower() for domain in ["maps.google.com", "goo.gl/maps", "maps.app.goo.gl"]):
@@ -4491,7 +4492,7 @@ async def handle_community_location_type_text(message: types.Message, state: FSM
             if -90 <= lat <= 90 and -180 <= lng <= 180:
                 # Сохраняем координаты
                 await state.update_data(
-                    location_name="Место по координатам",
+                    location_name=t("create.place_by_coords", lang),
                     location_lat=lat,
                     location_lng=lng,
                     location_url=text,
@@ -4500,8 +4501,8 @@ async def handle_community_location_type_text(message: types.Message, state: FSM
                 # Переходим к описанию
                 await state.set_state(CommunityEventCreation.waiting_for_description)
                 await message.answer(
-                    f"📍 **Место определено по координатам:** {lat}, {lng} ✅\n\n"
-                    "📝 **Введите описание события** (что будет происходить, кому интересно):",
+                    format_translation("create.place_by_coords_message", lang, lat=lat, lng=lng)
+                    + t("create.enter_description", lang),
                     parse_mode="Markdown",
                     reply_markup=get_community_cancel_kb(message.from_user.id),
                 )
@@ -4510,19 +4511,13 @@ async def handle_community_location_type_text(message: types.Message, state: FSM
                 raise ValueError("Invalid coordinates range")
         except (ValueError, TypeError):
             await message.answer(
-                "❌ **Неверный формат координат!**\n\n"
-                "Используйте формат: **широта, долгота**\n"
-                "Например: 55.7558, 37.6176\n\n"
-                "Диапазоны:\n"
-                "• Широта: -90 до 90\n"
-                "• Долгота: -180 до 180",
+                t("create.invalid_coords", lang),
                 parse_mode="Markdown",
                 reply_markup=get_community_cancel_kb(message.from_user.id),
             )
             return
 
     # Если не распознали, показываем подсказку
-    lang = get_user_language_or_default(message.from_user.id)
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=t("community.location_link", lang), callback_data="community_location_link")],
@@ -4548,9 +4543,12 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
         f"🔥 process_community_location_url_pm: получено сообщение от пользователя {message.from_user.id}, текст: '{message.text}'"
     )
 
+    lang = get_user_language_or_default(message.from_user.id)
     if not message.text:
         await message.answer(
-            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n🔗 **Введите ссылку на место** (Google Maps или адрес):",
+            format_translation(
+                "create.validation.no_text", lang, next_prompt=t("create.group.ask_location_link", lang)
+            ),
             parse_mode="Markdown",
             reply_markup=get_community_cancel_kb(message.from_user.id),
         )
@@ -4560,7 +4558,7 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
     logger.info(f"🔥 process_community_location_url_pm: получили ввод от пользователя {message.from_user.id}")
 
     # Определяем название места по ссылке и пробуем достать координаты
-    location_name = "Место по ссылке"  # Базовое название
+    location_name = t("create.place_by_link", lang)
     location_lat = None
     location_lng = None
     location_url = None
@@ -4582,12 +4580,7 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
                 raise ValueError("Invalid coordinates range")
         except (ValueError, TypeError):
             await message.answer(
-                "❌ **Неверный формат координат!**\n\n"
-                "Используйте формат: **широта, долгота**\n"
-                "Например: 55.7558, 37.6176\n\n"
-                "Диапазоны:\n"
-                "• Широта: -90 до 90\n"
-                "• Долгота: -180 до 180",
+                t("create.invalid_coords", lang),
                 parse_mode="Markdown",
                 reply_markup=get_community_cancel_kb(message.from_user.id),
             )
@@ -4603,11 +4596,11 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
                     location_data = await parse_google_maps_link(location_url)
                     logger.info(f"🌍 parse_google_maps_link (community) ответ: {location_data}")
                     if location_data:
-                        location_name = location_data.get("name") or "Место на карте"
+                        location_name = location_data.get("name") or t("create.place_on_map", lang)
                         location_lat = location_data.get("lat")
                         location_lng = location_data.get("lng")
                     else:
-                        location_name = "Место на карте"
+                        location_name = t("create.place_on_map", lang)
                         logger.warning(f"⚠️ parse_google_maps_link вернул None для ссылки: {location_url}")
                 except Exception as parse_error:
                     logger.error(f"❌ Ошибка при парсинге Google Maps ссылки: {parse_error}")
@@ -4615,20 +4608,20 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
 
                     logger.error(traceback.format_exc())
                     # Продолжаем с базовым названием, чтобы не прерывать процесс создания события
-                    location_name = "Место на карте"
+                    location_name = t("create.place_on_map", lang)
                     location_lat = None
                     location_lng = None
             elif "yandex.ru/maps" in location_url:
-                location_name = "Место на Яндекс.Картах"
+                location_name = t("create.place_yandex", lang)
             else:
-                location_name = "Место по ссылке"
+                location_name = t("create.place_by_link", lang)
         except Exception as e:
             logger.error(f"❌ Не удалось обработать ссылку для community события: {e}")
             import traceback
 
             logger.error(traceback.format_exc())
             # Продолжаем с базовым названием, чтобы не прерывать процесс создания события
-            location_name = "Место по ссылке"
+            location_name = t("create.place_by_link", lang)
             location_lat = None
             location_lng = None
 
@@ -4640,13 +4633,15 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
     )
     await state.set_state(CommunityEventCreation.waiting_for_description)
 
+    place_label = t("create.label_place", lang)
+    coords_label = t("create.coordinates_label", lang)
     if location_lat and location_lng:
-        location_text = f"📍 **Место:** {location_name}\n**Координаты:** {location_lat}, {location_lng}"
+        location_text = f"📍 **{place_label}** {location_name}\n**{coords_label}** {location_lat}, {location_lng}"
     else:
-        location_text = f"📍 **Место:** {location_name}"
+        location_text = f"📍 **{place_label}** {location_name}"
 
     await message.answer(
-        f"**Место сохранено** ✅\n{location_text}\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
+        format_translation("create.place_saved_then_desc", lang, location_text=location_text),
         parse_mode="Markdown",
         reply_markup=get_community_cancel_kb(message.from_user.id),
     )
@@ -4659,9 +4654,10 @@ async def process_community_description_pm(message: types.Message, state: FSMCon
         f"🔥 process_community_description_pm: получено сообщение от пользователя {message.from_user.id}, текст: '{message.text}'"
     )
 
+    lang = get_user_language_or_default(message.from_user.id)
     if not message.text:
         await message.answer(
-            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n📝 **Введите описание события** (что будет происходить, кому интересно):",
+            format_translation("create.validation.no_text", lang, next_prompt=t("create.enter_description", lang)),
             parse_mode="Markdown",
             reply_markup=get_community_cancel_kb(message.from_user.id),
         )
@@ -4678,15 +4674,16 @@ async def process_community_description_pm(message: types.Message, state: FSMCon
     logger.info(f"🔥 process_community_description_pm: данные FSM: {data}")
 
     # Показываем итог перед подтверждением
-    lang = get_user_language_or_default(message.from_user.id)
-    city_info = f"\n🏙️ **Город:** {data.get('city', 'НЕ УКАЗАНО')}" if data.get("city") else ""
+    not_spec = t("common.not_specified", lang)
+    city_info = f"\n🏙️ **{t('create.label_city', lang)}** {data.get('city') or not_spec}" if data.get("city") else ""
     await message.answer(
-        t("create.check_data_group", lang) + f"**Название:** {data.get('title', 'НЕ УКАЗАНО')}\n"
-        f"**Дата:** {data.get('date', 'НЕ УКАЗАНО')}\n"
-        f"**Время:** {data.get('time', 'НЕ УКАЗАНО')}{city_info}\n"
-        f"**Место:** {data.get('location_name', 'НЕ УКАЗАНО')}\n"
-        f"**Ссылка:** {data.get('location_url', 'НЕ УКАЗАНО')}\n"
-        f"**Описание:** {data.get('description', 'НЕ УКАЗАНО')}\n\n" + t("create.confirm_question", lang),
+        t("create.check_data_group", lang) + f"**{t('create.label_title', lang)}** {data.get('title') or not_spec}\n"
+        f"**{t('create.label_date', lang)}** {data.get('date') or not_spec}\n"
+        f"**{t('create.label_time', lang)}** {data.get('time') or not_spec}{city_info}\n"
+        f"**{t('create.label_place', lang)}** {data.get('location_name') or not_spec}\n"
+        f"**{t('create.label_link', lang)}** {data.get('location_url') or not_spec}\n"
+        f"**{t('create.label_description', lang)}** {data.get('description') or not_spec}\n\n"
+        + t("create.confirm_question", lang),
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
