@@ -5096,10 +5096,11 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
             group_link = build_message_link(group_id, group_message.message_id) if is_supergroup else None
 
             # Сообщение об успешном создании (используем уже экранированные значения)
+            time_at_success = t("share.time_at", lang_community)
             success_text_parts = [
-                "🎉 **Событие создано и опубликовано!**\n",
+                t("create.community.event_created_published", lang_community),
                 f"**{safe_title}**\n",
-                f"📅 {safe_date} в {safe_time}\n",
+                f"📅 {safe_date} {time_at_success} {safe_time}\n",
                 f"🏙️ {safe_city}\n",
                 f"📍 {safe_location_name}\n",
             ]
@@ -5109,15 +5110,15 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
                 success_text_parts.extend(
                     [
                         "\n",
-                        "✅ Событие опубликовано в группе!\n",
-                        f"🔗 [Ссылка на сообщение]({group_link})\n\n",
+                        t("create.community.published_in_group", lang_community),
+                        format_translation("create.community.link_to_message", lang_community, url=group_link),
                     ]
                 )
             if publish_world:
                 if world_publish_status and world_publish_status.get("success"):
-                    success_text_parts.append("\n🌍 Событие также доступно в World-версии!\n")
+                    success_text_parts.append(t("create.community.available_in_world", lang_community))
                 else:
-                    success_text_parts.append("\n⚠️ Не смогли создать событие в World версии, создайте вручную.\n")
+                    success_text_parts.append(t("create.community.world_publish_failed", lang_community))
 
             success_text_parts.append("\n🚀")
             success_text = "".join(success_text_parts)
@@ -5133,14 +5134,12 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
 
         except Exception as e:
             logger.error(f"Ошибка публикации в группу: {e}")
-            # Используем экранированные значения для сообщения об ошибке
+            time_at_fail = t("share.time_at", lang_community)
             await callback.message.edit_text(
-                f"✅ **Событие создано!**\n\n"
-                f"**{safe_title}**\n"
-                f"📅 {safe_date} в {safe_time}\n"
+                t("create.community.event_created_only", lang_community) + f"**{safe_title}**\n"
+                f"📅 {safe_date} {time_at_fail} {safe_time}\n"
                 f"🏙️ {safe_city}\n"
-                f"📍 {safe_location_name}\n\n"
-                f"⚠️ Не удалось опубликовать в группу, но событие сохранено.",
+                f"📍 {safe_location_name}\n\n" + t("create.community.publish_to_group_failed", lang_community),
                 parse_mode="Markdown",
             )
 
@@ -5152,9 +5151,8 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
 
     except Exception as e:
         logger.error(f"Ошибка создания события: {e}")
-        await callback.message.edit_text(
-            "❌ **Произошла ошибка при создании события.** Попробуйте еще раз.", parse_mode="Markdown"
-        )
+        err_lang = get_user_language_or_default(callback.from_user.id)
+        await callback.message.edit_text(t("create.group.error_creating", err_lang), parse_mode="Markdown")
 
         # Очищаем флаг обработки даже при ошибке
         if hasattr(confirm_community_event_pm, "_processing"):
