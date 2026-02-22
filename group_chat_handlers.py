@@ -15,7 +15,8 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import ForceReply
 
 from utils.community_events_service import CommunityEventsService
-from utils.i18n import format_translation, get_user_language_or_default, t
+from utils.i18n import format_translation, t
+from utils.user_language import get_user_language_async
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ async def group_create_start(message: types.Message, state: FSMContext):
     )
 
     await state.set_state(GroupCreate.waiting_for_title)
-    lang = get_user_language_or_default(message.from_user.id)
+    lang = await get_user_language_async(message.from_user.id, message.chat.id)
     await message.answer(
         t("create.group.enter_title", lang),
         parse_mode="Markdown",
@@ -96,7 +97,7 @@ async def group_title_step(message: types.Message, state: FSMContext):
         f"text={message.text!r}"
     )
 
-    lang = get_user_language_or_default(message.from_user.id)
+    lang = await get_user_language_async(message.from_user.id, message.chat.id)
     if not message.text:
         await message.answer(
             format_translation("create.validation.no_text", lang, next_prompt=t("create.group.enter_title", lang)),
@@ -144,7 +145,7 @@ async def group_datetime_step(message: types.Message, state: FSMContext):
         f"[FSM] chat={message.chat.id} user={message.from_user.id} "
         f"reply_to={message.reply_to_message.message_id} state=datetime text={message.text!r}"
     )
-    lang = get_user_language_or_default(message.from_user.id)
+    lang = await get_user_language_async(message.from_user.id, message.chat.id)
     if not message.text:
         await message.answer(
             format_translation("create.validation.no_text", lang, next_prompt=t("create.group.ask_datetime", lang)),
@@ -203,7 +204,7 @@ async def group_city_step(message: types.Message, state: FSMContext):
         f"[FSM] chat={message.chat.id} user={message.from_user.id} "
         f"reply_to={message.reply_to_message.message_id} state=city text={message.text!r}"
     )
-    lang = get_user_language_or_default(message.from_user.id)
+    lang = await get_user_language_async(message.from_user.id, message.chat.id)
     if not message.text:
         await message.answer(
             format_translation("create.validation.no_text", lang, next_prompt=t("create.enter_city", lang)),
@@ -251,7 +252,7 @@ async def group_location_step(message: types.Message, state: FSMContext):
         f"[FSM] chat={message.chat.id} user={message.from_user.id} "
         f"reply_to={message.reply_to_message.message_id} state=location text={message.text!r}"
     )
-    lang = get_user_language_or_default(message.from_user.id)
+    lang = await get_user_language_async(message.from_user.id, message.chat.id)
     if not message.text:
         await message.answer(
             format_translation(
@@ -301,7 +302,7 @@ async def group_finish(message: types.Message, state: FSMContext, bot: Bot):
         f"[FSM] chat={message.chat.id} user={message.from_user.id} "
         f"reply_to={message.reply_to_message.message_id} state=description text={message.text!r}"
     )
-    lang = get_user_language_or_default(message.from_user.id)
+    lang = await get_user_language_async(message.from_user.id, message.chat.id)
     if not message.text:
         await message.answer(
             format_translation("create.validation.no_text", lang, next_prompt=t("create.enter_description", lang)),
@@ -319,8 +320,9 @@ async def group_finish(message: types.Message, state: FSMContext, bot: Bot):
             # Парсим время как локальное (naive datetime)
             naive_local_dt = datetime.strptime(datetime_str, "%d.%m.%Y %H:%M")
         except ValueError:
+            _lang = await get_user_language_async(message.from_user.id, message.chat.id)
             await message.answer(
-                t("create.validation.datetime_error", get_user_language_or_default(message.from_user.id)),
+                t("create.validation.datetime_error", _lang),
                 parse_mode="Markdown",
             )
             return
@@ -338,7 +340,7 @@ async def group_finish(message: types.Message, state: FSMContext, bot: Bot):
         print(f"🔥🔥🔥 group_chat_handlers: РЕЗУЛЬТАТ get_group_admin_ids: {admin_ids}")
         admin_id = admin_ids[0] if admin_ids else None  # LEGACY для обратной совместимости
 
-        creator_lang = get_user_language_or_default(message.from_user.id)
+        creator_lang = await get_user_language_async(message.from_user.id, message.chat.id)
         event_id = service.create_community_event(
             group_id=data["group_id"],
             creator_id=data["initiator_id"],
@@ -359,7 +361,7 @@ async def group_finish(message: types.Message, state: FSMContext, bot: Bot):
         )
         logger.info(f"🔥 group_finish: событие {event_id} создано успешно")
 
-        lang = get_user_language_or_default(message.from_user.id)
+        lang = await get_user_language_async(message.from_user.id, message.chat.id)
         created_by = message.from_user.username or message.from_user.first_name
         await message.answer(
             format_translation(
@@ -377,7 +379,7 @@ async def group_finish(message: types.Message, state: FSMContext, bot: Bot):
 
     except Exception as e:
         logger.error(f"🔥 group_finish: ошибка при создании события: {e}")
-        lang = get_user_language_or_default(message.from_user.id)
+        lang = await get_user_language_async(message.from_user.id, message.chat.id)
         await message.answer(t("create.group.error_creating", lang), parse_mode="Markdown")
 
     await state.clear()

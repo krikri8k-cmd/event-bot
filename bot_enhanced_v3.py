@@ -3532,12 +3532,8 @@ async def start_group_event_creation(message: types.Message, group_id: int, stat
     await state.set_state(CommunityEventCreation.waiting_for_title)
     await state.update_data(group_id=group_id, creator_id=message.from_user.id, scope="group")
 
-    welcome_text = (
-        '➕ **Создать событие "Community"**\n\n'
-        "- Это событие будет добавлено в группу, из которой вы перешли.\n\n"
-        "👀 Видно только участникам вашего чата.\n\n"
-        "**Введите название события:**"
-    )
+    user_lang = get_user_language_or_default(message.from_user.id)
+    welcome_text = t("create.group.welcome_pm", user_lang)
 
     await message.answer(
         welcome_text, parse_mode="Markdown", reply_markup=get_community_cancel_kb(message.from_user.id)
@@ -4241,9 +4237,10 @@ async def process_community_title_pm(message: types.Message, state: FSMContext):
         f"🔥 process_community_title_pm: получено сообщение от пользователя {message.from_user.id}, текст: '{message.text}'"
     )
 
+    lang = get_user_language_or_default(message.from_user.id)
     if not message.text:
         await message.answer(
-            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n✍️ **Введите название события:**",
+            format_translation("create.validation.no_text", lang, next_prompt=t("create.group.enter_title", lang)),
             parse_mode="Markdown",
             reply_markup=get_community_cancel_kb(message.from_user.id),
         )
@@ -4274,12 +4271,7 @@ async def process_community_title_pm(message: types.Message, state: FSMContext):
     # Проверяем на команды (символ / в начале)
     if title.startswith("/"):
         await message.answer(
-            "❌ В названии нельзя указывать команды (символ / в начале)!\n\n"
-            "📝 Пожалуйста, придумайте краткое название события:\n"
-            "• Что будет происходить\n"
-            "• Где будет проходить\n"
-            "• Для кого предназначено\n\n"
-            "✍️ **Введите название события:**",
+            t("create.validation.no_commands_in_title", lang),
             parse_mode="Markdown",
             reply_markup=get_community_cancel_kb(message.from_user.id),
         )
@@ -4288,12 +4280,7 @@ async def process_community_title_pm(message: types.Message, state: FSMContext):
     title_lower = title.lower()
     if any(indicator in title_lower for indicator in spam_indicators):
         await message.answer(
-            "❌ В названии нельзя указывать ссылки и контакты!\n\n"
-            "📝 Пожалуйста, придумайте краткое название события:\n"
-            "• Что будет происходить\n"
-            "• Где будет проходить\n"
-            "• Для кого предназначено\n\n"
-            "✍️ **Введите название события:**",
+            t("create.validation.no_links_in_title", lang),
             parse_mode="Markdown",
             reply_markup=get_community_cancel_kb(message.from_user.id),
         )
@@ -4304,7 +4291,7 @@ async def process_community_title_pm(message: types.Message, state: FSMContext):
     example_date = get_example_date()
 
     await message.answer(
-        f"**Название сохранено:** *{title}* ✅\n\n📅 **Введите дату** (например: {example_date}):",
+        format_translation("create.title_saved", lang, title=title, example_date=example_date),
         parse_mode="Markdown",
         reply_markup=get_community_cancel_kb(message.from_user.id),
     )
@@ -4317,9 +4304,14 @@ async def process_community_date_pm(message: types.Message, state: FSMContext):
         f"🔥 process_community_date_pm: получено сообщение от пользователя {message.from_user.id}, текст: '{message.text}'"
     )
 
+    lang = get_user_language_or_default(message.from_user.id)
     if not message.text:
         await message.answer(
-            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n📅 **Введите дату** (например: 15.12.2024):",
+            format_translation(
+                "create.validation.no_text",
+                lang,
+                next_prompt=t("create.enter_date", lang).format(example_date="15.12.2024"),
+            ),
             parse_mode="Markdown",
             reply_markup=get_community_cancel_kb(message.from_user.id),
         )
@@ -4332,7 +4324,7 @@ async def process_community_date_pm(message: types.Message, state: FSMContext):
 
     if not re.match(r"^\d{1,2}\.\d{1,2}\.\d{4}$", date):
         await message.answer(
-            "❌ **Неверный формат даты!**\n\n📅 Введите дату в формате **ДД.ММ.ГГГГ**\nНапример: 15.12.2024",
+            t("create.validation.invalid_date_format", lang),
             parse_mode="Markdown",
             reply_markup=get_community_cancel_kb(message.from_user.id),
         )
@@ -4361,21 +4353,16 @@ async def process_community_date_pm(message: types.Message, state: FSMContext):
         if event_date_only < today_bali:
             logger.warning(f"⚠️ Пользователь {message.from_user.id} пытается создать событие с прошлой датой: {date}")
             await message.answer(
-                f"⚠️ Внимание! Дата *{date}* уже прошла (сегодня {today_bali.strftime('%d.%m.%Y')}).\n\n"
-                "📅 Введите дату:",
+                format_translation(
+                    "create.validation.past_date", lang, date=date, today=today_bali.strftime("%d.%m.%Y")
+                ),
                 parse_mode="Markdown",
                 reply_markup=get_community_cancel_kb(message.from_user.id),
             )
             return
     except ValueError:
         await message.answer(
-            "❌ **Неверная дата!**\n\n"
-            "Проверьте правильность даты:\n"
-            "• День: 1-31\n"
-            "• Месяц: 1-12\n"
-            "• Год: 2024-2030\n\n"
-            "Например: 15.12.2024\n\n"
-            "📅 **Введите дату** (например: 15.12.2024):",
+            t("create.validation.invalid_date_value", lang),
             parse_mode="Markdown",
             reply_markup=get_community_cancel_kb(message.from_user.id),
         )
@@ -4385,7 +4372,7 @@ async def process_community_date_pm(message: types.Message, state: FSMContext):
     await state.set_state(CommunityEventCreation.waiting_for_time)
 
     await message.answer(
-        f"**Дата сохранена:** {date} ✅\n\n⏰ **Введите время** (например: 19:00):",
+        format_translation("create.date_saved", lang, date=date),
         parse_mode="Markdown",
         reply_markup=get_community_cancel_kb(message.from_user.id),
     )
@@ -4401,7 +4388,7 @@ async def process_community_time_pm(message: types.Message, state: FSMContext):
 
     if not message.text:
         await message.answer(
-            "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n⏰ **Введите время** (например: 19:00):",
+            format_translation("create.validation.no_text", lang, next_prompt=t("create.enter_time", lang)),
             parse_mode="Markdown",
             reply_markup=get_community_cancel_kb(message.from_user.id),
         )
@@ -4411,10 +4398,9 @@ async def process_community_time_pm(message: types.Message, state: FSMContext):
     logger.info(f"🔥 process_community_time_pm: получили время '{time}' от пользователя {message.from_user.id}")
 
     # Валидация формата времени HH:MM
-
     if not re.match(r"^\d{1,2}:\d{2}$", time):
         await message.answer(
-            "❌ **Неверный формат времени!**\n\n⏰ Введите время в формате **ЧЧ:ММ**\nНапример: 19:00",
+            t("create.validation.invalid_time_format", lang),
             parse_mode="Markdown",
             reply_markup=get_community_cancel_kb(message.from_user.id),
         )

@@ -464,6 +464,12 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.label_link": "Ссылка:",
         "create.paste_google_maps_link": "🔗 Вставьте сюда ссылку из Google Maps:",
         "create.group.enter_title": "✍️ **Введите название мероприятия:**",
+        "create.group.welcome_pm": (
+            "➕ **Создать событие «Community»**\n\n"
+            "— Это событие будет добавлено в группу, из которой вы перешли.\n\n"
+            "👀 Видно только участникам вашего чата.\n\n"
+            "**Введите название события:**"
+        ),
         "create.group.title_saved_ask_date": (
             "**Название сохранено:** *{title}* ✅\n\n" "📅 **Укажите дату** (например: 10.10.2025 18:00):"
         ),
@@ -504,6 +510,15 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.validation.no_text": "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n{next_prompt}",
         "create.validation.invalid_date_format": (
             "❌ **Неверный формат даты!**\n\n" "📅 Введите дату в формате **ДД.ММ.ГГГГ**\n" "Например: 15.12.2024"
+        ),
+        "create.validation.invalid_date_value": (
+            "❌ **Неверная дата!**\n\n"
+            "Проверьте правильность даты:\n"
+            "• День: 1-31\n"
+            "• Месяц: 1-12\n"
+            "• Год: 2024-2030\n\n"
+            "Например: 15.12.2024\n\n"
+            "📅 **Введите дату** (например: 15.12.2024):"
         ),
         "create.validation.invalid_time_format": (
             "❌ **Неверный формат времени!**\n\n" "⏰ Введите время в формате **ЧЧ:ММ**\n" "Например: 19:00"
@@ -870,6 +885,12 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.label_link": "Link:",
         "create.paste_google_maps_link": "🔗 Paste your Google Maps link here:",
         "create.group.enter_title": "✍️ **Enter event title:**",
+        "create.group.welcome_pm": (
+            "➕ **Create Community event**\n\n"
+            "— This event will be added to the group you came from.\n\n"
+            "👀 Visible only to your chat members.\n\n"
+            "**Enter event title:**"
+        ),
         "create.group.title_saved_ask_date": (
             "**Title saved:** *{title}* ✅\n\n" "📅 **Enter date and time** (e.g.: 10.10.2025 18:00):"
         ),
@@ -910,6 +931,15 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.validation.no_text": "❌ **Please send a text message!**\n\n{next_prompt}",
         "create.validation.invalid_date_format": (
             "❌ **Invalid date format!**\n\n" "📅 Enter date in format **DD.MM.YYYY**\n" "Example: 15.12.2024"
+        ),
+        "create.validation.invalid_date_value": (
+            "❌ **Invalid date!**\n\n"
+            "Check that the date is valid:\n"
+            "• Day: 1-31\n"
+            "• Month: 1-12\n"
+            "• Year: 2024-2030\n\n"
+            "Example: 15.12.2024\n\n"
+            "📅 **Enter date** (e.g.: 15.12.2024):"
         ),
         "create.validation.invalid_time_format": (
             "❌ **Invalid time format!**\n\n" "⏰ Enter time in format **HH:MM**\n" "Example: 19:00"
