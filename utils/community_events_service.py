@@ -3,12 +3,43 @@
 Сервис для работы с событиями сообществ (групповых чатов)
 """
 
+import logging
+import threading
 from datetime import datetime
 
 from sqlalchemy import text
 
 from config import load_settings
 from utils.event_translation import translate_event_to_english
+
+logger = logging.getLogger(__name__)
+
+
+def _backfill_event_translation_sync(engine, event_id: int, title: str, description: str) -> None:
+    """
+    В фоне переводит title/description RU→EN и обновляет events_community.
+    Если OpenAI не ответил — событие уже создано, поля _en остаются NULL.
+    """
+    try:
+        trans = translate_event_to_english(title=title or "", description=description)
+        if not trans or (not trans.get("title_en") and not trans.get("description_en")):
+            return
+        with engine.begin() as conn:
+            conn.execute(
+                text("""
+                UPDATE events_community
+                SET title_en = :title_en, description_en = :description_en
+                WHERE id = :event_id
+                """),
+                {
+                    "event_id": event_id,
+                    "title_en": trans.get("title_en"),
+                    "description_en": trans.get("description_en"),
+                },
+            )
+        logger.info("✅ Фоновый перевод события %s (RU→EN) применён", event_id)
+    except Exception as e:
+        logger.warning("⚠️ Фоновый перевод события %s не удался: %s", event_id, e)
 
 
 class CommunityEventsService:
@@ -45,59 +76,35 @@ class CommunityEventsService:
         admin_ids: list[int] = None,
         title_en: str | None = None,
         description_en: str | None = None,
+        creator_lang: str = "ru",
     ) -> int:
         """
         Создание события в сообществе.
-        Если title_en/description_en не переданы, вызывается перевод RU→EN (тот же модуль, что для events).
 
-        Args:
-            group_id: ID группового чата
-            creator_id: ID создателя события
-            creator_username: Username создателя
-            title: Название события
-            date: Дата и время события
-            description: Описание события
-            city: Город события
-            location_name: Название места
-            location_url: Ссылка на место
-            admin_id: ID админа группы (LEGACY - для обратной совместимости)
-            admin_ids: Список ID всех админов группы (новый подход)
+        - RU (creator_lang="ru"): title/description = оригинал; title_en/description_en заполняются
+          в фоне через OpenAI. Если OpenAI не ответил — событие уже создано, _en остаются NULL.
+        - EN (creator_lang="en"): и основные поля, и _en заполняются английским текстом
+          (fallback для русскоязычных при отображении).
 
         Returns:
             ID созданного события
         """
-        print(f"🔥 Создание события в группе {group_id}, создатель {creator_id}")
-        print(f"🔥 Получены admin_ids: {admin_ids}")
-        print(f"🔥 Получен admin_id (LEGACY): {admin_id}")
-
-        # ЗАЩИТА: исключаем ID бота из списка админов перед сохранением
-        if admin_ids:
-            # Получаем ID бота для дополнительной защиты
-            try:
-                # Если у нас есть доступ к bot объекту, используем его
-                # Иначе оставляем admin_ids как есть (уже отфильтрованы в get_group_admin_ids_async)
-                pass
-            except Exception:
-                pass
-
-        # Подготавливаем admin_ids как JSON и считаем admin_count
         import json
 
         admin_ids_json = json.dumps(admin_ids) if admin_ids else None
         admin_count = len(admin_ids) if admin_ids else 0
 
-        print(f"🔥 admin_ids_json: {admin_ids_json}")
-        print(f"🔥 admin_count = {admin_count}")
-
-        # Перевод RU→EN для полноты в events_community (тот же модуль, что для events)
-        if (title_en is None or (title_en or "").strip() == "") and (title or "").strip():
-            trans = translate_event_to_english(
-                title=title or "",
-                description=description,
-            )
-            if trans:
-                title_en = trans.get("title_en")
-                description_en = description_en or trans.get("description_en")
+        run_background_translation = False
+        # EN: заполняем и основные поля, и _en одним текстом (fallback для RU при отображении)
+        if creator_lang == "en":
+            title_en = (title or "").strip() or None
+            description_en = (description or "").strip() or None
+        else:
+            # RU (или по умолчанию): _en заполняем в фоне через OpenAI; не блокируем создание
+            if (title or "").strip():
+                run_background_translation = True
+                title_en = None
+                description_en = None
 
         with self.engine.begin() as conn:
             # Создаем событие (с title_en, description_en)
@@ -153,8 +160,19 @@ class CommunityEventsService:
                 {"group_id": group_id},
             )
 
-            print(f"✅ Создано событие сообщества ID {event_id}: '{title}' в группе {group_id}")
-            return event_id
+            logger.info("✅ Создано событие сообщества ID %s в группе %s", event_id, group_id)
+
+        if run_background_translation:
+            thread = threading.Thread(
+                target=_backfill_event_translation_sync,
+                args=(self.engine, event_id, title or "", description or ""),
+                name=f"community-translate-{event_id}",
+                daemon=True,
+            )
+            thread.start()
+            logger.debug("Запущен фоновый перевод события %s (RU→EN)", event_id)
+
+        return event_id
 
     def get_community_events(self, group_id: int, limit: int = 20, include_past: bool = False) -> list[dict]:
         """

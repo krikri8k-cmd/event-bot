@@ -338,17 +338,19 @@ async def group_finish(message: types.Message, state: FSMContext, bot: Bot):
         print(f"🔥🔥🔥 group_chat_handlers: РЕЗУЛЬТАТ get_group_admin_ids: {admin_ids}")
         admin_id = admin_ids[0] if admin_ids else None  # LEGACY для обратной совместимости
 
+        creator_lang = get_user_language_or_default(message.from_user.id)
         event_id = service.create_community_event(
-            group_id=data["group_id"],  # Исправляем параметр
-            creator_id=data["initiator_id"],  # Исправляем параметр
+            group_id=data["group_id"],
+            creator_id=data["initiator_id"],
             creator_username=message.from_user.username,
             title=data["title"],
-            date=starts_at_utc,  # Время с локальным timezone (без конвертации в UTC)
+            date=starts_at_utc,
             description=description,
             city=data["city"],
             location_name=data["location"],
-            admin_id=admin_id,  # LEGACY
-            admin_ids=admin_ids,  # Новый подход
+            admin_id=admin_id,
+            admin_ids=admin_ids,
+            creator_lang=creator_lang,
         )
 
         # Логирование для диагностики

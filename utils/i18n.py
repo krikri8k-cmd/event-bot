@@ -1258,3 +1258,10 @@ def get_supported_languages() -> list[str]:
 def is_language_supported(lang: str) -> bool:
     """Проверить, поддерживается ли язык"""
     return lang in _TRANSLATIONS
+
+
+def get_user_language_or_default(user_id: int, default: str = "ru") -> str:
+    """Реэкспорт из user_language для совместимости с group_chat_handlers."""
+    from utils.user_language import get_user_language_or_default as _get
+
+    return _get(user_id, default)

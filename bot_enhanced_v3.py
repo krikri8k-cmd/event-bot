@@ -5039,7 +5039,7 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
         logger.info(f"🔥 Создание события: получены админы группы {data['group_id']}: {admin_ids}")
         logger.info(f"🔥 LEGACY admin_id: {admin_id}")
 
-        # Создаем событие в сообществе
+        creator_lang = get_user_language_or_default(callback.from_user.id)
         event_id = community_service.create_community_event(
             group_id=data["group_id"],
             creator_id=callback.from_user.id,
@@ -5050,8 +5050,9 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
             city=data["city"],
             location_name=data.get("location_name", "Место по ссылке"),
             location_url=data.get("location_url"),
-            admin_id=admin_id,  # LEGACY
-            admin_ids=admin_ids,  # Новый подход
+            admin_id=admin_id,
+            admin_ids=admin_ids,
+            creator_lang=creator_lang,
         )
 
         logger.info(f"✅ Событие сообщества создано с ID: {event_id}")
@@ -10969,7 +10970,7 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
             f"🔥🔥🔥 СТАТУС: {'Админы группы получены' if len(admin_ids) > 1 or (len(admin_ids) == 1 and admin_ids[0] != creator_id) else 'Используется создатель как админ'}"
         )
 
-        # Создаем событие в сообществе
+        creator_lang = get_user_language_or_default(callback.from_user.id)
         event_id = community_service.create_community_event(
             group_id=chat_id,
             creator_id=callback.from_user.id,
@@ -10980,8 +10981,9 @@ async def confirm_community_event(callback: types.CallbackQuery, state: FSMConte
             city=data["city"],
             location_name=data.get("location_name", "Место по ссылке"),
             location_url=data.get("location_url"),
-            admin_id=admin_id,  # LEGACY
-            admin_ids=admin_ids,  # Новый подход
+            admin_id=admin_id,
+            admin_ids=admin_ids,
+            creator_lang=creator_lang,
         )
 
         logger.info(f"✅ Событие сообщества создано с ID: {event_id}")
