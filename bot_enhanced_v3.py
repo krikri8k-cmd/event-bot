@@ -2452,6 +2452,47 @@ class BanCheckMiddleware(BaseMiddleware):
         return await handler(event, data)
 
 
+def _get_tg_user_from_event(event: Any):
+    """Извлечь Telegram User из события (Update, Message, CallbackQuery и т.д.)."""
+    if (
+        hasattr(event, "from_user")
+        and getattr(event, "from_user", None)
+        and not getattr(event.from_user, "is_bot", True)
+    ):
+        return event.from_user
+    if hasattr(event, "message") and getattr(event, "message", None):
+        msg = event.message
+        if hasattr(msg, "from_user") and msg.from_user and not getattr(msg.from_user, "is_bot", True):
+            return msg.from_user
+    if hasattr(event, "message") and getattr(event, "message", None) is None and hasattr(event, "from_user"):
+        if event.from_user and not getattr(event.from_user, "is_bot", True):
+            return event.from_user
+    # Aiogram 3: event может быть Update
+    for attr in ("message", "edited_message", "callback_query", "inline_query", "my_chat_member", "chat_member"):
+        obj = getattr(event, attr, None)
+        if obj is None:
+            continue
+        if hasattr(obj, "from_user") and obj.from_user and not getattr(obj.from_user, "is_bot", True):
+            return obj.from_user
+    return None
+
+
+class EnsureUserMiddleware(BaseMiddleware):
+    """Создаёт запись в users при любом первом взаимодействии (не только /start)."""
+
+    async def __call__(
+        self, handler: Callable[[Any, dict[str, Any]], Awaitable[Any]], event: Any, data: dict[str, Any]
+    ) -> Any:
+        tg_user = (
+            data.get("event_from_user")
+            if isinstance(data.get("event_from_user"), types.User)
+            else _get_tg_user_from_event(event)
+        )
+        if tg_user:
+            asyncio.create_task(ensure_user_exists(tg_user.id, tg_user))
+        return await handler(event, data)
+
+
 class DbSessionMiddleware(BaseMiddleware):
     def __init__(self, session_maker: async_sessionmaker):
         self.session_maker = session_maker
@@ -2478,6 +2519,10 @@ dp.update.middleware(BanCheckMiddleware())
 dp.message.middleware(BanCheckMiddleware())
 dp.callback_query.middleware(BanCheckMiddleware())
 logging.info("✅ Ban check middleware подключен")
+
+# Регистрация пользователя при любом первом взаимодействии (ЛС и группы)
+dp.update.middleware(EnsureUserMiddleware())
+logging.info("✅ EnsureUser middleware подключен")
 
 if async_session_maker is not None:
     dp.update.middleware(DbSessionMiddleware(async_session_maker))

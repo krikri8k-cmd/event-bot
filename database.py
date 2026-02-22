@@ -60,7 +60,7 @@ class User(Base):
     events_created_world: Mapped[int] = mapped_column(Integer, default=0)
     events_created_community: Mapped[int] = mapped_column(Integer, default=0)
     is_banned: Mapped[bool] = mapped_column(Boolean, default=False)
-    language_code: Mapped[str | None] = mapped_column(String(5))  # 'ru', 'en' или NULL
+    language_code: Mapped[str] = mapped_column(String(5), nullable=False, default="ru", server_default=text("'ru'"))
 
 
 class UserTask(Base):
@@ -279,6 +279,9 @@ class ChatSettings(Base):
     # Поля для отслеживания награды за добавление бота
     added_by_user_id: Mapped[int | None] = mapped_column(BigInteger, index=True)  # Кто добавил бота (для награды)
     rockets_awarded_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))  # Когда была начислена награда
+    default_language: Mapped[str] = mapped_column(
+        String(5), default="ru", server_default=text("'ru'")
+    )  # Язык группы: ru, en
 
 
 engine: Engine | None = None
