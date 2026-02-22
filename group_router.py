@@ -237,6 +237,7 @@ async def test_autodelete(message: Message, bot: Bot, session: AsyncSession):
     """Тестовая команда для проверки автоудаления"""
     if message.chat.type in ("group", "supergroup"):
         logger.info(f"🧪 Тест автоудаления от пользователя {message.from_user.id} в чате {message.chat.id}")
+        lang = await get_user_language_async(message.from_user.id, message.chat.id)
 
         # Отправляем тестовое сообщение с автоудалением через 10 секунд
         from utils.messaging_utils import send_tracked
@@ -245,7 +246,7 @@ async def test_autodelete(message: Message, bot: Bot, session: AsyncSession):
             bot,
             session,
             chat_id=message.chat.id,
-            text="🧪 Тестовое сообщение - должно удалиться через 10 секунд",
+            text=t("group.test_autodelete_msg", lang),
             tag="service",
         )
 
@@ -256,7 +257,7 @@ async def test_autodelete(message: Message, bot: Bot, session: AsyncSession):
 
         asyncio.create_task(auto_delete_message(bot, message.chat.id, test_msg.message_id, 10))
 
-        await message.answer("✅ Тест автоудаления запущен! Сообщение удалится через 10 секунд.")
+        await message.answer(t("group.test_autodelete_ok", lang))
 
 
 @group_router.message(Command("join_event"))
@@ -1419,10 +1420,13 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
                     )
 
                 try:
+                    _wlang = await get_user_language_async(message.from_user.id, message.chat.id)
                     welcome_text = (
-                        "🎉 Бот добавлен в группу!\n\n"
-                        "Жми /start для создания и поиска событий\n\n"
-                        "📌 Закрепи, что бы все знали"
+                        t("group.welcome_added", _wlang)
+                        + "\n\n"
+                        + t("group.welcome_press_start", _wlang)
+                        + "\n\n"
+                        + t("group.welcome_pin", _wlang)
                     )
                     await message.answer(welcome_text, parse_mode="Markdown")
                     logger.info(f"✅ Приветственное сообщение отправлено в чат {message.chat.id}")
@@ -1434,8 +1438,8 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
                     # Проверяем, не закрыта ли тема форума
                     if "TOPIC_CLOSED" in str(answer_error):
                         logger.warning(
-                            f"⚠️ Тема форума закрыта в чате {message.chat.id}. "
-                            "Бот не может отправлять приветственное сообщение в закрытую тему."
+                            "⚠️ Тема форума закрыта в чате %s. Бот не может отправлять сообщения в закрытую тему.",
+                            message.chat.id,
                         )
                     else:
                         logger.warning(f"⚠️ Не удалось отправить приветственное сообщение: {answer_error}")
@@ -1447,8 +1451,8 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
             # Проверяем, не закрыта ли тема форума
             if "TOPIC_CLOSED" in error_str:
                 logger.warning(
-                    f"⚠️ Тема форума закрыта в чате {message.chat.id}. "
-                    "Бот не может отправлять сообщения в закрытую тему."
+                    "⚠️ Тема форума закрыта в чате %s. Бот не может отправлять сообщения в закрытую тему.",
+                    message.chat.id,
                 )
             else:
                 logger.error(
@@ -1923,7 +1927,8 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                     logger.info("✅ Новое сообщение со списком событий отправлено и трекируется")
                 except Exception as e2:
                     logger.error(f"❌ Ошибка отправки нового сообщения: {e2}")
-                    await callback.answer("❌ Ошибка отображения событий", show_alert=True)
+                    _err_lang = await get_user_language_async(callback.from_user.id, callback.message.chat.id)
+                    await callback.answer(t("group.list.error_events", _err_lang), show_alert=True)
             elif "message can't be edited" in str(e).lower():
                 # Сообщение нельзя редактировать (например, это сообщение пользователя)
                 logger.info("🔥 Сообщение нельзя редактировать, отправляем новое сообщение")
@@ -1943,7 +1948,8 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                     logger.info("✅ Новое сообщение со списком событий отправлено и трекируется")
                 except Exception as e2:
                     logger.error(f"❌ Ошибка отправки нового сообщения: {e2}")
-                    await callback.answer("❌ Ошибка отображения событий", show_alert=True)
+                    _err_lang = await get_user_language_async(callback.from_user.id, callback.message.chat.id)
+                    await callback.answer(t("group.list.error_events", _err_lang), show_alert=True)
             else:
                 # Fallback: отправляем новое сообщение с Markdown
                 try:
@@ -1970,7 +1976,7 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                     await callback.message.answer(**answer_kwargs)
                 except Exception as e3:
                     logger.error(f"❌ Критическая ошибка: {e3}")
-                    await callback.answer("❌ Ошибка отображения событий", show_alert=True)
+                    await callback.answer(t("group.list.error_events", _lang), show_alert=True)
     except Exception as e:
         logger.error(f"❌ Ошибка получения событий: {e}")
         # Отправляем сообщение об ошибке пользователю
@@ -1982,8 +1988,7 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
             .strip()
         )
         error_text = (
-            header + "\n\n❌ Произошла ошибка при загрузке событий.\n\n"
-            "Попробуйте позже или обратитесь к администратору."
+            header + "\n\n" + t("group.list.error_events", _lang) + "\n\n" + t("group.list.error_try_later", _lang)
         )
         back_kb = InlineKeyboardMarkup(
             inline_keyboard=[

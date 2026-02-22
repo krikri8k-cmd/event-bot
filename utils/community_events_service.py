@@ -162,6 +162,8 @@ class CommunityEventsService:
 
             logger.info("✅ Создано событие сообщества ID %s в группе %s", event_id, group_id)
 
+        # Фоновый перевод RU→EN не блокирует создание: поток запускается после commit,
+        # событие уже сохранено и event_id возвращается сразу.
         if run_background_translation:
             thread = threading.Thread(
                 target=_backfill_event_translation_sync,

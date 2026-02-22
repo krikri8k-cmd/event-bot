@@ -12,9 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
 from config import load_settings
-from database import BotMessage, CommunityEvent, init_engine
+from database import BotMessage, ChatSettings, CommunityEvent, User, init_engine
 from utils.community_participants_service_optimized import get_participants_optimized
+from utils.i18n import t
 from utils.messaging_utils import send_tracked
+from utils.user_language import get_event_description, get_event_title
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +24,23 @@ logger = logging.getLogger(__name__)
 def escape_markdown(text: str) -> str:
     """Экранирует специальные символы Markdown"""
     return text.replace("*", "\\*").replace("_", "\\_").replace("`", "\\`").replace("[", "\\[").replace("]", "\\]")
+
+
+async def get_reminder_lang(session: AsyncSession, chat_id: int, organizer_id: int | None) -> str:
+    """Язык для текста напоминания: приоритет chat_settings.default_language → organizer language_code → ru."""
+    try:
+        r = await session.execute(select(ChatSettings).where(ChatSettings.chat_id == chat_id))
+        chat = r.scalar_one_or_none()
+        if chat and getattr(chat, "default_language", None) in ("ru", "en"):
+            return chat.default_language
+        if organizer_id:
+            u = await session.execute(select(User).where(User.id == organizer_id))
+            user = u.scalar_one_or_none()
+            if user and getattr(user, "language_code", None) in ("ru", "en"):
+                return user.language_code
+    except Exception as e:
+        logger.warning(f"get_reminder_lang: {e}")
+    return "ru"
 
 
 async def send_event_start_notifications(bot: Bot, session: AsyncSession):
@@ -41,7 +60,7 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
             f"ищем события между {time_min_utc} и {time_max_utc} UTC"
         )
 
-        # Открытые Community события (title_en/description_en не в запросе — не падать до миграции)
+        # Открытые Community события (title_en/description_en для i18n напоминаний)
         stmt = (
             select(CommunityEvent)
             .options(
@@ -51,7 +70,9 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
                     CommunityEvent.organizer_id,
                     CommunityEvent.organizer_username,
                     CommunityEvent.title,
+                    CommunityEvent.title_en,
                     CommunityEvent.description,
+                    CommunityEvent.description_en,
                     CommunityEvent.starts_at,
                     CommunityEvent.city,
                     CommunityEvent.location_name,
@@ -234,17 +255,22 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
                 # Получаем участников (для уведомлений о начале - отправляем даже если нет участников)
                 participants = await get_participants_optimized(session, event.id)
 
-                # Формируем текст уведомления
-                safe_title = escape_markdown(event.title)
-                safe_description = escape_markdown(event.description or "")
+                lang = await get_reminder_lang(session, event.chat_id, event.organizer_id)
+
+                # Формируем текст уведомления (язык по чату/организатору)
+                _title = get_event_title(event, lang) or event.title or ""
+                _desc = get_event_description(event, lang) or event.description or ""
+                safe_title = escape_markdown(_title)
+                safe_description = escape_markdown(_desc)
                 safe_city = escape_markdown(event.city or "")
-                safe_username = escape_markdown(event.organizer_username or "Пользователь")
+                safe_username = escape_markdown(event.organizer_username or t("reminder.organizer_unknown", lang))
 
                 # Получаем название места
                 location_name = event.location_name or ""
                 invalid_names = [
                     "Место проведения",
                     "Место не указано",
+                    "Place not specified",
                     "Локация",
                     "Место по ссылке",
                     "Создать",
@@ -271,7 +297,7 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
                         pass
 
                 if not location_name:
-                    location_name = "Место не указано"
+                    location_name = t("reminder.place_unknown", lang)
 
                 safe_location = escape_markdown(location_name)
 
@@ -285,7 +311,7 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
                 mentions_text = " ".join(mentions) if mentions else ""
 
                 # Формируем текст сообщения
-                notification_text = "🎉 **Событие началось!**\n\n"
+                notification_text = t("reminder.event_started", lang) + "\n\n"
                 notification_text += f"**{safe_title}**\n"
 
                 if safe_city:
@@ -298,15 +324,15 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
                 if safe_description:
                     notification_text += f"\n📝 {safe_description}\n"
 
-                notification_text += f"\n*Создано пользователем @{safe_username}*\n\n"
+                notification_text += "\n" + t("reminder.created_by", lang).format(username=safe_username) + "\n\n"
 
                 # Добавляем информацию об участниках только если они есть
                 if participants and len(participants) > 0:
-                    notification_text += f"👥 **Участники ({len(participants)}):**\n"
+                    notification_text += t("reminder.participants", lang).format(count=len(participants)) + "\n"
                     notification_text += mentions_text
                 else:
-                    notification_text += "👥 Пока нет участников\n"
-                    notification_text += f"\n👉 Нажмите /joinevent{event.id} чтобы записаться"
+                    notification_text += t("reminder.no_participants", lang) + "\n"
+                notification_text += t("reminder.join_cmd", lang).format(event_id=event.id)
 
                 # Отправляем в группу
                 try:
@@ -372,7 +398,7 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
             f"ищем события между {time_min_utc} и {time_max_utc} UTC (через ~24 часа)"
         )
 
-        # Открытые Community события (без title_en/description_en — не падать до миграции)
+        # Открытые Community события (title_en/description_en для i18n напоминаний)
         logger.info("🔔 Выполняем запрос к БД для получения открытых Community событий...")
         stmt = (
             select(CommunityEvent)
@@ -383,7 +409,9 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
                     CommunityEvent.organizer_id,
                     CommunityEvent.organizer_username,
                     CommunityEvent.title,
+                    CommunityEvent.title_en,
                     CommunityEvent.description,
+                    CommunityEvent.description_en,
                     CommunityEvent.starts_at,
                     CommunityEvent.city,
                     CommunityEvent.location_name,
@@ -540,18 +568,22 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
                 # Получаем участников (для напоминаний отправляем даже если нет участников)
                 participants = await get_participants_optimized(session, event.id)
 
-                # Формируем текст напоминания (похоже на уведомление о новом событии)
-                safe_title = escape_markdown(event.title)
-                safe_description = escape_markdown(event.description or "")
+                lang = await get_reminder_lang(session, event.chat_id, event.organizer_id)
+
+                # Формируем текст напоминания (язык по чату/организатору)
+                _title = get_event_title(event, lang) or event.title or ""
+                _desc = get_event_description(event, lang) or event.description or ""
+                safe_title = escape_markdown(_title)
+                safe_description = escape_markdown(_desc)
                 safe_city = escape_markdown(event.city or "")
-                safe_username = escape_markdown(event.organizer_username or "Пользователь")
+                safe_username = escape_markdown(event.organizer_username or t("reminder.organizer_unknown", lang))
 
                 # Получаем название места - фильтруем мусорные значения
                 location_name = event.location_name or ""
-                # Фильтруем мусорные названия (кнопки, generic названия)
                 invalid_names = [
                     "Место проведения",
                     "Место не указано",
+                    "Place not specified",
                     "Локация",
                     "Место по ссылке",
                     "Создать",
@@ -584,9 +616,8 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
                             f"⚠️ Не удалось получить название места из location_url для события {event.id}: {e}"
                         )
 
-                # Если всё ещё пустое, используем fallback
                 if not location_name:
-                    location_name = "Место не указано"
+                    location_name = t("reminder.place_unknown", lang)
 
                 safe_location = escape_markdown(location_name)
 
@@ -595,9 +626,11 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
                 if event_time:
                     date_str = event_time.strftime("%d.%m.%Y")
                     time_str = event_time.strftime("%H:%M")
+                    date_at_time = t("reminder.date_at_time", lang).format(date=date_str, time=time_str)
                 else:
-                    date_str = "Дата не указана"
+                    date_str = t("reminder.date_unknown", lang)
                     time_str = ""
+                    date_at_time = date_str
 
                 # Формируем список участников для отметки
                 mentions = []
@@ -608,10 +641,10 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
 
                 mentions_text = " ".join(mentions) if mentions else ""
 
-                # Формируем текст сообщения (похоже на уведомление о новом событии)
-                reminder_text = "⏰ **Напоминание о событии!**\n\n"
+                # Формируем текст сообщения
+                reminder_text = t("reminder.24h_title", lang) + "\n\n"
                 reminder_text += f"**{safe_title}**\n"
-                reminder_text += f"📅 {date_str} в {time_str}\n"
+                reminder_text += f"{date_at_time}\n"
 
                 if safe_city:
                     reminder_text += f"🏙️ {safe_city}\n"
@@ -623,17 +656,15 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
                 if safe_description:
                     reminder_text += f"\n📝 {safe_description}\n"
 
-                reminder_text += f"\n*Создано пользователем @{safe_username}*\n\n"
+                reminder_text += "\n" + t("reminder.created_by", lang).format(username=safe_username) + "\n\n"
 
-                # Добавляем информацию об участниках только если они есть
                 if participants and len(participants) > 0:
-                    reminder_text += f"👥 **Участники ({len(participants)}):**\n"
+                    reminder_text += t("reminder.participants", lang).format(count=len(participants)) + "\n"
                     reminder_text += mentions_text
                 else:
-                    reminder_text += "👥 Пока нет участников\n"
+                    reminder_text += t("reminder.no_participants", lang) + "\n"
 
-                # Добавляем ссылку на запись на событие
-                reminder_text += f"\n\n👉 Нажмите /joinevent{event.id} чтобы записаться"
+                reminder_text += "\n" + t("reminder.join_cmd", lang).format(event_id=event.id)
 
                 # Отправляем в группу
                 try:
