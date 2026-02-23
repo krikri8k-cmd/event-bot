@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from database import BotMessage, ChatSettings, get_async_session
+from database import BotMessage, ChatSettings, async_session_maker
 
 logger = logging.getLogger(__name__)
 
@@ -67,19 +67,20 @@ async def auto_delete_message(bot: Bot, chat_id: int, message_id: int, delay_sec
         # Проверяем, что сообщение еще не удалено (помечаем в БД как удаленное при успешном удалении)
         from sqlalchemy import select
 
-        from database import BotMessage, get_async_session
+        from database import BotMessage
 
-        async with get_async_session() as check_session:
-            result = await check_session.execute(
-                select(BotMessage).where(
-                    BotMessage.chat_id == chat_id,
-                    BotMessage.message_id == message_id,
+        if async_session_maker is not None:
+            async with async_session_maker() as check_session:
+                result = await check_session.execute(
+                    select(BotMessage).where(
+                        BotMessage.chat_id == chat_id,
+                        BotMessage.message_id == message_id,
+                    )
                 )
-            )
-            bot_msg = result.scalar_one_or_none()
-            if bot_msg and bot_msg.deleted:
-                logger.info(f"ℹ️ Сообщение {message_id} уже помечено как удаленное, пропускаем автоудаление")
-                return
+                bot_msg = result.scalar_one_or_none()
+                if bot_msg and bot_msg.deleted:
+                    logger.info(f"ℹ️ Сообщение {message_id} уже помечено как удаленное, пропускаем автоудаление")
+                    return
 
         # Проверяем права бота перед удалением
         try:
@@ -122,44 +123,42 @@ async def auto_delete_message(bot: Bot, chat_id: int, message_id: int, delay_sec
             logger.info(f"✅ Сообщение {message_id} автоматически удалено из чата {chat_id} через {delay_seconds}с")
 
             # Помечаем сообщение как удаленное в БД
-            from sqlalchemy import select
+            if async_session_maker is not None:
+                from sqlalchemy import select
 
-            from database import get_async_session
-
-            async with get_async_session() as update_session:
-                result = await update_session.execute(
-                    select(BotMessage).where(
-                        BotMessage.chat_id == chat_id,
-                        BotMessage.message_id == message_id,
+                async with async_session_maker() as update_session:
+                    result = await update_session.execute(
+                        select(BotMessage).where(
+                            BotMessage.chat_id == chat_id,
+                            BotMessage.message_id == message_id,
+                        )
                     )
-                )
-                bot_msg = result.scalar_one_or_none()
-                if bot_msg:
-                    bot_msg.deleted = True
-                    await update_session.commit()
-                    logger.info(f"✅ Сообщение {message_id} помечено как удаленное в БД")
+                    bot_msg = result.scalar_one_or_none()
+                    if bot_msg:
+                        bot_msg.deleted = True
+                        await update_session.commit()
+                        logger.info(f"✅ Сообщение {message_id} помечено как удаленное в БД")
         except Exception as delete_error:
             error_str = str(delete_error).lower()
             if "message to delete not found" in error_str or "message can't be deleted" in error_str:
                 logger.info(f"ℹ️ Сообщение {message_id} уже удалено или недоступно для удаления: {delete_error}")
                 # Помечаем как удаленное в БД, так как сообщение уже удалено
                 try:
-                    from sqlalchemy import select
+                    if async_session_maker is not None:
+                        from sqlalchemy import select
 
-                    from database import get_async_session
-
-                    async with get_async_session() as update_session:
-                        result = await update_session.execute(
-                            select(BotMessage).where(
-                                BotMessage.chat_id == chat_id,
-                                BotMessage.message_id == message_id,
+                        async with async_session_maker() as update_session:
+                            result = await update_session.execute(
+                                select(BotMessage).where(
+                                    BotMessage.chat_id == chat_id,
+                                    BotMessage.message_id == message_id,
+                                )
                             )
-                        )
-                        bot_msg = result.scalar_one_or_none()
-                        if bot_msg and not bot_msg.deleted:
-                            bot_msg.deleted = True
-                            await update_session.commit()
-                            logger.info(f"✅ Сообщение {message_id} помечено как удаленное в БД (уже было удалено)")
+                            bot_msg = result.scalar_one_or_none()
+                            if bot_msg and not bot_msg.deleted:
+                                bot_msg.deleted = True
+                                await update_session.commit()
+                                logger.info(f"✅ Сообщение {message_id} помечено как удаленное в БД (уже было удалено)")
                 except Exception as db_error:
                     logger.warning(f"⚠️ Не удалось пометить сообщение как удаленное в БД: {db_error}")
             elif "not enough rights" in error_str or "can't delete" in error_str:
@@ -709,7 +708,11 @@ async def restore_auto_delete_on_startup(bot: Bot):
     try:
         logger.info("🔄 Восстановление автоудаления после перезапуска бота...")
 
-        async with get_async_session() as session:
+        if async_session_maker is None:
+            logger.warning("⚠️ async_session_maker не инициализирован, пропускаем восстановление автоудаления")
+            return
+
+        async with async_session_maker() as session:
             # Находим все неудаленные сообщения с нужными тегами
             cutoff_time = datetime.now(UTC) - timedelta(seconds=AUTO_DELETE_DELAY)
 
