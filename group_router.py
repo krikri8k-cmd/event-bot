@@ -894,6 +894,10 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
             from utils.messaging_utils import send_tracked
 
             panel_text = t("group.panel.what_can_do", panel_lang)
+            # Экранируем имя бота для Markdown (_ ломает парсер Telegram)
+            bot_username = get_bot_username()
+            if bot_username and bot_username in panel_text:
+                panel_text = panel_text.replace(bot_username, bot_username.replace("_", "\\_"))
 
             # Передаем message_thread_id для форумов и parse_mode для корректной отправки и автоудаления
             send_kwargs = {"reply_markup": keyboard, "parse_mode": "Markdown"}
@@ -918,10 +922,10 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                     "Бот не может отправлять сообщения в закрытые темы."
                 )
                 return
-            # Fallback - обычная отправка с трекированием и автоудалением
+            # Fallback - обычная отправка с трекированием и автоудалением (panel_text уже с экранированием)
             try:
                 panel_msg = await message.answer(
-                    t("group.panel.what_can_do", panel_lang),
+                    panel_text,
                     reply_markup=keyboard,
                     parse_mode="Markdown",
                 )
