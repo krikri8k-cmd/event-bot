@@ -895,8 +895,8 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
 
             panel_text = t("group.panel.what_can_do", panel_lang)
 
-            # Передаем message_thread_id для форумов
-            send_kwargs = {"reply_markup": keyboard}
+            # Передаем message_thread_id для форумов и parse_mode для корректной отправки и автоудаления
+            send_kwargs = {"reply_markup": keyboard, "parse_mode": "Markdown"}
             if is_forum and thread_id:
                 send_kwargs["message_thread_id"] = thread_id
 
@@ -918,13 +918,22 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
                     "Бот не может отправлять сообщения в закрытые темы."
                 )
                 return
-            # Fallback - обычная отправка без трекирования
+            # Fallback - обычная отправка с трекированием и автоудалением
             try:
-                await message.answer(
+                panel_msg = await message.answer(
                     t("group.panel.what_can_do", panel_lang),
                     reply_markup=keyboard,
                     parse_mode="Markdown",
                 )
+                # Трекаем и запускаем автоудаление (как в send_tracked), иначе панель не удалится сама
+                from database import BotMessage
+                from utils.messaging_utils import auto_delete_message
+
+                bot_msg = BotMessage(chat_id=message.chat.id, message_id=panel_msg.message_id, tag="panel")
+                session.add(bot_msg)
+                await session.commit()
+                asyncio.create_task(auto_delete_message(bot, message.chat.id, panel_msg.message_id, 120))
+                logger.info(f"✅ Панель отправлена fallback и трекируется с автоудалением в чате {message.chat.id}")
             except Exception as fallback_error:
                 if "TOPIC_CLOSED" in str(fallback_error):
                     logger.warning(
