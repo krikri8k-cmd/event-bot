@@ -119,7 +119,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "group.load_error": "❌ Ошибка при загрузке события",
         "group.language_changed": "✅ Язык изменён",
         "group.panel.what_can_do": (
-            '👋 Привет! Я {bot_username} - версия "Community".\n\n'
+            '👋 Привет! Я @{bot_username} - версия "Community".\n\n'
             "🎯 Что умею:\n\n"
             "• Создавать события\n"
             "• Показывать события этого чата\n"
@@ -762,7 +762,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "group.load_error": "❌ Error loading event",
         "group.language_changed": "✅ Language changed",
         "group.panel.what_can_do": (
-            '👋 Hello! I am {bot_username} - "Community" version.\n\n'
+            '👋 Hello! I am @{bot_username} - "Community" version.\n\n'
             "🎯 What I can do:\n\n"
             "• Create events\n"
             "• Show events in this chat\n"
