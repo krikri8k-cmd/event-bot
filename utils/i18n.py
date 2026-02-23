@@ -108,6 +108,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "group.list.participants": "👥 Участников:",
         "group.list.you_joined": "✅ Вы записаны | Нажмите 👉 /leaveevent{id} чтобы отменить",
         "group.list.join_prompt": "Нажмите 👉 /joinevent{id} чтобы записаться",
+        "group.card.join": "✅ Записаться",
+        "group.card.leave": "❌ Отменить запись",
+        "group.card.participants": "👥 Участники",
+        "group.card.footer": "💡 **Создавай через команду /start**",
         "group.list.admin_footer": (
             "🔧 Админ-панель: Вы можете управлять любым событием кнопками ниже!\n"
             "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
@@ -752,6 +756,10 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "group.list.participants": "👥 Participants:",
         "group.list.you_joined": "✅ You're in | Tap 👉 /leaveevent{id} to leave",
         "group.list.join_prompt": "Tap 👉 /joinevent{id} to join",
+        "group.card.join": "✅ Join",
+        "group.card.leave": "❌ Leave",
+        "group.card.participants": "👥 Participants",
+        "group.card.footer": "💡 **Create via /start**",
         "group.list.admin_footer": (
             "🔧 Admin: You can manage any event with the buttons below!\n" "💡 Tap ➕ Create event to add your own!"
         ),

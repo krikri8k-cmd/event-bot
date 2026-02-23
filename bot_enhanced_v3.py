@@ -5079,8 +5079,27 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
             "\n"
             f"📝 {safe_description}\n\n"
             f"*{format_translation('event.created_by', lang_community, username=safe_username)}*\n\n"
-            f"👉 Нажмите /joinevent{event_id} чтобы записаться\n\n"
             f"💡 **Создавай через команду /start**"
+        )
+
+        # Inline-кнопки для одиночной карточки (Join / Leave / Участники)
+        card_keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=t("group.card.join", lang_community),
+                        callback_data=f"join_event:{event_id}",
+                    ),
+                    InlineKeyboardButton(
+                        text=t("group.card.leave", lang_community),
+                        callback_data=f"leave_event:{event_id}",
+                    ),
+                    InlineKeyboardButton(
+                        text=t("group.card.participants", lang_community),
+                        callback_data=f"community_members_{event_id}",
+                    ),
+                ]
+            ]
         )
 
         try:
@@ -5088,7 +5107,13 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
             from utils.messaging_utils import send_tracked
 
             group_message = await send_tracked(
-                bot, session, chat_id=group_id, text=event_text, tag="notification", parse_mode="Markdown"
+                bot,
+                session,
+                chat_id=group_id,
+                text=event_text,
+                tag="notification",
+                parse_mode="Markdown",
+                reply_markup=card_keyboard,
             )
 
             # Показываем ссылку на опубликованное сообщение (только для супергрупп с chat_id, начинающимся на -100)

@@ -2451,6 +2451,118 @@ async def community_show_members(callback: CallbackQuery, bot: Bot, session: Asy
         await callback.message.answer("❌ Ошибка при загрузке участников")
 
 
+def _message_has_view_nav(reply_markup: InlineKeyboardMarkup | None) -> bool:
+    """Проверяет, что у сообщения клавиатура режима просмотра (Назад/Вперед)."""
+    if not reply_markup or not reply_markup.inline_keyboard:
+        return False
+    for row in reply_markup.inline_keyboard:
+        for btn in row:
+            cd = btn.callback_data or ""
+            if "view_prev_event_" in cd or "view_next_event_" in cd:
+                return True
+    return False
+
+
+@group_router.callback_query(F.data.regexp(r"^join_event:\d+$"))
+async def card_join_event(callback: CallbackQuery, bot: Bot, session: AsyncSession):
+    """Запись на событие из одиночной карточки: редактируем то же сообщение."""
+    chat_id = callback.message.chat.id
+    user_id = callback.from_user.id
+    try:
+        event_id = int(callback.data.split(":", 1)[1])
+    except (ValueError, IndexError):
+        await callback.answer("❌ Неверный ID события", show_alert=True)
+        return
+
+    from sqlalchemy import select
+
+    from utils.community_participants_service_optimized import (
+        add_participant_optimized,
+        get_participants_count_optimized,
+    )
+
+    stmt = select(CommunityEvent).where(CommunityEvent.id == event_id, CommunityEvent.chat_id == chat_id)
+    result = await session.execute(stmt)
+    event = result.scalar_one_or_none()
+    if not event:
+        await callback.answer("❌ Событие не найдено", show_alert=True)
+        return
+
+    username = callback.from_user.username
+    added = await add_participant_optimized(session, event_id, user_id, username)
+    if not added:
+        lang = await get_user_language_async(user_id, chat_id)
+        msg = "ℹ️ Вы уже записаны на это событие" if lang == "ru" else "ℹ️ You're already in"
+        await callback.answer(msg, show_alert=True)
+        return
+
+    participants_count = await get_participants_count_optimized(session, event_id)
+    lang = await get_user_language_async(user_id, chat_id)
+
+    if _message_has_view_nav(callback.message.reply_markup):
+        events = await _get_all_active_community_events(session, chat_id)
+        index = next((i for i, e in enumerate(events) if e.id == event_id), 0)
+        await _show_community_view_event(callback, bot, session, events, index, chat_id, user_id)
+        return
+
+    text = _build_single_card_text(event, lang, participants_count)
+    keyboard = _build_single_card_keyboard(event_id, lang)
+    try:
+        await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
+    except Exception as e:
+        logger.warning(f"⚠️ Не удалось отредактировать карточку после join: {e}")
+    await callback.answer("✅ Записаны!" if lang == "ru" else "✅ Joined!")
+
+
+@group_router.callback_query(F.data.regexp(r"^leave_event:\d+$"))
+async def card_leave_event(callback: CallbackQuery, bot: Bot, session: AsyncSession):
+    """Отмена записи из одиночной карточки: редактируем то же сообщение."""
+    chat_id = callback.message.chat.id
+    user_id = callback.from_user.id
+    try:
+        event_id = int(callback.data.split(":", 1)[1])
+    except (ValueError, IndexError):
+        await callback.answer("❌ Неверный ID события", show_alert=True)
+        return
+
+    from sqlalchemy import select
+
+    from utils.community_participants_service_optimized import (
+        get_participants_count_optimized,
+        remove_participant_optimized,
+    )
+
+    stmt = select(CommunityEvent).where(CommunityEvent.id == event_id, CommunityEvent.chat_id == chat_id)
+    result = await session.execute(stmt)
+    event = result.scalar_one_or_none()
+    if not event:
+        await callback.answer("❌ Событие не найдено", show_alert=True)
+        return
+
+    removed = await remove_participant_optimized(session, event_id, user_id)
+    if not removed:
+        lang = await get_user_language_async(user_id, chat_id)
+        await callback.answer("ℹ️ Вы не были записаны" if lang == "ru" else "ℹ️ You weren't in", show_alert=True)
+        return
+
+    participants_count = await get_participants_count_optimized(session, event_id)
+    lang = await get_user_language_async(user_id, chat_id)
+
+    if _message_has_view_nav(callback.message.reply_markup):
+        events = await _get_all_active_community_events(session, chat_id)
+        index = next((i for i, e in enumerate(events) if e.id == event_id), 0)
+        await _show_community_view_event(callback, bot, session, events, index, chat_id, user_id)
+        return
+
+    text = _build_single_card_text(event, lang, participants_count)
+    keyboard = _build_single_card_keyboard(event_id, lang)
+    try:
+        await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
+    except Exception as e:
+        logger.warning(f"⚠️ Не удалось отредактировать карточку после leave: {e}")
+    await callback.answer("✅ Запись отменена" if lang == "ru" else "✅ Left")
+
+
 @group_router.callback_query(F.data.startswith("community_join_") & ~F.data.startswith("community_join_confirm_"))
 async def community_join_event(callback: CallbackQuery, bot: Bot, session: AsyncSession):
     """Показ подтверждения записи на событие"""
@@ -2954,19 +3066,27 @@ async def _show_community_view_event(
     )
 
     participants_count = await get_participants_count_optimized(session, event.id)
-    is_user_participant = await is_participant_optimized(session, event.id, user_id)
+    await is_participant_optimized(session, event.id, user_id)
 
-    text += f"\n👥 Участников: {participants_count}\n"
+    text += f"\n{t('group.list.participants', lang)} {participants_count}\n"
 
-    if is_user_participant:
-        text += f"✅ Вы записаны | Нажмите 👉 /leaveevent{event.id} чтобы отменить\n"
-    else:
-        text += f"Нажмите 👉 /joinevent{event.id} чтобы записаться\n"
-
-    # Создаем клавиатуру с кнопками навигации
-    keyboard_buttons = []
+    # Inline-кнопки для одиночной карточки (режим просмотра): Join / Leave / Участники
+    join_btn = InlineKeyboardButton(
+        text=t("group.card.join", lang),
+        callback_data=f"join_event:{event.id}",
+    )
+    leave_btn = InlineKeyboardButton(
+        text=t("group.card.leave", lang),
+        callback_data=f"leave_event:{event.id}",
+    )
+    participants_btn = InlineKeyboardButton(
+        text=t("group.card.participants", lang),
+        callback_data=f"community_members_{event.id}",
+    )
+    action_row = [join_btn, leave_btn, participants_btn]
 
     # Кнопки навигации: всегда показываем 3 кнопки (Меню, Назад, Вперед)
+    keyboard_buttons = [action_row]
     # Для "Назад": если index > 0, то index-1, иначе 0
     prev_index = index - 1 if index > 0 else 0
     # Для "Вперед": если index < total-1, то index+1, иначе остаемся на текущем (но проверка в обработчике)
@@ -3697,6 +3817,58 @@ def format_community_event_for_display(event: CommunityEvent, lang: str = "ru") 
         lines.append(f"📄 {safe_desc}")
 
     return "\n".join(lines)
+
+
+def _build_single_card_text(event: CommunityEvent, lang: str, participants_count: int) -> str:
+    """Текст одиночной карточки (стиль «после создания») для редактирования сообщения."""
+    title = get_event_title(event, lang)
+    description = get_event_description(event, lang)
+    safe_title = (title or "").replace("*", "").replace("_", "").replace("`", "'")
+    safe_username = (event.organizer_username or "").replace("*", "").replace("_", "").replace("`", "'")
+    if not safe_username:
+        safe_username = "—"
+    time_at = t("share.time_at", lang)
+    date_str = format_community_event_time(event, "%d.%m.%Y") if event.starts_at else ""
+    time_str = format_community_event_time(event, "%H:%M") if event.starts_at else ""
+    parts = [
+        f"🎉 **{t('share.new_event', lang)}**\n\n",
+        f"**{safe_title}**\n",
+        f"📅 {date_str} {time_at} {time_str}\n",
+        f"🏙️ {(event.city or '')}\n",
+        f"📍 {(event.location_name or '')}\n",
+    ]
+    if event.location_url:
+        parts.append(f"🔗 {event.location_url}\n")
+    if description:
+        safe_desc = (
+            (description[:200] + "..." if len(description) > 200 else description)
+            .replace("*", "")
+            .replace("_", "")
+            .replace("`", "'")
+        )
+        parts.append(f"\n📝 {safe_desc}\n\n")
+    else:
+        parts.append("\n")
+    created_by = format_translation("event.created_by", lang, username=safe_username)
+    parts.append(f"*{created_by}*\n\n")
+    parts.append(f"{t('group.list.participants', lang)} {participants_count}\n\n")
+    parts.append(t("group.card.footer", lang))
+    return "".join(parts)
+
+
+def _build_single_card_keyboard(event_id: int, lang: str) -> InlineKeyboardMarkup:
+    """Клавиатура одиночной карточки: Join / Leave / Участники."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=t("group.card.join", lang), callback_data=f"join_event:{event_id}"),
+                InlineKeyboardButton(text=t("group.card.leave", lang), callback_data=f"leave_event:{event_id}"),
+                InlineKeyboardButton(
+                    text=t("group.card.participants", lang), callback_data=f"community_members_{event_id}"
+                ),
+            ]
+        ]
+    )
 
 
 def get_community_status_buttons(
