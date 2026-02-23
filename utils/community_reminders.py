@@ -7,6 +7,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 from aiogram import Bot
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
@@ -41,6 +42,28 @@ async def get_reminder_lang(session: AsyncSession, chat_id: int, organizer_id: i
     except Exception as e:
         logger.warning(f"get_reminder_lang: {e}")
     return "ru"
+
+
+def _reminder_card_keyboard(event_id: int, lang: str) -> InlineKeyboardMarkup:
+    """Клавиатура Join/Leave/Участники для напоминаний (24ч и «Событие началось»)."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=t("group.card.join", lang),
+                    callback_data=f"join_event:{event_id}",
+                ),
+                InlineKeyboardButton(
+                    text=t("group.card.leave", lang),
+                    callback_data=f"leave_event:{event_id}",
+                ),
+                InlineKeyboardButton(
+                    text=t("group.card.participants", lang),
+                    callback_data=f"community_members_{event_id}",
+                ),
+            ]
+        ]
+    )
 
 
 async def send_event_start_notifications(bot: Bot, session: AsyncSession):
@@ -332,10 +355,10 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
                     notification_text += mentions_text
                 else:
                     notification_text += t("reminder.no_participants", lang) + "\n"
-                notification_text += t("reminder.join_cmd", lang).format(event_id=event.id)
 
-                # Отправляем в группу
+                # Отправляем в группу с кнопками Join/Leave/Участники
                 try:
+                    reply_markup = _reminder_card_keyboard(event.id, lang)
                     await send_tracked(
                         bot,
                         session,
@@ -344,6 +367,7 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
                         tag="event_start",
                         event_id=event.id,
                         parse_mode="Markdown",
+                        reply_markup=reply_markup,
                     )
                     logger.info(
                         f"✅ Отправлено уведомление о начале события {event.id} '{event.title}' в чат {event.chat_id}"
@@ -664,10 +688,9 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
                 else:
                     reminder_text += t("reminder.no_participants", lang) + "\n"
 
-                reminder_text += "\n" + t("reminder.join_cmd", lang).format(event_id=event.id)
-
-                # Отправляем в группу
+                # Отправляем в группу с кнопками Join/Leave/Участники
                 try:
+                    reply_markup = _reminder_card_keyboard(event.id, lang)
                     await send_tracked(
                         bot,
                         session,
@@ -676,6 +699,7 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
                         tag="reminder",
                         event_id=event.id,
                         parse_mode="Markdown",
+                        reply_markup=reply_markup,
                     )
                     logger.info(f"✅ Отправлено напоминание о событии {event.id} '{event.title}' в чат {event.chat_id}")
                     sent_count += 1
