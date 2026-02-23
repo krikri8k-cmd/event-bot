@@ -45,7 +45,7 @@ async def get_reminder_lang(session: AsyncSession, chat_id: int, organizer_id: i
 
 
 def _reminder_card_keyboard(event_id: int, lang: str) -> InlineKeyboardMarkup:
-    """Клавиатура Join/Leave/Участники для напоминаний (24ч и «Событие началось»)."""
+    """Клавиатура Join/Leave для напоминаний (участники уже в тексте сообщения)."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -56,10 +56,6 @@ def _reminder_card_keyboard(event_id: int, lang: str) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text=t("group.card.leave", lang),
                     callback_data=f"leave_event:{event_id}",
-                ),
-                InlineKeyboardButton(
-                    text=t("group.card.participants", lang),
-                    callback_data=f"community_members_{event_id}",
                 ),
             ]
         ]
