@@ -5316,23 +5316,22 @@ async def cancel_community_event(callback: types.CallbackQuery, state: FSMContex
 
     await state.clear()
 
-    cancel_text = "❌ **Создание группового события отменено.**\n\n"
+    cancel_text = t("community.cancel_group_title", user_lang)
     if group_id:
-        cancel_text += "Вы можете вернуться в группу или остаться в боте:"
+        cancel_text += t("community.cancel_return_or_stay", user_lang)
 
-        # Создаем кнопки "События рядом" и "Старт (все функции)"
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton(text="📍 События рядом", callback_data="nearby_events"),
-                    InlineKeyboardButton(text="🚀 Старт", callback_data="start_menu"),
+                    InlineKeyboardButton(text=t("menu.button.events_nearby", user_lang), callback_data="nearby_events"),
+                    InlineKeyboardButton(text=t("menu.button.start", user_lang), callback_data="start_menu"),
                 ]
             ]
         )
 
         await callback.message.edit_text(cancel_text, parse_mode="Markdown", reply_markup=keyboard)
     else:
-        cancel_text += "Если хотите создать событие, нажмите /start"
+        cancel_text += t("community.cancel_create_via_start", user_lang)
         await callback.message.edit_text(cancel_text, parse_mode="Markdown")
     await callback.answer(t("create.cancelled", user_lang), show_alert=False)
 
