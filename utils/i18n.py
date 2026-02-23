@@ -477,7 +477,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.group.welcome_pm": (
             "➕ **Создать событие «Community»**\n\n"
             "— Это событие будет добавлено в группу, из которой вы перешли.\n\n"
-            "💥 **Введите название события:**"
+            "⬇️ **Напиши название события:**"
         ),
         "create.group.title_saved_ask_date": (
             "**Название сохранено:** *{title}* ✅\n\n" "📅 **Укажите дату** (например: 10.10.2025 18:00):"
@@ -909,7 +909,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.group.welcome_pm": (
             "➕ **Create Community event**\n\n"
             "— This event will be added to the group you came from.\n\n"
-            "💥 **Enter event title:**"
+            "⬇️ **Write the event title:**"
         ),
         "create.group.title_saved_ask_date": (
             "**Title saved:** *{title}* ✅\n\n" "📅 **Enter date and time** (e.g.: 10.10.2025 18:00):"
