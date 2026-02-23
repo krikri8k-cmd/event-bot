@@ -5079,10 +5079,20 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
             "\n"
             f"📝 {safe_description}\n\n"
             f"*{format_translation('event.created_by', lang_community, username=safe_username)}*\n\n"
-            f"💡 **Создавай через команду /start**"
         )
+        # Список участников в тексте (как в напоминаниях), без кнопки «Участники»
+        from utils.community_participants_service_optimized import get_participants_optimized
 
-        # Inline-кнопки для одиночной карточки (Join / Leave / Участники)
+        participants = await get_participants_optimized(session, event_id)
+        if participants:
+            mentions = " ".join(f"@{p.get('username', '')}" for p in participants if p.get("username"))
+            event_text += t("reminder.participants", lang_community).format(count=len(participants)) + "\n"
+            event_text += mentions + "\n\n"
+        else:
+            event_text += t("reminder.no_participants", lang_community) + "\n\n"
+        event_text += t("group.card.footer", lang_community)
+
+        # Inline-кнопки: только Join / Leave (участники уже в тексте)
         card_keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
@@ -5093,10 +5103,6 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
                     InlineKeyboardButton(
                         text=t("group.card.leave", lang_community),
                         callback_data=f"leave_event:{event_id}",
-                    ),
-                    InlineKeyboardButton(
-                        text=t("group.card.participants", lang_community),
-                        callback_data=f"community_members_{event_id}",
                     ),
                 ]
             ]

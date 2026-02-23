@@ -2478,7 +2478,7 @@ async def card_join_event(callback: CallbackQuery, bot: Bot, session: AsyncSessi
 
     from utils.community_participants_service_optimized import (
         add_participant_optimized,
-        get_participants_count_optimized,
+        get_participants_optimized,
     )
 
     stmt = select(CommunityEvent).where(CommunityEvent.id == event_id, CommunityEvent.chat_id == chat_id)
@@ -2496,7 +2496,7 @@ async def card_join_event(callback: CallbackQuery, bot: Bot, session: AsyncSessi
         await callback.answer(msg, show_alert=True)
         return
 
-    participants_count = await get_participants_count_optimized(session, event_id)
+    participants = await get_participants_optimized(session, event_id)
     lang = await get_user_language_async(user_id, chat_id)
 
     if _message_has_view_nav(callback.message.reply_markup):
@@ -2505,7 +2505,7 @@ async def card_join_event(callback: CallbackQuery, bot: Bot, session: AsyncSessi
         await _show_community_view_event(callback, bot, session, events, index, chat_id, user_id)
         return
 
-    text = _build_single_card_text(event, lang, participants_count)
+    text = _build_single_card_text(event, lang, participants)
     keyboard = _build_single_card_keyboard(event_id, lang)
     try:
         await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
@@ -2528,7 +2528,7 @@ async def card_leave_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
     from sqlalchemy import select
 
     from utils.community_participants_service_optimized import (
-        get_participants_count_optimized,
+        get_participants_optimized,
         remove_participant_optimized,
     )
 
@@ -2545,7 +2545,7 @@ async def card_leave_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
         await callback.answer("ℹ️ Вы не были записаны" if lang == "ru" else "ℹ️ You weren't in", show_alert=True)
         return
 
-    participants_count = await get_participants_count_optimized(session, event_id)
+    participants = await get_participants_optimized(session, event_id)
     lang = await get_user_language_async(user_id, chat_id)
 
     if _message_has_view_nav(callback.message.reply_markup):
@@ -2554,7 +2554,7 @@ async def card_leave_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
         await _show_community_view_event(callback, bot, session, events, index, chat_id, user_id)
         return
 
-    text = _build_single_card_text(event, lang, participants_count)
+    text = _build_single_card_text(event, lang, participants)
     keyboard = _build_single_card_keyboard(event_id, lang)
     try:
         await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
@@ -3819,8 +3819,8 @@ def format_community_event_for_display(event: CommunityEvent, lang: str = "ru") 
     return "\n".join(lines)
 
 
-def _build_single_card_text(event: CommunityEvent, lang: str, participants_count: int) -> str:
-    """Текст одиночной карточки (стиль «после создания») для редактирования сообщения."""
+def _build_single_card_text(event: CommunityEvent, lang: str, participants_list: list[dict]) -> str:
+    """Текст одиночной карточки (стиль «после создания»), участники списком как в напоминаниях."""
     title = get_event_title(event, lang)
     description = get_event_description(event, lang)
     safe_title = (title or "").replace("*", "").replace("_", "").replace("`", "'")
@@ -3851,21 +3851,23 @@ def _build_single_card_text(event: CommunityEvent, lang: str, participants_count
         parts.append("\n")
     created_by = format_translation("event.created_by", lang, username=safe_username)
     parts.append(f"*{created_by}*\n\n")
-    parts.append(f"{t('group.list.participants', lang)} {participants_count}\n\n")
+    if participants_list:
+        mentions = " ".join(f"@{p.get('username', '')}" for p in participants_list if p.get("username"))
+        parts.append(t("reminder.participants", lang).format(count=len(participants_list)) + "\n")
+        parts.append(mentions + "\n\n")
+    else:
+        parts.append(t("reminder.no_participants", lang) + "\n\n")
     parts.append(t("group.card.footer", lang))
     return "".join(parts)
 
 
 def _build_single_card_keyboard(event_id: int, lang: str) -> InlineKeyboardMarkup:
-    """Клавиатура одиночной карточки: Join / Leave / Участники."""
+    """Клавиатура одиночной карточки: только Join / Leave (участники в тексте)."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(text=t("group.card.join", lang), callback_data=f"join_event:{event_id}"),
                 InlineKeyboardButton(text=t("group.card.leave", lang), callback_data=f"leave_event:{event_id}"),
-                InlineKeyboardButton(
-                    text=t("group.card.participants", lang), callback_data=f"community_members_{event_id}"
-                ),
             ]
         ]
     )
