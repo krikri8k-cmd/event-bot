@@ -3735,6 +3735,15 @@ async def update_community_event_field_pm(event_id: int, field: str, value: str,
         return False
 
 
+async def _refresh_community_event_messages_in_chat(bot: Bot, event_id: int, chat_id: int) -> None:
+    """После редактирования Community события из ЛС — обновляет карточки в группе (notification/reminder/event_start)."""
+    from database import async_session_maker
+    from group_router import update_community_event_tracked_messages
+
+    async with async_session_maker() as session:
+        await update_community_event_tracked_messages(bot, session, event_id, chat_id)
+
+
 # === ОБРАБОТЧИКИ РЕДАКТИРОВАНИЯ COMMUNITY СОБЫТИЙ В ПРИВАТНОМ ЧАТЕ ===
 @main_router.callback_query(F.data.startswith("pm_edit_title_"))
 async def pm_edit_title_choice(callback: types.CallbackQuery, state: FSMContext):
@@ -4019,6 +4028,7 @@ async def pm_handle_title_input(message: types.Message, state: FSMContext):
     if event_id and chat_id and message.text:
         success = await update_community_event_field_pm(event_id, "title", message.text.strip(), user_id, chat_id)
         if success:
+            await _refresh_community_event_messages_in_chat(message.bot, event_id, chat_id)
             await message.answer(t("edit.title_updated", user_lang))
             await start_group_event_editing(message, event_id, chat_id, state)
         else:
@@ -4057,6 +4067,7 @@ async def pm_handle_date_input(message: types.Message, state: FSMContext):
 
         success = await update_community_event_field_pm(event_id, "starts_at", new_datetime, user_id, chat_id)
         if success:
+            await _refresh_community_event_messages_in_chat(message.bot, event_id, chat_id)
             await message.answer(t("edit.date_updated", user_lang))
             await start_group_event_editing(message, event_id, chat_id, state)
         else:
@@ -4096,6 +4107,7 @@ async def pm_handle_time_input(message: types.Message, state: FSMContext):
 
         success = await update_community_event_field_pm(event_id, "starts_at", new_datetime, user_id, chat_id)
         if success:
+            await _refresh_community_event_messages_in_chat(message.bot, event_id, chat_id)
             await message.answer(t("edit.time_updated", user_lang))
             await start_group_event_editing(message, event_id, chat_id, state)
         else:
@@ -4135,6 +4147,7 @@ async def pm_handle_location_input(message: types.Message, state: FSMContext):
             if success:
                 # Обновляем URL
                 await update_community_event_field_pm(event_id, "location_url", location_input, user_id, chat_id)
+                await _refresh_community_event_messages_in_chat(message.bot, event_id, chat_id)
                 await message.answer(
                     format_translation(
                         "edit.location_updated",
@@ -4164,6 +4177,7 @@ async def pm_handle_location_input(message: types.Message, state: FSMContext):
                 )
                 if success:
                     await update_community_event_field_pm(event_id, "location_url", location_input, user_id, chat_id)
+                    await _refresh_community_event_messages_in_chat(message.bot, event_id, chat_id)
                     await message.answer(
                         format_translation("edit.location_updated", user_lang, location=f"{lat:.6f}, {lng:.6f}"),
                         parse_mode="Markdown",
@@ -4180,6 +4194,7 @@ async def pm_handle_location_input(message: types.Message, state: FSMContext):
         # Обычный текст - обновляем только название
         success = await update_community_event_field_pm(event_id, "location_name", location_input, user_id, chat_id)
         if success:
+            await _refresh_community_event_messages_in_chat(message.bot, event_id, chat_id)
             await message.answer(
                 format_translation("edit.location_updated", user_lang, location=location_input),
                 parse_mode="Markdown",
@@ -4224,6 +4239,7 @@ async def pm_handle_description_input(message: types.Message, state: FSMContext)
     if event_id and chat_id and description:
         success = await update_community_event_field_pm(event_id, "description", description, user_id, chat_id)
         if success:
+            await _refresh_community_event_messages_in_chat(message.bot, event_id, chat_id)
             await message.answer(t("edit.description_updated", user_lang))
             await start_group_event_editing(message, event_id, chat_id, state)
         else:
@@ -5121,6 +5137,7 @@ async def confirm_community_event_pm(callback: types.CallbackQuery, state: FSMCo
                 chat_id=group_id,
                 text=event_text,
                 tag="notification",
+                event_id=event_id,
                 parse_mode="Markdown",
                 reply_markup=card_keyboard,
             )

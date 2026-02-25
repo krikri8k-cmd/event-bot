@@ -20,9 +20,10 @@ from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database import CommunityEvent
+from database import BotMessage, CommunityEvent
 from utils.i18n import format_translation, get_bot_username, t
 from utils.messaging_utils import delete_all_tracked, is_chat_admin
 from utils.user_language import (
@@ -3898,6 +3899,57 @@ def _build_single_card_keyboard(event_id: int, lang: str) -> InlineKeyboardMarku
     )
 
 
+async def update_community_event_tracked_messages(bot: Bot, session: AsyncSession, event_id: int, chat_id: int) -> None:
+    """
+    Обновляет все трекаемые сообщения с карточкой этого события (notification, reminder, event_start)
+    после редактирования события — чтобы в чате отображались актуальные название и данные.
+    """
+    from utils.community_participants_service_optimized import get_participants_optimized
+    from utils.community_reminders import get_reminder_lang
+
+    result = await session.execute(
+        select(BotMessage).where(
+            BotMessage.chat_id == chat_id,
+            BotMessage.event_id == event_id,
+            BotMessage.deleted.is_(False),
+            BotMessage.tag.in_(["notification", "reminder", "event_start"]),
+        )
+    )
+    tracked = result.scalars().all()
+    if not tracked:
+        return
+
+    stmt = select(CommunityEvent).where(CommunityEvent.id == event_id, CommunityEvent.chat_id == chat_id)
+    event = (await session.execute(stmt)).scalar_one_or_none()
+    if not event:
+        return
+
+    lang = await get_reminder_lang(session, chat_id, event.organizer_id)
+    participants = await get_participants_optimized(session, event_id)
+    participants_list = [{"username": p.get("username")} for p in participants]
+    text = _build_single_card_text(event, lang, participants_list)
+    keyboard = _build_single_card_keyboard(event_id, lang)
+
+    for bot_msg in tracked:
+        try:
+            await bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=bot_msg.message_id,
+                text=text,
+                parse_mode="Markdown",
+                reply_markup=keyboard,
+            )
+            logger.info(
+                "✅ Обновлено сообщение %s (tag=%s) для события %s в чате %s",
+                bot_msg.message_id,
+                bot_msg.tag,
+                event_id,
+                chat_id,
+            )
+        except Exception as e:
+            logger.warning(f"⚠️ Не удалось обновить сообщение {bot_msg.message_id} для события {event_id}: {e}")
+
+
 def get_community_status_buttons(
     event_id: int,
     current_status: str,
@@ -3998,9 +4050,16 @@ def group_edit_event_keyboard(event_id: int) -> InlineKeyboardMarkup:
 
 
 async def update_community_event_field(
-    session: AsyncSession, event_id: int, field: str, value: str, user_id: int, chat_id: int, is_admin: bool
+    session: AsyncSession,
+    event_id: int,
+    field: str,
+    value: str,
+    user_id: int,
+    chat_id: int,
+    is_admin: bool,
+    bot: Bot | None = None,
 ) -> bool:
-    """Обновляет поле Community события в базе данных"""
+    """Обновляет поле Community события в базе данных. Если передан bot — обновляет трекаемые сообщения в чате."""
     try:
         # Проверяем права доступа
         event = await session.get(CommunityEvent, event_id)
@@ -4052,6 +4111,8 @@ async def update_community_event_field(
         event.updated_at = datetime.now(UTC)
         await session.commit()
         logger.info(f"Событие {event_id} успешно обновлено в БД")
+        if bot:
+            await update_community_event_tracked_messages(bot, session, event_id, chat_id)
         return True
 
     except Exception as e:
@@ -4255,7 +4316,7 @@ async def group_handle_title_input(message: Message, bot: Bot, session: AsyncSes
 
     if event_id and message.text:
         success = await update_community_event_field(
-            session, event_id, "title", message.text.strip(), user_id, chat_id, is_admin
+            session, event_id, "title", message.text.strip(), user_id, chat_id, is_admin, bot=bot
         )
         if success:
             # Удаляем сообщение с запросом и сообщение пользователя
@@ -4304,13 +4365,13 @@ async def group_handle_date_input(message: Message, bot: Bot, session: AsyncSess
             current_time = event.starts_at.strftime("%H:%M")
             new_datetime = f"{message.text.strip()} {current_time}"
             success = await update_community_event_field(
-                session, event_id, "starts_at", new_datetime, user_id, chat_id, is_admin
+                session, event_id, "starts_at", new_datetime, user_id, chat_id, is_admin, bot=bot
             )
         else:
             # Если нет текущей даты, используем введенную дату с временем по умолчанию
             new_datetime = f"{message.text.strip()} 12:00"
             success = await update_community_event_field(
-                session, event_id, "starts_at", new_datetime, user_id, chat_id, is_admin
+                session, event_id, "starts_at", new_datetime, user_id, chat_id, is_admin, bot=bot
             )
 
         if success:
@@ -4341,14 +4402,14 @@ async def group_handle_time_input(message: Message, bot: Bot, session: AsyncSess
             current_date = event.starts_at.strftime("%d.%m.%Y")
             new_datetime = f"{current_date} {message.text.strip()}"
             success = await update_community_event_field(
-                session, event_id, "starts_at", new_datetime, user_id, chat_id, is_admin
+                session, event_id, "starts_at", new_datetime, user_id, chat_id, is_admin, bot=bot
             )
         else:
             # Если нет текущей даты, используем сегодняшнюю
             today = datetime.now().strftime("%d.%m.%Y")
             new_datetime = f"{today} {message.text.strip()}"
             success = await update_community_event_field(
-                session, event_id, "starts_at", new_datetime, user_id, chat_id, is_admin
+                session, event_id, "starts_at", new_datetime, user_id, chat_id, is_admin, bot=bot
             )
 
         if success:
@@ -4395,11 +4456,12 @@ async def group_handle_location_input(message: Message, bot: Bot, session: Async
                 user_id,
                 chat_id,
                 is_admin,
+                bot=bot,
             )
             if success:
                 # Обновляем URL
                 await update_community_event_field(
-                    session, event_id, "location_url", location_input, user_id, chat_id, is_admin
+                    session, event_id, "location_url", location_input, user_id, chat_id, is_admin, bot=bot
                 )
                 await message.answer(
                     f"✅ Локация обновлена: *{location_data.get('name', 'Место на карте')}*", parse_mode="Markdown"
@@ -4425,11 +4487,11 @@ async def group_handle_location_input(message: Message, bot: Bot, session: Async
             if -90 <= lat <= 90 and -180 <= lng <= 180:
                 # Обновляем событие с координатами
                 success = await update_community_event_field(
-                    session, event_id, "location_name", "Место по координатам", user_id, chat_id, is_admin
+                    session, event_id, "location_name", "Место по координатам", user_id, chat_id, is_admin, bot=bot
                 )
                 if success:
                     await update_community_event_field(
-                        session, event_id, "location_url", location_input, user_id, chat_id, is_admin
+                        session, event_id, "location_url", location_input, user_id, chat_id, is_admin, bot=bot
                     )
                     await message.answer(f"✅ Локация обновлена: *{lat:.6f}, {lng:.6f}*", parse_mode="Markdown")
                 else:
@@ -4442,7 +4504,7 @@ async def group_handle_location_input(message: Message, bot: Bot, session: Async
     else:
         # Обычный текст - обновляем только название
         success = await update_community_event_field(
-            session, event_id, "location_name", location_input, user_id, chat_id, is_admin
+            session, event_id, "location_name", location_input, user_id, chat_id, is_admin, bot=bot
         )
         if success:
             await message.answer(f"✅ Локация обновлена: *{location_input}*", parse_mode="Markdown")
@@ -4496,7 +4558,7 @@ async def group_handle_description_input(message: Message, bot: Bot, session: As
 
     if event_id and description:
         success = await update_community_event_field(
-            session, event_id, "description", description, user_id, chat_id, is_admin
+            session, event_id, "description", description, user_id, chat_id, is_admin, bot=bot
         )
         if success:
             await message.answer("✅ Описание обновлено!")
