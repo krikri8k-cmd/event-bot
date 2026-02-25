@@ -3693,9 +3693,11 @@ async def update_community_event_field_pm(event_id: int, field: str, value: str,
                 logger.warning(f"Пользователь {user_id} не имеет прав для редактирования события {event_id}")
                 return False
 
-            # Обновляем поле
+            # Обновляем поле (title/title_en и description/description_en — в паре,
+            # чтобы в EN-версии списка в группе отображалось новое значение)
             if field == "title":
                 event.title = value
+                event.title_en = value
                 logger.info(f"Обновлено название события {event_id}: '{value}'")
             elif field == "starts_at":
                 # Для Community событий starts_at - это TIMESTAMP WITHOUT TIME ZONE (naive datetime)
@@ -3713,6 +3715,7 @@ async def update_community_event_field_pm(event_id: int, field: str, value: str,
                 logger.info(f"Обновлена локация события {event_id}: '{value}'")
             elif field == "description":
                 event.description = value
+                event.description_en = value
                 logger.info(f"Обновлено описание события {event_id}: '{value}'")
             elif field == "location_url":
                 event.location_url = value
