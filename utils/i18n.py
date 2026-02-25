@@ -543,6 +543,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.translated": "✅ Готово.",
         "create.translation_delayed": "⏳ Перевод задерживается, попробую ещё раз через 30 секунд.",
         "create.validation.no_text": "❌ **Пожалуйста, отправьте текстовое сообщение!**\n\n{next_prompt}",
+        "create.validation.invalid_location_link": (
+            "❌ Это не похоже на ссылку или координаты.\n\n"
+            "📍 Отправьте ссылку Google Maps (или широту, долготу через запятую):"
+        ),
+        "create.validation.location_link_parse_failed": (
+            "❌ Не удалось распознать ссылку.\n\n"
+            "📍 Отправьте рабочую ссылку из Google Maps (или координаты через запятую):"
+        ),
         "create.validation.invalid_date_format": (
             "❌ **Неверный формат даты!**\n\n" "📅 Введите дату в формате **ДД.ММ.ГГГГ**\n" "Например: 15.12.2024"
         ),
@@ -979,6 +987,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "create.translated": "✅ Done.",
         "create.translation_delayed": "⏳ Translation delayed, will retry in 30 seconds.",
         "create.validation.no_text": "❌ **Please send a text message!**\n\n{next_prompt}",
+        "create.validation.invalid_location_link": (
+            "❌ This doesn't look like a link or coordinates.\n\n"
+            "📍 Send a Google Maps link (or latitude, longitude separated by comma):"
+        ),
+        "create.validation.location_link_parse_failed": (
+            "❌ Could not recognize the link.\n\n"
+            "📍 Send a valid Google Maps link (or coordinates separated by comma):"
+        ),
         "create.validation.invalid_date_format": (
             "❌ **Invalid date format!**\n\n" "📅 Enter date in format **DD.MM.YYYY**\n" "Example: 15.12.2024"
         ),

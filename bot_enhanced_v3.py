@@ -4582,6 +4582,16 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
     location_lng = None
     location_url = None
 
+    def _looks_like_url(text: str) -> bool:
+        tlower = text.lower().strip()
+        return (
+            tlower.startswith(("http://", "https://", "www."))
+            or "maps.google.com" in tlower
+            or "goo.gl" in tlower
+            or "maps.app.goo.gl" in tlower
+            or "yandex.ru/maps" in tlower
+        )
+
     # Проверяем, являются ли это координаты (широта, долгота)
     if "," in location_input and len(location_input.split(",")) == 2:
         try:
@@ -4605,7 +4615,15 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
             )
             return
     else:
-        # Это ссылка
+        # Это должна быть ссылка — проверяем, что ввод похож на ссылку
+        if not _looks_like_url(location_input):
+            await message.answer(
+                t("create.validation.invalid_location_link", lang),
+                parse_mode="Markdown",
+                reply_markup=get_community_cancel_kb(message.from_user.id),
+            )
+            return
+
         location_url = location_input
         try:
             if "maps.google.com" in location_url or "goo.gl" in location_url or "maps.app.goo.gl" in location_url:
@@ -4619,17 +4637,24 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
                         location_lat = location_data.get("lat")
                         location_lng = location_data.get("lng")
                     else:
-                        location_name = t("create.place_on_map", lang)
-                        logger.warning(f"⚠️ parse_google_maps_link вернул None для ссылки: {location_url}")
+                        # Ссылка не распознана — просим отправить нормальную ссылку
+                        await message.answer(
+                            t("create.validation.location_link_parse_failed", lang),
+                            parse_mode="Markdown",
+                            reply_markup=get_community_cancel_kb(message.from_user.id),
+                        )
+                        return
                 except Exception as parse_error:
                     logger.error(f"❌ Ошибка при парсинге Google Maps ссылки: {parse_error}")
                     import traceback
 
                     logger.error(traceback.format_exc())
-                    # Продолжаем с базовым названием, чтобы не прерывать процесс создания события
-                    location_name = t("create.place_on_map", lang)
-                    location_lat = None
-                    location_lng = None
+                    await message.answer(
+                        t("create.validation.location_link_parse_failed", lang),
+                        parse_mode="Markdown",
+                        reply_markup=get_community_cancel_kb(message.from_user.id),
+                    )
+                    return
             elif "yandex.ru/maps" in location_url:
                 location_name = t("create.place_yandex", lang)
             else:
@@ -4639,10 +4664,12 @@ async def process_community_location_url_pm(message: types.Message, state: FSMCo
             import traceback
 
             logger.error(traceback.format_exc())
-            # Продолжаем с базовым названием, чтобы не прерывать процесс создания события
-            location_name = t("create.place_by_link", lang)
-            location_lat = None
-            location_lng = None
+            await message.answer(
+                t("create.validation.location_link_parse_failed", lang),
+                parse_mode="Markdown",
+                reply_markup=get_community_cancel_kb(message.from_user.id),
+            )
+            return
 
     await state.update_data(
         location_url=location_url,
