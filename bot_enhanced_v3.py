@@ -11352,12 +11352,13 @@ async def _show_manage_event(callback: types.CallbackQuery, events: list[dict], 
     if index < 0 or index >= total:
         index = 0
 
+    lang = get_user_language_or_default(callback.from_user.id if callback.from_user else 0)
     event = events[index]
-    header = f"🔧 Управление событием ({index + 1}/{total}):\n\n"
-    text = f"{header}{format_event_for_display(event)}"
+    header = format_translation("manage_event.header", lang, current=index + 1, total=total) + "\n\n"
+    text = f"{header}{format_event_for_display(event, lang)}"
 
-    # Передаем updated_at_utc для проверки времени закрытия
-    buttons = get_status_change_buttons(event["id"], event["status"], event.get("updated_at_utc"))
+    # Передаем updated_at_utc для проверки времени закрытия, lang для i18n кнопок
+    buttons = get_status_change_buttons(event["id"], event["status"], event.get("updated_at_utc"), lang=lang)
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
@@ -11366,9 +11367,11 @@ async def _show_manage_event(callback: types.CallbackQuery, events: list[dict], 
 
     # Добавляем навигацию: всегда показываем 3 кнопки (Список, Назад, Вперед)
     nav_row = [
-        InlineKeyboardButton(text="📋 Список", callback_data=f"back_to_list_{event['id']}"),
-        InlineKeyboardButton(text="◀️ Назад", callback_data=f"prev_event_{max(0, index-1)}"),
-        InlineKeyboardButton(text="▶️ Вперед", callback_data=f"next_event_{min(total-1, index+1)}"),
+        InlineKeyboardButton(text=t("manage_event.nav.list", lang), callback_data=f"back_to_list_{event['id']}"),
+        InlineKeyboardButton(text=t("manage_event.nav.back", lang), callback_data=f"prev_event_{max(0, index-1)}"),
+        InlineKeyboardButton(
+            text=t("manage_event.nav.forward", lang), callback_data=f"next_event_{min(total-1, index+1)}"
+        ),
     ]
     keyboard.inline_keyboard.append(nav_row)
 
@@ -12911,15 +12914,17 @@ async def handle_edit_finish(callback: types.CallbackQuery, state: FSMContext):
             updated_event = next((event for event in all_events if event["id"] == event_id), None)
 
             if updated_event:
-                text = f"✅ **Событие обновлено!**\n\n{format_event_for_display(updated_event)}"
-                buttons = get_status_change_buttons(updated_event["id"], updated_event["status"])
+                user_lang = get_user_language_or_default(callback.from_user.id)
+                text = f"**{t('event.updated', user_lang)}**\n\n{format_event_for_display(updated_event, user_lang)}"
+                buttons = get_status_change_buttons(
+                    updated_event["id"], updated_event["status"], updated_event.get("updated_at_utc"), lang=user_lang
+                )
                 keyboard = InlineKeyboardMarkup(
                     inline_keyboard=[
                         [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])] for btn in buttons
                     ]
                 )
                 await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=keyboard)
-                user_lang = get_user_language_or_default(callback.from_user.id)
                 await callback.answer(t("event.updated", user_lang))
             else:
                 user_lang = get_user_language_or_default(callback.from_user.id)

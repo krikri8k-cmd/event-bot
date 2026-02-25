@@ -198,8 +198,10 @@ def get_events_statistics(user_id: int):
         return {status: 0 for status in VALID_STATUSES}
 
 
-def format_event_for_display(event):
-    """Форматирует событие для отображения в Telegram"""
+def format_event_for_display(event, lang: str | None = None):
+    """Форматирует событие для отображения в Telegram. Если передан lang, строки переводятся через i18n."""
+    from utils.i18n import t
+
     lines = []
 
     # Заголовок с эмодзи статуса
@@ -227,14 +229,25 @@ def format_event_for_display(event):
         time_str = local_time.strftime("%d.%m.%Y | %H:%M")
         lines.append(f"📅 {time_str}")
     else:
-        lines.append("📅 Время не указано")
+        time_tba = t("manage_event.time_tba", lang) if lang else "Время не указано"
+        lines.append(f"📅 {time_tba}")
 
     # Место
     if event["location_name"]:
         lines.append(f"📍 {event['location_name']}")
 
     # Статус
-    lines.append(f"📊 Статус: {event['status_description']}")
+    if lang:
+        status_key = (
+            f"manage_event.status.{event['status']}"
+            if event["status"] in VALID_STATUSES
+            else "manage_event.status.unknown"
+        )
+        status_desc = t(status_key, lang)
+        status_label = t("manage_event.status_label", lang)
+        lines.append(f"{status_label} {status_desc}")
+    else:
+        lines.append(f"📊 Статус: {event['status_description']}")
 
     # Описание (если есть)
     if event["description"]:
@@ -244,15 +257,29 @@ def format_event_for_display(event):
     return "\n".join(lines)
 
 
-def get_status_change_buttons(event_id: int, current_status: str, updated_at_utc=None):
-    """Возвращает кнопки для изменения статуса события"""
+def get_status_change_buttons(event_id: int, current_status: str, updated_at_utc=None, lang: str | None = None):
+    """Возвращает кнопки для изменения статуса события. Если передан lang, подписи кнопок через i18n."""
     from datetime import UTC, datetime, timedelta
+
+    from utils.i18n import t
+
+    def _text(key: str) -> str:
+        return t(key, lang) if lang else _default_text(key)
+
+    def _default_text(key: str) -> str:
+        defaults = {
+            "manage_event.button.finish_event": "⛔ Завершить мероприятие",
+            "manage_event.button.resume": "🔄 Возобновить мероприятие",
+            "manage_event.button.edit": "✏ Редактировать",
+            "manage_event.button.share": "🔗 Поделиться",
+        }
+        return defaults.get(key, key)
 
     buttons = []
 
     # Кнопки в зависимости от текущего статуса
     if current_status == "open":
-        buttons.append({"text": "⛔ Завершить мероприятие", "callback_data": f"close_event_{event_id}"})
+        buttons.append({"text": _text("manage_event.button.finish_event"), "callback_data": f"close_event_{event_id}"})
     elif current_status == "closed":
         # Показываем кнопку "Возобновить" только если событие закрыто менее 24 часов назад
         can_resume = True
@@ -267,17 +294,15 @@ def get_status_change_buttons(event_id: int, current_status: str, updated_at_utc
                 can_resume = False
 
         if can_resume:
-            buttons.append({"text": "🔄 Возобновить мероприятие", "callback_data": f"open_event_{event_id}"})
+            buttons.append({"text": _text("manage_event.button.resume"), "callback_data": f"open_event_{event_id}"})
     elif current_status == "canceled":
         # Для отмененных событий показываем только возобновление
-        buttons.append({"text": "🔄 Возобновить мероприятие", "callback_data": f"open_event_{event_id}"})
+        buttons.append({"text": _text("manage_event.button.resume"), "callback_data": f"open_event_{event_id}"})
 
     # Кнопка редактирования (всегда доступна)
-    buttons.append({"text": "✏ Редактировать", "callback_data": f"edit_event_{event_id}"})
+    buttons.append({"text": _text("manage_event.button.edit"), "callback_data": f"edit_event_{event_id}"})
 
     # Кнопка поделиться событием
-    buttons.append({"text": "🔗 Поделиться", "callback_data": f"share_event_{event_id}"})
-
-    # Кнопка "Вернуться к списку" теперь встроена в навигацию, а не отдельная кнопка
+    buttons.append({"text": _text("manage_event.button.share"), "callback_data": f"share_event_{event_id}"})
 
     return buttons
