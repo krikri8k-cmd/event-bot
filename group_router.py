@@ -2418,12 +2418,20 @@ async def community_show_members(callback: CallbackQuery, bot: Bot, session: Asy
         if event_index is not None:
             # Используем callback для возврата к меню управления с правильным индексом
             keyboard_buttons.append(
-                [InlineKeyboardButton(text="◀️ Назад", callback_data=f"group_prev_event_{event_index}")]
+                [
+                    InlineKeyboardButton(
+                        text=t("manage_event.nav.back", lang), callback_data=f"group_prev_event_{event_index}"
+                    )
+                ]
             )
         else:
             # Fallback: если не нашли индекс, используем старый обработчик
             keyboard_buttons.append(
-                [InlineKeyboardButton(text="◀️ Назад", callback_data=f"group_manage_event_{event_id}")]
+                [
+                    InlineKeyboardButton(
+                        text=t("manage_event.nav.back", lang), callback_data=f"group_manage_event_{event_id}"
+                    )
+                ]
             )
 
         keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -2924,15 +2932,15 @@ async def _show_community_manage_event(
         return
 
     lang = await get_user_language_async(user_id, chat_id)
-    header = f"🔧 Управление событием ({index + 1}/{total}):\n\n"
+    header = format_translation("manage_event.header", lang, current=index + 1, total=total) + "\n\n"
     text = f"{header}{format_community_event_for_display(event, lang)}"
 
     # Получаем username бота для deep-link
     bot_info = await bot.get_me()
     bot_username = bot_info.username or get_bot_username()
 
-    # Получаем кнопки управления (передаем также updated_at для проверки времени закрытия)
-    buttons = get_community_status_buttons(event.id, event.status, event.updated_at, chat_id, bot_username)
+    # Получаем кнопки управления (передаем также updated_at и lang для i18n)
+    buttons = get_community_status_buttons(event.id, event.status, event.updated_at, chat_id, bot_username, lang=lang)
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -2948,9 +2956,14 @@ async def _show_community_manage_event(
 
     # Добавляем навигацию: всегда показываем 3 кнопки (Список, Назад, Вперед)
     nav_row = [
-        InlineKeyboardButton(text="📋 Список", callback_data="group_list"),
-        InlineKeyboardButton(text="◀️ Назад", callback_data=f"group_prev_event_{max(0, index-1)}"),
-        InlineKeyboardButton(text="▶️ Вперед", callback_data=f"group_next_event_{min(total-1, index+1)}"),
+        InlineKeyboardButton(text=t("manage_event.nav.list", lang), callback_data="group_list"),
+        InlineKeyboardButton(
+            text=t("manage_event.nav.back", lang), callback_data=f"group_prev_event_{max(0, index-1)}"
+        ),
+        InlineKeyboardButton(
+            text=t("manage_event.nav.forward", lang),
+            callback_data=f"group_next_event_{min(total-1, index+1)}",
+        ),
     ]
     keyboard.inline_keyboard.append(nav_row)
 
@@ -3098,9 +3111,9 @@ async def _show_community_view_event(
     )
 
     nav_row = [
-        InlineKeyboardButton(text="📋 Меню", callback_data="group_back_to_panel"),
-        InlineKeyboardButton(text="◀️ Назад", callback_data=f"view_prev_event_{prev_index}"),
-        InlineKeyboardButton(text="▶️ Вперед", callback_data=f"view_next_event_{next_index}"),
+        InlineKeyboardButton(text=t("group.button.menu", lang), callback_data="group_back_to_panel"),
+        InlineKeyboardButton(text=t("manage_event.nav.back", lang), callback_data=f"view_prev_event_{prev_index}"),
+        InlineKeyboardButton(text=t("manage_event.nav.forward", lang), callback_data=f"view_next_event_{next_index}"),
     ]
     keyboard_buttons.append(nav_row)
 
@@ -3413,19 +3426,31 @@ async def group_manage_event(callback: CallbackQuery, bot: Bot, session: AsyncSe
         lang = await get_user_language_async(user_id, chat_id)
         title = get_event_title(event, lang)
         safe_title = title.replace("*", "").replace("_", "").replace("`", "'")
-        date_str = format_community_event_time(event, "%d.%m.%Y %H:%M") if event.starts_at else "Дата не указана"
+        date_str = (
+            format_community_event_time(event, "%d.%m.%Y %H:%M")
+            if event.starts_at
+            else t("reminder.date_unknown", lang)
+        )
 
-        text = "⚙️ **Управление событием**\n\n"
+        text = t("group.manage.title", lang) + "\n\n"
         text += f"**{safe_title}**\n"
         text += f"📅 {date_str}\n"
-        text += f"👥 Участников: {participants_count}\n"
+        text += format_translation("group.manage.participants_count", lang, count=participants_count) + "\n"
 
-        # Создаем клавиатуру с опциями управления
+        # Создаем клавиатуру с опциями управления (i18n)
         keyboard_buttons = [
-            [InlineKeyboardButton(text="👥 Участники", callback_data=f"community_members_{event_id}")],
-            [InlineKeyboardButton(text="✏️ Редактировать", callback_data=f"group_edit_event_{event_id}")],
-            [InlineKeyboardButton(text="❌ Удалить", callback_data=f"group_delete_event_{event_id}")],
-            [InlineKeyboardButton(text="◀️ Назад к списку", callback_data="group_list")],
+            [
+                InlineKeyboardButton(
+                    text=t("group.card.participants", lang), callback_data=f"community_members_{event_id}"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=t("manage_event.button.edit", lang), callback_data=f"group_edit_event_{event_id}"
+                )
+            ],
+            [InlineKeyboardButton(text=t("group.button.delete", lang), callback_data=f"group_delete_event_{event_id}")],
+            [InlineKeyboardButton(text=t("group.button.back_to_list", lang), callback_data="group_list")],
         ]
 
         keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -3874,16 +3899,23 @@ def _build_single_card_keyboard(event_id: int, lang: str) -> InlineKeyboardMarku
 
 
 def get_community_status_buttons(
-    event_id: int, current_status: str, updated_at=None, chat_id: int = None, bot_username: str = None
+    event_id: int,
+    current_status: str,
+    updated_at=None,
+    chat_id: int = None,
+    bot_username: str = None,
+    lang: str = "ru",
 ) -> list[dict[str, str]]:
-    """Возвращает кнопки для управления Community событием"""
+    """Возвращает кнопки для управления Community событием (с учётом lang для i18n)."""
     from datetime import UTC, datetime, timedelta
 
     buttons = []
 
     # Кнопки в зависимости от текущего статуса
     if current_status == "open":
-        buttons.append({"text": "⛔ Завершить мероприятие", "callback_data": f"group_close_event_{event_id}"})
+        buttons.append(
+            {"text": t("manage_event.button.finish_event", lang), "callback_data": f"group_close_event_{event_id}"}
+        )
     elif current_status == "closed":
         # Показываем кнопку "Возобновить" только если событие закрыто менее 24 часов назад
         can_resume = True
@@ -3898,18 +3930,20 @@ def get_community_status_buttons(
                 can_resume = False
 
         if can_resume:
-            buttons.append({"text": "🔄 Возобновить мероприятие", "callback_data": f"group_open_event_{event_id}"})
+            buttons.append(
+                {"text": t("manage_event.button.resume", lang), "callback_data": f"group_open_event_{event_id}"}
+            )
 
     # Кнопка просмотра участников
-    buttons.append({"text": "👥 Участники", "callback_data": f"community_members_{event_id}"})
+    buttons.append({"text": t("group.card.participants", lang), "callback_data": f"community_members_{event_id}"})
 
     # Кнопка редактирования (всегда доступна) - используем deep-link для прямого перехода
     if chat_id and bot_username:
         edit_link = f"https://t.me/{bot_username}?start=edit_group_{event_id}_{chat_id}"
-        buttons.append({"text": "✏️ Редактировать", "url": edit_link})
+        buttons.append({"text": t("manage_event.button.edit", lang), "url": edit_link})
     else:
         # Fallback на callback_data, если нет данных для deep-link
-        buttons.append({"text": "✏️ Редактировать", "callback_data": f"group_edit_event_{event_id}"})
+        buttons.append({"text": t("manage_event.button.edit", lang), "callback_data": f"group_edit_event_{event_id}"})
 
     # Кнопка удаления убрана - для закрытия события используется "Завершить мероприятие"
     # Кнопка "Вернуться к списку" теперь встроена в навигацию, а не отдельная кнопка
@@ -4179,11 +4213,13 @@ async def group_edit_finish(callback: CallbackQuery, bot: Bot, session: AsyncSes
             event = await session.get(CommunityEvent, event_id)
             if event and event.chat_id == chat_id:
                 lang = await get_user_language_async(user_id, chat_id)
-                text = f"✅ **Событие обновлено!**\n\n{format_community_event_for_display(event, lang)}"
+                text = f"**{t('event.updated', lang)}**\n\n{format_community_event_for_display(event, lang)}"
                 # Получаем username бота для deep-link
                 bot_info = await bot.get_me()
                 bot_username = bot_info.username or get_bot_username()
-                buttons = get_community_status_buttons(event.id, event.status, event.updated_at, chat_id, bot_username)
+                buttons = get_community_status_buttons(
+                    event.id, event.status, event.updated_at, chat_id, bot_username, lang=lang
+                )
                 keyboard = InlineKeyboardMarkup(
                     inline_keyboard=[
                         [
