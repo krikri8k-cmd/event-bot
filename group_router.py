@@ -2544,6 +2544,8 @@ async def card_join_event(callback: CallbackQuery, bot: Bot, session: AsyncSessi
     except Exception as e:
         logger.warning(f"⚠️ Не удалось отредактировать карточку после join: {e}")
     await callback.answer("✅ Записаны!" if lang == "ru" else "✅ Joined!")
+    # Обновляем список событий в чате, если он есть — чтобы показывал «Вы записаны»
+    await refresh_community_events_list_if_present(bot, session, chat_id, callback.from_user)
 
 
 @group_router.callback_query(F.data.regexp(r"^leave_event:\d+$"))
@@ -2596,6 +2598,8 @@ async def card_leave_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
     except Exception as e:
         logger.warning(f"⚠️ Не удалось отредактировать карточку после leave: {e}")
     await callback.answer("✅ Запись отменена" if lang == "ru" else "✅ Left")
+    # Обновляем список событий в чате, если он есть — чтобы статус «Вы записаны» снялся
+    await refresh_community_events_list_if_present(bot, session, chat_id, callback.from_user)
 
 
 @group_router.callback_query(F.data.startswith("community_join_") & ~F.data.startswith("community_join_confirm_"))
@@ -2715,6 +2719,8 @@ async def community_join_confirm(callback: CallbackQuery, bot: Bot, session: Asy
             await callback.answer("✅ Вы записались на событие!")
             # Обновляем карточки уведомлений (New event! / напоминания), чтобы кол-во участников совпадало
             await update_community_event_tracked_messages(bot, session, event_id, chat_id)
+            # Обновляем список событий в чате, если он есть — чтобы показывал «Вы записаны»
+            await refresh_community_events_list_if_present(bot, session, chat_id, callback.from_user)
             # Удаляем сообщение с подтверждением
             try:
                 await callback.message.delete()
@@ -3978,6 +3984,59 @@ async def update_community_event_tracked_messages(bot: Bot, session: AsyncSessio
             )
         except Exception as e:
             logger.warning(f"⚠️ Не удалось обновить сообщение {bot_msg.message_id} для события {event_id}: {e}")
+
+
+async def refresh_community_events_list_if_present(bot: Bot, session: AsyncSession, chat_id: int, from_user) -> None:
+    """
+    Если в чате есть активное сообщение со списком событий (тег list) — обновляет его на месте.
+    Вызывать после записи/отписки через карточку уведомления, чтобы список показывал актуальный статус.
+    """
+    result = await session.execute(
+        select(BotMessage).where(
+            BotMessage.chat_id == chat_id,
+            BotMessage.deleted.is_(False),
+            BotMessage.tag == "list",
+        )
+    )
+    list_messages = result.scalars().all()
+    if not list_messages:
+        return
+    first_list_msg = list_messages[0]
+    bot_info = await bot.get_me()
+
+    class FakeEditMessage:
+        def __init__(self, cid: int, mid: int, bot_instance: Bot):
+            self.chat = type("Chat", (), {"id": cid})()
+            self.message_id = mid
+            self.from_user = bot_info
+            self._cid = cid
+            self._mid = mid
+            self._bot = bot_instance
+
+        async def edit_text(self, text: str, reply_markup=None, parse_mode=None):
+            await self._bot.edit_message_text(
+                chat_id=self._cid,
+                message_id=self._mid,
+                text=text,
+                reply_markup=reply_markup,
+                parse_mode=parse_mode,
+            )
+
+    class FakeCallbackForListEdit:
+        def __init__(self, list_msg_id: int, from_user_obj):
+            self.message = FakeEditMessage(chat_id, list_msg_id, bot)
+            self.from_user = from_user_obj
+            self.bot = bot
+
+        async def answer(self, *args, **kwargs):
+            pass
+
+    try:
+        fake_callback = FakeCallbackForListEdit(first_list_msg.message_id, from_user)
+        await group_list_events_page(fake_callback, bot, session, page=1)
+        logger.info("✅ Список событий обновлён после записи/отписки (message_id=%s)", first_list_msg.message_id)
+    except Exception as e:
+        logger.warning("⚠️ Не удалось обновить список событий после записи/отписки: %s", e)
 
 
 def get_community_status_buttons(
