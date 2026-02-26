@@ -645,57 +645,71 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
             logger.warning(f"⚠️ Не удалось удалить сообщение пользователя: {delete_error}")
 
         # Проверяем, есть ли активные сообщения со списком событий (тег "list")
-        # Если есть - обновляем их (удаляем и создаем новый), если нет - проверяем напоминания
+        # Если есть — редактируем список на месте (показываем «Вы записаны»), иначе отправляем новый
 
         from database import BotMessage
 
-        # Проверяем наличие активных списков событий
         list_check = await session.execute(
             select(BotMessage).where(
                 BotMessage.chat_id == chat_id,
                 BotMessage.deleted.is_(False),
-                BotMessage.tag == "list",  # Только списки событий
+                BotMessage.tag == "list",
             )
         )
         has_active_lists = list_check.scalar_one_or_none() is not None
 
         if has_active_lists:
-            # Если есть активные списки - обновляем их (удаляем старые и создаем новый)
-            logger.info("📋 Найдены активные списки событий, обновляем существующий список")
+            logger.info("📋 Найдены активные списки событий, обновляем список на месте")
             try:
-                # Находим все сообщения со списком событий (тег "list")
                 result = await session.execute(
                     select(BotMessage).where(
                         BotMessage.chat_id == chat_id,
                         BotMessage.deleted.is_(False),
-                        BotMessage.tag == "list",  # Только списки событий
+                        BotMessage.tag == "list",
                     )
                 )
                 list_messages = result.scalars().all()
+                if list_messages:
+                    first_list_msg = list_messages[0]
+                    bot_info = await bot.get_me()
 
-                deleted_count = 0
-                for bot_msg in list_messages:
-                    try:
-                        await bot.delete_message(chat_id=chat_id, message_id=bot_msg.message_id)
-                        bot_msg.deleted = True
-                        deleted_count += 1
-                        logger.info(
-                            f"✅ Удалено сообщение со списком событий "
-                            f"(message_id={bot_msg.message_id}, tag={bot_msg.tag})"
-                        )
-                    except Exception as delete_error:
-                        logger.warning(f"⚠️ Не удалось удалить сообщение {bot_msg.message_id}: {delete_error}")
-                        bot_msg.deleted = True  # Помечаем как удаленное
+                    class FakeEditMessage:
+                        """Сообщение-обёртка для редактирования списка через group_list_events_page."""
 
-                await session.commit()
-                logger.info(f"✅ Удалено {deleted_count} сообщений со списком событий")
+                        def __init__(self, cid: int, mid: int, bot_instance: Bot):
+                            self.chat = type("Chat", (), {"id": cid})()
+                            self.message_id = mid
+                            self.from_user = bot_info
+                            self._cid = cid
+                            self._mid = mid
+                            self._bot = bot_instance
+
+                        async def edit_text(self, text: str, reply_markup=None, parse_mode=None):
+                            await self._bot.edit_message_text(
+                                chat_id=self._cid,
+                                message_id=self._mid,
+                                text=text,
+                                reply_markup=reply_markup,
+                                parse_mode=parse_mode,
+                            )
+
+                    class FakeCallbackForListEdit:
+                        def __init__(self, msg: Message, list_msg_id: int):
+                            self.message = FakeEditMessage(chat_id, list_msg_id, bot)
+                            self.from_user = msg.from_user
+                            self.bot = bot
+
+                        async def answer(self, *args, **kwargs):
+                            pass
+
+                    fake_callback = FakeCallbackForListEdit(message, first_list_msg.message_id)
+                    await group_list_events_page(fake_callback, bot, session, page=1)
+                    logger.info("✅ Список событий обновлён на месте (message_id=%s)", first_list_msg.message_id)
             except Exception as e:
-                logger.error(f"❌ Ошибка при удалении предыдущих списков событий: {e}")
+                logger.error(f"❌ Ошибка при обновлении списка событий: {e}")
         else:
-            # Если списков нет - используем стандартную функцию group_list_events_page
-            logger.info("📋 Списков не найдено, используем стандартный формат списка событий")
+            logger.info("📋 Списков не найдено, отправляем новый список")
 
-            # Создаем фейковый callback для вызова group_list_events_page из Message
             class FakeCallback:
                 def __init__(self, msg, user):
                     self.message = msg
@@ -704,11 +718,11 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
                     self.bot = bot
 
                 async def answer(self, *args, **kwargs):
-                    pass  # Игнорируем ответ на callback
+                    pass
 
             fake_callback = FakeCallback(message, message.from_user)
             await group_list_events_page(fake_callback, bot, session, page=1)
-            return
+        return
 
     except Exception as e:
         logger.error(f"❌ Ошибка показа подтверждения: {e}")
