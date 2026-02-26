@@ -339,6 +339,9 @@ async def handle_join_event_command(message: Message, bot: Bot, session: AsyncSe
         except Exception as delete_error:
             logger.warning(f"⚠️ Не удалось удалить сообщение пользователя: {delete_error}")
 
+        # Обновляем карточки уведомлений (New event! / напоминания), чтобы отображалось актуальное кол-во участников
+        await update_community_event_tracked_messages(bot, session, event_id, chat_id)
+
         # Проверяем, есть ли активные сообщения со списком событий (тег "list")
         # Если есть - обновляем их (удаляем и создаем новый), если нет - проверяем напоминания
         from datetime import timedelta
@@ -643,6 +646,9 @@ async def handle_join_event_command_short(message: Message, bot: Bot, session: A
             logger.info(f"✅ Удалено сообщение пользователя {user_id} с командой /joinevent{event_id}")
         except Exception as delete_error:
             logger.warning(f"⚠️ Не удалось удалить сообщение пользователя: {delete_error}")
+
+        # Обновляем карточки уведомлений (New event! / напоминания), чтобы кол-во участников совпадало
+        await update_community_event_tracked_messages(bot, session, event_id, chat_id)
 
         # Проверяем, есть ли активные сообщения со списком событий (тег "list")
         # Если есть — редактируем список на месте (показываем «Вы записаны»), иначе отправляем новый
@@ -2519,6 +2525,9 @@ async def card_join_event(callback: CallbackQuery, bot: Bot, session: AsyncSessi
         await callback.answer(msg, show_alert=True)
         return
 
+    # Обновляем остальные карточки уведомлений (другие сообщения New event! / напоминания)
+    await update_community_event_tracked_messages(bot, session, event_id, chat_id)
+
     participants = await get_participants_optimized(session, event_id)
     lang = await get_user_language_async(user_id, chat_id)
 
@@ -2567,6 +2576,9 @@ async def card_leave_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
         lang = await get_user_language_async(user_id, chat_id)
         await callback.answer("ℹ️ Вы не были записаны" if lang == "ru" else "ℹ️ You weren't in", show_alert=True)
         return
+
+    # Обновляем карточки уведомлений (New event! / напоминания), чтобы кол-во участников совпадало
+    await update_community_event_tracked_messages(bot, session, event_id, chat_id)
 
     participants = await get_participants_optimized(session, event_id)
     lang = await get_user_language_async(user_id, chat_id)
@@ -2701,6 +2713,8 @@ async def community_join_confirm(callback: CallbackQuery, bot: Bot, session: Asy
 
         if added:
             await callback.answer("✅ Вы записались на событие!")
+            # Обновляем карточки уведомлений (New event! / напоминания), чтобы кол-во участников совпадало
+            await update_community_event_tracked_messages(bot, session, event_id, chat_id)
             # Удаляем сообщение с подтверждением
             try:
                 await callback.message.delete()
@@ -2786,6 +2800,8 @@ async def community_leave_event(callback: CallbackQuery, bot: Bot, session: Asyn
 
         if removed:
             await callback.answer("✅ Запись отменена")
+            # Обновляем карточки уведомлений (New event! / напоминания), чтобы кол-во участников совпадало
+            await update_community_event_tracked_messages(bot, session, event_id, chat_id)
 
             # Проверяем, есть ли активные сообщения со списком событий (тег "list")
             # Если есть - обновляем их (удаляем старые и создаем новый), если нет - проверяем напоминания
