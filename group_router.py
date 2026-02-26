@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import BotMessage, CommunityEvent
 from utils.i18n import format_translation, get_bot_username, t
 from utils.messaging_utils import delete_all_tracked, is_chat_admin
+from utils.sync_community_world_events import sync_community_event_to_world
 from utils.user_language import (
     get_event_description,
     get_event_title,
@@ -3555,6 +3556,7 @@ async def group_close_event(callback: CallbackQuery, bot: Bot, session: AsyncSes
         event.status = "closed"
         event.updated_at = datetime.now(UTC)
         await session.commit()
+        await sync_community_event_to_world(session, chat_id, event_id)
 
         await callback.answer("✅ Событие завершено")
 
@@ -3643,6 +3645,7 @@ async def group_open_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
         event.status = "open"
         event.updated_at = datetime.now(UTC)
         await session.commit()
+        await sync_community_event_to_world(session, chat_id, event_id)
 
         await callback.answer("✅ Событие возобновлено")
 
@@ -4202,6 +4205,8 @@ async def update_community_event_field(
         logger.info(f"Событие {event_id} успешно обновлено в БД")
         if bot:
             await update_community_event_tracked_messages(bot, session, event_id, chat_id)
+        # Синхронизация с World: если событие опубликовано в основной бот — обновить и там
+        await sync_community_event_to_world(session, chat_id, event_id)
         return True
 
     except Exception as e:

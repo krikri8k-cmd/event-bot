@@ -83,7 +83,13 @@ def change_event_status(event_id: int, new_status: str, user_id: int) -> bool:
             )
 
             print(f"Статус события {event_id} изменен на '{new_status}'")
-            return True
+
+        # Синхронизация с Community: если событие из community — обновить статус и там
+        from database import get_session
+        from utils.sync_community_world_events import sync_world_event_to_community
+
+        sync_world_event_to_community(event_id, get_session)
+        return True
 
     except Exception as e:
         print(f"Ошибка изменения статуса события {event_id}: {e}")

@@ -2776,6 +2776,11 @@ def update_event_field(event_id: int, field: str, value: str, user_id: int) -> b
             event.updated_at_utc = datetime.now(UTC)
             session.commit()
             logging.info(f"Событие {event_id} успешно обновлено в БД")
+            # Синхронизация с Community: если это событие из community — обновить и там
+            if event.source == "community" and event.external_id and str(event.external_id).startswith("community:"):
+                from utils.sync_community_world_events import sync_world_event_to_community
+
+                sync_world_event_to_community(event_id, get_session)
             return True
 
     except Exception as e:
@@ -3728,7 +3733,14 @@ async def update_community_event_field_pm(event_id: int, field: str, value: str,
             event.updated_at = datetime.now(UTC)
             session.commit()
             logger.info(f"Событие {event_id} успешно обновлено в БД")
-            return True
+
+        # Синхронизация с World: если событие опубликовано в основной бот — обновить и там
+        from database import async_session_maker
+        from utils.sync_community_world_events import sync_community_event_to_world
+
+        async with async_session_maker() as session:
+            await sync_community_event_to_world(session, chat_id, event_id)
+        return True
 
     except Exception as e:
         logger.error(f"Ошибка обновления события {event_id}: {e}")
