@@ -830,17 +830,26 @@ class ModernEventScheduler:
             logger.error(f"❌ Ошибка проверки удаленных чатов: {e}")
 
     def _run_backfill_translations(self):
-        """Догоняющий перевод событий без EN (не чаще 10 мин, пауза при ошибке — внутри run_backfill)."""
+        """Догоняющий перевод событий от пользователей (user-очередь)."""
         try:
             from utils.backfill_translation import run_backfill
 
-            result = run_backfill(full=False)
-            if result.get("paused"):
-                logger.debug("[BACKFILL] Skipped this run (paused after OpenAI error)")
-            elif result.get("translated", 0) > 0:
-                logger.info("[BACKFILL] Translated %s events", result["translated"])
+            result = run_backfill(full=False, queue="user")
+            if result.get("translated", 0) > 0:
+                logger.info("[BACKFILL] [user] Translated %s events", result["translated"])
         except Exception as e:
-            logger.warning("[BACKFILL] Job failed: %s", e)
+            logger.warning("[BACKFILL] [user] Job failed: %s", e)
+
+    def _run_backfill_translations_parser(self):
+        """Догоняющий перевод событий от парсеров (parser-очередь)."""
+        try:
+            from utils.backfill_translation import run_backfill
+
+            result = run_backfill(full=False, queue="parser")
+            if result.get("translated", 0) > 0:
+                logger.info("[BACKFILL] [parser] Translated %s events", result["translated"])
+        except Exception as e:
+            logger.warning("[BACKFILL] [parser] Job failed: %s", e)
 
     def _run_task_places_hint_backfill(self):
         """Периодический перевод task_hint → task_hint_en для task_places (до 158 мест)."""
@@ -1061,27 +1070,39 @@ class ModernEventScheduler:
         )
         logger.info("   ✅ Зарегистрирована задача: уведомления о начале событий (каждые 5 минут)")
 
-        # ТЗ: backfill переводов не чаще раза в 10 минут (хвосты без title_en)
+        # Backfill переводов:
+        # - user-ивенты: каждые 15 минут
+        # - parser-ивенты: каждые 60 минут
         self.scheduler.add_job(
             self._run_backfill_translations,
             "interval",
-            minutes=10,
-            id="backfill-translations",
+            minutes=15,
+            id="backfill-translations-user",
             max_instances=1,
             coalesce=True,
         )
-        logger.info("   ✅ Зарегистрирована задача: backfill переводов (каждые 10 минут)")
+        logger.info("   ✅ Зарегистрирована задача: backfill переводов (user, каждые 15 минут)")
 
-        # Перевод подсказок task_places (task_hint → task_hint_en) каждые 15 минут
+        self.scheduler.add_job(
+            self._run_backfill_translations_parser,
+            "interval",
+            minutes=60,
+            id="backfill-translations-parser",
+            max_instances=1,
+            coalesce=True,
+        )
+        logger.info("   ✅ Зарегистрирована задача: backfill переводов (parser, каждые 60 минут)")
+
+        # Перевод подсказок task_places (task_hint → task_hint_en) каждые 6 часов
         self.scheduler.add_job(
             self._run_task_places_hint_backfill,
             "interval",
-            minutes=15,
+            hours=6,
             id="task-places-hint-backfill",
             max_instances=1,
             coalesce=True,
         )
-        logger.info("   ✅ Зарегистрирована задача: task_places hint backfill (каждые 15 минут)")
+        logger.info("   ✅ Зарегистрирована задача: task_places hint backfill (каждые 6 часов)")
 
         self.scheduler.start()
         logger.info("🚀 Современный планировщик запущен!")
@@ -1093,12 +1114,18 @@ class ModernEventScheduler:
         logger.info("   🔍 Проверка удаленных чатов: каждые 24 часа")
         logger.info("   🔔 Напоминания о событиях: каждые 30 минут")
         logger.info("   🎉 Уведомления о начале событий: каждые 5 минут")
-        logger.info("   📝 Backfill переводов: каждые 10 минут")
+        logger.info("   📝 Backfill переводов (user): каждые 15 минут")
+        logger.info("   📝 Backfill переводов (parser): каждые 60 минут")
 
         # Показываем следующее время выполнения задач
         jobs = self.scheduler.get_jobs()
         for job in jobs:
-            if job.id in ["community-reminders", "event-start-notifications", "backfill-translations"]:
+            if job.id in [
+                "community-reminders",
+                "event-start-notifications",
+                "backfill-translations-user",
+                "backfill-translations-parser",
+            ]:
                 next_run = job.next_run_time
                 if next_run:
                     from datetime import UTC, datetime

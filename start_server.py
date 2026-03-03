@@ -3,13 +3,29 @@
 
 import logging
 import os
+import sys
 
 import uvicorn
 
 from api.app import create_app
 
-# Настройка логирования
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+# Настройка логирования: INFO/DEBUG в stdout, ERROR+ в stderr (важно для Railway)
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+
+# Чистим существующие хендлеры, чтобы не дублировать вывод
+if root_logger.handlers:
+    root_logger.handlers.clear()
+
+stdout_handler = logging.StreamHandler(sys.stdout)
+stdout_handler.setLevel(logging.INFO)
+
+stderr_handler = logging.StreamHandler(sys.stderr)
+stderr_handler.setLevel(logging.ERROR)
+
+root_logger.addHandler(stdout_handler)
+root_logger.addHandler(stderr_handler)
+
 logger = logging.getLogger(__name__)
 
 

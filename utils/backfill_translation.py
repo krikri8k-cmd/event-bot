@@ -31,10 +31,17 @@ WHERE_TAIL = """
 def run_backfill(
     batch_size: int = BACKFILL_BATCH_SIZE,
     full: bool = True,
+    queue: str | None = None,
 ) -> dict[str, Any]:
     """
-    Две очереди: сначала user (event_source='user', пауза 30 сек при ошибке),
-    затем parser (event_source IS NULL OR 'parser', пауза 10 мин).
+    Догоняющий перевод с двумя очередями:
+    - user (event_source='user', пауза 30 сек при ошибке)
+    - parser (event_source IS NULL OR 'parser', пауза 10 мин)
+
+    queue:
+        - None (по умолчанию): обрабатывает обе очереди (user, затем parser)
+        - "user": обрабатывает только user-очередь
+        - "parser": обрабатывает только parser-очередь
     """
     global _last_openai_error_at
     engine = get_engine()
@@ -45,32 +52,37 @@ def run_backfill(
     now = time.time()
 
     # 1) Очередь User — приоритет, короткое окно повтора
-    if _last_openai_error_at["user"] is None or (now - _last_openai_error_at["user"]) >= OPENAI_ERROR_PAUSE_SEC_USER:
-        p, t, s = _process_queue(engine, batch_size, full, "user", "event_source = 'user'", "user")
-        total_processed += p
-        total_translated += t
-        total_skipped += s
-    else:
-        logger.debug("[BACKFILL] User queue paused (30 sec after error)")
+    if queue in (None, "user"):
+        if (
+            _last_openai_error_at["user"] is None
+            or (now - _last_openai_error_at["user"]) >= OPENAI_ERROR_PAUSE_SEC_USER
+        ):
+            p, t, s = _process_queue(engine, batch_size, full, "user", "event_source = 'user'", "user")
+            total_processed += p
+            total_translated += t
+            total_skipped += s
+        else:
+            logger.debug("[BACKFILL] User queue paused (30 sec after error)")
 
     # 2) Очередь Parser — пауза 10 мин при ошибке
-    if (
-        _last_openai_error_at["parser"] is None
-        or (now - _last_openai_error_at["parser"]) >= OPENAI_ERROR_PAUSE_SEC_PARSER
-    ):
-        p, t, s = _process_queue(
-            engine,
-            batch_size,
-            full,
-            "parser",
-            "(event_source IS NULL OR event_source = 'parser')",
-            "parser",
-        )
-        total_processed += p
-        total_translated += t
-        total_skipped += s
-    else:
-        logger.info("[BACKFILL] Parser queue paused (10 min after error)")
+    if queue in (None, "parser"):
+        if (
+            _last_openai_error_at["parser"] is None
+            or (now - _last_openai_error_at["parser"]) >= OPENAI_ERROR_PAUSE_SEC_PARSER
+        ):
+            p, t, s = _process_queue(
+                engine,
+                batch_size,
+                full,
+                "parser",
+                "(event_source IS NULL OR event_source = 'parser')",
+                "parser",
+            )
+            total_processed += p
+            total_translated += t
+            total_skipped += s
+        else:
+            logger.info("[BACKFILL] Parser queue paused (10 min after error)")
 
     if total_translated > 0:
         logger.info(

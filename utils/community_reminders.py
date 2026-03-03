@@ -79,6 +79,12 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
             f"ищем события между {time_min_utc} и {time_max_utc} UTC"
         )
 
+        # Грубая фильтрация по времени на уровне БД, чтобы не тянуть все события:
+        # берём только события, которые по локальному starts_at находятся в окне ~±1 день от сейчас.
+        # Точный учёт таймзон остаётся в Python ниже.
+        sql_time_min = now - timedelta(days=1)
+        sql_time_max = now + timedelta(days=1)
+
         # Открытые Community события (title_en/description_en для i18n напоминаний)
         stmt = (
             select(CommunityEvent)
@@ -99,7 +105,11 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
                     CommunityEvent.status,
                 )
             )
-            .where(CommunityEvent.status == "open")
+            .where(
+                CommunityEvent.status == "open",
+                CommunityEvent.starts_at >= sql_time_min,
+                CommunityEvent.starts_at <= sql_time_max,
+            )
             .order_by(CommunityEvent.starts_at)
         )
         result = await session.execute(stmt)
@@ -418,6 +428,13 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
             f"ищем события между {time_min_utc} и {time_max_utc} UTC (через ~24 часа)"
         )
 
+        # Грубая фильтрация по времени на уровне БД:
+        # берём только события, у которых локальный starts_at попадает в окно ~[-1 день; +2 дня] от «сейчас».
+        # Это гарантированно включает события с напоминанием за 24 часа при любой таймзоне,
+        # но не тянет в память все будущие open-события.
+        sql_time_min = now - timedelta(days=1)
+        sql_time_max = now + timedelta(days=2)
+
         # Открытые Community события (title_en/description_en для i18n напоминаний)
         logger.info("🔔 Выполняем запрос к БД для получения открытых Community событий...")
         stmt = (
@@ -439,7 +456,11 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
                     CommunityEvent.status,
                 )
             )
-            .where(CommunityEvent.status == "open")
+            .where(
+                CommunityEvent.status == "open",
+                CommunityEvent.starts_at >= sql_time_min,
+                CommunityEvent.starts_at <= sql_time_max,
+            )
             .order_by(CommunityEvent.starts_at)
         )
         result = await session.execute(stmt)
