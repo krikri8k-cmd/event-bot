@@ -27,6 +27,14 @@ def escape_markdown(text: str) -> str:
     return text.replace("*", "\\*").replace("_", "\\_").replace("`", "\\`").replace("[", "\\[").replace("]", "\\]")
 
 
+async def _rollback_session_safely(session: AsyncSession, where: str) -> None:
+    """Безопасный rollback для очистки состояния 'failed transaction'."""
+    try:
+        await session.rollback()
+    except Exception as e:  # noqa: BLE001
+        logger.warning("⚠️ Не удалось выполнить rollback в %s: %s", where, e)
+
+
 async def get_reminder_lang(session: AsyncSession, chat_id: int, organizer_id: int | None) -> str:
     """Язык для текста напоминания: приоритет chat_settings.default_language → organizer language_code → ru."""
     try:
@@ -397,7 +405,8 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
 
         logger.info(f"🔔 Итоги отправки уведомлений о начале: отправлено {sent_count}, пропущено {skipped_count}")
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
+        await _rollback_session_safely(session, "send_event_start_notifications")
         logger.error(f"❌ Ошибка при отправке уведомлений о начале: {e}")
         import traceback
 
@@ -739,7 +748,8 @@ async def send_24h_reminders(bot: Bot, session: AsyncSession):
 
         logger.info(f"🔔 Итоги отправки напоминаний: отправлено {sent_count}, пропущено {skipped_count}")
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
+        await _rollback_session_safely(session, "send_24h_reminders")
         logger.error(f"❌ Ошибка при отправке напоминаний: {e}")
         import traceback
 
