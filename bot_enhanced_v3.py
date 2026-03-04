@@ -7747,9 +7747,8 @@ async def handle_my_events_page(callback: types.CallbackQuery):
 
 @main_router.callback_query(F.data == "my_events_page_noop")
 async def handle_my_events_page_noop(callback: types.CallbackQuery):
-    """Клик по «Стр. N/M» — без действия."""
-    user_lang = get_user_language_or_default(callback.from_user.id)
-    await callback.answer(t("pager.page_edge", user_lang))
+    """Клик по «Стр. N/M» — без действия, ничего не показываем."""
+    await callback.answer()
 
 
 @main_router.callback_query(F.data == "show_my_tasks")
@@ -8987,7 +8986,7 @@ async def handle_places_page(callback: types.CallbackQuery, state: FSMContext):
     parts = callback.data.split(":")
     user_lang = get_user_language_or_default(callback.from_user.id)
     if len(parts) < 3 or parts[2] == "noop":
-        await callback.answer(t("tasks.page_edge", user_lang))
+        await callback.answer()
         return
 
     category = parts[1]
@@ -11406,7 +11405,7 @@ async def handle_pagination(callback: types.CallbackQuery):
         token = callback.data.split(":", 1)[1]
         user_lang = get_user_language_or_default(callback.from_user.id)
         if token == "noop":
-            await callback.answer(t("pager.page_edge", user_lang))
+            await callback.answer()
             return
 
         page = int(token)
