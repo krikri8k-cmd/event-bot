@@ -1617,11 +1617,11 @@ def kb_pager(
         next_page = 1 if page == total else page + 1
         buttons.append(
             [
-                InlineKeyboardButton(text=t("pager.prev", lang), callback_data=f"pg:{prev_page}"),
                 InlineKeyboardButton(
                     text=format_translation("pager.page", lang, page=page, total=total),
                     callback_data="pg:noop",
                 ),
+                InlineKeyboardButton(text=t("pager.prev", lang), callback_data=f"pg:{prev_page}"),
                 InlineKeyboardButton(text=t("pager.next", lang), callback_data=f"pg:{next_page}"),
             ]
         )
@@ -9191,11 +9191,11 @@ async def show_tasks_for_category(
         next_p = 1 if page == total_pages else page + 1
         keyboard.append(
             [
-                InlineKeyboardButton(text=t("pager.prev", lang), callback_data=f"places_page:{category}:{prev_p}"),
                 InlineKeyboardButton(
                     text=t("pager.page", lang).format(page=page, total=total_pages),
                     callback_data="places_page:noop",
                 ),
+                InlineKeyboardButton(text=t("pager.prev", lang), callback_data=f"places_page:{category}:{prev_p}"),
                 InlineKeyboardButton(text=t("pager.next", lang), callback_data=f"places_page:{category}:{next_p}"),
             ]
         )

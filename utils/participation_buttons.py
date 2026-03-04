@@ -104,11 +104,11 @@ def create_events_list_with_participation(
         prev_p = total_pages if page == 1 else (page - 1)
         next_p = 1 if page == total_pages else (page + 1)
         nav_row = [
-            InlineKeyboardButton(text=t("pager.prev", lang), callback_data=f"page:{prev_p}"),
             InlineKeyboardButton(
                 text=format_translation("pager.page", lang, page=page, total=total_pages),
                 callback_data="page:noop",
             ),
+            InlineKeyboardButton(text=t("pager.prev", lang), callback_data=f"page:{prev_p}"),
             InlineKeyboardButton(text=t("pager.next", lang), callback_data=f"page:{next_p}"),
         ]
         keyboard_buttons.append(nav_row)

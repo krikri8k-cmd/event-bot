@@ -1800,11 +1800,11 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
             next_p = 1 if page == total_pages else page + 1
             nav_row = [
                 InlineKeyboardButton(text=t("group.button.menu", lang), callback_data="group_back_to_panel"),
-                InlineKeyboardButton(text=t("group.button.back", lang), callback_data=f"group_list_page_{prev_p}"),
                 InlineKeyboardButton(
                     text=format_translation("pager.page", lang, page=page, total=total_pages),
                     callback_data="group_list_page_noop",
                 ),
+                InlineKeyboardButton(text=t("group.button.back", lang), callback_data=f"group_list_page_{prev_p}"),
                 InlineKeyboardButton(text=t("group.button.next", lang), callback_data=f"group_list_page_{next_p}"),
             ]
             keyboard_buttons.append(nav_row)
