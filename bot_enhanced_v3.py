@@ -3360,7 +3360,7 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
         except (ValueError, IndexError) as e:
             logger.warning(f"🔥 cmd_start: неверный параметр edit_group_ {command.args}: {e}")
 
-    # Deep link «Забрать квест»: добавляем место в квесты и обновляем сообщение со списком на месте (ссылка → «Квест взят»)
+    # Deep link «Забрать квест»: добавляем место в квесты и обновляем сообщение со списком (ссылка → «Квест взят»)
     if command and command.args and command.args.startswith("add_quest_"):
         try:
             place_id = int(command.args.replace("add_quest_", ""))
@@ -3376,8 +3376,9 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
             user_lang = get_user_language_or_default(user_id)
             success, message_text = create_task_from_place(user_id, place_id, user_lat, user_lng, lang=user_lang)
 
-            # Если есть сохранённое сообщение со списком мест — обновляем его на месте (ссылка → «Квест взят»)
+            # Найти и отредактировать сообщение со списком или отправить новое с актуальным списком
             stored = _last_places_list_message.get(user_id)
+            list_updated = False
             if stored and user_lat is not None and user_lng is not None:
                 chat_id, msg_id, cat, p = stored
                 try:
@@ -3389,9 +3390,28 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
                         reply_markup=reply_markup,
                         parse_mode="Markdown",
                     )
+                    list_updated = True
+                    logger.info(f"🎯 add_quest: список мест обновлён в сообщении {msg_id} для user_id={user_id}")
                 except Exception as e:
-                    logger.debug(f"Не удалось обновить список мест по deep link: {e}")
-            else:
+                    logger.warning(f"🎯 add_quest: не удалось отредактировать сообщение со списком: {e}")
+                    # Fallback: отправить новое сообщение со списком
+                    try:
+                        text, reply_markup = await _build_places_list_content(cat, user_id, user_lat, user_lng, p)
+                        sent = await message.bot.send_message(
+                            chat_id=message.chat.id,
+                            text=text,
+                            reply_markup=reply_markup,
+                            parse_mode="Markdown",
+                        )
+                        list_updated = True
+                        _last_places_list_message[user_id] = (message.chat.id, sent.message_id, cat, p)
+                    except Exception as e2:
+                        logger.warning(f"🎯 add_quest: не удалось отправить новый список: {e2}")
+
+            if not success:
+                # Дубликат: квест уже взят — всегда показываем уведомление
+                await message.answer(t("tasks.quest_already_taken_notify", user_lang))
+            elif not list_updated:
                 await message.answer(message_text, reply_markup=main_menu_kb(user_id=user_id))
             return
         except (ValueError, Exception) as e:
@@ -8870,6 +8890,10 @@ async def show_tasks_for_category(
             message_or_callback.message_id,
             category,
             page,
+        )
+        logger.info(
+            f"🎯 places list stored: user_id={user_id} chat_id={message_or_callback.chat.id} "
+            f"message_id={message_or_callback.message_id} category={category} page={page}"
         )
 
 
