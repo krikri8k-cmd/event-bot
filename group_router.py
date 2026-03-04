@@ -1794,8 +1794,7 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
             ]
         )
 
-        # Принцип «Все или ничего»: блок стрелок только при total_pages > 1; один ряд: Меню | ← | Стр. N/M | →
-        # Кольцо: Назад на 1-й → последняя; Вперёд на последней → 1-я
+        # При total_pages > 1: Меню | ← | Стр. N/M | → (кольцо). При одной странице — только Меню.
         if total_pages > 1:
             prev_p = total_pages if page == 1 else page - 1
             next_p = 1 if page == total_pages else page + 1
@@ -1809,6 +1808,10 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
                 InlineKeyboardButton(text=t("group.button.next", lang), callback_data=f"group_list_page_{next_p}"),
             ]
             keyboard_buttons.append(nav_row)
+        else:
+            keyboard_buttons.append(
+                [InlineKeyboardButton(text=t("group.button.menu", lang), callback_data="group_back_to_panel")]
+            )
 
         back_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
