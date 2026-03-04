@@ -6816,24 +6816,14 @@ async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_pri
         await bot.send_message(chat_id=chat_id, text=text, reply_markup=keyboard)
 
 
-async def _handle_my_tasks_via_bot(bot: Bot, chat_id: int, user_id: int, is_private: bool):
-    """Вспомогательная функция для обработки 'Мои квесты' через bot напрямую"""
-    lang = get_user_language_or_default(user_id)
-    # Инкрементируем сессию World (с проверкой времени)
-    if is_private:
-        from utils.user_analytics import UserAnalytics
-
-        UserAnalytics.maybe_increment_sessions_world(user_id, min_interval_minutes=6)
-
-    # Получаем активные задания пользователя
-    active_tasks = get_user_active_tasks(user_id)
-
-    # Получаем баланс ракет пользователя
-    from rockets_service import get_user_rockets
-
-    rocket_balance = get_user_rockets(user_id)
-
-    # Формируем текст сообщения
+def _build_my_tasks_list(
+    active_tasks: list,
+    lang: str,
+    rocket_balance: int,
+    page: int = 1,
+    page_size: int = 8,
+) -> tuple[str, InlineKeyboardMarkup | None]:
+    """Собирает текст и клавиатуру для списка «Мои квесты» с пагинацией (8 квестов на страницу)."""
     if not active_tasks:
         message_text = (
             f"🏆 **{t('mytasks.title', lang)}**\n\n"
@@ -6849,56 +6839,88 @@ async def _handle_my_tasks_via_bot(bot: Bot, chat_id: int, user_id: int, is_priv
                 ],
             ]
         )
+        return message_text, keyboard
+
+    total_pages = max(1, (len(active_tasks) + page_size - 1) // page_size)
+    page = max(1, min(page, total_pages))
+    start_idx = (page - 1) * page_size
+    end_idx = min(start_idx + page_size, len(active_tasks))
+    page_tasks = active_tasks[start_idx:end_idx]
+
+    message_text = t("mytasks.active_header", lang) + "\n\n"
+    message_text += t("mytasks.reward_line", lang) + "\n\n"
+    message_text += format_translation("myevents.balance", lang, rocket_balance=rocket_balance)
+    if total_pages > 1:
+        message_text += "\n\n" + format_translation("pager.page", lang, page=page, total=total_pages) + "\n\n"
     else:
-        message_text = t("mytasks.active_header", lang) + "\n\n"
-        message_text += t("mytasks.reward_line", lang) + "\n\n"
-        message_text += format_translation("myevents.balance", lang, rocket_balance=rocket_balance)
+        message_text += "\n\n"
 
-        km_suffix = t("mytasks.km_suffix", lang)
-        place_label = t("mytasks.place_label", lang)
-        for i, task in enumerate(active_tasks, 1):
-            category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
-            category_emoji = category_emojis.get(task["category"], "📋")
-            task_title = (task.get("title_en") if lang == "en" else None) or task["title"]
-
-            message_text += f"{i}) {category_emoji} **{task_title}**\n"
-
-            if task.get("place_name") or task.get("place_url"):
-                place_name = (
-                    (task.get("place_name_en") if lang == "en" else None)
-                    or task.get("place_name")
-                    or t("group.list.place_on_map", lang)
-                )
-                place_url = task.get("place_url")
-                distance = task.get("distance_km")
-
-                if place_url:
-                    if distance:
-                        message_text += (
-                            f"📍 **{place_label}** [{place_name} ({distance:.1f} {km_suffix})]({place_url})\n"
-                        )
-                    else:
-                        message_text += f"📍 **{place_label}** [{place_name}]({place_url})\n"
+    km_suffix = t("mytasks.km_suffix", lang)
+    place_label = t("mytasks.place_label", lang)
+    for i, task in enumerate(page_tasks, start=start_idx + 1):
+        category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
+        category_emoji = category_emojis.get(task["category"], "📋")
+        task_title = (task.get("title_en") if lang == "en" else None) or task["title"]
+        message_text += f"{i}) {category_emoji} **{task_title}**\n"
+        if task.get("place_name") or task.get("place_url"):
+            place_name = (
+                (task.get("place_name_en") if lang == "en" else None)
+                or task.get("place_name")
+                or t("group.list.place_on_map", lang)
+            )
+            place_url = task.get("place_url")
+            distance = task.get("distance_km")
+            if place_url:
+                if distance:
+                    message_text += f"📍 **{place_label}** [{place_name} ({distance:.1f} {km_suffix})]({place_url})\n"
                 else:
-                    if distance:
-                        message_text += f"📍 **{place_label}** {place_name} ({distance:.1f} {km_suffix})\n"
-                    else:
-                        message_text += f"📍 **{place_label}** {place_name}\n"
+                    message_text += f"📍 **{place_label}** [{place_name}]({place_url})\n"
+            else:
+                if distance:
+                    message_text += f"📍 **{place_label}** {place_name} ({distance:.1f} {km_suffix})\n"
+                else:
+                    message_text += f"📍 **{place_label}** {place_name}\n"
+        if task.get("promo_code"):
+            message_text += format_translation("tasks.promo_code", lang, code=task["promo_code"]) + "\n"
+        message_text += "\n"
 
-            if task.get("promo_code"):
-                message_text += format_translation("tasks.promo_code", lang, code=task["promo_code"]) + "\n"
-
-            message_text += "\n"
-
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text=t("myevents.button.manage_tasks", lang), callback_data="manage_tasks")],
-                [
-                    InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main"),
-                    InlineKeyboardButton(text=t("myevents.button.my_events", lang), callback_data="show_my_events"),
-                ],
+    rows = [[InlineKeyboardButton(text=t("myevents.button.manage_tasks", lang), callback_data="manage_tasks")]]
+    if total_pages > 1:
+        prev_p = total_pages if page == 1 else (page - 1)
+        next_p = 1 if page == total_pages else (page + 1)
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=format_translation("pager.page", lang, page=page, total=total_pages),
+                    callback_data="my_tasks_page_noop",
+                ),
+                InlineKeyboardButton(text=t("pager.prev", lang), callback_data=f"my_tasks_page:{prev_p}"),
+                InlineKeyboardButton(text=t("pager.next", lang), callback_data=f"my_tasks_page:{next_p}"),
             ]
         )
+    rows.append(
+        [
+            InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main"),
+            InlineKeyboardButton(text=t("myevents.button.my_events", lang), callback_data="show_my_events"),
+        ]
+    )
+    keyboard = InlineKeyboardMarkup(inline_keyboard=rows)
+    return message_text, keyboard
+
+
+async def _handle_my_tasks_via_bot(bot: Bot, chat_id: int, user_id: int, is_private: bool, page: int = 1):
+    """Вспомогательная функция для обработки 'Мои квесты' через bot напрямую."""
+    lang = get_user_language_or_default(user_id)
+    if is_private:
+        from utils.user_analytics import UserAnalytics
+
+        UserAnalytics.maybe_increment_sessions_world(user_id, min_interval_minutes=6)
+
+    active_tasks = get_user_active_tasks(user_id)
+    from rockets_service import get_user_rockets
+
+    rocket_balance = get_user_rockets(user_id)
+    message_text, keyboard = _build_my_tasks_list(active_tasks, lang, rocket_balance, page=page, page_size=8)
 
     # Отправляем сообщение через bot
     import os
@@ -7903,96 +7925,14 @@ async def show_my_tasks_callback(callback: types.CallbackQuery):
 
 @main_router.message(F.text.in_(_MY_QUESTS_BUTTON_TEXTS))
 async def on_my_tasks(message: types.Message):
-    """Обработчик кнопки 'Мои квесты'"""
+    """Обработчик кнопки 'Мои квесты' (пагинация 10 на страницу)."""
     user_id = message.from_user.id
     lang = get_user_language_or_default(user_id)
-
-    # Автомодерация: помечаем истекшие задания (отключено - ограничение по времени снято)
-    # from tasks_service import mark_tasks_as_expired
-    # try:
-    #     expired_count = mark_tasks_as_expired()
-    #     if expired_count > 0:
-    #         await message.answer(f"🤖 Автоматически истекло {expired_count} просроченных заданий")
-    # except Exception as e:
-    #     logger.error(f"Ошибка автомодерации заданий для пользователя {user_id}: {e}")
-
-    # Получаем активные задания пользователя
     active_tasks = get_user_active_tasks(user_id)
-
-    # Получаем баланс ракет пользователя
     from rockets_service import get_user_rockets
 
     rocket_balance = get_user_rockets(user_id)
-
-    # Формируем текст сообщения
-    if not active_tasks:
-        message_text = (
-            f"🏆 **{t('mytasks.title', lang)}**\n\n"
-            f"{t('mytasks.empty', lang)}\n\n"
-            f"**{format_translation('myevents.balance', lang, rocket_balance=rocket_balance).strip()}**\n\n"
-            f"🎯 {t('mytasks.empty_hint', lang)}"
-        )
-        # Добавляем кнопки навигации даже когда нет заданий
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main"),
-                    InlineKeyboardButton(text=t("myevents.button.my_events", lang), callback_data="show_my_events"),
-                ],
-            ]
-        )
-    else:
-        # Формируем сообщение со списком активных заданий (i18n + title_en для EN)
-        message_text = t("mytasks.active_header", lang) + "\n\n"
-        message_text += t("mytasks.reward_line", lang) + "\n\n"
-        message_text += format_translation("myevents.balance", lang, rocket_balance=rocket_balance) + "\n\n"
-
-        km_suffix = t("mytasks.km_suffix", lang)
-        place_label = t("mytasks.place_label", lang)
-        for i, task in enumerate(active_tasks, 1):
-            category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
-            category_emoji = category_emojis.get(task["category"], "📋")
-            task_title = (task.get("title_en") if lang == "en" else None) or task["title"]
-
-            message_text += f"{i}) {category_emoji} **{task_title}**\n"
-
-            if task.get("place_name") or task.get("place_url"):
-                place_name = (
-                    (task.get("place_name_en") if lang == "en" else None)
-                    or task.get("place_name")
-                    or t("group.list.place_on_map", lang)
-                )
-                place_url = task.get("place_url")
-                distance = task.get("distance_km")
-
-                if place_url:
-                    if distance:
-                        message_text += (
-                            f"📍 **{place_label}** [{place_name} ({distance:.1f} {km_suffix})]({place_url})\n"
-                        )
-                    else:
-                        message_text += f"📍 **{place_label}** [{place_name}]({place_url})\n"
-                else:
-                    if distance:
-                        message_text += f"📍 **{place_label}** {place_name} ({distance:.1f} {km_suffix})\n"
-                    else:
-                        message_text += f"📍 **{place_label}** {place_name}\n"
-
-            if task.get("promo_code"):
-                message_text += format_translation("tasks.promo_code", lang, code=task["promo_code"]) + "\n"
-
-            message_text += "\n"
-
-        # Добавляем кнопку управления заданиями
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text=t("myevents.button.manage_tasks", lang), callback_data="manage_tasks")],
-                [
-                    InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main"),
-                    InlineKeyboardButton(text=t("myevents.button.my_events", lang), callback_data="show_my_events"),
-                ],
-            ]
-        )
+    message_text, keyboard = _build_my_tasks_list(active_tasks, lang, rocket_balance, page=1, page_size=8)
 
     # Пытаемся отправить с изображением (всегда, независимо от наличия заданий)
     import os
@@ -8091,103 +8031,24 @@ async def cmd_tasks(message: types.Message, state: FSMContext):
 
 @main_router.message(Command("mytasks"))
 async def cmd_mytasks(message: types.Message):
-    """Обработчик команды /mytasks - Мои квесты"""
+    """Обработчик команды /mytasks - Мои квесты (пагинация 10 на страницу)."""
     user_id = message.from_user.id
     lang = get_user_language_or_default(user_id)
-
-    # Инкрементируем сессию World (с проверкой времени)
     if message.chat.type == "private":
         from utils.user_analytics import UserAnalytics
 
         UserAnalytics.maybe_increment_sessions_world(user_id, min_interval_minutes=6)
 
-    # Автомодерация: помечаем истекшие задания (отключено - ограничение по времени снято)
-    # from tasks_service import mark_tasks_as_expired
-    # try:
-    #     expired_count = mark_tasks_as_expired()
-    #     if expired_count > 0:
-    #         await message.answer(f"🤖 Автоматически истекло {expired_count} просроченных заданий")
-    # except Exception as e:
-    #     logger.error(f"Ошибка автомодерации заданий для пользователя {user_id}: {e}")
-
-    # Получаем активные задания пользователя
     active_tasks = get_user_active_tasks(user_id)
-
-    # Получаем баланс ракет пользователя
     from rockets_service import get_user_rockets
 
     rocket_balance = get_user_rockets(user_id)
+    message_text, keyboard = _build_my_tasks_list(active_tasks, lang, rocket_balance, page=1, page_size=8)
 
-    # Формируем текст сообщения
-    if not active_tasks:
-        message_text = (
-            f"🏆 **{t('mytasks.title', lang)}**\n\n"
-            f"{t('mytasks.empty', lang)}\n\n"
-            f"**{format_translation('myevents.balance', lang, rocket_balance=rocket_balance).strip()}**\n\n"
-            f"🎯 {t('mytasks.empty_hint', lang)}"
-        )
-        # Клавиатура не нужна, когда нет заданий
-        keyboard = None
-    else:
-        # Формируем сообщение со списком активных заданий (i18n + title_en для EN)
-        message_text = t("mytasks.active_header", lang) + "\n\n"
-        message_text += t("mytasks.reward_line", lang) + "\n\n"
-        message_text += format_translation("myevents.balance", lang, rocket_balance=rocket_balance)
-
-        km_suffix = t("mytasks.km_suffix", lang)
-        place_label = t("mytasks.place_label", lang)
-        for i, task in enumerate(active_tasks, 1):
-            category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
-            category_emoji = category_emojis.get(task["category"], "📋")
-            task_title = (task.get("title_en") if lang == "en" else None) or task["title"]
-
-            message_text += f"{i}) {category_emoji} **{task_title}**\n"
-
-            if task.get("place_name") or task.get("place_url"):
-                place_name = (
-                    (task.get("place_name_en") if lang == "en" else None)
-                    or task.get("place_name")
-                    or t("group.list.place_on_map", lang)
-                )
-                place_url = task.get("place_url")
-                distance = task.get("distance_km")
-
-                if place_url:
-                    if distance:
-                        message_text += (
-                            f"📍 **{place_label}** [{place_name} ({distance:.1f} {km_suffix})]({place_url})\n"
-                        )
-                    else:
-                        message_text += f"📍 **{place_label}** [{place_name}]({place_url})\n"
-                else:
-                    if distance:
-                        message_text += f"📍 **{place_label}** {place_name} ({distance:.1f} {km_suffix})\n"
-                    else:
-                        message_text += f"📍 **{place_label}** {place_name}\n"
-
-            if task.get("promo_code"):
-                message_text += format_translation("tasks.promo_code", lang, code=task["promo_code"]) + "\n"
-
-            message_text += "\n"
-
-        # Добавляем кнопку управления заданиями
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text=t("myevents.button.manage_tasks", lang), callback_data="manage_tasks")],
-                [
-                    InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main"),
-                    InlineKeyboardButton(text=t("myevents.button.my_events", lang), callback_data="show_my_events"),
-                ],
-            ]
-        )
-
-    # Пытаемся отправить с изображением (всегда, независимо от наличия заданий)
     import os
     from pathlib import Path
 
-    # Используем одно имя файла
     photo_path = Path(__file__).parent / "images" / "my_quests.png"
-
     logger.info(f"🖼️ Проверяем наличие изображения: {photo_path}, exists={os.path.exists(photo_path)}")
 
     if os.path.exists(photo_path):
@@ -8458,124 +8319,19 @@ async def handle_task_navigation(callback: types.CallbackQuery):
 
 @main_router.callback_query(F.data == "my_tasks_list")
 async def handle_back_to_tasks_list(callback: types.CallbackQuery):
-    """Возврат к списку заданий"""
+    """Возврат к списку заданий (страница 1, пагинация 10 на страницу)."""
     user_id = callback.from_user.id
     lang = get_user_language_or_default(user_id)
     active_tasks = get_user_active_tasks(user_id)
-
-    if not active_tasks:
-        # Получаем баланс ракет пользователя
-        from rockets_service import get_user_rockets
-
-        rocket_balance = get_user_rockets(user_id)
-
-        text = (
-            f"🏆 **{t('mytasks.title', lang)}**\n\n"
-            f"{t('mytasks.empty', lang)}\n\n"
-            f"**{format_translation('myevents.balance', lang, rocket_balance=rocket_balance).strip()}**\n\n"
-            f"🎯 {t('mytasks.empty_hint', lang)}"
-        )
-
-        # Для callback используем edit_text, но можно отправить новое сообщение с фото
-        # Пытаемся отправить с изображением
-        import os
-        from pathlib import Path
-
-        # Используем одно имя файла
-        photo_path = Path(__file__).parent / "images" / "my_quests.png"
-
-        logger.info(f"🖼️ Проверяем наличие изображения (callback): {photo_path}, exists={os.path.exists(photo_path)}")
-
-        if os.path.exists(photo_path):
-            try:
-                from aiogram.types import FSInputFile
-
-                photo = FSInputFile(photo_path)
-                logger.info(f"✅ Отправляем изображение для 'Мои квесты' (callback): {photo_path}")
-                # Удаляем старое сообщение и отправляем новое с фото
-                await callback.message.delete()
-                await callback.message.answer_photo(photo, caption=text, parse_mode="Markdown")
-                await callback.answer()
-                return
-            except Exception as e:
-                logger.error(f"❌ Ошибка отправки фото для 'Мои квесты' (callback): {e}", exc_info=True)
-                # Продолжаем с edit_text
-        else:
-            logger.warning(f"⚠️ Изображение не найдено (callback): {photo_path}")
-
-        # Fallback: редактируем текст
-        await callback.message.edit_text(text, parse_mode="Markdown")
-        await callback.answer()
-        return
-
-    # Получаем баланс ракет пользователя
     from rockets_service import get_user_rockets
 
     rocket_balance = get_user_rockets(user_id)
+    message_text, keyboard = _build_my_tasks_list(active_tasks, lang, rocket_balance, page=1, page_size=8)
 
-    # Формируем сообщение со списком активных заданий (i18n + title_en для EN)
-    message_text = t("mytasks.active_header", lang) + "\n\n"
-    message_text += t("mytasks.reward_line", lang) + "\n"
-    message_text += t("mytasks.motivation_line", lang) + "\n\n"
-    message_text += format_translation("myevents.balance", lang, rocket_balance=rocket_balance) + "\n\n"
-
-    km_suffix = t("mytasks.km_suffix", lang)
-    place_label = t("mytasks.place_label", lang)
-    time_label = t("mytasks.time_to_complete", lang)
-    for i, task in enumerate(active_tasks, 1):
-        expires_at = task["expires_at"]
-        if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=UTC)
-        start_time = task["accepted_at"]
-        end_time = expires_at
-        time_period = f"{start_time.strftime('%d.%m.%Y %H:%M')} → {end_time.strftime('%d.%m.%Y %H:%M')}"
-
-        category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
-        category_emoji = category_emojis.get(task["category"], "📋")
-        task_title = (task.get("title_en") if lang == "en" else None) or task["title"]
-
-        message_text += f"{i}) {category_emoji} **{task_title}**\n"
-        message_text += f"⏰ **{time_label}** {time_period}\n"
-
-        if task.get("place_name") or task.get("place_url"):
-            place_name = (
-                (task.get("place_name_en") if lang == "en" else None)
-                or task.get("place_name")
-                or t("group.list.place_on_map", lang)
-            )
-            place_url = task.get("place_url")
-            distance = task.get("distance_km")
-
-            if place_url:
-                if distance:
-                    message_text += f"📍 **{place_label}** [{place_name} ({distance:.1f} {km_suffix})]({place_url})\n"
-                else:
-                    message_text += f"📍 **{place_label}** [{place_name}]({place_url})\n"
-            else:
-                if distance:
-                    message_text += f"📍 **{place_label}** {place_name} ({distance:.1f} {km_suffix})\n"
-                else:
-                    message_text += f"📍 **{place_label}** {place_name}\n"
-
-        if task.get("promo_code"):
-            message_text += format_translation("tasks.promo_code", lang, code=task["promo_code"]) + "\n"
-
-        message_text += "\n"
-
-    # Добавляем кнопку управления заданиями
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=t("myevents.button.manage_tasks", lang), callback_data="manage_tasks")],
-            [InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main")],
-        ]
-    )
-
-    # Пытаемся отправить с изображением (для callback удаляем старое сообщение)
     import os
     from pathlib import Path
 
     photo_path = Path(__file__).parent / "images" / "my_quests.png"
-
     logger.info(
         f"🖼️ Проверяем наличие изображения (callback с заданиями): {photo_path}, exists={os.path.exists(photo_path)}"
     )
@@ -8605,6 +8361,46 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
         parse_mode="Markdown",
         reply_markup=keyboard,
     )
+    await callback.answer()
+
+
+@main_router.callback_query(F.data == "my_tasks_page_noop")
+async def handle_my_tasks_page_noop(callback: types.CallbackQuery):
+    await callback.answer()
+    return
+
+
+@main_router.callback_query(F.data.startswith("my_tasks_page:"))
+async def handle_my_tasks_page(callback: types.CallbackQuery):
+    """Переключение страницы списка «Мои квесты» (10 на страницу, кольцо)."""
+    try:
+        page = int(callback.data.split(":")[1])
+    except (ValueError, IndexError):
+        await callback.answer()
+        return
+    user_id = callback.from_user.id
+    lang = get_user_language_or_default(user_id)
+    active_tasks = get_user_active_tasks(user_id)
+    from rockets_service import get_user_rockets
+
+    rocket_balance = get_user_rockets(user_id)
+    total_pages = max(1, (len(active_tasks) + 7) // 8)
+    page = max(1, min(page, total_pages))
+    message_text, keyboard = _build_my_tasks_list(active_tasks, lang, rocket_balance, page=page, page_size=8)
+    if callback.message.photo:
+        try:
+            await callback.message.edit_caption(caption=message_text, reply_markup=keyboard, parse_mode="Markdown")
+        except Exception:
+            try:
+                await callback.message.delete()
+                await callback.message.answer(message_text, reply_markup=keyboard, parse_mode="Markdown")
+            except Exception as e:
+                logger.warning(f"⚠️ my_tasks_page fallback: {e}")
+    else:
+        try:
+            await callback.message.edit_text(message_text, reply_markup=keyboard, parse_mode="Markdown")
+        except Exception as e:
+            logger.warning(f"⚠️ my_tasks_page edit_text: {e}")
     await callback.answer()
 
 
