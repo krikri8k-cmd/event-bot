@@ -848,7 +848,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "events.summary.found": "🗺 Found {count} events nearby!",
         # Pagination
         "pager.prev": "◀️ Back",
-        "pager.next": "Forward ▶️",
+        "pager.next": "Next ▶️",
         "pager.page": "Page {page}/{total}",
         "pager.today": "📅 Today",
         "pager.today_selected": "📅 Today ✅",
@@ -1198,7 +1198,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "manage_event.header": "🔧 Event management ({current}/{total}):",
         "manage_event.nav.list": "📋 List",
         "manage_event.nav.back": "◀️ Back",
-        "manage_event.nav.forward": "▶️ Forward",
+        "manage_event.nav.forward": "▶️ Next",
         "manage_event.button.finish_event": "⛔ Finish event",
         "manage_event.button.resume": "🔄 Resume event",
         "manage_event.button.edit": "✏ Edit",
