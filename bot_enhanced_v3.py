@@ -3360,14 +3360,12 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
         except (ValueError, IndexError) as e:
             logger.warning(f"🔥 cmd_start: неверный параметр edit_group_ {command.args}: {e}")
 
-    # Проверяем, есть ли параметр add_quest_ (deep-link для добавления места в квесты)
-    # Оставляем поддержку deep link для обратной совместимости, но теперь используем callback
+    # Deep link «Забрать квест»: добавляем место в квесты и обновляем сообщение со списком на месте (ссылка → «Квест взят»)
     if command and command.args and command.args.startswith("add_quest_"):
         try:
             place_id = int(command.args.replace("add_quest_", ""))
             logger.info(f"🎯 cmd_start: пользователь {user_id} добавляет место {place_id} в квесты через deep link")
 
-            # Получаем координаты пользователя из БД
             with get_session() as session:
                 user = session.query(User).filter(User.id == user_id).first()
                 user_lat = user.last_lat if user else None
@@ -3378,7 +3376,23 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
             user_lang = get_user_language_or_default(user_id)
             success, message_text = create_task_from_place(user_id, place_id, user_lat, user_lng, lang=user_lang)
 
-            await message.answer(message_text, reply_markup=main_menu_kb(user_id=user_id))
+            # Если есть сохранённое сообщение со списком мест — обновляем его на месте (ссылка → «Квест взят»)
+            stored = _last_places_list_message.get(user_id)
+            if stored and user_lat is not None and user_lng is not None:
+                chat_id, msg_id, cat, p = stored
+                try:
+                    text, reply_markup = await _build_places_list_content(cat, user_id, user_lat, user_lng, p)
+                    await message.bot.edit_message_text(
+                        chat_id=chat_id,
+                        message_id=msg_id,
+                        text=text,
+                        reply_markup=reply_markup,
+                        parse_mode="Markdown",
+                    )
+                except Exception as e:
+                    logger.debug(f"Не удалось обновить список мест по deep link: {e}")
+            else:
+                await message.answer(message_text, reply_markup=main_menu_kb(user_id=user_id))
             return
         except (ValueError, Exception) as e:
             logger.warning(f"🎯 cmd_start: неверный параметр add_quest_ {command.args}: {e}")
@@ -8735,35 +8749,20 @@ async def handle_task_cancel(callback: types.CallbackQuery):
     await callback.answer(t("tasks.cancelled", user_lang))
 
 
-async def show_tasks_for_category(
-    message_or_callback, category: str, user_id: int, user_lat: float, user_lng: float, state: FSMContext, page: int = 1
-):
-    """
-    Показывает места для категории списком (8 на страницу)
+# Хранилище последнего сообщения со списком мест (для обновления по deep link «Забрать квест»)
+_last_places_list_message: dict[int, tuple[int, int, str, int]] = {}  # user_id -> (chat_id, message_id, category, page)
 
-    Args:
-        message_or_callback: Сообщение или callback для редактирования
-        category: Категория заданий ('food', 'health' или 'places')
-        user_id: ID пользователя
-        user_lat: Широта пользователя
-        user_lng: Долгота пользователя
-        state: FSM состояние
-        page: Номер страницы (начинается с 1)
-    """
-    # Определяем тип региона пользователя и соответствующий тип задания
+
+async def _build_places_list_content(
+    category: str, user_id: int, user_lat: float, user_lng: float, page: int
+) -> tuple[str, InlineKeyboardMarkup]:
+    """Собирает текст и клавиатуру списка мест (ссылки «Забрать квест» в тексте, навигация в один ряд)."""
     from tasks_location_service import get_all_places_for_category, get_task_type_for_region, get_user_region_type
 
     region_type = get_user_region_type(user_lat, user_lng)
     task_type = get_task_type_for_region(region_type)
-
-    logger.info(
-        f"Показ мест для категории {category}, регион: {region_type}, тип задания: {task_type}, страница {page}"
-    )
-
-    # Получаем все доступные места для категории
     try:
         all_places = get_all_places_for_category(category, user_id, user_lat, user_lng, task_type=task_type, limit=100)
-        logger.info(f"show_tasks_for_category: Получено {len(all_places)} мест для категории {category}")
     except Exception as e:
         logger.error(f"Ошибка получения мест: {e}", exc_info=True)
         all_places = []
@@ -8771,46 +8770,33 @@ async def show_tasks_for_category(
     lang = get_user_language_or_default(user_id)
     category_name = t(f"tasks.category.{category}", lang)
     no_places_text = t("tasks.no_places_in_category", lang)
-
-    # Если мест нет
     if not all_places:
-        text = f"🎯 **{category_name}**\n\n{no_places_text}"
         reply_markup = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text=t("pager.prev", lang), callback_data="back_to_tasks")],
                 [InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main")],
             ]
         )
-        if hasattr(message_or_callback, "edit_text"):
-            await message_or_callback.edit_text(text, parse_mode="Markdown", reply_markup=reply_markup)
-        else:
-            await message_or_callback.answer(text, parse_mode="Markdown", reply_markup=reply_markup)
-        return
+        return f"🎯 **{category_name}**\n\n{no_places_text}", reply_markup
 
-    # Пагинация: 8 мест на страницу
     places_per_page = 8
     total_pages = (len(all_places) + places_per_page - 1) // places_per_page
     page = max(1, min(page, total_pages))
-
-    # Получаем места для текущей страницы
     start_idx = (page - 1) * places_per_page
     end_idx = min(start_idx + places_per_page, len(all_places))
     page_places = all_places[start_idx:end_idx]
 
-    # Места, которые пользователь уже взял в квесты (для подписи "Квест взят" и кнопок)
     active_tasks = get_user_active_tasks(user_id)
     taken_place_ids = {t.get("place_id") for t in active_tasks if t.get("place_id")}
 
-    # Формируем текст сообщения и ряды кнопок (по одной на место)
+    bot_username = get_bot_username()
+    take_quest_label = t("tasks.take_quest", lang)
+    quest_taken_label = t("tasks.quest_taken", lang)
+
     text = f"🎯 **{category_name}**\n\n"
     text += t("tasks.places_found", lang).format(count=len(all_places)) + "\n\n"
 
-    take_quest_label = t("tasks.take_quest", lang)
-    quest_taken_label = t("tasks.quest_taken", lang)
-    place_button_rows = []
-
     for idx, place in enumerate(page_places, start=start_idx + 1):
-        # Название места по языку (name_en для EN, иначе name)
         place_display_name = (getattr(place, "name_en", None) or place.name) if lang == "en" else place.name
         if place.google_maps_url:
             escaped_name = (
@@ -8819,68 +8805,72 @@ async def show_tasks_for_category(
             text += f"**{idx}. [{escaped_name}]({place.google_maps_url})**\n"
         else:
             text += f"**{idx}. {place_display_name}**\n"
-
-        # Расстояние
         if hasattr(place, "distance_km") and place.distance_km:
             text += t("tasks.km_from_you", lang).format(distance=place.distance_km) + "\n"
-
-        # Промокод
         if place.promo_code:
             text += t("tasks.promo_code", lang).format(code=place.promo_code) + "\n"
-
-        # Короткое задание (task_hint) по языку
         hint_text = (
             (getattr(place, "task_hint_en", None) or place.task_hint) if lang == "en" else (place.task_hint or "")
         )
         if hint_text:
             text += f"💡 {hint_text}\n"
-
-        # Кнопка: либо "Забрать квест" (callback), либо "Квест взят" (noop). Обновление списка на месте, без доп. сообщений.
         if place.id in taken_place_ids:
             text += quest_taken_label + "\n\n"
-            place_button_rows.append([InlineKeyboardButton(text=quest_taken_label, callback_data="noop")])
         else:
-            text += "\n"
-            place_button_rows.append(
-                [
-                    InlineKeyboardButton(
-                        text=take_quest_label,
-                        callback_data=f"add_place_to_quests:{place.id}:{category}:{page}",
-                    )
-                ]
-            )
+            deep_link = f"https://t.me/{bot_username}?start=add_quest_{place.id}"
+            text += f"[{take_quest_label}]({deep_link})\n\n"
 
-    # Создаем клавиатуру: кнопки по местам, затем при total_pages > 1 — Стр. N/M | Назад | Вперёд, затем Список | Главное меню
-    keyboard = list(place_button_rows)
-
+    # Один ряд навигации: [ Стр. N/M ] [ Назад ] [ Вперёд ], затем Список | Главное меню
+    keyboard = []
     if total_pages > 1:
         prev_p = total_pages if page == 1 else page - 1
         next_p = 1 if page == total_pages else page + 1
         keyboard.append(
             [
                 InlineKeyboardButton(
-                    text=t("pager.page", lang).format(page=page, total=total_pages),
+                    text=format_translation("pager.page", lang, page=page, total=total_pages),
                     callback_data="places_page:noop",
                 ),
                 InlineKeyboardButton(text=t("pager.prev", lang), callback_data=f"places_page:{category}:{prev_p}"),
                 InlineKeyboardButton(text=t("pager.next", lang), callback_data=f"places_page:{category}:{next_p}"),
             ]
         )
-
-    # Кнопки управления
     keyboard.append(
         [
             InlineKeyboardButton(text=t("tasks.button.list", lang), callback_data="back_to_tasks"),
             InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main"),
         ]
     )
+    return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-    reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+async def show_tasks_for_category(
+    message_or_callback, category: str, user_id: int, user_lat: float, user_lng: float, state: FSMContext, page: int = 1
+):
+    """
+    Показывает места для категории списком (8 на страницу). Ссылки «Забрать квест» в тексте;
+    при переходе по ссылке список обновляется на месте (сохраняем сообщение для deep link).
+    """
+    from tasks_location_service import get_user_region_type
+
+    region_type = get_user_region_type(user_lat, user_lng)
+    logger.info(f"Показ мест для категории {category}, регион: {region_type}, страница {page}")
+
+    text, reply_markup = await _build_places_list_content(category, user_id, user_lat, user_lng, page)
 
     if hasattr(message_or_callback, "edit_text"):
         await message_or_callback.edit_text(text, parse_mode="Markdown", reply_markup=reply_markup)
     else:
         await message_or_callback.answer(text, parse_mode="Markdown", reply_markup=reply_markup)
+
+    # Сохраняем сообщение списка, чтобы по deep link «Забрать квест» обновить его на месте
+    if hasattr(message_or_callback, "chat") and hasattr(message_or_callback, "message_id"):
+        _last_places_list_message[user_id] = (
+            message_or_callback.chat.id,
+            message_or_callback.message_id,
+            category,
+            page,
+        )
 
 
 @main_router.callback_query(F.data.startswith("task_category:"))
@@ -9023,16 +9013,9 @@ async def handle_places_page(callback: types.CallbackQuery, state: FSMContext):
 
 @main_router.callback_query(F.data.startswith("add_place_to_quests:"))
 async def handle_add_place_to_quests(callback: types.CallbackQuery, state: FSMContext):
-    """Обработчик добавления места в квесты. При вызове из списка (place_id:category:page) обновляет список на месте."""
-    parts = callback.data.split(":")
-    place_id = int(parts[1])
+    """Обработчик добавления места в квесты (для старых сообщений с кнопкой). В списке теперь только ссылки."""
+    place_id = int(callback.data.split(":")[1])
     user_id = callback.from_user.id
-    category = parts[2] if len(parts) >= 4 else None
-    page = int(parts[3]) if len(parts) >= 4 else 1
-
-    logger.info(
-        f"🎯 handle_add_place_to_quests: user_id={user_id}, place_id={place_id}, category={category}, page={page}"
-    )
 
     with get_session() as session:
         user = session.query(User).filter(User.id == user_id).first()
@@ -9045,18 +9028,6 @@ async def handle_add_place_to_quests(callback: types.CallbackQuery, state: FSMCo
 
     user_lang = get_user_language_or_default(user_id)
     success, message_text = create_task_from_place(user_id, place_id, user_lat, user_lng, lang=user_lang)
-
-    logger.info(
-        f"🎯 handle_add_place_to_quests: user_id={user_id}, place_id={place_id}, "
-        f"success={success}, message='{(message_text or '')[:50]}'"
-    )
-
-    # Если вызвано из списка мест (есть category) — обновляем сообщение списком, без отдельного тоста
-    if category:
-        await show_tasks_for_category(callback.message, category, user_id, user_lat, user_lng, state, page=page)
-        await callback.answer()
-        return
-
     await callback.answer(message_text, show_alert=not success)
 
 
