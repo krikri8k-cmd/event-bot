@@ -1602,6 +1602,9 @@ async def group_list_events(callback: CallbackQuery, bot: Bot, session: AsyncSes
 @group_router.callback_query(F.data.startswith("group_list_page_"))
 async def group_list_events_page_handler(callback: CallbackQuery, bot: Bot, session: AsyncSession):
     """Обработчик навигации по страницам списка событий"""
+    if callback.data == "group_list_page_noop":
+        await callback.answer()
+        return
     try:
         page = int(callback.data.split("_")[-1])
     except (ValueError, IndexError):
@@ -1662,25 +1665,11 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
 
         logger.info(f"🔥 Проверка границ: page={page}, total_pages={total_pages}, total_events={total_events}")
 
-        # Проверяем границы страниц и показываем предупреждение, если запрашивается несуществующая страница
-        # Если страница вне диапазона - показываем alert и выходим, не создавая новое сообщение
+        # Кольцо: страница вне диапазона — переходим на другой конец
         if page < 1:
-            logger.info(f"🔥 Страница {page} < 1, показываем предупреждение")
-            try:
-                await callback.answer(t("group.list.first_page", lang), show_alert=True)
-                logger.info("✅ Предупреждение показано: первая страница")
-            except Exception as e:
-                logger.error(f"❌ Ошибка при показе alert: {e}")
-            return  # Не создаем новое сообщение
-
-        if page > total_pages:
-            logger.info(f"🔥 Страница {page} > total_pages {total_pages}, показываем предупреждение")
-            try:
-                await callback.answer(t("group.list.last_page", lang), show_alert=True)
-                logger.info("✅ Предупреждение показано: последняя страница")
-            except Exception as e:
-                logger.error(f"❌ Ошибка при показе alert: {e}")
-            return  # Не создаем новое сообщение
+            page = total_pages
+        elif page > total_pages:
+            page = 1
 
         # Вычисляем offset для валидной страницы
         offset = (page - 1) * events_per_page
@@ -1805,16 +1794,21 @@ async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: Asy
             ]
         )
 
-        # Добавляем навигационные кнопки в один ряд: Меню, Назад, Вперед
-        # Всегда показываем все три кнопки, но передаем реальные значения страниц
-        # (проверка границ будет в обработчике)
-        nav_row = [
-            InlineKeyboardButton(text=t("group.button.menu", lang), callback_data="group_back_to_panel"),
-            InlineKeyboardButton(text=t("group.button.back", lang), callback_data=f"group_list_page_{page - 1}"),
-            InlineKeyboardButton(text=t("group.button.next", lang), callback_data=f"group_list_page_{page + 1}"),
-        ]
-
-        keyboard_buttons.append(nav_row)
+        # Принцип «Все или ничего»: блок стрелок только при total_pages > 1; один ряд: Меню | ← | Стр. N/M | →
+        # Кольцо: Назад на 1-й → последняя; Вперёд на последней → 1-я
+        if total_pages > 1:
+            prev_p = total_pages if page == 1 else page - 1
+            next_p = 1 if page == total_pages else page + 1
+            nav_row = [
+                InlineKeyboardButton(text=t("group.button.menu", lang), callback_data="group_back_to_panel"),
+                InlineKeyboardButton(text=t("group.button.back", lang), callback_data=f"group_list_page_{prev_p}"),
+                InlineKeyboardButton(
+                    text=format_translation("pager.page", lang, page=page, total=total_pages),
+                    callback_data="group_list_page_noop",
+                ),
+                InlineKeyboardButton(text=t("group.button.next", lang), callback_data=f"group_list_page_{next_p}"),
+            ]
+            keyboard_buttons.append(nav_row)
 
         back_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
 
@@ -2992,17 +2986,23 @@ async def _show_community_manage_event(
         ]
     )
 
-    # Добавляем навигацию: всегда показываем 3 кнопки (Список, Назад, Вперед)
-    nav_row = [
-        InlineKeyboardButton(text=t("manage_event.nav.list", lang), callback_data="group_list"),
-        InlineKeyboardButton(
-            text=t("manage_event.nav.back", lang), callback_data=f"group_prev_event_{max(0, index-1)}"
-        ),
-        InlineKeyboardButton(
-            text=t("manage_event.nav.forward", lang),
-            callback_data=f"group_next_event_{min(total-1, index+1)}",
-        ),
-    ]
+    # Навигация: при total > 1 — Список | Назад | Вперёд (кольцо); при total == 1 — только Список
+    prev_idx = (total - 1) if index == 0 else (index - 1)
+    next_idx = 0 if index == total - 1 else (index + 1)
+    nav_row = [InlineKeyboardButton(text=t("manage_event.nav.list", lang), callback_data="group_list")]
+    if total > 1:
+        nav_row.extend(
+            [
+                InlineKeyboardButton(
+                    text=t("manage_event.nav.back", lang),
+                    callback_data=f"group_prev_event_{prev_idx}",
+                ),
+                InlineKeyboardButton(
+                    text=t("manage_event.nav.forward", lang),
+                    callback_data=f"group_next_event_{next_idx}",
+                ),
+            ]
+        )
     keyboard.inline_keyboard.append(nav_row)
 
     # Сохраняем список событий в callback для последующего использования
@@ -3136,23 +3136,30 @@ async def _show_community_view_event(
     )
     action_row = [join_btn, leave_btn, participants_btn]
 
-    # Кнопки навигации: всегда показываем 3 кнопки (Меню, Назад, Вперед)
+    # Навигация: при total > 1 — Меню | Назад | Вперёд (кольцо); при total == 1 — только Меню
     keyboard_buttons = [action_row]
-    # Для "Назад": если index > 0, то index-1, иначе 0
-    prev_index = index - 1 if index > 0 else 0
-    # Для "Вперед": если index < total-1, то index+1, иначе остаемся на текущем (но проверка в обработчике)
-    next_index = index + 1 if index < total - 1 else index
+    prev_index = (total - 1) if index == 0 else (index - 1)
+    next_index = 0 if index == total - 1 else (index + 1)
 
     logger.info(
         f"🔥 _show_community_view_event: событие {index + 1}/{total} (ID: {event.id}, название: {event.title}), "
         f"prev_index={prev_index}, next_index={next_index}"
     )
 
-    nav_row = [
-        InlineKeyboardButton(text=t("group.button.menu", lang), callback_data="group_back_to_panel"),
-        InlineKeyboardButton(text=t("manage_event.nav.back", lang), callback_data=f"view_prev_event_{prev_index}"),
-        InlineKeyboardButton(text=t("manage_event.nav.forward", lang), callback_data=f"view_next_event_{next_index}"),
-    ]
+    nav_row = [InlineKeyboardButton(text=t("group.button.menu", lang), callback_data="group_back_to_panel")]
+    if total > 1:
+        nav_row.extend(
+            [
+                InlineKeyboardButton(
+                    text=t("manage_event.nav.back", lang),
+                    callback_data=f"view_prev_event_{prev_index}",
+                ),
+                InlineKeyboardButton(
+                    text=t("manage_event.nav.forward", lang),
+                    callback_data=f"view_next_event_{next_index}",
+                ),
+            ]
+        )
     keyboard_buttons.append(nav_row)
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -3240,7 +3247,7 @@ async def _show_community_view_event(
 
 @group_router.callback_query(F.data.startswith("group_next_event_"))
 async def group_next_event(callback: CallbackQuery, bot: Bot, session: AsyncSession):
-    """Переход к следующему событию"""
+    """Переход к следующему событию (кольцо: с последнего — на первое)"""
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id
 
@@ -3252,30 +3259,15 @@ async def group_next_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
 
     is_admin = await is_chat_admin(bot, chat_id, user_id)
     manageable_events = await _get_manageable_community_events(session, chat_id, user_id, is_admin)
-
     total = len(manageable_events)
-
-    # Проверяем, что индекс не выходит за границы
-    if target_index >= total:
-        await callback.answer("⚠️ Это последнее событие", show_alert=True)
+    if total == 0:
+        await callback.answer()
         return
-
-    # Проверяем, не пытаемся ли мы перейти вперед с последней страницы
-    # Если target_index равен последнему индексу (total-1), проверяем, не находимся ли мы уже на этой странице
-    if target_index == total - 1:
-        # Извлекаем текущий индекс из текста сообщения (формат: "({current}/{total})")
-        current_text = callback.message.text or callback.message.caption or ""
-        # Ищем паттерн "(X/total)" где X - текущий номер события
-        import re
-
-        match = re.search(r"\((\d+)/(\d+)\)", current_text)
-        if match:
-            current_num = int(match.group(1))
-            total_num = int(match.group(2))
-            # Если текущий номер равен общему количеству, значит мы уже на последней странице
-            if current_num == total_num and total_num == total:
-                await callback.answer("⚠️ Это последнее событие", show_alert=True)
-                return
+    # Кольцо
+    if target_index >= total:
+        target_index = 0
+    elif target_index < 0:
+        target_index = total - 1
 
     await _show_community_manage_event(
         callback, bot, session, manageable_events, target_index, chat_id, user_id, is_admin
@@ -3285,7 +3277,7 @@ async def group_next_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
 
 @group_router.callback_query(F.data.startswith("group_prev_event_"))
 async def group_prev_event(callback: CallbackQuery, bot: Bot, session: AsyncSession):
-    """Переход к предыдущему событию"""
+    """Переход к предыдущему событию (кольцо: с первого — на последнее)"""
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id
 
@@ -3297,29 +3289,15 @@ async def group_prev_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
 
     is_admin = await is_chat_admin(bot, chat_id, user_id)
     manageable_events = await _get_manageable_community_events(session, chat_id, user_id, is_admin)
-
     total = len(manageable_events)
-
-    # Проверяем, что индекс не выходит за границы
-    if target_index < 0 or target_index >= total:
-        await callback.answer("⚠️ Это первое событие", show_alert=True)
+    if total == 0:
+        await callback.answer()
         return
-
-    # Проверяем, не пытаемся ли мы перейти назад с первой страницы
-    # Если target_index равен 0, проверяем, не находимся ли мы уже на этой странице
-    if target_index == 0:
-        # Извлекаем текущий индекс из текста сообщения (формат: "({current}/{total})")
-        current_text = callback.message.text or callback.message.caption or ""
-        # Ищем паттерн "(X/total)" где X - текущий номер события
-        import re
-
-        match = re.search(r"\((\d+)/(\d+)\)", current_text)
-        if match:
-            current_num = int(match.group(1))
-            # Если текущий номер равен 1, значит мы уже на первой странице
-            if current_num == 1:
-                await callback.answer("⚠️ Это первое событие", show_alert=True)
-                return
+    # Кольцо
+    if target_index < 0:
+        target_index = total - 1
+    elif target_index >= total:
+        target_index = 0
 
     await _show_community_manage_event(
         callback, bot, session, manageable_events, target_index, chat_id, user_id, is_admin
@@ -3329,7 +3307,7 @@ async def group_prev_event(callback: CallbackQuery, bot: Bot, session: AsyncSess
 
 @group_router.callback_query(F.data.startswith("view_next_event_"))
 async def view_next_event(callback: CallbackQuery, bot: Bot, session: AsyncSession):
-    """Переход к следующему событию при просмотре"""
+    """Переход к следующему событию при просмотре (кольцо: с последнего — на первое)"""
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id
 
@@ -3339,30 +3317,16 @@ async def view_next_event(callback: CallbackQuery, bot: Bot, session: AsyncSessi
         await callback.answer("❌ Неверный индекс", show_alert=True)
         return
 
-    # Получаем все активные события
     events = await _get_all_active_community_events(session, chat_id)
-
     total = len(events)
     if total == 0:
         await callback.answer("❌ Нет активных событий", show_alert=True)
         return
-
-    # Проверяем, что индекс не выходит за границы
+    # Кольцо
     if target_index >= total:
-        await callback.answer("⚠️ Это последнее событие", show_alert=True)
-        return
-
-    # Проверяем, не пытаемся ли мы перейти на то же событие
-    current_text = callback.message.text or callback.message.caption or ""
-    import re
-
-    match = re.search(r"\((\d+)/(\d+)\)", current_text)
-    if match:
-        current_num = int(match.group(1))
-        # Если target_index + 1 равен current_num, значит мы уже на этом событии
-        if target_index + 1 == current_num:
-            await callback.answer("⚠️ Это последнее событие", show_alert=True)
-            return
+        target_index = 0
+    elif target_index < 0:
+        target_index = total - 1
 
     event_id = events[target_index].id if target_index < len(events) else "N/A"
     event_title = events[target_index].title if target_index < len(events) else "N/A"
@@ -3371,11 +3335,12 @@ async def view_next_event(callback: CallbackQuery, bot: Bot, session: AsyncSessi
         f"событие ID: {event_id}, название: {event_title}"
     )
     await _show_community_view_event(callback, bot, session, events, target_index, chat_id, user_id)
+    await callback.answer()
 
 
 @group_router.callback_query(F.data.startswith("view_prev_event_"))
 async def view_prev_event(callback: CallbackQuery, bot: Bot, session: AsyncSession):
-    """Переход к предыдущему событию при просмотре"""
+    """Переход к предыдущему событию при просмотре (кольцо: с первого — на последнее)"""
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id
 
@@ -3385,30 +3350,16 @@ async def view_prev_event(callback: CallbackQuery, bot: Bot, session: AsyncSessi
         await callback.answer("❌ Неверный индекс", show_alert=True)
         return
 
-    # Получаем все активные события
     events = await _get_all_active_community_events(session, chat_id)
-
     total = len(events)
     if total == 0:
         await callback.answer("❌ Нет активных событий", show_alert=True)
         return
-
-    # Проверяем, что индекс не выходит за границы
-    if target_index < 0 or target_index >= total:
-        await callback.answer("⚠️ Это первое событие", show_alert=True)
-        return
-
-    # Проверяем, не пытаемся ли мы перейти на то же событие
-    current_text = callback.message.text or callback.message.caption or ""
-    import re
-
-    match = re.search(r"\((\d+)/(\d+)\)", current_text)
-    if match:
-        current_num = int(match.group(1))
-        # Если target_index + 1 равен current_num, значит мы уже на этом событии
-        if target_index + 1 == current_num:
-            await callback.answer("⚠️ Это первое событие", show_alert=True)
-            return
+    # Кольцо
+    if target_index < 0:
+        target_index = total - 1
+    elif target_index >= total:
+        target_index = 0
 
     event_id = events[target_index].id if target_index < len(events) else "N/A"
     event_title = events[target_index].title if target_index < len(events) else "N/A"
@@ -3417,6 +3368,7 @@ async def view_prev_event(callback: CallbackQuery, bot: Bot, session: AsyncSessi
         f"событие ID: {event_id}, название: {event_title}"
     )
     await _show_community_view_event(callback, bot, session, events, target_index, chat_id, user_id)
+    await callback.answer()
 
 
 @group_router.callback_query(F.data.startswith("group_manage_event_"))

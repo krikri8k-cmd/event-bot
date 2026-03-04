@@ -4,6 +4,7 @@
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from utils.i18n import format_translation, t
 from utils.user_participation_service import UserParticipationService
 
 
@@ -52,25 +53,24 @@ def create_participation_buttons(
 
 
 def create_events_list_with_participation(
-    events: list, user_id: int, participation_service: UserParticipationService, page: int = 1, page_size: int = 5
+    events: list,
+    user_id: int,
+    participation_service: UserParticipationService,
+    page: int = 1,
+    page_size: int = 5,
+    lang: str = "ru",
 ) -> tuple[str, InlineKeyboardMarkup]:
     """
-    Создает список событий с кнопками участия
+    Создает список событий с кнопками участия.
 
-    Args:
-        events: Список событий
-        user_id: ID пользователя
-        participation_service: Сервис участия
-        page: Номер страницы
-        page_size: Размер страницы
-
-    Returns:
-        tuple: (текст сообщения, клавиатура)
+    Пагинация: при одной странице навигация не показывается;
+    при нескольких — один ряд: Назад | Стр. N/M | Вперёд (кольцо).
     """
     if not events:
         return "📅 События не найдены", InlineKeyboardMarkup(inline_keyboard=[])
 
-    # Пагинация
+    total_pages = max(1, (len(events) + page_size - 1) // page_size)
+    page = max(1, min(page, total_pages))
     start_idx = (page - 1) * page_size
     end_idx = start_idx + page_size
     page_events = events[start_idx:end_idx]
@@ -83,16 +83,12 @@ def create_events_list_with_participation(
         starts_at = event.get("starts_at")
         location = event.get("location_name", "Место уточняется")
 
-        # Форматируем время
         if starts_at:
             time_str = starts_at.strftime("%H:%M")
         else:
             time_str = "Время уточняется"
 
-        # Получаем статус участия
         participation_status = participation_service.get_user_participation_status(user_id, event_id)
-
-        # Добавляем индикатор участия
         status_emoji = ""
         if participation_status == "going":
             status_emoji = "✅ "
@@ -102,20 +98,21 @@ def create_events_list_with_participation(
         text += f"{status_emoji}{i}) **{title}** – {time_str}\n"
         text += f"📍 {location}\n\n"
 
-    # Создаем кнопки навигации
     keyboard_buttons = []
 
-    # Кнопки пагинации
-    nav_buttons = []
-    if page > 1:
-        nav_buttons.append(InlineKeyboardButton(text="◀️ Назад", callback_data=f"page:{page-1}"))
-    if end_idx < len(events):
-        nav_buttons.append(InlineKeyboardButton(text="Вперед ▶️", callback_data=f"page:{page+1}"))
+    if total_pages > 1:
+        prev_p = total_pages if page == 1 else (page - 1)
+        next_p = 1 if page == total_pages else (page + 1)
+        nav_row = [
+            InlineKeyboardButton(text=t("pager.prev", lang), callback_data=f"page:{prev_p}"),
+            InlineKeyboardButton(
+                text=format_translation("pager.page", lang, page=page, total=total_pages),
+                callback_data="page:noop",
+            ),
+            InlineKeyboardButton(text=t("pager.next", lang), callback_data=f"page:{next_p}"),
+        ]
+        keyboard_buttons.append(nav_row)
 
-    if nav_buttons:
-        keyboard_buttons.append(nav_buttons)
-
-    # Кнопка возврата
     keyboard_buttons.append([InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_menu")])
 
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
