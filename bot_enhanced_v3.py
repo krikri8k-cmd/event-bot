@@ -3376,43 +3376,32 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
             user_lang = get_user_language_or_default(user_id)
             success, message_text = create_task_from_place(user_id, place_id, user_lat, user_lng, lang=user_lang)
 
-            # Force update: обязательно отредактировать сообщение из _last_places_list_message с актуальным списком
+            # Новое сообщение вместо правки: отправляем актуальный список свежим сообщением, затем удаляем старое
             stored = _last_places_list_message.get(user_id)
             list_updated = False
             if stored and user_lat is not None and user_lng is not None:
-                chat_id, msg_id, cat, p = stored
-                # Список с явным just_added_place_id, чтобы «Квест взят» отобразился без зависимости от кэша БД
+                chat_id, old_msg_id, cat, p = stored
                 text, reply_markup = await _build_places_list_content(
                     cat, user_id, user_lat, user_lng, p, just_added_place_id=place_id if success else None
                 )
                 try:
-                    await message.bot.edit_message_text(
-                        chat_id=int(chat_id),
-                        message_id=int(msg_id),
+                    sent = await message.bot.send_message(
+                        chat_id=message.chat.id,
                         text=text,
                         reply_markup=reply_markup,
                         parse_mode="Markdown",
                     )
                     list_updated = True
-                    logger.info(
-                        f"🎯 add_quest: edit_message_text вызван chat_id={chat_id} message_id={msg_id} "
-                        f"user_id={user_id} place_id={place_id} len_text={len(text)}"
-                    )
-                except Exception as e:
-                    logger.warning(f"🎯 add_quest: не удалось отредактировать сообщение со списком: {e}")
-                    # Fallback: отправить новое сообщение со списком
+                    _last_places_list_message[user_id] = (message.chat.id, sent.message_id, cat, p)
+                    logger.info(f"🎯 add_quest: отправлено новое сообщение со списком message_id={sent.message_id}")
+                    # Удаляем старое сообщение со списком
                     try:
-                        sent = await message.bot.send_message(
-                            chat_id=message.chat.id,
-                            text=text,
-                            reply_markup=reply_markup,
-                            parse_mode="Markdown",
-                        )
-                        list_updated = True
-                        _last_places_list_message[user_id] = (message.chat.id, sent.message_id, cat, p)
-                        logger.info(f"🎯 add_quest: отправлено новое сообщение со списком message_id={sent.message_id}")
-                    except Exception as e2:
-                        logger.warning(f"🎯 add_quest: не удалось отправить новый список: {e2}")
+                        await message.bot.delete_message(chat_id=int(chat_id), message_id=int(old_msg_id))
+                        logger.info(f"🎯 add_quest: удалено старое сообщение message_id={old_msg_id}")
+                    except Exception as del_e:
+                        logger.debug(f"🎯 add_quest: не удалось удалить старое сообщение: {del_e}")
+                except Exception as e:
+                    logger.warning(f"🎯 add_quest: не удалось отправить новый список: {e}")
 
             if not success:
                 # Дубликат: квест уже взят — всегда показываем уведомление
