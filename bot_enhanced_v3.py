@@ -3431,12 +3431,10 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
             await message.answer(choose_text, reply_markup=language_selection_kb(detected_lang))
             return
 
-        # Язык выбран, получаем его
+        # Язык выбран, получаем его из БД (меню всегда по user_id — единый источник правды)
         user_lang = get_user_language_or_default(user_id)
-
-        # Показываем приветственное сообщение с главным меню
         welcome_text = t("menu.greeting", user_lang)
-        await message.answer(welcome_text, reply_markup=main_menu_kb(user_lang))
+        await message.answer(welcome_text, reply_markup=main_menu_kb(user_id=user_id))
     else:
         # Групповой чат - упрощенный функционал для событий участников
         # Для групповых чатов язык не проверяем (используем русский по умолчанию)
@@ -11294,11 +11292,11 @@ async def confirm_event(callback: types.CallbackQuery, state: FSMContext):
     share_message += f"💡 **{t('share.more_events_in_bot', user_lang)}** [@{_ub}](https://t.me/{_ub})"
 
     # Отправляем новое сообщение (которое можно переслать) вместо edit_text.
-    # Клавиатура по lang, чтобы не переключалась на русский после создания события.
+    # Меню по user_id, чтобы язык всегда из БД.
     await callback.message.answer(
         share_message,
         parse_mode="Markdown",
-        reply_markup=main_menu_kb(lang=user_lang),
+        reply_markup=main_menu_kb(user_id=callback.from_user.id),
     )
 
     await callback.answer(t("event.created", user_lang))
@@ -11477,12 +11475,10 @@ async def _send_or_edit_manage_message(
 
 @main_router.message(F.text.in_(_MAIN_MENU_BUTTON_TEXTS))
 async def on_main_menu_button(message: types.Message, state: FSMContext):
-    """Обработчик кнопки 'Главное меню' - очищает состояние и показывает анимацию ракеты"""
-    # Очищаем состояние FSM
+    """Обработчик кнопки 'Главное меню' — очищает состояние и показывает меню на языке из БД."""
     await state.clear()
-
-    # Показываем анимацию ракеты с главным меню
-    await send_spinning_menu(message)
+    user_lang = get_user_language_or_default(message.from_user.id)
+    await send_spinning_menu(message, lang=user_lang)
 
 
 @main_router.message(~StateFilter(EventCreation, EventEditing, TaskFlow, CommunityEventCreation, CommunityEventEditing))
