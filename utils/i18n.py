@@ -112,14 +112,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "group.card.leave": "❌ Отменить запись",
         "group.card.participants": "👥 Участники",
         "group.card.footer": "💡 **Создавай через команду /start**",
-        "group.list.admin_footer": (
-            "🔧 Админ-панель: Вы можете управлять любым событием кнопками ниже!\n"
-            "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
-        ),
-        "group.list.user_footer": (
-            "🔧 Ваши события: Вы можете управлять своими событиями кнопками ниже!\n"
-            "💡 Нажмите ➕ Создать событие чтобы добавить свое!"
-        ),
+        "group.list.admin_footer": "",
+        "group.list.user_footer": "",
         "group.load_error": "❌ Ошибка при загрузке события",
         "group.language_changed": "✅ Язык изменён",
         "group.panel.what_can_do": (
@@ -800,13 +794,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "group.card.leave": "❌ Leave",
         "group.card.participants": "👥 Participants",
         "group.card.footer": "💡 **Create via /start**",
-        "group.list.admin_footer": (
-            "🔧 Admin: You can manage any event with the buttons below!\n" "💡 Tap ➕ Create event to add your own!"
-        ),
-        "group.list.user_footer": (
-            "🔧 Your events: You can manage your events with the buttons below!\n"
-            "💡 Tap ➕ Create event to add your own!"
-        ),
+        "group.list.admin_footer": "",
+        "group.list.user_footer": "",
         "group.load_error": "❌ Error loading event",
         "group.language_changed": "✅ Language changed",
         "group.panel.what_can_do": (
