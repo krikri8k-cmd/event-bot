@@ -3910,14 +3910,18 @@ async def pm_edit_location_map_choice(callback: types.CallbackQuery, state: FSMC
             await state.update_data(event_id=event_id, chat_id=chat_id)
             await state.set_state(CommunityEventEditing.waiting_for_location)
 
+            user_lang = get_user_language_or_default(callback.from_user.id)
             # Показываем кнопку с картой
             keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[
-                    [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+                    [
+                        InlineKeyboardButton(
+                            text=t("tasks.button.find_on_map", user_lang),
+                            url="https://www.google.com/maps",
+                        )
+                    ],
                 ]
             )
-
-            user_lang = get_user_language_or_default(callback.from_user.id)
             await callback.message.answer(
                 t("edit.location_map_prompt", user_lang),
                 reply_markup=keyboard,
@@ -5670,13 +5674,17 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
         await send_spinning_menu(message, lang=user_lang)
         return
 
-    # Если пользователь нажал "🌍 Найти на карте", показываем inline-кнопку с картой
+    # Если пользователь нажал "🌍 Найти на карте" / "Find on map", показываем inline-кнопку с картой
     if text in _FIND_ON_MAP_BUTTON_TEXTS:
-        logger.info(f"📍 [TEXT_INPUT] Обнаружена кнопка '🌍 Найти на карте' от пользователя {user_id}")
-        # Создаем inline-кнопку для открытия Google Maps
+        logger.info(f"📍 [TEXT_INPUT] Обнаружена кнопка Find on map от пользователя {user_id}")
         maps_keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+                [
+                    InlineKeyboardButton(
+                        text=t("tasks.button.find_on_map", user_lang),
+                        url="https://www.google.com/maps",
+                    )
+                ],
             ]
         )
         await message.answer(
@@ -5690,10 +5698,14 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
         logger.info(
             f"📍 [TEXT_INPUT] Обнаружен повторный запрос '📍 События рядом' от пользователя {user_id} (MacBook)"
         )
-        # Создаем inline-кнопку для открытия Google Maps (для MacBook)
         maps_keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+                [
+                    InlineKeyboardButton(
+                        text=t("tasks.button.find_on_map", user_lang),
+                        url="https://www.google.com/maps",
+                    )
+                ],
             ]
         )
         await message.answer(
@@ -5728,7 +5740,12 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
         else:
             maps_keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[
-                    [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+                    [
+                        InlineKeyboardButton(
+                            text=t("tasks.button.find_on_map", user_lang),
+                            url="https://www.google.com/maps",
+                        )
+                    ],
                 ]
             )
             await message.answer(
@@ -5767,10 +5784,14 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
         pass
 
     # Если это не координаты и не ссылка, показываем подсказку
-    # Создаем inline-кнопку для открытия Google Maps (для MacBook)
     maps_keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+            [
+                InlineKeyboardButton(
+                    text=t("tasks.button.find_on_map", user_lang),
+                    url="https://www.google.com/maps",
+                )
+            ],
         ]
     )
     await message.answer(
@@ -5801,16 +5822,20 @@ async def on_location_text_input_tasks(message: types.Message, state: FSMContext
         await send_spinning_menu(message, lang=user_lang)
         return
 
-    # Если пользователь нажал "🌍 Найти на карте", показываем inline-кнопку с картой
+    # Если пользователь нажал "🌍 Найти на карте" / "Find on map", показываем inline-кнопку с картой
     if text in _FIND_ON_MAP_BUTTON_TEXTS:
-        logger.info(f"📍 [TEXT_INPUT_TASKS] Обнаружена кнопка '🌍 Найти на карте' от пользователя {user_id}")
-        # Создаем inline-кнопку для открытия Google Maps
+        logger.info(f"📍 [TEXT_INPUT_TASKS] Обнаружена кнопка Find on map от пользователя {user_id}")
+        user_lang = get_user_language_or_default(user_id)
         maps_keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+                [
+                    InlineKeyboardButton(
+                        text=t("tasks.button.find_on_map", user_lang),
+                        url="https://www.google.com/maps",
+                    )
+                ],
             ]
         )
-        user_lang = get_user_language_or_default(user_id)
         await message.answer(
             t("edit.location_map_prompt", user_lang),
             reply_markup=maps_keyboard,
@@ -5822,19 +5847,19 @@ async def on_location_text_input_tasks(message: types.Message, state: FSMContext
         logger.info(
             f"📍 [TEXT_INPUT_TASKS] Обнаружен повторный запрос '🎯 Интересные места' от пользователя {user_id} (MacBook)"
         )
-        # Создаем inline-кнопку для открытия Google Maps (для MacBook)
+        user_lang = get_user_language_or_default(user_id)
         maps_keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+                [
+                    InlineKeyboardButton(
+                        text=t("tasks.button.find_on_map", user_lang),
+                        url="https://www.google.com/maps",
+                    )
+                ],
             ]
         )
         await message.answer(
-            "Нажмите кнопку '📍 Отправить геолокацию' чтобы начать!\n\n"
-            "💡 Если кнопка не работает :\n\n"
-            "• Жми '🌍 Найти на карте' \n"
-            "и вставь ссылку \n\n"
-            "• Или отправь координаты\n"
-            "пример: -8.4095, 115.1889",
+            t("tasks.press_location_hint", user_lang),
             parse_mode="Markdown",
             reply_markup=maps_keyboard,
         )
@@ -5857,19 +5882,19 @@ async def on_location_text_input_tasks(message: types.Message, state: FSMContext
             await process_task_location(message, state, lat, lng)
             return
         else:
-            # Создаем inline-кнопку для открытия Google Maps (для MacBook)
+            user_lang = get_user_language_or_default(user_id)
             maps_keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[
-                    [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+                    [
+                        InlineKeyboardButton(
+                            text=t("tasks.button.find_on_map", user_lang),
+                            url="https://www.google.com/maps",
+                        )
+                    ],
                 ]
             )
             await message.answer(
-                "❌ Не удалось извлечь координаты из ссылки Google Maps.\n\n"
-                "💡 Если кнопка не работает :\n\n"
-                "• Жми '🌍 Найти на карте' \n"
-                "и вставь ссылку \n\n"
-                "• Или отправь координаты\n"
-                "пример: -8.4095, 115.1889",
+                t("edit.coords_link_failed", user_lang),
                 reply_markup=maps_keyboard,
             )
             return
@@ -5898,19 +5923,19 @@ async def on_location_text_input_tasks(message: types.Message, state: FSMContext
         pass
 
     # Если это не координаты и не ссылка, показываем подсказку
-    # Создаем inline-кнопку для открытия Google Maps (для MacBook)
+    user_lang = get_user_language_or_default(user_id)
     maps_keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🌍 Найти на карте", url="https://www.google.com/maps")],
+            [
+                InlineKeyboardButton(
+                    text=t("tasks.button.find_on_map", user_lang),
+                    url="https://www.google.com/maps",
+                )
+            ],
         ]
     )
     await message.answer(
-        "Нажмите кнопку '📍 Отправить геолокацию' чтобы начать!\n\n"
-        "💡 Если кнопка не работает :\n\n"
-        "• Жми '🌍 Найти на карте' \n"
-        "и вставь ссылку \n\n"
-        "• Или отправь координаты\n"
-        "пример: -8.4095, 115.1889",
+        t("tasks.press_location_hint", user_lang),
         parse_mode="Markdown",
         reply_markup=maps_keyboard,
     )
