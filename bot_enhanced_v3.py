@@ -1608,21 +1608,23 @@ def kb_pager(
 
     settings = load_settings()
 
-    prev_cb = f"pg:{page - 1}" if page > 1 else "pg:noop"
-    next_cb = f"pg:{page + 1}" if page < total else "pg:noop"
+    buttons = []
 
-    buttons = [
-        [
-            InlineKeyboardButton(text=t("pager.prev", lang), callback_data=prev_cb),
-            InlineKeyboardButton(text=t("pager.next", lang), callback_data=next_cb),
-        ],
-        [
-            InlineKeyboardButton(
-                text=format_translation("pager.page", lang, page=page, total=total),
-                callback_data="pg:noop",
-            )
-        ],
-    ]
+    # Принцип «Все или ничего»: блок стрелок только при total > 1; один ряд: ← | Стр. N/M | →
+    # Кольцо: Назад на 1-й → последняя; Вперёд на последней → 1-я
+    if total > 1:
+        prev_page = total if page == 1 else page - 1
+        next_page = 1 if page == total else page + 1
+        buttons.append(
+            [
+                InlineKeyboardButton(text=t("pager.prev", lang), callback_data=f"pg:{prev_page}"),
+                InlineKeyboardButton(
+                    text=format_translation("pager.page", lang, page=page, total=total),
+                    callback_data="pg:noop",
+                ),
+                InlineKeyboardButton(text=t("pager.next", lang), callback_data=f"pg:{next_page}"),
+            ]
+        )
 
     # Добавляем кнопки фильтрации даты (Сегодня/Завтра)
     if date_filter == "today":
@@ -9181,30 +9183,20 @@ async def show_tasks_for_category(
         deep_link = f"https://t.me/{bot_username}?start=add_quest_{place.id}"
         text += f"[{take_quest_label}]({deep_link})\n\n"
 
-    # Создаем клавиатуру только с кнопками пагинации (без кнопок мест)
+    # Создаем клавиатуру: при total_pages > 1 — один ряд ← | Стр. N/M | → (кольцо), иначе без стрелок
     keyboard = []
 
-    # Кнопки пагинации
-    nav_buttons = []
-    if page > 1:
-        nav_buttons.append(
-            InlineKeyboardButton(text=t("pager.prev", lang), callback_data=f"places_page:{category}:{page-1}")
-        )
-    if page < total_pages:
-        nav_buttons.append(
-            InlineKeyboardButton(text=t("pager.next", lang), callback_data=f"places_page:{category}:{page+1}")
-        )
-
-    if nav_buttons:
-        keyboard.append(nav_buttons)
-
-    # Информация о странице
     if total_pages > 1:
+        prev_p = total_pages if page == 1 else page - 1
+        next_p = 1 if page == total_pages else page + 1
         keyboard.append(
             [
+                InlineKeyboardButton(text=t("pager.prev", lang), callback_data=f"places_page:{category}:{prev_p}"),
                 InlineKeyboardButton(
-                    text=t("pager.page", lang).format(page=page, total=total_pages), callback_data="places_page:noop"
-                )
+                    text=t("pager.page", lang).format(page=page, total=total_pages),
+                    callback_data="places_page:noop",
+                ),
+                InlineKeyboardButton(text=t("pager.next", lang), callback_data=f"places_page:{category}:{next_p}"),
             ]
         )
 
@@ -11442,14 +11434,17 @@ async def _show_manage_event(callback: types.CallbackQuery, events: list[dict], 
         ]
     )
 
-    # Добавляем навигацию: всегда показываем 3 кнопки (Список, Назад, Вперед)
-    nav_row = [
-        InlineKeyboardButton(text=t("manage_event.nav.list", lang), callback_data=f"back_to_list_{event['id']}"),
-        InlineKeyboardButton(text=t("manage_event.nav.back", lang), callback_data=f"prev_event_{max(0, index-1)}"),
-        InlineKeyboardButton(
-            text=t("manage_event.nav.forward", lang), callback_data=f"next_event_{min(total-1, index+1)}"
-        ),
-    ]
+    # Навигация: при total > 1 — Список | Назад | Вперёд (кольцо); при total == 1 — только Список
+    prev_idx = (total - 1) if index == 0 else (index - 1)
+    next_idx = 0 if index == total - 1 else (index + 1)
+    nav_row = [InlineKeyboardButton(text=t("manage_event.nav.list", lang), callback_data=f"back_to_list_{event['id']}")]
+    if total > 1:
+        nav_row.extend(
+            [
+                InlineKeyboardButton(text=t("manage_event.nav.back", lang), callback_data=f"prev_event_{prev_idx}"),
+                InlineKeyboardButton(text=t("manage_event.nav.forward", lang), callback_data=f"next_event_{next_idx}"),
+            ]
+        )
     keyboard.inline_keyboard.append(nav_row)
 
     await _send_or_edit_manage_message(callback, text, keyboard)
@@ -11803,10 +11798,11 @@ async def handle_pagination(callback: types.CallbackQuery):
             # Нет карты: все страницы по 8 событий
             total_pages = max(1, ceil(len(prepared) / 8))
 
-        # Проверяем, что запрошенная страница находится в допустимых пределах
-        if page < 1 or page > total_pages:
-            await callback.answer(t("pager.page_edge_alert", user_lang), show_alert=True)
-            return
+        # Кольцо: выходим за границы — переходим на противоположный конец
+        if page < 1:
+            page = total_pages
+        elif page > total_pages:
+            page = 1
 
         # Рендерим страницу
         # Теперь карта отдельно, поэтому is_caption=False для всех страниц
@@ -13262,34 +13258,20 @@ async def handle_description_input(message: types.Message, state: FSMContext):
 
 @main_router.callback_query(F.data.startswith("next_event_"))
 async def handle_next_event(callback: types.CallbackQuery):
-    """Переход к следующему событию"""
+    """Переход к следующему событию (кольцо: с последней — на первую)"""
     user_id = callback.from_user.id
     target_index = _extract_index(callback.data, prefix="next_event_")
     active_events = _get_active_user_events(user_id)
     total = len(active_events)
 
-    if target_index is None or target_index >= total:
-        user_lang = get_user_language_or_default(user_id)
-        await callback.answer(t("carousel.last_event", user_lang), show_alert=True)
+    if target_index is None or total == 0:
+        await callback.answer()
         return
-
-    # Проверяем, не пытаемся ли мы перейти вперед с последней страницы
-    # Извлекаем текущий индекс из текста сообщения (формат: "({current}/{total})")
-    current_text = callback.message.text or callback.message.caption or ""
-    match = re.search(r"\((\d+)/(\d+)\)", current_text)
-    if match:
-        current_num = int(match.group(1))
-        total_num = int(match.group(2))
-        # Если текущий номер равен общему количеству, значит мы уже на последней странице
-        if current_num == total_num and total_num == total:
-            user_lang = get_user_language_or_default(user_id)
-            await callback.answer(t("carousel.last_event", user_lang), show_alert=True)
-            return
-        # Если target_index совпадает с текущим индексом (current_num - 1), значит мы уже на этой странице
-        if target_index == current_num - 1:
-            user_lang = get_user_language_or_default(user_id)
-            await callback.answer(t("carousel.last_event", user_lang), show_alert=True)
-            return
+    # Кольцо: выходим за границы — переходим на другой конец
+    if target_index >= total:
+        target_index = 0
+    elif target_index < 0:
+        target_index = total - 1
 
     await _show_manage_event(callback, active_events, target_index)
     await callback.answer()
@@ -13488,33 +13470,20 @@ async def handle_back_to_list(callback: types.CallbackQuery):
 
 @main_router.callback_query(F.data.startswith("prev_event_"))
 async def handle_prev_event(callback: types.CallbackQuery):
-    """Возврат к предыдущему событию"""
+    """Возврат к предыдущему событию (кольцо: с первой — на последнюю)"""
     user_id = callback.from_user.id
     target_index = _extract_index(callback.data, prefix="prev_event_")
     active_events = _get_active_user_events(user_id)
     total = len(active_events)
 
-    if target_index is None or target_index < 0 or target_index >= total:
-        user_lang = get_user_language_or_default(user_id)
-        await callback.answer(t("carousel.first_event", user_lang), show_alert=True)
+    if target_index is None or total == 0:
+        await callback.answer()
         return
-
-    # Проверяем, не пытаемся ли мы перейти назад с первой страницы
-    # Извлекаем текущий индекс из текста сообщения (формат: "({current}/{total})")
-    current_text = callback.message.text or callback.message.caption or ""
-    match = re.search(r"\((\d+)/(\d+)\)", current_text)
-    if match:
-        current_num = int(match.group(1))
-        # Если текущий номер равен 1, значит мы уже на первой странице
-        if current_num == 1:
-            user_lang = get_user_language_or_default(user_id)
-            await callback.answer(t("carousel.first_event", user_lang), show_alert=True)
-            return
-        # Если target_index совпадает с текущим индексом (current_num - 1), значит мы уже на этой странице
-        if target_index == current_num - 1:
-            user_lang = get_user_language_or_default(user_id)
-            await callback.answer(t("carousel.first_event", user_lang), show_alert=True)
-            return
+    # Кольцо: выходим за границы — переходим на другой конец
+    if target_index < 0:
+        target_index = total - 1
+    elif target_index >= total:
+        target_index = 0
 
     await _show_manage_event(callback, active_events, target_index)
     await callback.answer()
