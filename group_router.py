@@ -1613,11 +1613,11 @@ async def group_list_events_page_handler(callback: CallbackQuery, bot: Bot, sess
 
 
 async def group_list_events_page(callback: CallbackQuery, bot: Bot, session: AsyncSession, page: int = 1):
-    """Показать список событий этого чата с пагинацией"""
+    """Показать список событий этого чата с пагинацией (3 события на страницу)."""
     chat_id = callback.message.chat.id
     user_id = callback.from_user.id
     lang = await get_user_language_async(user_id, chat_id)
-    events_per_page = 10
+    events_per_page = 3
 
     # Получаем thread_id для форумов
     is_forum = getattr(callback.message.chat, "is_forum", False)
