@@ -192,6 +192,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.quest_already_added": "⚠️ Квест для места '{name}' уже добавлен в Мои квесты",
         "tasks.place_not_found": "❌ Место не найдено",
         "tasks.quest_already_short": "🙈 Квест уже добавлен",
+        "tasks.quest_taken": "✅ Квест взят",
         "tasks.quest_add_error": "❌ Ошибка при добавлении квеста: {error}",
         "tasks.location_received": (
             "✅ **Геолокация получена!**\n\n"
@@ -1095,6 +1096,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.quest_already_added": "⚠️ Quest for '{name}' is already in My quests",
         "tasks.place_not_found": "❌ Place not found",
         "tasks.quest_already_short": "🙈 Quest already added",
+        "tasks.quest_taken": "✅ Quest taken",
         "tasks.quest_add_error": "❌ Error adding quest: {error}",
         "tasks.location_received": (
             "✅ **Location received!**\n\n"

@@ -8797,17 +8797,18 @@ async def show_tasks_for_category(
     end_idx = min(start_idx + places_per_page, len(all_places))
     page_places = all_places[start_idx:end_idx]
 
-    # Формируем текст сообщения
+    # Места, которые пользователь уже взял в квесты (для подписи "Квест взят" и кнопок)
+    active_tasks = get_user_active_tasks(user_id)
+    taken_place_ids = {t.get("place_id") for t in active_tasks if t.get("place_id")}
+
+    # Формируем текст сообщения и ряды кнопок (по одной на место)
     text = f"🎯 **{category_name}**\n\n"
     text += t("tasks.places_found", lang).format(count=len(all_places)) + "\n\n"
 
-    # Получаем username бота для создания deep links
-    bot_info = await message_or_callback.bot.get_me() if hasattr(message_or_callback, "bot") else None
-    bot_username = bot_info.username if bot_info else get_bot_username()
-
     take_quest_label = t("tasks.take_quest", lang)
+    quest_taken_label = t("tasks.quest_taken", lang)
+    place_button_rows = []
 
-    # Добавляем каждое место с ссылкой "Забрать квест" в тексте
     for idx, place in enumerate(page_places, start=start_idx + 1):
         # Название места по языку (name_en для EN, иначе name)
         place_display_name = (getattr(place, "name_en", None) or place.name) if lang == "en" else place.name
@@ -8834,12 +8835,23 @@ async def show_tasks_for_category(
         if hint_text:
             text += f"💡 {hint_text}\n"
 
-        # Ссылка "Забрать квест"
-        deep_link = f"https://t.me/{bot_username}?start=add_quest_{place.id}"
-        text += f"[{take_quest_label}]({deep_link})\n\n"
+        # Кнопка: либо "Забрать квест" (callback), либо "Квест взят" (noop). Обновление списка на месте, без доп. сообщений.
+        if place.id in taken_place_ids:
+            text += quest_taken_label + "\n\n"
+            place_button_rows.append([InlineKeyboardButton(text=quest_taken_label, callback_data="noop")])
+        else:
+            text += "\n"
+            place_button_rows.append(
+                [
+                    InlineKeyboardButton(
+                        text=take_quest_label,
+                        callback_data=f"add_place_to_quests:{place.id}:{category}:{page}",
+                    )
+                ]
+            )
 
-    # Создаем клавиатуру: при total_pages > 1 — один ряд ← | Стр. N/M | → (кольцо), иначе без стрелок
-    keyboard = []
+    # Создаем клавиатуру: кнопки по местам, затем при total_pages > 1 — Стр. N/M | Назад | Вперёд, затем Список | Главное меню
+    keyboard = list(place_button_rows)
 
     if total_pages > 1:
         prev_p = total_pages if page == 1 else page - 1
@@ -9011,25 +9023,39 @@ async def handle_places_page(callback: types.CallbackQuery, state: FSMContext):
 
 @main_router.callback_query(F.data.startswith("add_place_to_quests:"))
 async def handle_add_place_to_quests(callback: types.CallbackQuery, state: FSMContext):
-    """Обработчик добавления места в квесты"""
-    place_id = int(callback.data.split(":")[1])
+    """Обработчик добавления места в квесты. При вызове из списка (place_id:category:page) обновляет список на месте."""
+    parts = callback.data.split(":")
+    place_id = int(parts[1])
     user_id = callback.from_user.id
+    category = parts[2] if len(parts) >= 4 else None
+    page = int(parts[3]) if len(parts) >= 4 else 1
 
-    logger.info(f"🎯 handle_add_place_to_quests: user_id={user_id}, place_id={place_id}")
+    logger.info(
+        f"🎯 handle_add_place_to_quests: user_id={user_id}, place_id={place_id}, category={category}, page={page}"
+    )
 
-    # Получаем координаты пользователя из БД
     with get_session() as session:
         user = session.query(User).filter(User.id == user_id).first()
         user_lat = user.last_lat if user else None
         user_lng = user.last_lng if user else None
+
+    if not user_lat or not user_lng:
+        await callback.answer(t("tasks.require_location", get_user_language_or_default(user_id)))
+        return
 
     user_lang = get_user_language_or_default(user_id)
     success, message_text = create_task_from_place(user_id, place_id, user_lat, user_lng, lang=user_lang)
 
     logger.info(
         f"🎯 handle_add_place_to_quests: user_id={user_id}, place_id={place_id}, "
-        f"success={success}, message='{message_text[:50]}'"
+        f"success={success}, message='{(message_text or '')[:50]}'"
     )
+
+    # Если вызвано из списка мест (есть category) — обновляем сообщение списком, без отдельного тоста
+    if category:
+        await show_tasks_for_category(callback.message, category, user_id, user_lat, user_lng, state, page=page)
+        await callback.answer()
+        return
 
     await callback.answer(message_text, show_alert=not success)
 
