@@ -6602,58 +6602,45 @@ async def cancel_creation(message: types.Message, state: FSMContext):
     await message.answer(t("create.cancelled", user_lang), reply_markup=main_menu_kb(user_id=user_id))
 
 
-async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_private: bool):
-    """Вспомогательная функция для обработки 'Мои события' через bot напрямую"""
-    lang = get_user_language_or_default(user_id)
-    logger.debug(f"🔍 _handle_my_events_via_bot: запрос от пользователя {user_id}")
-
-    # Инкрементируем сессию World (с проверкой времени)
-    if is_private:
-        from utils.user_analytics import UserAnalytics
-
-        UserAnalytics.maybe_increment_sessions_world(user_id, min_interval_minutes=6)
-
-    # Автомодерация: закрываем прошедшие события
-    closed_count = auto_close_events()
-    if closed_count > 0:
-        await bot.send_message(
-            chat_id=chat_id, text=format_translation("myevents.auto_closed", lang, count=closed_count)
-        )
-
-    # Получаем события пользователя
-    events = get_user_events(user_id)
-    logger.debug(
-        f"🔍 _handle_my_events_via_bot: найдено {len(events) if events else 0} событий для пользователя {user_id}"
-    )
-
-    # Получаем события с участием (все добавленные события)
-    all_participations = []
-
-    # Получаем баланс ракет пользователя
-    from rockets_service import get_user_rockets
-
-    rocket_balance = get_user_rockets(user_id)
-
-    # Формируем текст сообщения (та же логика, что и в on_my_events)
+def _build_my_events_message(
+    events: list,
+    all_participations: list,
+    lang: str,
+    rocket_balance: int,
+    page: int = 1,
+    page_size: int = 6,
+) -> tuple[str, InlineKeyboardMarkup]:
+    """Собирает текст и клавиатуру для «Мои события» с пагинацией по созданным (6 на страницу)."""
     text_parts = [
         t("myevents.header", lang),
         format_translation("myevents.balance", lang, rocket_balance=rocket_balance),
     ]
+    if not events and not all_participations:
+        text_parts = [
+            t("myevents.header", lang),
+            t("myevents.no_events", lang) + "\n",
+            format_translation("myevents.balance", lang, rocket_balance=rocket_balance).strip(),
+        ]
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main"),
+                    InlineKeyboardButton(text=t("myevents.button.my_quests", lang), callback_data="show_my_tasks"),
+                ],
+            ]
+        )
+        return "\n".join(text_parts), keyboard
 
-    # Созданные события
+    active_events = [e for e in events if e.get("status") == "open"] if events else []
+    from datetime import datetime, timedelta
+
+    import pytz
+
+    tz_bali = pytz.timezone("Asia/Makassar")
+    now_bali = datetime.now(tz_bali)
+    day_ago = now_bali - timedelta(hours=24)
+    recent_closed_events = []
     if events:
-        active_events = [e for e in events if e.get("status") == "open"]
-
-        # Показываем также недавно закрытые события (за последние 24 часа)
-        from datetime import datetime, timedelta
-
-        import pytz
-
-        tz_bali = pytz.timezone("Asia/Makassar")
-        now_bali = datetime.now(tz_bali)
-        day_ago = now_bali - timedelta(hours=24)
-
-        recent_closed_events = []
         for e in events:
             if e.get("status") == "closed":
                 updated_at = e.get("updated_at_utc")
@@ -6662,92 +6649,72 @@ async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_pri
                     if local_time >= day_ago:
                         recent_closed_events.append(e)
 
-        if active_events:
-            text_parts.append(t("myevents.created_by_me", lang))
-            for i, event in enumerate(active_events[:3], 1):
-                title = event.get("title", t("common.title_not_specified", lang))
-                location = event.get("location_name", t("common.location_tba", lang))
-                starts_at = event.get("starts_at")
+    total_pages = max(1, (len(active_events) + page_size - 1) // page_size)
+    page = max(1, min(page, total_pages))
+    start_idx = (page - 1) * page_size
+    end_idx = min(start_idx + page_size, len(active_events))
+    page_events = active_events[start_idx:end_idx]
 
-                if starts_at:
-                    local_time = starts_at.astimezone(tz_bali)
-                    time_str = local_time.strftime("%d.%m.%Y %H:%M")
-                else:
-                    time_str = t("common.time_tba", lang)
-
-                escaped_title = (
-                    title.replace("\\", "\\\\")
-                    .replace("*", "\\*")
-                    .replace("_", "\\_")
-                    .replace("`", "\\`")
-                    .replace("[", "\\[")
-                )
-                escaped_location = (
-                    location.replace("\\", "\\\\")
-                    .replace("*", "\\*")
-                    .replace("_", "\\_")
-                    .replace("`", "\\`")
-                    .replace("[", "\\[")
-                )
-
-                text_parts.append(f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location}\n")
-
-            if len(active_events) > 3:
-                text_parts.append(format_translation("myevents.and_more", lang, count=len(active_events) - 3))
-
-        if recent_closed_events:
-            text_parts.append(
-                f"\n{format_translation('myevents.recently_closed', lang, count=len(recent_closed_events))}"
+    if page_events:
+        text_parts.append(t("myevents.created_by_me", lang))
+        for i, event in enumerate(page_events, start=start_idx + 1):
+            title = event.get("title", t("common.title_not_specified", lang))
+            location = event.get("location_name", t("common.location_tba", lang))
+            starts_at = event.get("starts_at")
+            time_str = (
+                starts_at.astimezone(tz_bali).strftime("%d.%m.%Y %H:%M") if starts_at else t("common.time_tba", lang)
             )
-            for i, event in enumerate(recent_closed_events[:3], 1):
-                title = event.get("title", t("common.title_not_specified", lang))
-                location = event.get("location_name", t("common.location_tba", lang))
-                starts_at = event.get("starts_at")
+            escaped_title = (
+                title.replace("\\", "\\\\")
+                .replace("*", "\\*")
+                .replace("_", "\\_")
+                .replace("`", "\\`")
+                .replace("[", "\\[")
+            )
+            escaped_location = (
+                location.replace("\\", "\\\\")
+                .replace("*", "\\*")
+                .replace("_", "\\_")
+                .replace("`", "\\`")
+                .replace("[", "\\[")
+            )
+            text_parts.append(f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location}\n")
 
-                if starts_at:
-                    local_time = starts_at.astimezone(tz_bali)
-                    time_str = local_time.strftime("%d.%m.%Y %H:%M")
-                else:
-                    time_str = t("common.time_tba", lang)
+    if recent_closed_events:
+        text_parts.append(f"\n{format_translation('myevents.recently_closed', lang, count=len(recent_closed_events))}")
+        for i, event in enumerate(recent_closed_events[:3], 1):
+            title = event.get("title", t("common.title_not_specified", lang))
+            location = event.get("location_name", t("common.location_tba", lang))
+            starts_at = event.get("starts_at")
+            time_str = (
+                starts_at.astimezone(tz_bali).strftime("%d.%m.%Y %H:%M") if starts_at else t("common.time_tba", lang)
+            )
+            escaped_title = (
+                title.replace("\\", "\\\\")
+                .replace("*", "\\*")
+                .replace("_", "\\_")
+                .replace("`", "\\`")
+                .replace("[", "\\[")
+            )
+            escaped_location = (
+                location.replace("\\", "\\\\")
+                .replace("*", "\\*")
+                .replace("_", "\\_")
+                .replace("`", "\\`")
+                .replace("[", "\\[")
+            )
+            text_parts.append(
+                f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location} {t('common.closed', lang)}\n"
+            )
+        if len(recent_closed_events) > 3:
+            text_parts.append(format_translation("myevents.and_more_closed", lang, count=len(recent_closed_events) - 3))
 
-                escaped_title = (
-                    title.replace("\\", "\\\\")
-                    .replace("*", "\\*")
-                    .replace("_", "\\_")
-                    .replace("`", "\\`")
-                    .replace("[", "\\[")
-                )
-                escaped_location = (
-                    location.replace("\\", "\\\\")
-                    .replace("*", "\\*")
-                    .replace("_", "\\_")
-                    .replace("`", "\\`")
-                    .replace("[", "\\[")
-                )
-
-                text_parts.append(
-                    f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location} {t('common.closed', lang)}\n"
-                )
-
-            if len(recent_closed_events) > 3:
-                text_parts.append(
-                    format_translation("myevents.and_more_closed", lang, count=len(recent_closed_events) - 3)
-                )
-
-    # Добавленные события
     if all_participations:
         text_parts.append(f"\n➕ **Добавленные ({len(all_participations)}):**")
         for i, event in enumerate(all_participations[:3], 1):
             title = event.get("title", t("common.title_not_specified", lang))
             starts_at = event.get("starts_at")
-            if starts_at:
-                import pytz
-
-                tz_bali = pytz.timezone("Asia/Makassar")
-                local_time = starts_at.astimezone(tz_bali)
-                time_str = local_time.strftime("%H:%M")
-            else:
-                time_str = "Время уточняется"
+            time_str = starts_at.astimezone(tz_bali).strftime("%H:%M") if starts_at else "Время уточняется"
             escaped_title = (
                 title.replace("\\", "\\\\")
                 .replace("*", "\\*")
@@ -6756,21 +6723,9 @@ async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_pri
                 .replace("[", "\\[")
             )
             text_parts.append(f"{i}) {escaped_title} – {time_str}")
-
         if len(all_participations) > 3:
             text_parts.append(f"... и еще {len(all_participations) - 3} событий")
 
-    if not events and not all_participations:
-        rocket_balance = get_user_rockets(user_id)
-        text_parts = [
-            t("myevents.header", lang),
-            t("myevents.no_events", lang) + "\n",
-            format_translation("myevents.balance", lang, rocket_balance=rocket_balance).strip(),
-        ]
-
-    text = "\n".join(text_parts)
-
-    # Создаем клавиатуру
     keyboard_buttons = []
     if events:
         keyboard_buttons.append(
@@ -6780,23 +6735,60 @@ async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_pri
         keyboard_buttons.append(
             [InlineKeyboardButton(text=t("myevents.button.all_added", lang), callback_data="view_participations")]
         )
-    # Добавляем кнопки навигации: Главное меню и Мои квесты на одной линии
+    if total_pages > 1:
+        prev_p = total_pages if page == 1 else (page - 1)
+        next_p = 1 if page == total_pages else (page + 1)
+        keyboard_buttons.append(
+            [
+                InlineKeyboardButton(
+                    text=format_translation("pager.page", lang, page=page, total=total_pages),
+                    callback_data="my_events_page_noop",
+                ),
+                InlineKeyboardButton(text=t("pager.prev", lang), callback_data=f"my_events_page:{prev_p}"),
+                InlineKeyboardButton(text=t("pager.next", lang), callback_data=f"my_events_page:{next_p}"),
+            ]
+        )
     keyboard_buttons.append(
         [
             InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main"),
             InlineKeyboardButton(text=t("myevents.button.my_quests", lang), callback_data="show_my_tasks"),
         ]
     )
-    keyboard = (
-        InlineKeyboardMarkup(inline_keyboard=keyboard_buttons) if keyboard_buttons else main_menu_kb(user_id=user_id)
+    return "\n".join(text_parts), InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+
+
+async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_private: bool, page: int = 1):
+    """Вспомогательная функция для обработки 'Мои события' через bot напрямую (пагинация 6 на страницу)."""
+    lang = get_user_language_or_default(user_id)
+    logger.debug(f"🔍 _handle_my_events_via_bot: запрос от пользователя {user_id}")
+
+    if is_private:
+        from utils.user_analytics import UserAnalytics
+
+        UserAnalytics.maybe_increment_sessions_world(user_id, min_interval_minutes=6)
+
+    closed_count = auto_close_events()
+    if closed_count > 0:
+        await bot.send_message(
+            chat_id=chat_id, text=format_translation("myevents.auto_closed", lang, count=closed_count)
+        )
+
+    events = get_user_events(user_id)
+    logger.debug(
+        f"🔍 _handle_my_events_via_bot: найдено {len(events) if events else 0} событий для пользователя {user_id}"
+    )
+    all_participations = []
+    from rockets_service import get_user_rockets
+
+    rocket_balance = get_user_rockets(user_id)
+    text, keyboard = _build_my_events_message(
+        events or [], all_participations, lang, rocket_balance, page=page, page_size=6
     )
 
-    # Отправляем сообщение через bot
     import os
     from pathlib import Path
 
     photo_path = Path(__file__).parent / "images" / "my_events.png"
-
     if os.path.exists(photo_path):
         try:
             from aiogram.types import FSInputFile
@@ -6808,7 +6800,6 @@ async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_pri
             return
         except Exception as e:
             logger.error(f"❌ Ошибка отправки фото: {e}", exc_info=True)
-
     try:
         await bot.send_message(chat_id=chat_id, text=text, reply_markup=keyboard, parse_mode="Markdown")
     except Exception as e:
@@ -6972,193 +6963,18 @@ async def on_my_events(message: types.Message):
     events = get_user_events(user_id)
     logger.debug(f"🔍 on_my_events: найдено {len(events) if events else 0} событий для пользователя {user_id}")
 
-    # Получаем события с участием (все добавленные события)
     all_participations = []
-
-    # Получаем баланс ракет пользователя
     from rockets_service import get_user_rockets
 
     rocket_balance = get_user_rockets(user_id)
-
-    # Формируем текст сообщения
-    text_parts = [
-        t("myevents.header", lang),
-        format_translation("myevents.balance", lang, rocket_balance=rocket_balance),
-    ]
-
-    # Созданные события
-    if events:
-        active_events = [e for e in events if e.get("status") == "open"]
-
-        # Показываем также недавно закрытые события (за последние 24 часа)
-        from datetime import datetime, timedelta
-
-        import pytz
-
-        tz_bali = pytz.timezone("Asia/Makassar")
-        now_bali = datetime.now(tz_bali)
-        day_ago = now_bali - timedelta(hours=24)
-
-        recent_closed_events = []
-        for e in events:
-            if e.get("status") == "closed":
-                # Проверяем дату закрытия (updated_at_utc), а не дату начала события
-                updated_at = e.get("updated_at_utc")
-                if updated_at:
-                    # Конвертируем UTC в местное время Бали для сравнения
-                    local_time = updated_at.astimezone(tz_bali)
-                    # Проверяем, что событие было закрыто недавно (в пределах 24 часов)
-                    if local_time >= day_ago:
-                        recent_closed_events.append(e)
-
-        if active_events:
-            text_parts.append(t("myevents.created_by_me", lang))
-            for i, event in enumerate(active_events[:3], 1):
-                title = event.get("title", t("common.title_not_specified", lang))
-                event.get("starts_at")
-                location = event.get("location_name", "Место уточняется")
-
-                # Форматируем время проведения события (которое указал пользователь)
-                starts_at = event.get("starts_at")
-                if starts_at:
-                    # Конвертируем UTC в местное время Бали
-                    local_time = starts_at.astimezone(tz_bali)
-                    time_str = local_time.strftime("%d.%m.%Y %H:%M")
-                else:
-                    time_str = t("common.time_tba", lang)
-
-                # Экранируем специальные символы Markdown (сначала \, потом остальные)
-                escaped_title = (
-                    title.replace("\\", "\\\\")
-                    .replace("*", "\\*")
-                    .replace("_", "\\_")
-                    .replace("`", "\\`")
-                    .replace("[", "\\[")
-                )
-                escaped_location = (
-                    location.replace("\\", "\\\\")
-                    .replace("*", "\\*")
-                    .replace("_", "\\_")
-                    .replace("`", "\\`")
-                    .replace("[", "\\[")
-                )
-
-                text_parts.append(f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location}\n")
-
-            if len(active_events) > 3:
-                text_parts.append(format_translation("myevents.and_more", lang, count=len(active_events) - 3))
-
-        # Показываем недавно закрытые события
-        if recent_closed_events:
-            text_parts.append(f"\n🔴 **Недавно закрытые ({len(recent_closed_events)}):**")
-            for i, event in enumerate(recent_closed_events[:3], 1):
-                title = event.get("title", "Без названия")
-                location = event.get("location_name", "Место уточняется")
-                starts_at = event.get("starts_at")
-
-                if starts_at:
-                    local_time = starts_at.astimezone(tz_bali)
-                    time_str = local_time.strftime("%d.%m.%Y %H:%M")
-                else:
-                    time_str = "Время уточняется"
-
-                escaped_title = (
-                    title.replace("\\", "\\\\")
-                    .replace("*", "\\*")
-                    .replace("_", "\\_")
-                    .replace("`", "\\`")
-                    .replace("[", "\\[")
-                )
-                escaped_location = (
-                    location.replace("\\", "\\\\")
-                    .replace("*", "\\*")
-                    .replace("_", "\\_")
-                    .replace("`", "\\`")
-                    .replace("[", "\\[")
-                )
-
-                text_parts.append(
-                    f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location} {t('common.closed', lang)}\n"
-                )
-
-            if len(recent_closed_events) > 3:
-                text_parts.append(
-                    format_translation("myevents.and_more_closed", lang, count=len(recent_closed_events) - 3)
-                )
-
-    # Добавленные события
-    if all_participations:
-        text_parts.append(f"\n➕ **Добавленные ({len(all_participations)}):**")
-        for i, event in enumerate(all_participations[:3], 1):
-            title = event.get("title", t("common.title_not_specified", lang))
-            starts_at = event.get("starts_at")
-            if starts_at:
-                # Конвертируем UTC в местное время Бали
-                import pytz
-
-                tz_bali = pytz.timezone("Asia/Makassar")  # UTC+8
-                local_time = starts_at.astimezone(tz_bali)
-                time_str = local_time.strftime("%H:%M")
-            else:
-                time_str = "Время уточняется"
-            # Экранируем специальные символы Markdown (сначала \, потом остальные)
-            escaped_title = (
-                title.replace("\\", "\\\\")
-                .replace("*", "\\*")
-                .replace("_", "\\_")
-                .replace("`", "\\`")
-                .replace("[", "\\[")
-            )
-            text_parts.append(f"{i}) {escaped_title} – {time_str}")
-
-        if len(all_participations) > 3:
-            text_parts.append(f"... и еще {len(all_participations) - 3} событий")
-
-    # Если нет событий вообще
-    if not events and not all_participations:
-        # Получаем баланс ракет пользователя
-        from rockets_service import get_user_rockets
-
-        rocket_balance = get_user_rockets(user_id)
-
-        text_parts = [
-            "📋 **Мои события:**\n",
-            "У вас пока нет событий.\n",
-            f"**Баланс {rocket_balance} 🚀**",
-        ]
-
-    text = "\n".join(text_parts)
-
-    # Создаем клавиатуру
-    keyboard_buttons = []
-
-    if events:
-        keyboard_buttons.append([InlineKeyboardButton(text="🔧 Управление событиями", callback_data="manage_events")])
-
-    if all_participations:
-        keyboard_buttons.append(
-            [InlineKeyboardButton(text="📋 Все добавленные события", callback_data="view_participations")]
-        )
-
-    # Добавляем кнопки навигации: Главное меню и Мои квесты на одной линии
-    keyboard_buttons.append(
-        [
-            InlineKeyboardButton(text=t("myevents.button.main_menu", lang), callback_data="back_to_main"),
-            InlineKeyboardButton(text=t("myevents.button.my_quests", lang), callback_data="show_my_tasks"),
-        ]
+    text, keyboard = _build_my_events_message(
+        events or [], all_participations, lang, rocket_balance, page=1, page_size=6
     )
 
-    keyboard = (
-        InlineKeyboardMarkup(inline_keyboard=keyboard_buttons) if keyboard_buttons else main_menu_kb(user_id=user_id)
-    )
-
-    # Пытаемся отправить с изображением (всегда, независимо от наличия событий)
     import os
     from pathlib import Path
 
-    # Используем изображение my_events.png
     photo_path = Path(__file__).parent / "images" / "my_events.png"
-
     logger.info(f"🖼️ Проверяем наличие изображения: {photo_path}, exists={os.path.exists(photo_path)}")
 
     if os.path.exists(photo_path):
@@ -7172,7 +6988,6 @@ async def on_my_events(message: types.Message):
             return
         except Exception as e:
             logger.error(f"❌ Ошибка отправки фото для 'Мои события': {e}", exc_info=True)
-            # Продолжаем отправку текста
     else:
         logger.warning(f"⚠️ Изображение не найдено: {photo_path}")
 
@@ -7901,6 +7716,40 @@ async def show_my_events_callback(callback: types.CallbackQuery):
     is_private = callback.message.chat.type == "private"
 
     await _handle_my_events_via_bot(bot, chat_id, user_id, is_private)
+
+
+@main_router.callback_query(F.data.startswith("my_events_page:"))
+async def handle_my_events_page(callback: types.CallbackQuery):
+    """Переключение страницы в списке «Мои события» (кольцо)."""
+    try:
+        page = int(callback.data.split(":", 1)[1])
+    except (ValueError, IndexError):
+        page = 1
+    await callback.answer()
+    user_id = callback.from_user.id
+    lang = get_user_language_or_default(user_id)
+    events = get_user_events(user_id)
+    all_participations = []
+    from rockets_service import get_user_rockets
+
+    rocket_balance = get_user_rockets(user_id)
+    text, keyboard = _build_my_events_message(
+        events or [], all_participations, lang, rocket_balance, page=page, page_size=6
+    )
+    try:
+        if callback.message.photo:
+            await callback.message.edit_caption(caption=text, reply_markup=keyboard, parse_mode="Markdown")
+        else:
+            await callback.message.edit_text(text=text, reply_markup=keyboard, parse_mode="Markdown")
+    except Exception as e:
+        logger.debug(f"edit my_events page: {e}")
+
+
+@main_router.callback_query(F.data == "my_events_page_noop")
+async def handle_my_events_page_noop(callback: types.CallbackQuery):
+    """Клик по «Стр. N/M» — без действия."""
+    user_lang = get_user_language_or_default(callback.from_user.id)
+    await callback.answer(t("pager.page_edge", user_lang))
 
 
 @main_router.callback_query(F.data == "show_my_tasks")
@@ -13088,164 +12937,33 @@ async def handle_back_to_main(callback: types.CallbackQuery):
 
 @main_router.callback_query(F.data.startswith("back_to_list_"))
 async def handle_back_to_list(callback: types.CallbackQuery):
-    """Возврат к списку событий"""
+    """Возврат к списку событий (с пагинацией)."""
     user_id = callback.from_user.id
     user_lang = get_user_language_or_default(user_id)
     await callback.answer(t("carousel.back_to_list", user_lang))
 
-    # Автомодерация: закрываем прошедшие события
     closed_count = auto_close_events()
     if closed_count > 0:
         await callback.message.answer(format_translation("myevents.auto_closed", user_lang, count=closed_count))
 
-    # Получаем события пользователя
     events = get_user_events(user_id)
-
-    # Получаем баланс ракет пользователя
     from rockets_service import get_user_rockets
 
     rocket_balance = get_user_rockets(user_id)
-
-    # Формируем текст сообщения
-    text_parts = [
-        t("myevents.header", user_lang),
-        format_translation("myevents.balance", user_lang, rocket_balance=rocket_balance),
-    ]
-
-    # Созданные события
-    if events:
-        active_events = [e for e in events if e.get("status") == "open"]
-
-        # Показываем также недавно закрытые события (за последние 7 дней)
-        from datetime import datetime, timedelta
-
-        import pytz
-
-        tz_bali = pytz.timezone("Asia/Makassar")
-        now_bali = datetime.now(tz_bali)
-        week_ago = now_bali - timedelta(days=7)
-
-        recent_closed_events = []
-        for e in events:
-            if e.get("status") == "closed":
-                starts_at = e.get("starts_at")
-                if starts_at:
-                    local_time = starts_at.astimezone(tz_bali)
-                    if local_time >= week_ago:
-                        recent_closed_events.append(e)
-
-        if active_events:
-            text_parts.append(t("myevents.created_by_me", user_lang))
-            for i, event in enumerate(active_events[:3], 1):
-                title = event.get("title", t("common.title_not_specified", user_lang))
-                location = event.get("location_name", t("common.location_tba", user_lang))
-                starts_at = event.get("starts_at")
-
-                if starts_at:
-                    local_time = starts_at.astimezone(tz_bali)
-                    time_str = local_time.strftime("%d.%m.%Y %H:%M")
-                else:
-                    time_str = t("common.time_tba", user_lang)
-
-                escaped_title = (
-                    title.replace("\\", "\\\\")
-                    .replace("*", "\\*")
-                    .replace("_", "\\_")
-                    .replace("`", "\\`")
-                    .replace("[", "\\[")
-                )
-                escaped_location = (
-                    location.replace("\\", "\\\\")
-                    .replace("*", "\\*")
-                    .replace("_", "\\_")
-                    .replace("`", "\\`")
-                    .replace("[", "\\[")
-                )
-
-                text_parts.append(f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location}\n")
-
-            if len(active_events) > 3:
-                text_parts.append(format_translation("myevents.and_more", user_lang, count=len(active_events) - 3))
-
-        # Показываем недавно закрытые события
-        if recent_closed_events:
-            text_parts.append(
-                format_translation("myevents.recently_closed", user_lang, count=len(recent_closed_events))
-            )
-            for i, event in enumerate(recent_closed_events[:3], 1):
-                title = event.get("title", t("common.title_not_specified", user_lang))
-                location = event.get("location_name", t("common.location_tba", user_lang))
-                starts_at = event.get("starts_at")
-
-                if starts_at:
-                    local_time = starts_at.astimezone(tz_bali)
-                    time_str = local_time.strftime("%d.%m.%Y %H:%M")
-                else:
-                    time_str = t("common.time_tba", user_lang)
-
-                escaped_title = (
-                    title.replace("\\", "\\\\")
-                    .replace("*", "\\*")
-                    .replace("_", "\\_")
-                    .replace("`", "\\`")
-                    .replace("[", "\\[")
-                )
-                escaped_location = (
-                    location.replace("\\", "\\\\")
-                    .replace("*", "\\*")
-                    .replace("_", "\\_")
-                    .replace("`", "\\`")
-                    .replace("[", "\\[")
-                )
-
-                text_parts.append(
-                    f"{i}) {escaped_title}\n🕐 {time_str}\n📍 {escaped_location} {t('common.closed', user_lang)}\n"
-                )
-
-            if len(recent_closed_events) > 3:
-                text_parts.append(
-                    format_translation("myevents.and_more_closed", user_lang, count=len(recent_closed_events) - 3)
-                )
-
-    # Если нет событий вообще
-    if not events:
-        text_parts = [
-            t("myevents.header", user_lang),
-            t("myevents.no_events", user_lang) + "\n",
-            format_translation("myevents.balance", user_lang, rocket_balance=rocket_balance),
-        ]
-
-    text = "\n".join(text_parts)
-
-    # Создаем клавиатуру
-    keyboard_buttons = []
-
-    if events:
-        keyboard_buttons.append(
-            [
-                InlineKeyboardButton(
-                    text=t("myevents.button.manage_events", user_lang),
-                    callback_data="manage_events",
-                )
-            ]
-        )
-
-    keyboard = (
-        InlineKeyboardMarkup(inline_keyboard=keyboard_buttons) if keyboard_buttons else main_menu_kb(user_id=user_id)
+    all_participations = []
+    text, keyboard = _build_my_events_message(
+        events or [], all_participations, user_lang, rocket_balance, page=1, page_size=6
     )
 
-    # Пытаемся отправить с изображением (как в on_my_events)
     import os
     from pathlib import Path
 
     photo_path = Path(__file__).parent / "images" / "my_events.png"
-
     if os.path.exists(photo_path):
         try:
             from aiogram.types import FSInputFile
 
             photo = FSInputFile(photo_path)
-            # Удаляем старое сообщение и отправляем новое с изображением
             try:
                 await callback.message.delete()
             except Exception:
@@ -13254,10 +12972,7 @@ async def handle_back_to_list(callback: types.CallbackQuery):
             return
         except Exception as e:
             logger.error(f"❌ Ошибка отправки фото для 'Мои события': {e}", exc_info=True)
-
-    # Fallback: отправляем только текст
     try:
-        # Удаляем старое сообщение и отправляем новое
         try:
             await callback.message.delete()
         except Exception:
@@ -13265,7 +12980,6 @@ async def handle_back_to_list(callback: types.CallbackQuery):
         await callback.message.answer(text, reply_markup=keyboard, parse_mode="Markdown")
     except Exception as e:
         logger.error(f"❌ Ошибка отправки сообщения: {e}")
-        # Fallback - отправляем то же сообщение без Markdown
         await callback.message.answer(text, reply_markup=keyboard)
 
 
