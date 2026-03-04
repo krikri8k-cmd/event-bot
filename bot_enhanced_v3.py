@@ -8838,7 +8838,9 @@ async def _build_places_list_content(
         )
         if hint_text:
             text += f"💡 {hint_text}\n"
-        if place.id in taken_place_ids:
+        # Жёсткая проверка: только что добавленный квест или уже в taken — показываем «Квест взят», иначе ссылка
+        is_taken = (just_added_place_id is not None and place.id == just_added_place_id) or place.id in taken_place_ids
+        if is_taken:
             text += quest_taken_label + "\n\n"
         else:
             deep_link = f"https://t.me/{bot_username}?start=add_quest_{place.id}"
