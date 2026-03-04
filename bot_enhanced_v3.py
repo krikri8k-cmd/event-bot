@@ -655,7 +655,7 @@ async def send_compact_events_list_prepared(
     user_lang = get_user_language_or_default(message.from_user.id)
     header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
     # Данные из БД уже с location_name (ingest). Enrich в хендлере не вызываем.
-    events_text, total_pages = render_page(prepared_events, page + 1, page_size=8, user_id=message.from_user.id)
+    events_text, total_pages = render_page(prepared_events, page + 1, page_size=6, user_id=message.from_user.id)
 
     # Отладочная информация
 
@@ -743,7 +743,7 @@ async def send_compact_events_list(
     # 6) Рендерим страницу
     user_lang = get_user_language_or_default(message.from_user.id)
     header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
-    page_html, total_pages = render_page(prepared, page=page + 1, page_size=8, user_id=message.from_user.id)
+    page_html, total_pages = render_page(prepared, page=page + 1, page_size=6, user_id=message.from_user.id)
     text = header_html + "\n\n" + page_html
 
     # 6) Создаем клавиатуру пагинации с кнопками расширения радиуса
@@ -1540,7 +1540,7 @@ def render_page(
         return "Поблизости пока ничего не нашли.", 1
 
     # ВАЖНО: Правильный расчет total_pages с учетом смешанного размера страниц
-    # Первая страница (с картой) имеет page_size=1, остальные - page_size=8
+    # Первая страница (с картой) имеет page_size=1, остальные - page_size=6
     # Если page_size=1 (первая страница с картой), то total_pages рассчитывается так:
     # - Первая страница: 1 событие
     # - Остальные страницы: по 8 событий
@@ -2177,7 +2177,7 @@ async def perform_nearby_search(
 
             header_html = render_header(counts, radius_km=int(radius), lang=user_lang)
             # Данные из БД уже с location_name (заполняется при ingest). Enrich в хендлере не вызываем.
-            page_html, _ = render_page(prepared, page=1, page_size=8, user_id=user_id)
+            page_html, _ = render_page(prepared, page=1, page_size=6, user_id=user_id)
             short_caption = header_html + "\n\n" + page_html
             if len(prepared) > 8:
                 short_caption += f"\n\n... и еще {len(prepared) - 8} событий"
@@ -6325,7 +6325,7 @@ async def on_location(message: types.Message, state: FSMContext):
 
             # Данные из БД уже с location_name (ingest). Enrich в хендлере не вызываем — убираем дублирование.
             # 6) Рендерим события для первой страницы (теперь 8 событий, так как карта отдельно)
-            page_html, total_pages = render_page(prepared, page=1, page_size=8, user_id=message.from_user.id)
+            page_html, total_pages = render_page(prepared, page=1, page_size=6, user_id=message.from_user.id)
             short_caption = header_html + "\n\n" + page_html
 
             if len(prepared) > 8:
@@ -6821,9 +6821,9 @@ def _build_my_tasks_list(
     lang: str,
     rocket_balance: int,
     page: int = 1,
-    page_size: int = 8,
+    page_size: int = 6,
 ) -> tuple[str, InlineKeyboardMarkup | None]:
-    """Собирает текст и клавиатуру для списка «Мои квесты» с пагинацией (8 квестов на страницу)."""
+    """Собирает текст и клавиатуру для списка «Мои квесты» с пагинацией (6 квестов на страницу)."""
     if not active_tasks:
         message_text = (
             f"🏆 **{t('mytasks.title', lang)}**\n\n"
@@ -6920,7 +6920,7 @@ async def _handle_my_tasks_via_bot(bot: Bot, chat_id: int, user_id: int, is_priv
     from rockets_service import get_user_rockets
 
     rocket_balance = get_user_rockets(user_id)
-    message_text, keyboard = _build_my_tasks_list(active_tasks, lang, rocket_balance, page=page, page_size=8)
+    message_text, keyboard = _build_my_tasks_list(active_tasks, lang, rocket_balance, page=page, page_size=6)
 
     # Отправляем сообщение через bot
     import os
@@ -7932,7 +7932,7 @@ async def on_my_tasks(message: types.Message):
     from rockets_service import get_user_rockets
 
     rocket_balance = get_user_rockets(user_id)
-    message_text, keyboard = _build_my_tasks_list(active_tasks, lang, rocket_balance, page=1, page_size=8)
+    message_text, keyboard = _build_my_tasks_list(active_tasks, lang, rocket_balance, page=1, page_size=6)
 
     # Пытаемся отправить с изображением (всегда, независимо от наличия заданий)
     import os
@@ -8043,7 +8043,7 @@ async def cmd_mytasks(message: types.Message):
     from rockets_service import get_user_rockets
 
     rocket_balance = get_user_rockets(user_id)
-    message_text, keyboard = _build_my_tasks_list(active_tasks, lang, rocket_balance, page=1, page_size=8)
+    message_text, keyboard = _build_my_tasks_list(active_tasks, lang, rocket_balance, page=1, page_size=6)
 
     import os
     from pathlib import Path
@@ -8326,7 +8326,7 @@ async def handle_back_to_tasks_list(callback: types.CallbackQuery):
     from rockets_service import get_user_rockets
 
     rocket_balance = get_user_rockets(user_id)
-    message_text, keyboard = _build_my_tasks_list(active_tasks, lang, rocket_balance, page=1, page_size=8)
+    message_text, keyboard = _build_my_tasks_list(active_tasks, lang, rocket_balance, page=1, page_size=6)
 
     import os
     from pathlib import Path
@@ -8384,9 +8384,9 @@ async def handle_my_tasks_page(callback: types.CallbackQuery):
     from rockets_service import get_user_rockets
 
     rocket_balance = get_user_rockets(user_id)
-    total_pages = max(1, (len(active_tasks) + 7) // 8)
+    total_pages = max(1, (len(active_tasks) + 5) // 6)
     page = max(1, min(page, total_pages))
-    message_text, keyboard = _build_my_tasks_list(active_tasks, lang, rocket_balance, page=page, page_size=8)
+    message_text, keyboard = _build_my_tasks_list(active_tasks, lang, rocket_balance, page=page, page_size=6)
     if callback.message.photo:
         try:
             await callback.message.edit_caption(caption=message_text, reply_markup=keyboard, parse_mode="Markdown")
@@ -8618,7 +8618,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
     # Рендерим страницу
     user_lang = get_user_language_or_default(user_id)
     header_html = render_header(counts, radius_km=new_radius, lang=user_lang)
-    events_text, total_pages = render_page(prepared, 1, page_size=8, user_id=user_id)
+    events_text, total_pages = render_page(prepared, 1, page_size=6, user_id=user_id)
 
     text = header_html + "\n\n" + events_text
 
@@ -11588,7 +11588,7 @@ async def handle_pagination(callback: types.CallbackQuery):
             page_size = 8  # Текстовые сообщения - 8 событий
 
         # Правильный расчет total_pages с учетом смешанного размера страниц
-        # Первая страница (с картой) имеет page_size=1, остальные - page_size=8
+        # Первая страница (с картой) имеет page_size=1, остальные - page_size=6
         if is_photo_message:
             # Есть карта: первая страница = 1 событие, остальные по 8
             if len(prepared) <= 1:
