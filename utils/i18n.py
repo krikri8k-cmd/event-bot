@@ -166,6 +166,15 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "mytasks.label_description": "Описание:",
         "mytasks.button.back_to_list": "🔧 К списку заданий",
         "mytasks.button.back_to_tasks": "◀️ Назад к заданиям",
+        "mytasks.button.done": "✅ Выполнено",
+        "mytasks.button.cancel": "❌ Отменить",
+        "mytasks.completed_title": "✅ **Задание выполнено!**",
+        "mytasks.share_impressions": (
+            "Поделитесь своими впечатлениями:\n• Как прошло выполнение?\n• Что вы почувствовали?\n"
+            "• Как это помогло вам?\n\n📸 **Отправьте фото места** где вы были\n"
+            "или **напишите отзыв** текстом:"
+        ),
+        "mytasks.cancel_error": "❌ **Ошибка отмены задания**\n\nНе удалось отменить задание. Попробуйте позже.",
         "tasks.choose_section": "Выберите раздел:",
         "tasks.not_found": "Задание не найдено",
         "tasks.cancelled": "✅ Задание отменено",
@@ -1066,6 +1075,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "mytasks.label_description": "Description:",
         "mytasks.button.back_to_list": "🔧 Back to tasks list",
         "mytasks.button.back_to_tasks": "◀️ Back to tasks",
+        "mytasks.button.done": "✅ Done",
+        "mytasks.button.cancel": "❌ Cancel",
+        "mytasks.completed_title": "✅ **Task completed!**",
+        "mytasks.share_impressions": (
+            "Share your experience:\n• How did it go?\n• What did you feel?\n• How did it help you?\n\n"
+            "📸 **Send a photo** of the place you visited\nor **write your review** as text:"
+        ),
+        "mytasks.cancel_error": "❌ **Error cancelling task**\n\nCould not cancel the task. Please try again later.",
         "tasks.choose_section": "Choose section:",
         "tasks.not_found": "Task not found",
         "tasks.cancelled": "✅ Task cancelled",

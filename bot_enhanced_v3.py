@@ -8325,25 +8325,32 @@ async def show_task_detail(callback_or_message, tasks: list, task_index: int, us
     # Создаем клавиатуру для навигации
     keyboard = []
 
-    # Кнопки управления заданием
     keyboard.append(
         [
-            InlineKeyboardButton(text="✅ Выполнено", callback_data=f"task_complete:{task['id']}:{task_index}"),
-            InlineKeyboardButton(text="❌ Отменить", callback_data=f"task_cancel:{task['id']}:{task_index}"),
+            InlineKeyboardButton(
+                text=t("mytasks.button.done", lang), callback_data=f"task_complete:{task['id']}:{task_index}"
+            ),
+            InlineKeyboardButton(
+                text=t("mytasks.button.cancel", lang), callback_data=f"task_cancel:{task['id']}:{task_index}"
+            ),
         ]
     )
 
-    # Кнопки навигации
-    nav_buttons = []
+    # Навигация в едином стиле: Стр. N/M | Назад | Вперёд (кольцо)
     if len(tasks) > 1:
-        if task_index > 0:
-            nav_buttons.append(InlineKeyboardButton(text="◀️", callback_data=f"task_nav:{task_index-1}"))
-        nav_buttons.append(InlineKeyboardButton(text=f"{task_index + 1}/{len(tasks)}", callback_data="noop"))
-        if task_index < len(tasks) - 1:
-            nav_buttons.append(InlineKeyboardButton(text="▶️", callback_data=f"task_nav:{task_index+1}"))
-
-    if nav_buttons:
-        keyboard.append(nav_buttons)
+        total_t = len(tasks)
+        prev_idx = (total_t - 1) if task_index == 0 else (task_index - 1)
+        next_idx = 0 if task_index == total_t - 1 else (task_index + 1)
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    text=format_translation("pager.page", lang, page=task_index + 1, total=total_t),
+                    callback_data="task_nav_noop",
+                ),
+                InlineKeyboardButton(text=t("pager.prev", lang), callback_data=f"task_nav:{prev_idx}"),
+                InlineKeyboardButton(text=t("pager.next", lang), callback_data=f"task_nav:{next_idx}"),
+            ]
+        )
 
     # Кнопки возврата
     keyboard.append([InlineKeyboardButton(text=t("mytasks.button.back_to_list", lang), callback_data="my_tasks_list")])
@@ -8419,17 +8426,31 @@ async def show_task_detail(callback_or_message, tasks: list, task_index: int, us
             )
 
 
+@main_router.callback_query(F.data == "task_nav_noop")
+async def handle_task_nav_noop(callback: types.CallbackQuery):
+    await callback.answer()
+    return
+
+
 @main_router.callback_query(F.data.startswith("task_nav:"))
 async def handle_task_navigation(callback: types.CallbackQuery):
-    """Обработчик навигации по заданиям"""
-    task_index = int(callback.data.split(":")[1])
+    """Обработчик навигации по заданиям (кольцо)"""
     user_id = callback.from_user.id
+    try:
+        task_index = int(callback.data.split(":")[1])
+    except (ValueError, IndexError):
+        await callback.answer()
+        return
 
     active_tasks = get_user_active_tasks(user_id)
-    if not active_tasks or task_index >= len(active_tasks):
-        user_lang = get_user_language_or_default(callback.from_user.id)
-        await callback.answer(t("tasks.not_found", user_lang))
+    if not active_tasks:
+        await callback.answer()
         return
+    total = len(active_tasks)
+    if task_index < 0:
+        task_index = total - 1
+    elif task_index >= total:
+        task_index = 0
 
     await show_task_detail(callback, active_tasks, task_index, user_id)
     await callback.answer()
@@ -9006,22 +9027,13 @@ async def handle_expand_radius(callback: types.CallbackQuery):
 async def handle_task_complete(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик завершения задания"""
     user_task_id = int(callback.data.split(":")[1])
+    user_lang = get_user_language_or_default(callback.from_user.id)
 
-    # Переходим в состояние ожидания фидбека
     await state.set_state(EventCreation.waiting_for_feedback)
     await state.update_data(user_task_id=user_task_id)
 
-    await callback.message.edit_text(
-        "✅ **Задание выполнено!**\n\n"
-        "Поделитесь своими впечатлениями:\n"
-        "• Как прошло выполнение?\n"
-        "• Что вы почувствовали?\n"
-        "• Как это помогло вам?\n\n"
-        "📸 **Отправьте фото места** где вы были\n"
-        "или **напишите ваш отзыв** текстом:",
-        parse_mode="Markdown",
-    )
-
+    text = t("mytasks.completed_title", user_lang) + "\n\n" + t("mytasks.share_impressions", user_lang)
+    await callback.message.edit_text(text, parse_mode="Markdown")
     await callback.answer()
 
 
@@ -9037,8 +9049,9 @@ async def handle_task_cancel(callback: types.CallbackQuery):
     success = cancel_task(user_task_id)
 
     if not success:
+        user_lang = get_user_language_or_default(user_id)
         await callback.message.edit_text(
-            "❌ **Ошибка отмены задания**\n\n" "Не удалось отменить задание. Попробуйте позже.",
+            t("mytasks.cancel_error", user_lang),
             parse_mode="Markdown",
         )
         await callback.answer()
@@ -9427,19 +9440,18 @@ async def handle_task_manage(callback: types.CallbackQuery):
     if task_info.get("promo_code"):
         message += f"🎁 **Промокод:** `{task_info['promo_code']}`\n\n"
 
-    # Находим индекс текущего задания в списке для навигации после отмены
     task_index = next((i for i, t in enumerate(active_tasks) if t["id"] == user_task_id), None)
+    lang = get_user_language_or_default(callback.from_user.id)
 
-    # Создаем клавиатуру
     keyboard = [
-        [InlineKeyboardButton(text="✅ Выполнено", callback_data=f"task_complete:{user_task_id}")],
+        [InlineKeyboardButton(text=t("mytasks.button.done", lang), callback_data=f"task_complete:{user_task_id}")],
         [
             InlineKeyboardButton(
-                text="❌ Отменить",
+                text=t("mytasks.button.cancel", lang),
                 callback_data=f"task_cancel:{user_task_id}:{task_index if task_index is not None else 0}",
             )
         ],
-        [InlineKeyboardButton(text="◀️ Назад", callback_data="my_tasks")],
+        [InlineKeyboardButton(text=t("mytasks.button.back_to_list", lang), callback_data="my_tasks")],
     ]
 
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
