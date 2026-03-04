@@ -3376,27 +3376,32 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
             user_lang = get_user_language_or_default(user_id)
             success, message_text = create_task_from_place(user_id, place_id, user_lat, user_lng, lang=user_lang)
 
-            # Найти и отредактировать сообщение со списком или отправить новое с актуальным списком
+            # Force update: обязательно отредактировать сообщение из _last_places_list_message с актуальным списком
             stored = _last_places_list_message.get(user_id)
             list_updated = False
             if stored and user_lat is not None and user_lng is not None:
                 chat_id, msg_id, cat, p = stored
+                # Список с явным just_added_place_id, чтобы «Квест взят» отобразился без зависимости от кэша БД
+                text, reply_markup = await _build_places_list_content(
+                    cat, user_id, user_lat, user_lng, p, just_added_place_id=place_id if success else None
+                )
                 try:
-                    text, reply_markup = await _build_places_list_content(cat, user_id, user_lat, user_lng, p)
                     await message.bot.edit_message_text(
-                        chat_id=chat_id,
-                        message_id=msg_id,
+                        chat_id=int(chat_id),
+                        message_id=int(msg_id),
                         text=text,
                         reply_markup=reply_markup,
                         parse_mode="Markdown",
                     )
                     list_updated = True
-                    logger.info(f"🎯 add_quest: список мест обновлён в сообщении {msg_id} для user_id={user_id}")
+                    logger.info(
+                        f"🎯 add_quest: edit_message_text вызван chat_id={chat_id} message_id={msg_id} "
+                        f"user_id={user_id} place_id={place_id} len_text={len(text)}"
+                    )
                 except Exception as e:
                     logger.warning(f"🎯 add_quest: не удалось отредактировать сообщение со списком: {e}")
                     # Fallback: отправить новое сообщение со списком
                     try:
-                        text, reply_markup = await _build_places_list_content(cat, user_id, user_lat, user_lng, p)
                         sent = await message.bot.send_message(
                             chat_id=message.chat.id,
                             text=text,
@@ -3405,6 +3410,7 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
                         )
                         list_updated = True
                         _last_places_list_message[user_id] = (message.chat.id, sent.message_id, cat, p)
+                        logger.info(f"🎯 add_quest: отправлено новое сообщение со списком message_id={sent.message_id}")
                     except Exception as e2:
                         logger.warning(f"🎯 add_quest: не удалось отправить новый список: {e2}")
 
@@ -8774,9 +8780,15 @@ _last_places_list_message: dict[int, tuple[int, int, str, int]] = {}  # user_id 
 
 
 async def _build_places_list_content(
-    category: str, user_id: int, user_lat: float, user_lng: float, page: int
+    category: str,
+    user_id: int,
+    user_lat: float,
+    user_lng: float,
+    page: int,
+    just_added_place_id: int | None = None,
 ) -> tuple[str, InlineKeyboardMarkup]:
-    """Собирает текст и клавиатуру списка мест (ссылки «Забрать квест» в тексте, навигация в один ряд)."""
+    """Собирает текст и клавиатуру списка мест. just_added_place_id — только что добавленный квест (уже в БД),
+    передаём явно, чтобы список показывал «Квест взят» без зависимости от кэша/реплики."""
     from tasks_location_service import get_all_places_for_category, get_task_type_for_region, get_user_region_type
 
     region_type = get_user_region_type(user_lat, user_lng)
@@ -8806,8 +8818,11 @@ async def _build_places_list_content(
     end_idx = min(start_idx + places_per_page, len(all_places))
     page_places = all_places[start_idx:end_idx]
 
+    # Актуальный список взятых мест: из БД + явно только что добавленный (на случай задержки коммита/кэша)
     active_tasks = get_user_active_tasks(user_id)
     taken_place_ids = {t.get("place_id") for t in active_tasks if t.get("place_id")}
+    if just_added_place_id is not None:
+        taken_place_ids = taken_place_ids | {just_added_place_id}
 
     bot_username = get_bot_username()
     take_quest_label = t("tasks.take_quest", lang)
