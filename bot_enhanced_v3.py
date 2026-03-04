@@ -3020,6 +3020,7 @@ def language_selection_kb(detected_lang: str | None = None) -> InlineKeyboardMar
 def _build_public_commands(lang: str) -> list:
     """Собирает список публичных команд для указанного языка через i18n."""
     return [
+        types.BotCommand(command="language", description=t("command.language", lang)),
         types.BotCommand(command="start", description=t("command.start", lang)),
         types.BotCommand(command="nearby", description=t("command.nearby", lang)),
         types.BotCommand(command="create", description=t("command.create", lang)),
@@ -3028,7 +3029,6 @@ def _build_public_commands(lang: str) -> list:
         types.BotCommand(command="mytasks", description=t("command.mytasks", lang)),
         types.BotCommand(command="share", description=t("command.share", lang)),
         types.BotCommand(command="help", description=t("command.help", lang)),
-        types.BotCommand(command="language", description=t("command.language", lang)),
     ]
 
 
@@ -3197,6 +3197,7 @@ async def dump_commands_healthcheck(bot):
 
         # Публичные команды для личных чатов (полный набор)
         public_commands = [
+            types.BotCommand(command="language", description=t("command.language", "ru")),
             types.BotCommand(command="start", description="🚀 Запустить бота и показать меню"),
             types.BotCommand(command="nearby", description="📍 События рядом - найти события поблизости"),
             types.BotCommand(command="create", description="➕ Создать новое событие"),
