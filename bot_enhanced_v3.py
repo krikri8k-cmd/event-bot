@@ -6736,9 +6736,6 @@ async def _handle_my_events_via_bot(bot: Bot, chat_id: int, user_id: int, is_pri
         if len(all_participations) > 3:
             text_parts.append(f"... и еще {len(all_participations) - 3} событий")
 
-    if events or all_participations:
-        text_parts.append("\nℹ️ " + t("myevents.community_world_delete_hint", lang))
-
     if not events and not all_participations:
         rocket_balance = get_user_rockets(user_id)
         text_parts = [
@@ -7070,10 +7067,6 @@ async def on_my_events(message: types.Message):
 
         if len(all_participations) > 3:
             text_parts.append(f"... и еще {len(all_participations) - 3} событий")
-
-    # Добавляем информацию о раздельном удалении событий в конце
-    if events or all_participations:
-        text_parts.append("\nℹ️ " + t("myevents.community_world_delete_hint", lang))
 
     # Если нет событий вообще
     if not events and not all_participations:
