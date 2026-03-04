@@ -3372,12 +3372,11 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
                 user_lat = user.last_lat if user else None
                 user_lng = user.last_lng if user else None
 
-            # Создаем задание из места
             from tasks_service import create_task_from_place
 
-            success, message_text = create_task_from_place(user_id, place_id, user_lat, user_lng)
+            user_lang = get_user_language_or_default(user_id)
+            success, message_text = create_task_from_place(user_id, place_id, user_lat, user_lng, lang=user_lang)
 
-            # Показываем сообщение с результатом
             await message.answer(message_text, reply_markup=main_menu_kb(user_id=user_id))
             return
         except (ValueError, Exception) as e:
@@ -9366,16 +9365,14 @@ async def handle_add_place_to_quests(callback: types.CallbackQuery, state: FSMCo
         user_lat = user.last_lat if user else None
         user_lng = user.last_lng if user else None
 
-    # Создаем задание из места
-    success, message_text = create_task_from_place(user_id, place_id, user_lat, user_lng)
+    user_lang = get_user_language_or_default(user_id)
+    success, message_text = create_task_from_place(user_id, place_id, user_lat, user_lng, lang=user_lang)
 
     logger.info(
         f"🎯 handle_add_place_to_quests: user_id={user_id}, place_id={place_id}, "
         f"success={success}, message='{message_text[:50]}'"
     )
 
-    # Показываем уведомление с результатом
-    # Если квест уже добавлен (success=False), показываем alert, иначе просто toast
     await callback.answer(message_text, show_alert=not success)
 
 

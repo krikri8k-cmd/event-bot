@@ -146,7 +146,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "Нажмите кнопку **'📍 Отправить геолокацию'** чтобы начать!"
         ),
         "tasks.button.send_location": "📍 Отправить геолокацию",
-        "tasks.button.find_on_map": "🌍 Найти на карте",
+        "tasks.button.find_on_map": "🌍 Открыть Google Maps",
         "tasks.button.main_menu": "🏠 Главное меню",
         # Мои события
         "myevents.title": "📋 Мои события",
@@ -185,6 +185,11 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.take_quest": "🎯 Забрать квест",
         "tasks.button.list": "📋 Список",
         "tasks.no_places_in_category": "❌ Места для этой категории пока не добавлены.",
+        "tasks.quest_added_success": "✅ Квест для места '{name}' добавлен в Мои квесты",
+        "tasks.quest_already_added": "⚠️ Квест для места '{name}' уже добавлен в Мои квесты",
+        "tasks.place_not_found": "❌ Место не найдено",
+        "tasks.quest_already_short": "🙈 Квест уже добавлен",
+        "tasks.quest_add_error": "❌ Ошибка при добавлении квеста: {error}",
         "tasks.location_received": (
             "✅ **Геолокация получена!**\n\n"
             "Выберите категорию для получения персонализированных заданий:\n\n"
@@ -1041,7 +1046,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.reward": "Reward 3 🚀",
         "tasks.description": "Time to have fun and get rewards.\n\nPress the **'📍 Send location'** button to start!",
         "tasks.button.send_location": "📍 Send location",
-        "tasks.button.find_on_map": "🌍 Find on map",
+        "tasks.button.find_on_map": "🌍 Open Google Maps",
         "tasks.button.main_menu": "🏠 Main menu",
         # My events
         "myevents.title": "📋 My events",
@@ -1080,6 +1085,11 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.take_quest": "🎯 Take quest",
         "tasks.button.list": "📋 List",
         "tasks.no_places_in_category": "❌ No places in this category yet.",
+        "tasks.quest_added_success": "✅ Quest for '{name}' added to My quests",
+        "tasks.quest_already_added": "⚠️ Quest for '{name}' is already in My quests",
+        "tasks.place_not_found": "❌ Place not found",
+        "tasks.quest_already_short": "🙈 Quest already added",
+        "tasks.quest_add_error": "❌ Error adding quest: {error}",
         "tasks.location_received": (
             "✅ **Location received!**\n\n"
             "Choose category for personalized tasks:\n\n"

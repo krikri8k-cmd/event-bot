@@ -14,33 +14,37 @@ logger = logging.getLogger(__name__)
 
 
 def create_task_from_place(
-    user_id: int, place_id: int, user_lat: float = None, user_lng: float = None
+    user_id: int,
+    place_id: int,
+    user_lat: float = None,
+    user_lng: float = None,
+    lang: str = "ru",
 ) -> tuple[bool, str]:
     """
-    Создает задание на основе места (добавляет место в квесты)
+    Создает задание на основе места (добавляет место в квесты).
 
     Args:
         user_id: ID пользователя
         place_id: ID места из task_places
         user_lat: Широта пользователя (для определения часового пояса)
         user_lng: Долгота пользователя (для определения часового пояса)
+        lang: Код языка для сообщений ('ru' или 'en')
 
     Returns:
-        True если задание создано успешно
+        (True/False, текст сообщения для пользователя)
     """
+    from utils.i18n import format_translation, t
+
     try:
         from database import TaskPlace
 
         with get_session() as session:
-            # Получаем место
             place = session.query(TaskPlace).filter(TaskPlace.id == place_id).first()
 
             if not place:
                 logger.error(f"Место {place_id} не найдено")
-                return False, "❌ Место не найдено"
+                return False, t("tasks.place_not_found", lang)
 
-            # Проверяем, что у пользователя нет активного задания для этого места
-            # Проверяем напрямую по place_id в UserTask - это самый надежный способ
             existing_task = (
                 session.query(UserTask)
                 .filter(
@@ -55,7 +59,7 @@ def create_task_from_place(
 
             if existing_task:
                 logger.warning(f"Пользователь {user_id} уже имеет активное задание для места {place_id} ({place.name})")
-                return False, f"⚠️ Квест для места '{place.name}' уже добавлен в Мои квесты"
+                return False, format_translation("tasks.quest_already_added", lang, name=place.name)
 
             if place.task_hint:
                 logger.info(f"✅ GPT-задание для места {place.id} ({place.name}): task_id NULL")
@@ -135,20 +139,17 @@ def create_task_from_place(
             session.commit()
 
             logger.info(f"Пользователь {user_id} добавил место {place_id} ({place.name}) в квесты")
-            return True, f"✅ Квест для места '{place.name}' добавлен в Мои квесты"
+            return True, format_translation("tasks.quest_added_success", lang, name=place.name)
 
     except Exception as e:
         logger.error(
             f"Ошибка создания задания из места {place_id} для пользователя {user_id}: {e}",
             exc_info=True,
         )
-        # Возвращаем более информативное сообщение об ошибке
-        # Если это ошибка валидации или дубликата, возвращаем соответствующее сообщение
         error_str = str(e).lower()
         if "already" in error_str or "duplicate" in error_str or "уже" in error_str:
-            return False, "🙈 Квест уже добавлен"
-        else:
-            return False, f"❌ Ошибка при добавлении квеста: {str(e)[:50]}"
+            return False, t("tasks.quest_already_short", lang)
+        return False, format_translation("tasks.quest_add_error", lang, error=str(e)[:50])
 
 
 def get_user_active_tasks(user_id: int) -> list[dict]:
