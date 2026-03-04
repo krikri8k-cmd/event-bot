@@ -109,7 +109,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "group.list.you_joined": "✅ Вы записаны | Нажмите 👉 /leaveevent{id} чтобы отменить",
         "group.list.join_prompt": "Нажмите 👉 /joinevent{id} чтобы записаться",
         "group.card.join": "✅ Записаться",
-        "group.card.leave": "❌ Отменить запись",
+        "group.card.leave": "❌ Не пойду",
         "group.card.participants": "👥 Участники",
         "group.card.footer": "💡 **Создавай через команду /start**",
         "group.list.admin_footer": "",
