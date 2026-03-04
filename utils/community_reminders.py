@@ -341,6 +341,14 @@ async def send_event_start_notifications(bot: Bot, session: AsyncSession):
                 notification_text = t("reminder.event_started", lang) + "\n\n"
                 notification_text += f"**{safe_title}**\n"
 
+                # Дата и время события
+                event_time = event.starts_at
+                if event_time:
+                    date_str = event_time.strftime("%d.%m.%Y")
+                    time_str = event_time.strftime("%H:%M")
+                    date_at_time = t("reminder.date_at_time", lang).format(date=date_str, time=time_str)
+                    notification_text += f"{date_at_time}\n"
+
                 if safe_city:
                     notification_text += f"🏙️ {safe_city}\n"
                 notification_text += f"📍 {safe_location}\n"
