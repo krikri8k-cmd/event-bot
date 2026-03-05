@@ -3366,8 +3366,9 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
             place_id = int(command.args.replace("add_quest_", ""))
             logger.info(f"🎯 cmd_start: пользователь {user_id} добавляет место {place_id} в квесты через deep link")
 
-            # Мгновенный отклик: всплывающее уведомление (исчезнет через 2 сек)
-            toast = await message.answer("🎯 Квест добавлен в «Мои активности»")
+            user_lang = get_user_language_or_default(user_id)
+            # Мгновенный отклик: всплывающее уведомление (исчезнет через 3 сек), язык пользователя
+            toast = await message.answer(t("tasks.quest_added_toast", user_lang))
             toast_chat_id = message.chat.id
             toast_message_id = toast.message_id
 
@@ -3378,7 +3379,6 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
 
             from tasks_service import create_task_from_place
 
-            user_lang = get_user_language_or_default(user_id)
             success, message_text = create_task_from_place(user_id, place_id, user_lat, user_lng, lang=user_lang)
 
             # Новое сообщение вместо правки: отправляем актуальный список свежим сообщением, затем удаляем старое
@@ -3414,9 +3414,9 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
             elif not list_updated:
                 await message.answer(message_text, reply_markup=main_menu_kb(user_id=user_id))
 
-            # Удаляем всплывающее уведомление через 2 секунды
+            # Удаляем всплывающее уведомление через 3 секунды (не блокирует перерисовку списка)
             async def _delete_toast():
-                await asyncio.sleep(2)
+                await asyncio.sleep(3)
                 try:
                     await message.bot.delete_message(chat_id=toast_chat_id, message_id=toast_message_id)
                 except Exception:

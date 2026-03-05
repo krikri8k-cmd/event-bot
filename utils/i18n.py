@@ -194,6 +194,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.quest_already_short": "🙈 Квест уже добавлен",
         "tasks.quest_already_taken_notify": "⚠️ Этот квест уже взят!",
         "tasks.quest_taken": "✅ Квест взят",
+        "tasks.quest_added_toast": "🎯 Квест добавлен в «Мои активности»",
         "tasks.quest_add_error": "❌ Ошибка при добавлении квеста: {error}",
         "tasks.location_received": (
             "✅ **Геолокация получена!**\n\n"
@@ -1099,6 +1100,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.quest_already_short": "🙈 Quest already added",
         "tasks.quest_already_taken_notify": "⚠️ This quest is already taken!",
         "tasks.quest_taken": "✅ Quest taken",
+        "tasks.quest_added_toast": "🎯 Quest added to «My activities»",
         "tasks.quest_add_error": "❌ Error adding quest: {error}",
         "tasks.location_received": (
             "✅ **Location received!**\n\n"
