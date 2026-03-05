@@ -76,6 +76,10 @@ _TASKS_TITLE_BUTTON_TEXTS = (t("tasks.title", "ru"), t("tasks.title", "en"))
 _MY_ACTIVITIES_BUTTON_TEXTS = (t("menu.button.my_activities", "ru"), t("menu.button.my_activities", "en"))
 _HELP_BUTTON_TEXTS = (t("command.help", "ru"), t("command.help", "en"))
 _START_BUTTON_TEXTS = (t("menu.button.start", "ru"), t("menu.button.start", "en"))
+_ADD_BOT_TO_CHAT_BUTTON_TEXTS = (
+    t("menu.button.add_bot_to_chat", "ru"),
+    t("menu.button.add_bot_to_chat", "en"),
+)
 
 
 def _build_tracking_url(click_type: str, event: dict, target_url: str, user_id: int | None) -> str:
@@ -7032,7 +7036,7 @@ async def on_my_events(message: types.Message):
 
 
 @main_router.message(Command("share"))
-@main_router.message(F.text == "🔗 Добавить бота в чат")
+@main_router.message(F.text.in_(_ADD_BOT_TO_CHAT_BUTTON_TEXTS))
 async def on_share(message: types.Message):
     """Обработчик кнопки 'Добавить бота в чат'"""
     user_id = message.from_user.id
