@@ -8846,7 +8846,7 @@ async def _build_places_list_content(
             deep_link = f"https://t.me/{bot_username}?start=add_quest_{place.id}"
             text += f"[{take_quest_label}]({deep_link})\n\n"
 
-    text += "\n" + t("tasks.list_footer", lang)
+    text += t("tasks.list_footer", lang)
 
     # Один ряд навигации: [ Стр. N/M ] [ Назад ] [ Вперёд ], затем Список | Главное меню
     keyboard = []
