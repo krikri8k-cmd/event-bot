@@ -3366,6 +3366,11 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
             place_id = int(command.args.replace("add_quest_", ""))
             logger.info(f"🎯 cmd_start: пользователь {user_id} добавляет место {place_id} в квесты через deep link")
 
+            # Мгновенный отклик: всплывающее уведомление (исчезнет через 2 сек)
+            toast = await message.answer("🎯 Квест добавлен в «Мои активности»")
+            toast_chat_id = message.chat.id
+            toast_message_id = toast.message_id
+
             with get_session() as session:
                 user = session.query(User).filter(User.id == user_id).first()
                 user_lat = user.last_lat if user else None
@@ -3408,6 +3413,16 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
                 await message.answer(t("tasks.quest_already_taken_notify", user_lang))
             elif not list_updated:
                 await message.answer(message_text, reply_markup=main_menu_kb(user_id=user_id))
+
+            # Удаляем всплывающее уведомление через 2 секунды
+            async def _delete_toast():
+                await asyncio.sleep(2)
+                try:
+                    await message.bot.delete_message(chat_id=toast_chat_id, message_id=toast_message_id)
+                except Exception:
+                    pass
+
+            asyncio.create_task(_delete_toast())
             return
         except (ValueError, Exception) as e:
             logger.warning(f"🎯 cmd_start: неверный параметр add_quest_ {command.args}: {e}")
