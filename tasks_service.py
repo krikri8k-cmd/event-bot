@@ -243,6 +243,7 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                 "status": user_task.status,
                 "task_type": task_type_from_place,
                 "task_hint": task_hint,
+                "place_id": user_task.place_id,
             }
 
             # Получаем информацию о месте и промокоде

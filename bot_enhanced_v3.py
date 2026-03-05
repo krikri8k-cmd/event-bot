@@ -8807,7 +8807,7 @@ async def _build_places_list_content(
     end_idx = min(start_idx + places_per_page, len(all_places))
     page_places = all_places[start_idx:end_idx]
 
-    # Актуальный список взятых мест: из БД + явно только что добавленный (на случай задержки коммита/кэша)
+    # Свежий запрос к БД при каждом формировании списка — без кэша. Узнаём, какие квесты пользователь уже взял.
     active_tasks = get_user_active_tasks(user_id)
     taken_place_ids = {t.get("place_id") for t in active_tasks if t.get("place_id")}
     if just_added_place_id is not None:
@@ -8838,7 +8838,7 @@ async def _build_places_list_content(
         )
         if hint_text:
             text += f"💡 {hint_text}\n"
-        # Жёсткая проверка: только что добавленный квест или уже в taken — показываем «Квест взят», иначе ссылка
+        # Fail-safe: если place_id == just_added_place_id — гарантированно «✅ Квест взят». Иначе — по свежему списку из БД.
         is_taken = (just_added_place_id is not None and place.id == just_added_place_id) or place.id in taken_place_ids
         if is_taken:
             text += quest_taken_label + "\n\n"
