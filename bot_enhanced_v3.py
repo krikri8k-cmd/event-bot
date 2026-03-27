@@ -7960,7 +7960,7 @@ async def cmd_mytasks(message: types.Message):
 
 @main_router.callback_query(F.data == "manage_tasks")
 async def handle_manage_tasks(callback: types.CallbackQuery):
-    """Обработчик кнопки 'Управление заданиями'"""
+    """Обработчик кнопки 'Выполнить задание'"""
     user_id = callback.from_user.id
     lang = get_user_language_or_default(user_id)
     active_tasks = get_user_active_tasks(user_id)
