@@ -169,6 +169,17 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "или **напишите отзыв** текстом:"
         ),
         "mytasks.cancel_error": "❌ **Ошибка отмены задания**\n\nНе удалось отменить задание. Попробуйте позже.",
+        "mytasks.feedback_success_title": "🎉 **Задание завершено!**",
+        "mytasks.feedback_thanks_photo": "📸 Спасибо за фото места!",
+        "mytasks.feedback_thanks_text": "📝 Спасибо за фидбек!",
+        "mytasks.feedback_rockets": "🚀 Получено ракет: **{rockets}**",
+        "mytasks.feedback_encourage": "Продолжайте в том же духе! 💪",
+        "mytasks.feedback_prompt_invalid": (
+            "❌ Пожалуйста, отправьте **фото места** где вы были или **напишите отзыв** текстом."
+        ),
+        "mytasks.feedback_complete_failed": (
+            "❌ **Не удалось завершить задание**\n\n" "Возможно, время выполнения истекло или задание уже завершено."
+        ),
         "tasks.choose_section": "Выберите раздел:",
         "tasks.not_found": "Задание не найдено",
         "tasks.cancelled": "✅ Задание отменено",
@@ -1076,6 +1087,18 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "📸 **Send a photo** of the place you visited\nor **write your review** as text:"
         ),
         "mytasks.cancel_error": "❌ **Error cancelling task**\n\nCould not cancel the task. Please try again later.",
+        "mytasks.feedback_success_title": "🎉 **Task completed!**",
+        "mytasks.feedback_thanks_photo": "📸 Thanks for the place photo!",
+        "mytasks.feedback_thanks_text": "📝 Thanks for your feedback!",
+        "mytasks.feedback_rockets": "🚀 Rockets earned: **{rockets}**",
+        "mytasks.feedback_encourage": "Keep it up! 💪",
+        "mytasks.feedback_prompt_invalid": (
+            "❌ Please send a **photo of the place** you visited or **write your review** as text."
+        ),
+        "mytasks.feedback_complete_failed": (
+            "❌ **Could not complete the task**\n\n"
+            "The time limit may have expired or the task may already be completed."
+        ),
         "tasks.choose_section": "Choose section:",
         "tasks.not_found": "Task not found",
         "tasks.cancelled": "✅ Task cancelled",

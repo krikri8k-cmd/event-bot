@@ -9145,14 +9145,14 @@ async def handle_task_manage(callback: types.CallbackQuery):
 async def process_feedback(message: types.Message, state: FSMContext):
     """Обработка фидбека для завершения задания (принимает фото или текст)"""
     user_id = message.from_user.id
+    lang = get_user_language_or_default(user_id)
 
     # Получаем ID задания из состояния
     data = await state.get_data()
     completing_task_id = data.get("completing_task_id") or data.get("user_task_id")
 
     if not completing_task_id:
-        user_lang = get_user_language_or_default(user_id)
-        await message.answer(t("tasks.complete_not_found", user_lang))
+        await message.answer(t("tasks.complete_not_found", lang))
         await state.clear()
         return
 
@@ -9168,11 +9168,11 @@ async def process_feedback(message: types.Message, state: FSMContext):
         if message.caption:
             feedback_text = message.caption.strip()
         else:
-            feedback_text = "📸 Фото места выполнения задания"
+            feedback_text = None
 
         # Сохраняем file_id в формате "PHOTO:file_id|текст" или просто file_id
         feedback = f"PHOTO:{photo_file_id}"
-        if feedback_text and feedback_text != "📸 Фото места выполнения задания":
+        if feedback_text:
             feedback += f"|{feedback_text}"
     elif message.text:
         # Если только текст
@@ -9180,7 +9180,7 @@ async def process_feedback(message: types.Message, state: FSMContext):
         feedback = feedback_text
     else:
         await message.answer(
-            "❌ Пожалуйста, отправьте **фото места** где вы были или **напишите отзыв** текстом.",
+            t("mytasks.feedback_prompt_invalid", lang),
             parse_mode="Markdown",
         )
         return
@@ -9193,20 +9193,14 @@ async def process_feedback(message: types.Message, state: FSMContext):
         rockets_awarded = award_rockets_for_activity(user_id, "task_complete")
 
         # Формируем сообщение в зависимости от типа фидбека
-        if photo_file_id:
-            success_message = (
-                f"🎉 **Задание завершено!**\n\n"
-                f"📸 Спасибо за фото места!\n"
-                f"🚀 Получено ракет: **{rockets_awarded}**\n\n"
-                f"Продолжайте в том же духе! 💪"
-            )
-        else:
-            success_message = (
-                f"🎉 **Задание завершено!**\n\n"
-                f"📝 Спасибо за фидбек!\n"
-                f"🚀 Получено ракет: **{rockets_awarded}**\n\n"
-                f"Продолжайте в том же духе! 💪"
-            )
+        thanks = t("mytasks.feedback_thanks_photo", lang) if photo_file_id else t("mytasks.feedback_thanks_text", lang)
+        rockets_line = t("mytasks.feedback_rockets", lang).format(rockets=rockets_awarded)
+        success_message = (
+            f"{t('mytasks.feedback_success_title', lang)}\n\n"
+            f"{thanks}\n"
+            f"{rockets_line}\n\n"
+            f"{t('mytasks.feedback_encourage', lang)}"
+        )
 
         await message.answer(success_message, parse_mode="Markdown")
 
@@ -9214,7 +9208,7 @@ async def process_feedback(message: types.Message, state: FSMContext):
         await message.answer("🚀")
     else:
         await message.answer(
-            "❌ **Не удалось завершить задание**\n\n" "Возможно, время выполнения истекло или задание уже завершено.",
+            t("mytasks.feedback_complete_failed", lang),
             parse_mode="Markdown",
         )
 
