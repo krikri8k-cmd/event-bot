@@ -8710,7 +8710,7 @@ async def handle_task_complete(callback: types.CallbackQuery, state: FSMContext)
     await state.set_state(EventCreation.waiting_for_feedback)
     await state.update_data(user_task_id=user_task_id)
 
-    text = t("mytasks.completed_title", user_lang) + "\n\n" + t("mytasks.share_impressions", user_lang)
+    text = t("mytasks.complete_feedback_prompt", user_lang)
     await callback.message.edit_text(text, parse_mode="Markdown")
     await callback.answer()
 
