@@ -367,6 +367,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "event.route_link": "Маршрут",
         "event.source_not_specified": "Источник не указан",
         "event.created_by": "Создано пользователем @{username}",
+        # События "от групп" (community)
+        "event.from_groups_solo": "от группы",
         # Заголовок списка событий
         "events.header.found_nearby": "🗺 Найдено рядом: <b>{count}</b>",
         "events.header.found_in_radius": "📍 Найдено в радиусе {radius} км: <b>{count}</b>",
@@ -839,6 +841,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "event.route_link": "Route",
         "event.source_not_specified": "Source not specified",
         "event.created_by": "Created by @{username}",
+        # Community events (from groups)
+        "event.from_groups_solo": "from groups",
         # Events list header
         "events.header.found_nearby": "🗺 Found nearby: <b>{count}</b>",
         "events.header.found_in_radius": "📍 Found within {radius} km: <b>{count}</b>",
