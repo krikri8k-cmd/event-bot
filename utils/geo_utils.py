@@ -759,24 +759,25 @@ async def parse_google_maps_link(link: str) -> dict | None:
             if name:
                 # Декодируем название и пробуем геокодировать
                 decoded_name = unquote(name.replace("+", " "))
-                # Убираем лишние части из названия (например, адрес после названия места)
-                # Берем только первую часть до запятой или до первого числа
-                clean_name = decoded_name.split(",")[0].strip()
-                if not clean_name:
-                    clean_name = decoded_name
+                # Сначала полная строка из /place/... (часто "Заведение, улица, город, регион").
+                # Только короткое имя (до первой запятой) даёт ZERO_RESULTS для типичных названий вроде "Taco Casa".
+                primary = decoded_name.strip() or decoded_name
+                coords = await geocode_address(primary)
+                short_label = primary.split(",")[0].strip() if "," in primary else primary
+                if not coords and short_label and short_label != primary:
+                    coords = await geocode_address(short_label)
 
-                coords = await geocode_address(clean_name)
                 if coords:
                     lat, lng = coords
                     return {
                         "lat": lat,
                         "lng": lng,
-                        "name": clean_name,
+                        "name": short_label or primary,
                         "raw_link": link,
                     }
 
                 # Если геокодирование не сработало, возвращаем без координат
-                result = {"lat": None, "lng": None, "name": clean_name, "raw_link": link}
+                result = {"lat": None, "lng": None, "name": short_label or primary, "raw_link": link}
                 if place_id:
                     result["place_id"] = place_id
                 return result
@@ -821,12 +822,23 @@ async def expand_short_url(short_url: str) -> str | None:
     }
 
     try:
-        # Некоторые короткие ссылки (особенно maps.app.goo.gl) требуют полноценного GET.
-        # Сначала пробуем получить ответ без автоматического перехода по редиректу,
-        # чтобы вытащить Location из заголовков.
+        # Сразу проходим всю цепочку редиректов: первый Location часто промежуточный,
+        # финальный URL надёжнее для паттернов @lat,lng и /place/.../data=...
+        async with httpx.AsyncClient(follow_redirects=True, timeout=15, headers=headers) as client:
+            response = await client.get(short_url)
+            final_url = str(response.url)
+            print(f"[expand_short_url] GET (follow) {response.status_code} final={final_url}")
+
+            if final_url and final_url != short_url and ("google." in final_url and "maps" in final_url):
+                return final_url
+
+            candidate = _extract_maps_url_from_html(response.text, short_url)
+            if candidate:
+                return candidate
+
+        # Fallback: один шаг по Location (если follow не дал распознаваемый maps URL)
         async with httpx.AsyncClient(follow_redirects=False, timeout=15, headers=headers) as client:
             response = await client.get(short_url)
-
         print(f"[expand_short_url] GET (no redirect) {response.status_code} {short_url}")
 
         if response.status_code in [301, 302, 303, 307, 308]:
@@ -837,17 +849,6 @@ async def expand_short_url(short_url: str) -> str | None:
         candidate = _extract_maps_url_from_html(response.text, short_url)
         if candidate:
             return candidate
-
-        # Если явного редиректа нет, пробуем посмотреть, куда httpx дошел бы с follow_redirects=True
-        async with httpx.AsyncClient(follow_redirects=True, timeout=15, headers=headers) as client:
-            follow_response = await client.get(short_url)
-            final_url = str(follow_response.url)
-            print(f"[expand_short_url] GET (follow) final={final_url}")
-            if final_url and final_url != short_url:
-                return final_url
-            candidate = _extract_maps_url_from_html(follow_response.text, short_url)
-            if candidate:
-                return candidate
 
         return None
     except Exception:
