@@ -8804,6 +8804,19 @@ async def _build_places_list_content(
         )
         return f"🎯 **{category_name}**\n\n{no_places_text}", reply_markup
 
+    # Промо-приоритет: места с promo_code в радиусе 2 км идут первыми (stable partition),
+    # остальной порядок сохраняем как был (включая текущую сортировку/ротацию внутри all_places).
+    PROMO_PRIORITY_RADIUS_KM = 2.0
+
+    def _promo_priority(p) -> bool:
+        code = (getattr(p, "promo_code", None) or "").strip()
+        dist = getattr(p, "distance_km", None)
+        return bool(code) and dist is not None and dist <= PROMO_PRIORITY_RADIUS_KM
+
+    promo_places = [p for p in all_places if _promo_priority(p)]
+    other_places = [p for p in all_places if not _promo_priority(p)]
+    all_places = promo_places + other_places
+
     places_per_page = 8
     total_pages = (len(all_places) + places_per_page - 1) // places_per_page
     page = max(1, min(page, total_pages))
