@@ -21,7 +21,14 @@
 # Тренажерные залы
 health:gym:bali:
 
-Спортзалы Убуд
+# Spa
+
+health:spa:bali:
+
+Bali Dacha
+https://maps.app.goo.gl/mmgJ4eRMFe3PnEmQ8|Jungle26 Club day 50.000 IDR , private rent 10% 
+
+# Тренажерные залы
 
 Raw Gym & Café Ubud
 https://maps.app.goo.gl/p7zT3uKenYpVvywo9
