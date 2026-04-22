@@ -3027,6 +3027,10 @@ def _build_public_commands(lang: str) -> list:
     return [
         types.BotCommand(command="language", description=t("command.language", lang)),
         types.BotCommand(command="start", description=t("command.start", lang)),
+        types.BotCommand(
+            command="test",
+            description=("🧪 Тест мест от блогера" if lang == "ru" else "🧪 Test blogger places"),
+        ),
         types.BotCommand(command="nearby", description=t("command.nearby", lang)),
         types.BotCommand(command="create", description=t("command.create", lang)),
         types.BotCommand(command="myevents", description=t("command.myevents", lang)),
@@ -3527,6 +3531,48 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
         )
 
         await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
+
+
+@main_router.message(Command("test"))
+async def cmd_test_partner(message: types.Message, command: CommandObject = None):
+    """Тестовый роут проверки мест блогера.
+
+    Примеры:
+    - /test
+    - /test anya
+    """
+    user_id = message.from_user.id
+    raw_arg = (command.args or "").strip() if command else ""
+    if raw_arg:
+        partner_slug = _normalize_partner_slug(raw_arg)
+        if not partner_slug:
+            user_lang = get_user_language_or_default(user_id)
+            usage = (
+                "Формат: `/test` или `/test <slug>` (например, `/test anya`)."
+                if user_lang == "ru"
+                else "Usage: `/test` or `/test <slug>` (for example `/test anya`)."
+            )
+            await message.answer(usage, parse_mode="Markdown", reply_markup=main_menu_kb(user_id=user_id))
+            return
+    else:
+        partner_slug = "test"
+
+    with get_session() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        user_lat = user.last_lat if user else None
+        user_lng = user.last_lng if user else None
+
+    user_lang = get_user_language_or_default(user_id)
+    if not user_lat or not user_lng:
+        need_geo_text = (
+            "📍 Чтобы показать места от блогера, сначала отправь геолокацию."
+            if user_lang == "ru"
+            else "📍 To show blogger places, please send your location first."
+        )
+        await message.answer(need_geo_text, reply_markup=main_menu_kb(user_id=user_id))
+        return
+
+    await show_tasks_for_partner(message, partner_slug, user_id, user_lat, user_lng, page=1)
 
 
 @main_router.message(Command("language"))
