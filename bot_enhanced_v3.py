@@ -3028,8 +3028,8 @@ def _build_public_commands(lang: str) -> list:
         types.BotCommand(command="language", description=t("command.language", lang)),
         types.BotCommand(command="start", description=t("command.start", lang)),
         types.BotCommand(
-            command="test",
-            description=("🧪 Тест мест от блогера" if lang == "ru" else "🧪 Test blogger places"),
+            command="partner",
+            description=("👤 Места от блогера" if lang == "ru" else "👤 Places by blogger"),
         ),
         types.BotCommand(command="nearby", description=t("command.nearby", lang)),
         types.BotCommand(command="create", description=t("command.create", lang)),
@@ -3533,13 +3533,13 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
         await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
 
 
-@main_router.message(Command("test"))
-async def cmd_test_partner(message: types.Message, command: CommandObject = None):
-    """Тестовый роут проверки мест блогера.
+@main_router.message(Command("partner"))
+async def cmd_partner_places(message: types.Message, command: CommandObject = None):
+    """Роут мест от блогера по slug.
 
     Примеры:
-    - /test
-    - /test anya
+    - /partner test
+    - /partner anya
     """
     user_id = message.from_user.id
     raw_arg = (command.args or "").strip() if command else ""
@@ -3548,14 +3548,21 @@ async def cmd_test_partner(message: types.Message, command: CommandObject = None
         if not partner_slug:
             user_lang = get_user_language_or_default(user_id)
             usage = (
-                "Формат: `/test` или `/test <slug>` (например, `/test anya`)."
+                "Формат: `/partner <slug>` (например, `/partner anya`)."
                 if user_lang == "ru"
-                else "Usage: `/test` or `/test <slug>` (for example `/test anya`)."
+                else "Usage: `/partner <slug>` (for example `/partner anya`)."
             )
             await message.answer(usage, parse_mode="Markdown", reply_markup=main_menu_kb(user_id=user_id))
             return
     else:
-        partner_slug = "test"
+        user_lang = get_user_language_or_default(user_id)
+        usage = (
+            "Формат: `/partner <slug>` (например, `/partner test`)."
+            if user_lang == "ru"
+            else "Usage: `/partner <slug>` (for example `/partner test`)."
+        )
+        await message.answer(usage, parse_mode="Markdown", reply_markup=main_menu_kb(user_id=user_id))
+        return
 
     with get_session() as session:
         user = session.query(User).filter(User.id == user_id).first()
@@ -9029,12 +9036,17 @@ async def show_tasks_for_partner(
     user_lat: float,
     user_lng: float,
     page: int = 1,
+    prefer_edit: bool = False,
 ):
     text, reply_markup = await _build_partner_places_list_content(partner_slug, user_id, user_lat, user_lng, page)
-    if hasattr(message_or_callback, "edit_text"):
-        await message_or_callback.edit_text(text, parse_mode="Markdown", reply_markup=reply_markup)
-    else:
-        await message_or_callback.answer(text, parse_mode="Markdown", reply_markup=reply_markup)
+    if prefer_edit and hasattr(message_or_callback, "edit_text"):
+        try:
+            await message_or_callback.edit_text(text, parse_mode="Markdown", reply_markup=reply_markup)
+            return
+        except Exception:
+            # Fallback на обычную отправку сообщения, если редактирование невозможно
+            pass
+    await message_or_callback.answer(text, parse_mode="Markdown", reply_markup=reply_markup)
 
 
 async def _build_places_list_content(
@@ -9347,7 +9359,9 @@ async def handle_partner_places_page(callback: types.CallbackQuery):
         await callback.answer(t("tasks.require_location", user_lang))
         return
 
-    await show_tasks_for_partner(callback.message, partner_slug, user_id, user_lat, user_lng, page=page)
+    await show_tasks_for_partner(
+        callback.message, partner_slug, user_id, user_lat, user_lng, page=page, prefer_edit=True
+    )
     await callback.answer()
 
 
