@@ -150,6 +150,20 @@ class Report(Base):
     status: Mapped[str] = mapped_column(String(16), default="new")
 
 
+class Partner(Base):
+    __tablename__ = "partners"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    slug: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+    display_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    main_url: Mapped[str | None] = mapped_column(String(255))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at_utc: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class TaskPlace(Base):
     __tablename__ = "task_places"
 
@@ -165,6 +179,10 @@ class TaskPlace(Base):
     place_type: Mapped[str | None] = mapped_column(String(50))  # 'cafe', 'park', 'gym', 'yoga_studio', etc.
     task_type: Mapped[str] = mapped_column(String(20), default="urban")  # 'urban' или 'island'
     promo_code: Mapped[str | None] = mapped_column(String(100))  # Промокод или реферальный код для партнеров
+    partner_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("partners.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    review_url: Mapped[str | None] = mapped_column(String(255))
     task_hint: Mapped[str | None] = mapped_column(String(200))  # Короткое задание/подсказка (1 предложение)
     name_en: Mapped[str | None] = mapped_column(String(255))  # название на английском
     task_hint_en: Mapped[str | None] = mapped_column(String(200))  # задание/подсказка на английском

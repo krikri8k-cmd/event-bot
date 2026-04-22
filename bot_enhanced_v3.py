@@ -80,6 +80,7 @@ _ADD_BOT_TO_CHAT_BUTTON_TEXTS = (
     t("menu.button.add_bot_to_chat", "ru"),
     t("menu.button.add_bot_to_chat", "en"),
 )
+_PARTNER_SLUG_RE = re.compile(r"^[a-z0-9_]{2,50}$")
 
 
 def _build_tracking_url(click_type: str, event: dict, target_url: str, user_id: int | None) -> str:
@@ -3415,6 +3416,29 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
             return
         except (ValueError, Exception) as e:
             logger.warning(f"🎯 cmd_start: неверный параметр add_quest_ {command.args}: {e}")
+
+    # Deep link партнёра: /start {slug} -> сразу показываем места блогера
+    raw_start_arg = (command.args or "") if command else ""
+    is_reserved_start_arg = raw_start_arg.startswith(("group_", "edit_group_", "add_quest_"))
+    partner_slug = _normalize_partner_slug(raw_start_arg if not is_reserved_start_arg else None)
+    if partner_slug and chat_type == "private":
+        with get_session() as session:
+            user = session.query(User).filter(User.id == user_id).first()
+            user_lat = user.last_lat if user else None
+            user_lng = user.last_lng if user else None
+
+        if not user_lat or not user_lng:
+            user_lang = get_user_language_or_default(user_id)
+            need_geo_text = (
+                "📍 Чтобы показать места от блогера, сначала отправь геолокацию."
+                if user_lang == "ru"
+                else "📍 To show blogger places, please send your location first."
+            )
+            await message.answer(need_geo_text, reply_markup=main_menu_kb(user_id=user_id))
+            return
+
+        await show_tasks_for_partner(message, partner_slug, user_id, user_lat, user_lng, page=1)
+        return
 
     # Если это переход из группы для редактирования, запускаем FSM для редактирования
     if edit_params and chat_type == "private":
@@ -8772,6 +8796,201 @@ async def handle_task_cancel(callback: types.CallbackQuery):
 _last_places_list_message: dict[int, tuple[int, int, str, int]] = {}  # user_id -> (chat_id, message_id, category, page)
 
 
+def _normalize_partner_slug(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    slug = raw.strip().lower()
+    if slug.startswith("@"):
+        slug = slug[1:]
+    if not _PARTNER_SLUG_RE.fullmatch(slug):
+        return None
+    return slug
+
+
+def _extract_partner_slug_from_text(text: str | None) -> str | None:
+    """Поддерживает: `anya`, `@anya`, `места от @anya`, `покажи места от anya`."""
+    if not text:
+        return None
+
+    normalized = text.strip().lower()
+    phrase_match = re.match(r"^(?:места\s+от|покажи\s+места\s+от)\s+(@?[a-z0-9_]{2,50})$", normalized)
+    if phrase_match:
+        return _normalize_partner_slug(phrase_match.group(1))
+
+    return _normalize_partner_slug(normalized)
+
+
+async def _build_partner_places_list_content(
+    partner_slug: str,
+    user_id: int,
+    user_lat: float,
+    user_lng: float,
+    page: int,
+) -> tuple[str, InlineKeyboardMarkup]:
+    from sqlalchemy import and_, func
+
+    from database import Partner, TaskPlace
+    from tasks_location_service import get_task_type_for_region, get_user_region, get_user_region_type
+
+    lang = get_user_language_or_default(user_id)
+    with get_session() as session:
+        partner = (
+            session.query(Partner)
+            .filter(and_(func.lower(Partner.slug) == partner_slug, Partner.is_active == True))  # noqa: E712
+            .first()
+        )
+        if not partner:
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main")]
+                ]
+            )
+            not_found = (
+                f"👤 Партнер `@{partner_slug}` не найден.\n\nПопробуй другой slug."
+                if lang == "ru"
+                else f"👤 Partner `@{partner_slug}` not found.\n\nTry another slug."
+            )
+            return not_found, keyboard
+
+        region = get_user_region(user_lat, user_lng)
+        region_type = get_user_region_type(user_lat, user_lng)
+        task_type = get_task_type_for_region(region_type)
+
+        base_query = session.query(TaskPlace).filter(
+            and_(
+                TaskPlace.partner_id == partner.id,
+                TaskPlace.is_active == True,  # noqa: E712
+            )
+        )
+        if region != "unknown":
+            places = base_query.filter(
+                and_(
+                    TaskPlace.region == region,
+                    TaskPlace.task_type == task_type,
+                )
+            ).all()
+            # Fallback: если в текущем регионе мест нет, показываем все активные места партнера.
+            if not places:
+                places = base_query.all()
+        else:
+            places = base_query.all()
+
+    for place in places:
+        place.distance_km = haversine_km(user_lat, user_lng, place.lat, place.lng)
+    places.sort(key=lambda p: getattr(p, "distance_km", 10_000))
+
+    places_per_page = 8
+    total_pages = max(1, (len(places) + places_per_page - 1) // places_per_page)
+    page = max(1, min(page, total_pages))
+    start_idx = (page - 1) * places_per_page
+    end_idx = min(start_idx + places_per_page, len(places))
+    page_places = places[start_idx:end_idx]
+
+    active_tasks = get_user_active_tasks(user_id)
+    taken_place_ids = {t.get("place_id") for t in active_tasks if t.get("place_id")}
+    bot_username = get_bot_username()
+    take_quest_label = t("tasks.take_quest", lang)
+    quest_taken_label = t("tasks.quest_taken", lang)
+
+    partner_name = escape_markdown(partner.display_name)
+    if partner.main_url:
+        header = f"👤 **[{partner_name}]({partner.main_url})**"
+    else:
+        header = f"👤 **{partner_name}**"
+
+    places_count_line = (
+        f"Найдено мест от партнера: **{len(places)}**"
+        if lang == "ru"
+        else f"Places found from partner: **{len(places)}**"
+    )
+    text = f"{header}\n\n{places_count_line}\n\n"
+
+    if not places:
+        empty = (
+            "Пока нет доступных мест для этого партнера."
+            if lang == "ru"
+            else "No available places for this partner yet."
+        )
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main")]
+            ]
+        )
+        return f"{text}{empty}", keyboard
+
+    partner_label = "👤 Рекомендовано:" if lang == "ru" else "👤 Recommended by:"
+    review_label = "🎬 Смотреть видео-обзор" if lang == "ru" else "🎬 Watch video review"
+
+    for idx, place in enumerate(page_places, start=start_idx + 1):
+        place_name = escape_markdown((getattr(place, "name_en", None) or place.name) if lang == "en" else place.name)
+        if place.google_maps_url:
+            text += f"**{idx}. [{place_name}]({place.google_maps_url})**\n"
+        else:
+            text += f"**{idx}. {place_name}**\n"
+
+        if hasattr(place, "distance_km") and place.distance_km is not None:
+            text += t("tasks.km_from_you", lang).format(distance=place.distance_km) + "\n"
+
+        if partner.main_url:
+            text += f"{partner_label} [{partner_name}]({partner.main_url})\n"
+        else:
+            text += f"{partner_label} {partner_name}\n"
+
+        if getattr(place, "review_url", None):
+            text += f"[{review_label}]({place.review_url})\n"
+
+        if place.promo_code:
+            text += t("tasks.promo_code", lang).format(code=place.promo_code) + "\n"
+
+        hint_text = (
+            (getattr(place, "task_hint_en", None) or place.task_hint) if lang == "en" else (place.task_hint or "")
+        )
+        if hint_text:
+            text += f"💡 {hint_text}\n"
+
+        if place.id in taken_place_ids:
+            text += quest_taken_label + "\n\n"
+        else:
+            deep_link = f"https://t.me/{bot_username}?start=add_quest_{place.id}"
+            text += f"[{take_quest_label}]({deep_link})\n\n"
+
+    keyboard: list[list[InlineKeyboardButton]] = []
+    if total_pages > 1:
+        prev_p = total_pages if page == 1 else page - 1
+        next_p = 1 if page == total_pages else page + 1
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    text=format_translation("pager.page", lang, page=page, total=total_pages),
+                    callback_data="partner_places_page:noop",
+                ),
+                InlineKeyboardButton(
+                    text=t("pager.prev", lang), callback_data=f"partner_places_page:{partner_slug}:{prev_p}"
+                ),
+                InlineKeyboardButton(
+                    text=t("pager.next", lang), callback_data=f"partner_places_page:{partner_slug}:{next_p}"
+                ),
+            ]
+        )
+    keyboard.append([InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main")])
+    return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+async def show_tasks_for_partner(
+    message_or_callback,
+    partner_slug: str,
+    user_id: int,
+    user_lat: float,
+    user_lng: float,
+    page: int = 1,
+):
+    text, reply_markup = await _build_partner_places_list_content(partner_slug, user_id, user_lat, user_lng, page)
+    if hasattr(message_or_callback, "edit_text"):
+        await message_or_callback.edit_text(text, parse_mode="Markdown", reply_markup=reply_markup)
+    else:
+        await message_or_callback.answer(text, parse_mode="Markdown", reply_markup=reply_markup)
+
+
 async def _build_places_list_content(
     category: str,
     user_id: int,
@@ -9058,6 +9277,31 @@ async def handle_places_page(callback: types.CallbackQuery, state: FSMContext):
 
     # Показываем страницу мест
     await show_tasks_for_category(callback.message, category, user_id, user_lat, user_lng, state, page=page)
+    await callback.answer()
+
+
+@main_router.callback_query(F.data.startswith("partner_places_page:"))
+async def handle_partner_places_page(callback: types.CallbackQuery):
+    parts = callback.data.split(":")
+    if len(parts) < 3 or parts[1] == "noop":
+        await callback.answer()
+        return
+
+    partner_slug = parts[1]
+    page = int(parts[2])
+    user_id = callback.from_user.id
+    user_lang = get_user_language_or_default(user_id)
+
+    with get_session() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        user_lat = user.last_lat if user else None
+        user_lng = user.last_lng if user else None
+
+    if not user_lat or not user_lng:
+        await callback.answer(t("tasks.require_location", user_lang))
+        return
+
+    await show_tasks_for_partner(callback.message, partner_slug, user_id, user_lat, user_lng, page=page)
     await callback.answer()
 
 
@@ -11188,6 +11432,27 @@ async def echo_message(message: types.Message, state: FSMContext):
     logger.info(
         f"echo_message: получили сообщение '{message.text}' от пользователя {message.from_user.id}, состояние: {current_state}"
     )
+    partner_slug = _extract_partner_slug_from_text(message.text)
+    if partner_slug:
+        user_id = message.from_user.id
+        with get_session() as session:
+            user = session.query(User).filter(User.id == user_id).first()
+            user_lat = user.last_lat if user else None
+            user_lng = user.last_lng if user else None
+
+        user_lang = get_user_language_or_default(user_id)
+        if not user_lat or not user_lng:
+            need_geo_text = (
+                "📍 Чтобы показать места от блогера, сначала отправь геолокацию."
+                if user_lang == "ru"
+                else "📍 To show blogger places, please send your location first."
+            )
+            await message.answer(need_geo_text, reply_markup=main_menu_kb(user_id=user_id))
+            return
+
+        await show_tasks_for_partner(message, partner_slug, user_id, user_lat, user_lng, page=1)
+        return
+
     logger.info("echo_message: отвечаем общим сообщением")
     user_id = message.from_user.id
     user_lang = get_user_language_or_default(user_id)
