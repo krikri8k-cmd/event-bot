@@ -3398,7 +3398,8 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
                         chat_id=message.chat.id,
                         text=text,
                         reply_markup=reply_markup,
-                        parse_mode="Markdown",
+                        parse_mode="HTML",
+                        disable_web_page_preview=True,
                     )
                     list_updated = True
                     _last_places_list_message[user_id] = (message.chat.id, sent.message_id, cat, p)
@@ -8873,6 +8874,83 @@ def _extract_partner_slug_from_text(text: str | None) -> str | None:
     return _normalize_partner_slug(normalized)
 
 
+def _format_place_location_line(place, lang: str) -> str:
+    dist = getattr(place, "distance_km", None)
+    if dist is not None:
+        return t("tasks.km_from_you", lang).format(distance=dist)
+    region = (getattr(place, "region", None) or "").strip()
+    if not region:
+        return ""
+    return f"📍 Район: {html.escape(region)}" if lang == "ru" else f"📍 Area: {html.escape(region)}"
+
+
+def _render_partner_pick_line(partner_name: str, partner_url: str | None, review_url: str | None, lang: str) -> str:
+    label = "⭐ Выбор" if lang == "ru" else "⭐ Pick"
+    safe_partner_name = html.escape(partner_name)
+    if partner_url:
+        partner_part = f'<a href="{html.escape(partner_url, quote=True)}">{safe_partner_name}</a>'
+    else:
+        partner_part = safe_partner_name
+
+    if review_url:
+        review_text = "Обзор 🎬" if lang == "ru" else "Review 🎬"
+        review_part = f'<a href="{html.escape(review_url, quote=True)}">{review_text}</a>'
+        return f"{label} {partner_part} — {review_part}"
+    return f"{label} {partner_part}"
+
+
+def _render_place_card_html(
+    *,
+    idx: int,
+    place,
+    lang: str,
+    bot_username: str,
+    take_quest_label: str,
+    quest_taken_label: str,
+    is_taken: bool,
+    partner_name: str | None = None,
+    partner_url: str | None = None,
+) -> str:
+    lines: list[str] = []
+    place_name = (getattr(place, "name_en", None) or place.name) if lang == "en" else place.name
+    safe_place_name = html.escape(place_name)
+
+    if place.google_maps_url:
+        lines.append(f'<b>{idx}. <a href="{html.escape(place.google_maps_url, quote=True)}">{safe_place_name}</a></b>')
+    else:
+        lines.append(f"<b>{idx}. {safe_place_name}</b>")
+
+    location_line = _format_place_location_line(place, lang)
+    if location_line:
+        lines.append(location_line)
+
+    if getattr(place, "partner_id", None) and partner_name:
+        lines.append(
+            _render_partner_pick_line(
+                partner_name=partner_name,
+                partner_url=partner_url,
+                review_url=getattr(place, "review_url", None),
+                lang=lang,
+            )
+        )
+
+    if place.promo_code:
+        promo_label = "🎁 Промокод:" if lang == "ru" else "🎁 Promo code:"
+        lines.append(f"{promo_label} <code>{html.escape(place.promo_code)}</code>")
+
+    hint_text = (getattr(place, "task_hint_en", None) or place.task_hint) if lang == "en" else (place.task_hint or "")
+    if hint_text:
+        lines.append(f"💡 <i>{html.escape(hint_text)}</i>")
+
+    if is_taken:
+        lines.append(html.escape(quest_taken_label))
+    else:
+        deep_link = f"https://t.me/{bot_username}?start=add_quest_{place.id}"
+        lines.append(f'🎯 <a href="{deep_link}">{html.escape(take_quest_label)}</a>')
+
+    return "\n".join(lines)
+
+
 async def _build_partner_places_list_content(
     partner_slug: str,
     user_id: int,
@@ -8899,9 +8977,9 @@ async def _build_partner_places_list_content(
                 ]
             )
             not_found = (
-                f"👤 Партнер `@{partner_slug}` не найден.\n\nПопробуй другой slug."
+                f"👤 Партнер @{html.escape(partner_slug)} не найден.\n\nПопробуй другой slug."
                 if lang == "ru"
-                else f"👤 Partner `@{partner_slug}` not found.\n\nTry another slug."
+                else f"👤 Partner @{html.escape(partner_slug)} not found.\n\nTry another slug."
             )
             return not_found, keyboard
 
@@ -8945,16 +9023,16 @@ async def _build_partner_places_list_content(
     take_quest_label = t("tasks.take_quest", lang)
     quest_taken_label = t("tasks.quest_taken", lang)
 
-    partner_name = escape_markdown(partner.display_name)
+    partner_name = partner.display_name
     if partner.main_url:
-        header = f"👤 **[{partner_name}]({partner.main_url})**"
+        header = f'👤 <b><a href="{html.escape(partner.main_url, quote=True)}">{html.escape(partner_name)}</a></b>'
     else:
-        header = f"👤 **{partner_name}**"
+        header = f"👤 <b>{html.escape(partner_name)}</b>"
 
     places_count_line = (
-        f"Найдено мест от партнера: **{len(places)}**"
+        f"Найдено мест от партнера: <b>{len(places)}</b>"
         if lang == "ru"
-        else f"Places found from partner: **{len(places)}**"
+        else f"Places found from partner: <b>{len(places)}</b>"
     )
     text = f"{header}\n\n{places_count_line}\n\n"
 
@@ -8971,41 +9049,19 @@ async def _build_partner_places_list_content(
         )
         return f"{text}{empty}", keyboard
 
-    partner_label = "👤 Рекомендовано:" if lang == "ru" else "👤 Recommended by:"
-    review_label = "🎬 Смотреть видео-обзор" if lang == "ru" else "🎬 Watch video review"
-
     for idx, place in enumerate(page_places, start=start_idx + 1):
-        place_name = escape_markdown((getattr(place, "name_en", None) or place.name) if lang == "en" else place.name)
-        if place.google_maps_url:
-            text += f"**{idx}. [{place_name}]({place.google_maps_url})**\n"
-        else:
-            text += f"**{idx}. {place_name}**\n"
-
-        if hasattr(place, "distance_km") and place.distance_km is not None:
-            text += t("tasks.km_from_you", lang).format(distance=place.distance_km) + "\n"
-
-        if partner.main_url:
-            text += f"{partner_label} [{partner_name}]({partner.main_url})\n"
-        else:
-            text += f"{partner_label} {partner_name}\n"
-
-        if getattr(place, "review_url", None):
-            text += f"[{review_label}]({place.review_url})\n"
-
-        if place.promo_code:
-            text += t("tasks.promo_code", lang).format(code=place.promo_code) + "\n"
-
-        hint_text = (
-            (getattr(place, "task_hint_en", None) or place.task_hint) if lang == "en" else (place.task_hint or "")
+        text += _render_place_card_html(
+            idx=idx,
+            place=place,
+            lang=lang,
+            bot_username=bot_username,
+            take_quest_label=take_quest_label,
+            quest_taken_label=quest_taken_label,
+            is_taken=place.id in taken_place_ids,
+            partner_name=partner_name,
+            partner_url=partner.main_url,
         )
-        if hint_text:
-            text += f"💡 {hint_text}\n"
-
-        if place.id in taken_place_ids:
-            text += quest_taken_label + "\n\n"
-        else:
-            deep_link = f"https://t.me/{bot_username}?start=add_quest_{place.id}"
-            text += f"[{take_quest_label}]({deep_link})\n\n"
+        text += "\n\n"
 
     keyboard: list[list[InlineKeyboardButton]] = []
     if total_pages > 1:
@@ -9041,12 +9097,22 @@ async def show_tasks_for_partner(
     text, reply_markup = await _build_partner_places_list_content(partner_slug, user_id, user_lat, user_lng, page)
     if prefer_edit and hasattr(message_or_callback, "edit_text"):
         try:
-            await message_or_callback.edit_text(text, parse_mode="Markdown", reply_markup=reply_markup)
+            await message_or_callback.edit_text(
+                text,
+                parse_mode="HTML",
+                reply_markup=reply_markup,
+                disable_web_page_preview=True,
+            )
             return
         except Exception:
             # Fallback на обычную отправку сообщения, если редактирование невозможно
             pass
-    await message_or_callback.answer(text, parse_mode="Markdown", reply_markup=reply_markup)
+    await message_or_callback.answer(
+        text,
+        parse_mode="HTML",
+        reply_markup=reply_markup,
+        disable_web_page_preview=True,
+    )
 
 
 async def _build_places_list_content(
@@ -9059,6 +9125,7 @@ async def _build_places_list_content(
 ) -> tuple[str, InlineKeyboardMarkup]:
     """Собирает текст и клавиатуру списка мест. just_added_place_id — только что добавленный квест (уже в БД),
     передаём явно, чтобы список показывал «Квест взят» без зависимости от кэша/реплики."""
+    from database import Partner
     from tasks_location_service import get_all_places_for_category, get_task_type_for_region, get_user_region_type
 
     region_type = get_user_region_type(user_lat, user_lng)
@@ -9079,10 +9146,12 @@ async def _build_places_list_content(
                 [InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main")],
             ]
         )
-        return f"🎯 **{category_name}**\n\n{no_places_text}", reply_markup
+        return f"🎯 <b>{html.escape(category_name)}</b>\n\n{html.escape(no_places_text)}", reply_markup
 
-    # Промо-приоритет: места с promo_code в радиусе 2 км идут первыми (stable partition),
-    # остальной порядок сохраняем как был (включая текущую сортировку/ротацию внутри all_places).
+    # Приоритет в общем списке:
+    # 1) места с promo_code в радиусе 2 км
+    # 2) партнерские места (partner_id) в радиусе 2 км
+    # Дальше сохраняем исходный порядок (stable sort).
     PROMO_PRIORITY_RADIUS_KM = 2.0
 
     def _promo_priority(p) -> bool:
@@ -9090,9 +9159,19 @@ async def _build_places_list_content(
         dist = getattr(p, "distance_km", None)
         return bool(code) and dist is not None and dist <= PROMO_PRIORITY_RADIUS_KM
 
-    promo_places = [p for p in all_places if _promo_priority(p)]
-    other_places = [p for p in all_places if not _promo_priority(p)]
-    all_places = promo_places + other_places
+    def _partner_priority(p) -> bool:
+        dist = getattr(p, "distance_km", None)
+        return bool(getattr(p, "partner_id", None)) and dist is not None and dist <= PROMO_PRIORITY_RADIUS_KM
+
+    indexed_places = list(enumerate(all_places))
+    indexed_places.sort(
+        key=lambda pair: (
+            0 if _promo_priority(pair[1]) else 1,
+            0 if _partner_priority(pair[1]) else 1,
+            pair[0],
+        )
+    )
+    all_places = [place for _, place in indexed_places]
 
     places_per_page = 8
     total_pages = (len(all_places) + places_per_page - 1) // places_per_page
@@ -9100,6 +9179,12 @@ async def _build_places_list_content(
     start_idx = (page - 1) * places_per_page
     end_idx = min(start_idx + places_per_page, len(all_places))
     page_places = all_places[start_idx:end_idx]
+    partner_ids = sorted({getattr(p, "partner_id", None) for p in page_places if getattr(p, "partner_id", None)})
+    partners_by_id: dict[int, Partner] = {}
+    if partner_ids:
+        with get_session() as session:
+            partners = session.query(Partner).filter(Partner.id.in_(partner_ids)).all()
+            partners_by_id = {p.id: p for p in partners}
 
     # Свежий запрос к БД при каждом формировании списка — без кэша. Узнаём, какие квесты пользователь уже взял.
     active_tasks = get_user_active_tasks(user_id)
@@ -9111,37 +9196,29 @@ async def _build_places_list_content(
     take_quest_label = t("tasks.take_quest", lang)
     quest_taken_label = t("tasks.quest_taken", lang)
 
-    text = f"🎯 **{category_name}**\n\n"
-    text += t("tasks.places_found", lang).format(count=len(all_places)) + "\n\n"
+    text = f"🎯 <b>{html.escape(category_name)}</b>\n\n"
+    text += html.escape(t("tasks.places_found", lang).format(count=len(all_places))) + "\n\n"
 
     for idx, place in enumerate(page_places, start=start_idx + 1):
-        place_display_name = (getattr(place, "name_en", None) or place.name) if lang == "en" else place.name
-        if place.google_maps_url:
-            escaped_name = (
-                place_display_name.replace("[", "\\[").replace("]", "\\]").replace("(", "\\(").replace(")", "\\)")
-            )
-            text += f"**{idx}. [{escaped_name}]({place.google_maps_url})**\n"
-        else:
-            text += f"**{idx}. {place_display_name}**\n"
-        if hasattr(place, "distance_km") and place.distance_km:
-            text += t("tasks.km_from_you", lang).format(distance=place.distance_km) + "\n"
-        if place.promo_code:
-            text += t("tasks.promo_code", lang).format(code=place.promo_code) + "\n"
-        hint_text = (
-            (getattr(place, "task_hint_en", None) or place.task_hint) if lang == "en" else (place.task_hint or "")
-        )
-        if hint_text:
-            text += f"💡 {hint_text}\n"
-        # Fail-safe: если place_id == just_added_place_id — гарантированно «✅ Квест взят». Иначе — по свежему списку из БД.
+        partner = partners_by_id.get(getattr(place, "partner_id", None))
+        partner_name = partner.display_name if partner else None
+        partner_url = partner.main_url if partner else None
         is_taken = (just_added_place_id is not None and place.id == just_added_place_id) or place.id in taken_place_ids
-        if is_taken:
-            text += quest_taken_label + "\n\n"
-        else:
-            deep_link = f"https://t.me/{bot_username}?start=add_quest_{place.id}"
-            text += f"[{take_quest_label}]({deep_link})\n\n"
+        text += _render_place_card_html(
+            idx=idx,
+            place=place,
+            lang=lang,
+            bot_username=bot_username,
+            take_quest_label=take_quest_label,
+            quest_taken_label=quest_taken_label,
+            is_taken=is_taken,
+            partner_name=partner_name,
+            partner_url=partner_url,
+        )
+        text += "\n\n"
 
     if page == 1:
-        text += t("tasks.list_footer", lang)
+        text += html.escape(t("tasks.list_footer", lang))
 
     # Один ряд навигации: [ Стр. N/M ] [ Назад ] [ Вперёд ], затем Список | Главное меню
     keyboard = []
@@ -9182,9 +9259,19 @@ async def show_tasks_for_category(
     text, reply_markup = await _build_places_list_content(category, user_id, user_lat, user_lng, page)
 
     if hasattr(message_or_callback, "edit_text"):
-        await message_or_callback.edit_text(text, parse_mode="Markdown", reply_markup=reply_markup)
+        await message_or_callback.edit_text(
+            text,
+            parse_mode="HTML",
+            reply_markup=reply_markup,
+            disable_web_page_preview=True,
+        )
     else:
-        await message_or_callback.answer(text, parse_mode="Markdown", reply_markup=reply_markup)
+        await message_or_callback.answer(
+            text,
+            parse_mode="HTML",
+            reply_markup=reply_markup,
+            disable_web_page_preview=True,
+        )
 
     # Сохраняем сообщение списка, чтобы по deep link «Забрать квест» обновить его на месте
     if hasattr(message_or_callback, "chat") and hasattr(message_or_callback, "message_id"):
