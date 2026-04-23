@@ -8858,7 +8858,7 @@ def _format_place_location_line(place, lang: str) -> str:
     dist = getattr(place, "distance_km", None)
     # Показываем км только если дистанция реалистична для nearby-сценария.
     # Иначе (или без геолокации пользователя) показываем общий регион.
-    if dist is not None and dist <= 200:
+    if dist is not None and dist <= 100:
         return t("tasks.km_from_you", lang).format(distance=dist)
 
     region_to_title = {
