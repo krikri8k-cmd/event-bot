@@ -186,6 +186,12 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.start_error": "❌ Ошибка при начале задания",
         "tasks.page_edge": "Это крайняя страница",
         "tasks.require_location": "📍 Требуется геолокация",
+        "tasks.require_location_long": (
+            "📍 **Требуется геолокация**\n\n"
+            "Для получения персонализированных заданий с локациями рядом с вами, "
+            "пожалуйста, отправьте вашу геолокацию.\n\n"
+            "Нажмите кнопку '📍 Отправить геолокацию' в меню."
+        ),
         "tasks.complete_not_found": "❌ Ошибка: не найдено задание для завершения.",
         "tasks.task_not_found": "❌ Ошибка: не найдено задание.",
         "tasks.category.food": "🍔 Еда",
@@ -1125,6 +1131,12 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.start_error": "❌ Error starting task",
         "tasks.page_edge": "This is the last page",
         "tasks.require_location": "📍 Location required",
+        "tasks.require_location_long": (
+            "📍 **Location required**\n\n"
+            "To get personalized tasks with places near you, "
+            "please send your location.\n\n"
+            "Tap the '📍 Send location' button in the menu."
+        ),
         "tasks.complete_not_found": "❌ Error: no task found to complete.",
         "tasks.task_not_found": "❌ Error: task not found.",
         "tasks.category.food": "🍔 Food",

@@ -9381,10 +9381,7 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
     # Если координаты отсутствуют, просим отправить геолокацию
     if not user_lat or not user_lng:
         await callback.message.edit_text(
-            "📍 **Требуется геолокация**\n\n"
-            "Для получения персонализированных заданий с локациями рядом с вами, "
-            "пожалуйста, отправьте вашу геолокацию.\n\n"
-            "Нажмите кнопку '📍 Отправить геолокацию' в меню.",
+            t("tasks.require_location_long", user_lang),
             parse_mode="Markdown",
         )
         await callback.answer()
