@@ -8860,10 +8860,25 @@ def _format_place_location_line(place, lang: str) -> str:
     # Иначе (или без геолокации пользователя) показываем общий регион.
     if dist is not None and dist <= 200:
         return t("tasks.km_from_you", lang).format(distance=dist)
+
+    region_to_title = {
+        "bali": ("Бали", "Bali"),
+        "moscow": ("Москва", "Moscow"),
+        "spb": ("Санкт-Петербург", "Saint Petersburg"),
+        "jakarta": ("Джакарта", "Jakarta"),
+    }
+
     region = (getattr(place, "region", None) or "").strip().lower()
-    if region == "bali":
-        return "📍 Бали" if lang == "ru" else "📍 Bali"
-    return "📍 Другое место" if lang == "ru" else "📍 Other place"
+    if not region:
+        place_lat = getattr(place, "lat", None)
+        place_lng = getattr(place, "lng", None)
+        if place_lat is not None and place_lng is not None:
+            from tasks_location_service import get_user_region
+
+            region = get_user_region(place_lat, place_lng)
+
+    city_ru, city_en = region_to_title.get(region, ("Другое место", "Other place"))
+    return f"📍 {city_ru if lang == 'ru' else city_en}"
 
 
 def _render_partner_pick_line(partner_name: str, partner_url: str | None, review_url: str | None, lang: str) -> str:
