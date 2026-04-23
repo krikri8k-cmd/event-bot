@@ -12,6 +12,7 @@ import time
 from datetime import UTC, datetime
 from math import ceil
 from urllib.parse import quote_plus, unquote, urlparse
+from urllib.request import Request, urlopen
 
 # Импорт psutil для мониторинга памяти (опционально)
 try:
@@ -8896,6 +8897,25 @@ def _render_partner_pick_line(partner_name: str, partner_url: str | None, review
     return f"{label} {partner_part}"
 
 
+_GOOGLE_SHORT_URL_CACHE: dict[str, str | None] = {}
+
+
+def _expand_google_maps_short_url(url: str) -> str | None:
+    cached = _GOOGLE_SHORT_URL_CACHE.get(url)
+    if cached is not None:
+        return cached
+
+    try:
+        req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urlopen(req, timeout=2.5) as resp:  # nosec B310
+            final_url = resp.geturl()
+    except Exception:
+        final_url = None
+
+    _GOOGLE_SHORT_URL_CACHE[url] = final_url
+    return final_url
+
+
 def _guess_place_name_from_google_maps_url(url: str | None) -> str | None:
     if not url:
         return None
@@ -8907,6 +8927,14 @@ def _guess_place_name_from_google_maps_url(url: str | None) -> str | None:
     # Example:
     # /maps/place/VERA+Coffee%26Tea+(Keto+and+Healthy+dishes%26desserts)/@...
     match = re.search(r"/maps/place/([^/]+)", parsed.path or "")
+    if not match and parsed.netloc.lower().endswith("maps.app.goo.gl"):
+        expanded_url = _expand_google_maps_short_url(url)
+        if expanded_url:
+            try:
+                expanded = urlparse(expanded_url)
+                match = re.search(r"/maps/place/([^/]+)", expanded.path or "")
+            except Exception:
+                match = None
     if not match:
         return None
 
