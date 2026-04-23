@@ -11,7 +11,7 @@ import re
 import time
 from datetime import UTC, datetime
 from math import ceil
-from urllib.parse import quote_plus, urlparse
+from urllib.parse import quote_plus, unquote, urlparse
 
 # Импорт psutil для мониторинга памяти (опционально)
 try:
@@ -8896,6 +8896,26 @@ def _render_partner_pick_line(partner_name: str, partner_url: str | None, review
     return f"{label} {partner_part}"
 
 
+def _guess_place_name_from_google_maps_url(url: str | None) -> str | None:
+    if not url:
+        return None
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return None
+
+    # Example:
+    # /maps/place/VERA+Coffee%26Tea+(Keto+and+Healthy+dishes%26desserts)/@...
+    match = re.search(r"/maps/place/([^/]+)", parsed.path or "")
+    if not match:
+        return None
+
+    raw_name = unquote(match.group(1)).replace("+", " ").strip()
+    if not raw_name:
+        return None
+    return raw_name
+
+
 def _render_place_card_html(
     *,
     idx: int,
@@ -8910,6 +8930,10 @@ def _render_place_card_html(
 ) -> str:
     lines: list[str] = []
     place_name = (getattr(place, "name_en", None) or place.name) if lang == "en" else place.name
+    if place_name and place_name.strip().lower() in {"место на карте", "place on map"}:
+        guessed_name = _guess_place_name_from_google_maps_url(getattr(place, "google_maps_url", None))
+        if guessed_name:
+            place_name = guessed_name
     safe_place_name = html.escape(place_name)
 
     if place.google_maps_url:
