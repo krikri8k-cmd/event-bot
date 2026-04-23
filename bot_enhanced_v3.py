@@ -4239,7 +4239,11 @@ async def pm_handle_location_input(message: types.Message, state: FSMContext):
         if location_data:
             # Обновляем событие с данными из ссылки
             success = await update_community_event_field_pm(
-                event_id, "location_name", location_data.get("name", "Место на карте"), user_id, chat_id
+                event_id,
+                "location_name",
+                location_data.get("name", t("group.list.place_on_map", user_lang)),
+                user_id,
+                chat_id,
             )
             if success:
                 # Обновляем URL
@@ -4249,7 +4253,7 @@ async def pm_handle_location_input(message: types.Message, state: FSMContext):
                     format_translation(
                         "edit.location_updated",
                         user_lang,
-                        location=location_data.get("name", "Место на карте"),
+                        location=location_data.get("name", t("group.list.place_on_map", user_lang)),
                     ),
                     parse_mode="Markdown",
                 )
@@ -5394,7 +5398,7 @@ async def publish_community_event_to_world(
         engine = get_engine()
         events_service = UnifiedEventsService(engine)
 
-        location_name = event_data.get("location_name") or "Место на карте"
+        location_name = event_data.get("location_name") or t("group.list.place_on_map", "en")
         location_url = event_data.get("location_url")
         chat_id = event_data.get("group_id")
 
@@ -8957,10 +8961,13 @@ def _render_place_card_html(
 ) -> str:
     lines: list[str] = []
     place_name = (getattr(place, "name_en", None) or place.name) if lang == "en" else place.name
-    if place_name and place_name.strip().lower() in {"место на карте", "place on map"}:
+    normalized_place_name = (place_name or "").strip().lower()
+    if normalized_place_name in {"место на карте", "place on map"}:
         guessed_name = _guess_place_name_from_google_maps_url(getattr(place, "google_maps_url", None))
         if guessed_name:
             place_name = guessed_name
+        else:
+            place_name = t("create.place_on_map", lang)
     safe_place_name = html.escape(place_name)
 
     if place.google_maps_url:
@@ -9569,6 +9576,7 @@ async def handle_task_manage(callback: types.CallbackQuery):
     """Обработчик управления заданием"""
     user_task_id = int(callback.data.split(":")[1])
     user_id = callback.from_user.id
+    user_lang = get_user_language_or_default(user_id)
 
     # Получаем информацию о задании
     active_tasks = get_user_active_tasks(user_id)
@@ -9595,7 +9603,7 @@ async def handle_task_manage(callback: types.CallbackQuery):
 
     # Показываем локацию, если есть
     if task_info.get("place_name") or task_info.get("place_url"):
-        place_name = task_info.get("place_name", "Место на карте")
+        place_name = task_info.get("place_name", t("group.list.place_on_map", user_lang))
         place_url = task_info.get("place_url")
         distance = task_info.get("distance_km")
 
@@ -9937,15 +9945,15 @@ async def handle_location_type_text(message: types.Message, state: FSMContext):
 
         if location_data:
             # Сохраняем данные локации
+            user_lang = get_user_language_or_default(message.from_user.id)
             await state.update_data(
-                location_name=location_data.get("name", "Место на карте"),
+                location_name=location_data.get("name", t("group.list.place_on_map", user_lang)),
                 location_lat=location_data.get("lat"),
                 location_lng=location_data.get("lng"),
             )
 
             # Переходим к описанию
             await state.set_state(EventCreation.waiting_for_description)
-            user_lang = get_user_language_or_default(message.from_user.id)
             await message.answer(
                 format_translation(
                     "create.place_defined",
@@ -11052,6 +11060,8 @@ async def process_community_location_url_group(message: types.Message, state: FS
     else:
         # Это ссылка
         location_url = location_input
+        user_lang = get_user_language_or_default(message.from_user.id)
+        place_on_map_label = t("group.list.place_on_map", user_lang)
         try:
             if "maps.google.com" in location_url or "goo.gl" in location_url or "maps.app.goo.gl" in location_url:
                 from utils.geo_utils import parse_google_maps_link
@@ -11059,11 +11069,11 @@ async def process_community_location_url_group(message: types.Message, state: FS
                 location_data = await parse_google_maps_link(location_url)
                 logger.info(f"🌍 parse_google_maps_link (community group) ответ: {location_data}")
                 if location_data:
-                    location_name = location_data.get("name") or "Место на карте"
+                    location_name = location_data.get("name") or place_on_map_label
                     location_lat = location_data.get("lat")
                     location_lng = location_data.get("lng")
                 else:
-                    location_name = "Место на карте"
+                    location_name = place_on_map_label
             elif "yandex.ru/maps" in location_url:
                 location_name = "Место на Яндекс.Картах"
             else:
@@ -13326,7 +13336,10 @@ async def handle_location_input(message: types.Message, state: FSMContext):
         if location_data:
             # Обновляем событие с данными из ссылки
             success = update_event_field(
-                event_id, "location_name", location_data.get("name", "Место на карте"), message.from_user.id
+                event_id,
+                "location_name",
+                location_data.get("name", t("group.list.place_on_map", user_lang)),
+                message.from_user.id,
             )
             if success:
                 # Обновляем URL и координаты
@@ -13337,7 +13350,9 @@ async def handle_location_input(message: types.Message, state: FSMContext):
 
                 await message.answer(
                     format_translation(
-                        "edit.location_updated", user_lang, location=location_data.get("name", "Место на карте")
+                        "edit.location_updated",
+                        user_lang,
+                        location=location_data.get("name", t("group.list.place_on_map", user_lang)),
                     ),
                     parse_mode="Markdown",
                 )
