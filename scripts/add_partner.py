@@ -13,6 +13,7 @@ What this script can do:
    - name_en (EN title)
 4) Optionally set partner metadata:
    - telegram_contact (internal communication)
+   - telegram_user_id (stable Telegram id)
    - default_promo_code
    - priority
    - is_featured
@@ -26,6 +27,7 @@ Usage examples:
     --display-name "Anya" \
     --main-url "https://instagram.com/anya" \
     --telegram-contact "@anya_manager" \
+    --telegram-user-id 123456789 \
     --default-promo-code "ANYA10" \
     --priority 50 \
     --is-featured \
@@ -72,6 +74,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--display-name", required=True, help="Partner display name")
     parser.add_argument("--main-url", default=None, help="Partner profile URL")
     parser.add_argument("--telegram-contact", default=None, help="Internal partner contact (e.g. @manager)")
+    parser.add_argument("--telegram-user-id", type=int, default=None, help="Stable Telegram user id for partner")
     parser.add_argument("--default-promo-code", default=None, help="Default promo code for this partner")
     parser.add_argument("--priority", type=int, default=None, help="Partner priority in selections (higher first)")
     parser.add_argument("--notes", default=None, help="Internal notes about this partner")
@@ -194,6 +197,7 @@ def main() -> None:
                 display_name=args.display_name,
                 main_url=args.main_url,
                 telegram_contact=args.telegram_contact,
+                telegram_user_id=args.telegram_user_id,
                 default_promo_code=args.default_promo_code,
                 priority=args.priority or 0,
                 is_featured=bool(args.is_featured),
@@ -210,6 +214,8 @@ def main() -> None:
             partner.is_active = not args.inactive
             if args.telegram_contact is not None:
                 partner.telegram_contact = args.telegram_contact
+            if args.telegram_user_id is not None:
+                partner.telegram_user_id = args.telegram_user_id
             if args.default_promo_code is not None:
                 partner.default_promo_code = args.default_promo_code
             if args.priority is not None:
@@ -257,7 +263,11 @@ def main() -> None:
             f"display_name={partner.display_name} active={partner.is_active} "
             f"featured={partner.is_featured} priority={partner.priority}"
         )
-        print(f"partner main_url={partner.main_url or '-'} telegram_contact={partner.telegram_contact or '-'}")
+        print(
+            f"partner main_url={partner.main_url or '-'} "
+            f"telegram_contact={partner.telegram_contact or '-'} "
+            f"telegram_user_id={partner.telegram_user_id if partner.telegram_user_id is not None else '-'}"
+        )
         print(f"partner default_promo_code={partner.default_promo_code or '-'}")
         print(f"places linked/updated: {changed_places}")
         for upd in updates:

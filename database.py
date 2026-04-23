@@ -158,6 +158,7 @@ class Partner(Base):
     display_name: Mapped[str] = mapped_column(String(100), nullable=False)
     main_url: Mapped[str | None] = mapped_column(String(255))
     telegram_contact: Mapped[str | None] = mapped_column(String(100))
+    telegram_user_id: Mapped[int | None] = mapped_column(BigInteger)
     default_promo_code: Mapped[str | None] = mapped_column(String(100))
     priority: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
     is_featured: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))

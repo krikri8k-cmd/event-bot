@@ -77,7 +77,11 @@ def main() -> None:
                 f"  places_count={places_count}, active_places_count={active_places_count}, "
                 f"places_with_promo_count={places_with_promo_count}"
             )
-            print(f"  main_url={partner.main_url or '-'} telegram_contact={partner.telegram_contact or '-'}")
+            print(
+                f"  main_url={partner.main_url or '-'} "
+                f"telegram_contact={partner.telegram_contact or '-'} "
+                f"telegram_user_id={partner.telegram_user_id if partner.telegram_user_id is not None else '-'}"
+            )
 
         print("\n=== PLACE LINKS ===")
         query = (
