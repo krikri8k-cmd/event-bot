@@ -5723,9 +5723,14 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
     # Показываем выбор категории после получения геолокации
     user_lang = get_user_language_or_default(user_id)
     keyboard = [
-        [InlineKeyboardButton(text=t("tasks.category.food", user_lang), callback_data="task_category:food")],
-        [InlineKeyboardButton(text=t("tasks.category.health", user_lang), callback_data="task_category:health")],
-        [InlineKeyboardButton(text=t("tasks.category.places", user_lang), callback_data="task_category:places")],
+        [
+            InlineKeyboardButton(text=t("tasks.category.food", user_lang), callback_data="task_category:food"),
+            InlineKeyboardButton(text=t("tasks.category.health", user_lang), callback_data="task_category:health"),
+        ],
+        [
+            InlineKeyboardButton(text=t("tasks.category.places", user_lang), callback_data="task_category:places"),
+            InlineKeyboardButton(text=t("tasks.category.partner", user_lang), callback_data="task_category:partner"),
+        ],
         [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")],
     ]
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -6055,9 +6060,14 @@ async def process_task_location(message: types.Message, state: FSMContext, lat: 
     # Показываем выбор категории после получения геолокации
     user_lang = get_user_language_or_default(user_id)
     keyboard = [
-        [InlineKeyboardButton(text=t("tasks.category.food", user_lang), callback_data="task_category:food")],
-        [InlineKeyboardButton(text=t("tasks.category.health", user_lang), callback_data="task_category:health")],
-        [InlineKeyboardButton(text=t("tasks.category.places", user_lang), callback_data="task_category:places")],
+        [
+            InlineKeyboardButton(text=t("tasks.category.food", user_lang), callback_data="task_category:food"),
+            InlineKeyboardButton(text=t("tasks.category.health", user_lang), callback_data="task_category:health"),
+        ],
+        [
+            InlineKeyboardButton(text=t("tasks.category.places", user_lang), callback_data="task_category:places"),
+            InlineKeyboardButton(text=t("tasks.category.partner", user_lang), callback_data="task_category:partner"),
+        ],
         [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")],
     ]
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -9328,6 +9338,58 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
     """Обработчик выбора категории задания"""
     category = callback.data.split(":")[1]
     user_id = callback.from_user.id
+    user_lang = get_user_language_or_default(user_id)
+
+    if category == "partner":
+        from database import Partner
+
+        with get_session() as session:
+            partners = (
+                session.query(Partner)
+                .filter(Partner.is_active == True)  # noqa: E712
+                .order_by(Partner.display_name.asc())
+                .all()
+            )
+
+        if not partners:
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")]
+                ]
+            )
+            await callback.message.edit_text(
+                t("tasks.partner.no_partners", user_lang),
+                reply_markup=keyboard,
+                parse_mode="HTML",
+            )
+            await callback.answer()
+            return
+
+        keyboard_rows: list[list[InlineKeyboardButton]] = []
+        row: list[InlineKeyboardButton] = []
+        for partner in partners[:20]:
+            row.append(
+                InlineKeyboardButton(
+                    text=f"🎬 {partner.display_name}",
+                    callback_data=f"partner_open:{partner.slug}",
+                )
+            )
+            if len(row) == 2:
+                keyboard_rows.append(row)
+                row = []
+        if row:
+            keyboard_rows.append(row)
+        keyboard_rows.append(
+            [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")]
+        )
+
+        await callback.message.edit_text(
+            t("tasks.partner.choose", user_lang),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
+            parse_mode="HTML",
+        )
+        await callback.answer()
+        return
 
     # Получаем координаты пользователя из БД
     with get_session() as session:
@@ -9349,6 +9411,28 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
 
     # Используем общую функцию для показа мест (страница 1)
     await show_tasks_for_category(callback.message, category, user_id, user_lat, user_lng, state, page=1)
+    await callback.answer()
+
+
+@main_router.callback_query(F.data.startswith("partner_open:"))
+async def handle_partner_open(callback: types.CallbackQuery):
+    partner_slug = callback.data.split(":", 1)[1]
+    user_id = callback.from_user.id
+
+    with get_session() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        user_lat = user.last_lat if user else None
+        user_lng = user.last_lng if user else None
+
+    await show_tasks_for_partner(
+        callback.message,
+        partner_slug,
+        user_id,
+        user_lat,
+        user_lng,
+        page=1,
+        prefer_edit=True,
+    )
     await callback.answer()
 
 

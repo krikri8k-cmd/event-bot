@@ -191,6 +191,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.category.food": "🍔 Еда",
         "tasks.category.health": "💪 Здоровье",
         "tasks.category.places": "🌟 Интересные места",
+        "tasks.category.partner": "🎬 Выбор блогера",
         "tasks.places_found": "📍 Найдено мест: {count}",
         "tasks.list_footer": "Задания выполняются в 📝 Мои активности — 🏆 Квесты",
         "tasks.km_from_you": "📍 {distance:.1f} км от вас",
@@ -213,6 +214,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.partner.pick_label": "⭐ <b>Выбор от</b>",
         "tasks.partner.review_label": "🎬Обзор",
         "tasks.partner.promo_label": "🎁 Промокод:",
+        "tasks.partner.choose": "🎬 <b>Выбери блогера</b>",
+        "tasks.partner.no_partners": "Пока нет активных блогеров.",
         "tasks.city.bali": "Бали",
         "tasks.city.moscow": "Москва",
         "tasks.city.spb": "Санкт-Петербург",
@@ -223,13 +226,15 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "Выберите категорию для получения персонализированных заданий:\n\n"
             "🍔 **Еда** - кафе, рестораны, уличная еда\n"
             "💪 **Здоровье** - спорт, йога, спа, клиники\n"
-            "🌟 **Интересные места** - парки, выставки, храмы"
+            "🌟 **Интересные места** - парки, выставки, храмы\n"
+            "🎬 **Выбор блогера** - места от партнеров"
         ),
         "tasks.categories_intro": (
             "Выберите категорию заданий:\n\n"
             "🍔 **Еда** - кафе, рестораны, уличная еда\n"
             "💪 **Здоровье** - спорт, йога, спа, клиники\n"
-            "🌟 **Интересные места** - парки, выставки, храмы"
+            "🌟 **Интересные места** - парки, выставки, храмы\n"
+            "🎬 **Выбор блогера** - места от партнеров"
         ),
         "myevents.auto_closed": "🤖 Автоматически закрыто {count} прошедших событий",
         "myevents.header": "📋 **Мои события:**\n",
@@ -1125,6 +1130,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.category.food": "🍔 Food",
         "tasks.category.health": "💪 Health",
         "tasks.category.places": "🌟 Interesting places",
+        "tasks.category.partner": "🎬 Blogger picks",
         "tasks.places_found": "📍 Places found: {count}",
         "tasks.list_footer": "Tasks are in 📝 My activities — 🏆 Quests",
         "tasks.km_from_you": "📍 {distance:.1f} km from you",
@@ -1147,6 +1153,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.partner.pick_label": "⭐ <b>Picked by</b>",
         "tasks.partner.review_label": "🎬Review",
         "tasks.partner.promo_label": "🎁 Promo code:",
+        "tasks.partner.choose": "🎬 <b>Choose a blogger</b>",
+        "tasks.partner.no_partners": "No active bloggers yet.",
         "tasks.city.bali": "Bali",
         "tasks.city.moscow": "Moscow",
         "tasks.city.spb": "Saint Petersburg",
@@ -1157,13 +1165,15 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "Choose category for personalized tasks:\n\n"
             "🍔 **Food** - cafes, restaurants, street food\n"
             "💪 **Health** - sports, yoga, spa, clinics\n"
-            "🌟 **Interesting places** - parks, exhibitions, temples"
+            "🌟 **Interesting places** - parks, exhibitions, temples\n"
+            "🎬 **Blogger picks** - places from partners"
         ),
         "tasks.categories_intro": (
             "Choose task category:\n\n"
             "🍔 **Food** - cafes, restaurants, street food\n"
             "💪 **Health** - sports, yoga, spa, clinics\n"
-            "🌟 **Interesting places** - parks, exhibitions, temples"
+            "🌟 **Interesting places** - parks, exhibitions, temples\n"
+            "🎬 **Blogger picks** - places from partners"
         ),
         "myevents.auto_closed": "🤖 Auto-closed {count} past events",
         "myevents.header": "📋 **My events:**\n",
