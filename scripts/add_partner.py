@@ -11,6 +11,12 @@ What this script can do:
    - task_hint (RU)
    - task_hint_en (EN)
    - name_en (EN title)
+4) Optionally set partner metadata:
+   - telegram_contact (internal communication)
+   - default_promo_code
+   - priority
+   - is_featured
+   - notes
 
 Usage examples:
 
@@ -19,6 +25,10 @@ Usage examples:
     --slug anya \
     --display-name "Anya" \
     --main-url "https://instagram.com/anya" \
+    --telegram-contact "@anya_manager" \
+    --default-promo-code "ANYA10" \
+    --priority 50 \
+    --is-featured \
     --place-ids 12,15,18 \
     --review-url "https://instagram.com/reel/abc" \
     --task-hint-ru "Попробуй фирменный десерт и поделись впечатлениями!" \
@@ -61,10 +71,25 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--slug", required=True, help="Partner slug, e.g. anya")
     parser.add_argument("--display-name", required=True, help="Partner display name")
     parser.add_argument("--main-url", default=None, help="Partner profile URL")
+    parser.add_argument("--telegram-contact", default=None, help="Internal partner contact (e.g. @manager)")
+    parser.add_argument("--default-promo-code", default=None, help="Default promo code for this partner")
+    parser.add_argument("--priority", type=int, default=None, help="Partner priority in selections (higher first)")
+    parser.add_argument("--notes", default=None, help="Internal notes about this partner")
     parser.add_argument(
         "--inactive",
         action="store_true",
         help="Mark partner as inactive (default is active)",
+    )
+    featured = parser.add_mutually_exclusive_group()
+    featured.add_argument(
+        "--is-featured",
+        action="store_true",
+        help="Mark partner as featured",
+    )
+    featured.add_argument(
+        "--not-featured",
+        action="store_true",
+        help="Mark partner as not featured",
     )
 
     mode = parser.add_mutually_exclusive_group(required=True)
@@ -79,6 +104,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument("--review-url", default=None, help="Default review URL for places")
     parser.add_argument("--promo-code", default=None, help="Default promo code for places")
+    parser.add_argument(
+        "--use-default-promo-for-places",
+        action="store_true",
+        help="If place promo is not provided, set partner default promo code to linked places",
+    )
     parser.add_argument("--task-hint-ru", default=None, help="Default RU task hint")
     parser.add_argument("--task-hint-en", default=None, help="Default EN task hint")
     parser.add_argument(
@@ -163,6 +193,11 @@ def main() -> None:
                 slug=args.slug,
                 display_name=args.display_name,
                 main_url=args.main_url,
+                telegram_contact=args.telegram_contact,
+                default_promo_code=args.default_promo_code,
+                priority=args.priority or 0,
+                is_featured=bool(args.is_featured),
+                notes=args.notes,
                 is_active=not args.inactive,
             )
             session.add(partner)
@@ -173,6 +208,18 @@ def main() -> None:
             partner.display_name = args.display_name
             partner.main_url = args.main_url
             partner.is_active = not args.inactive
+            if args.telegram_contact is not None:
+                partner.telegram_contact = args.telegram_contact
+            if args.default_promo_code is not None:
+                partner.default_promo_code = args.default_promo_code
+            if args.priority is not None:
+                partner.priority = args.priority
+            if args.notes is not None:
+                partner.notes = args.notes
+            if args.is_featured:
+                partner.is_featured = True
+            elif args.not_featured:
+                partner.is_featured = False
             partner_state = "updated"
 
         changed_places = 0
@@ -187,6 +234,8 @@ def main() -> None:
                 place.review_url = str(upd["review_url"])
             if upd["promo_code"] is not None:
                 place.promo_code = str(upd["promo_code"])
+            elif args.use_default_promo_for_places and partner.default_promo_code:
+                place.promo_code = str(partner.default_promo_code)
             if upd["task_hint_ru"] is not None:
                 place.task_hint = str(upd["task_hint_ru"])
             if upd["task_hint_en"] is not None:
@@ -205,8 +254,11 @@ def main() -> None:
 
         print(
             f"partner {partner_state}: id={partner.id} slug={partner.slug} "
-            f"display_name={partner.display_name} active={partner.is_active}"
+            f"display_name={partner.display_name} active={partner.is_active} "
+            f"featured={partner.is_featured} priority={partner.priority}"
         )
+        print(f"partner main_url={partner.main_url or '-'} telegram_contact={partner.telegram_contact or '-'}")
+        print(f"partner default_promo_code={partner.default_promo_code or '-'}")
         print(f"places linked/updated: {changed_places}")
         for upd in updates:
             print(f"- place_id={upd['place_id']}")
