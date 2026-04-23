@@ -9351,7 +9351,7 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
         for partner in partners[:20]:
             row.append(
                 InlineKeyboardButton(
-                    text=f"🎬 {partner.display_name}",
+                    text=partner.display_name,
                     callback_data=f"partner_open:{partner.slug}",
                 )
             )
