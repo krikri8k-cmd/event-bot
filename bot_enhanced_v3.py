@@ -3028,10 +3028,7 @@ def _build_public_commands(lang: str) -> list:
     return [
         types.BotCommand(command="language", description=t("command.language", lang)),
         types.BotCommand(command="start", description=t("command.start", lang)),
-        types.BotCommand(
-            command="partner",
-            description=("👤 Места от блогера" if lang == "ru" else "👤 Places by blogger"),
-        ),
+        types.BotCommand(command="partner", description=t("command.partner", lang)),
         types.BotCommand(command="nearby", description=t("command.nearby", lang)),
         types.BotCommand(command="create", description=t("command.create", lang)),
         types.BotCommand(command="myevents", description=t("command.myevents", lang)),
@@ -3539,20 +3536,12 @@ async def cmd_partner_places(message: types.Message, command: CommandObject = No
         partner_slug = _normalize_partner_slug(raw_arg)
         if not partner_slug:
             user_lang = get_user_language_or_default(user_id)
-            usage = (
-                "Формат: `/partner <slug>` (например, `/partner anya`)."
-                if user_lang == "ru"
-                else "Usage: `/partner <slug>` (for example `/partner anya`)."
-            )
+            usage = t("tasks.partner.usage", user_lang).format(example_slug="anya")
             await message.answer(usage, parse_mode="Markdown", reply_markup=main_menu_kb(user_id=user_id))
             return
     else:
         user_lang = get_user_language_or_default(user_id)
-        usage = (
-            "Формат: `/partner <slug>` (например, `/partner test`)."
-            if user_lang == "ru"
-            else "Usage: `/partner <slug>` (for example `/partner test`)."
-        )
+        usage = t("tasks.partner.usage", user_lang).format(example_slug="test")
         await message.answer(usage, parse_mode="Markdown", reply_markup=main_menu_kb(user_id=user_id))
         return
 
@@ -8863,10 +8852,10 @@ def _format_place_location_line(place, lang: str) -> str:
         return t("tasks.km_from_you", lang).format(distance=dist)
 
     region_to_title = {
-        "bali": ("Бали", "Bali"),
-        "moscow": ("Москва", "Moscow"),
-        "spb": ("Санкт-Петербург", "Saint Petersburg"),
-        "jakarta": ("Джакарта", "Jakarta"),
+        "bali": t("tasks.city.bali", lang),
+        "moscow": t("tasks.city.moscow", lang),
+        "spb": t("tasks.city.spb", lang),
+        "jakarta": t("tasks.city.jakarta", lang),
     }
 
     region = (getattr(place, "region", None) or "").strip().lower()
@@ -8878,12 +8867,12 @@ def _format_place_location_line(place, lang: str) -> str:
 
             region = get_user_region(place_lat, place_lng)
 
-    city_ru, city_en = region_to_title.get(region, ("Другое место", "Other place"))
-    return f"📍 {city_ru if lang == 'ru' else city_en}"
+    city = region_to_title.get(region, t("tasks.city.other", lang))
+    return f"📍 {city}"
 
 
 def _render_partner_pick_line(partner_name: str, partner_url: str | None, review_url: str | None, lang: str) -> str:
-    label = "⭐ <b>Выбор от</b>" if lang == "ru" else "⭐ <b>Picked by</b>"
+    label = t("tasks.partner.pick_label", lang)
     safe_partner_name = html.escape(partner_name)
     if partner_url:
         partner_part = f'<a href="{html.escape(partner_url, quote=True)}">{safe_partner_name}</a>'
@@ -8891,7 +8880,7 @@ def _render_partner_pick_line(partner_name: str, partner_url: str | None, review
         partner_part = safe_partner_name
 
     if review_url:
-        review_text = "🎬Обзор" if lang == "ru" else "🎬Review"
+        review_text = t("tasks.partner.review_label", lang)
         review_part = f'<a href="{html.escape(review_url, quote=True)}">{review_text}</a>'
         return f"{label} {partner_part} — {review_part}"
     return f"{label} {partner_part}"
@@ -8984,7 +8973,7 @@ def _render_place_card_html(
         )
 
     if place.promo_code:
-        promo_label = "🎁 Промокод:" if lang == "ru" else "🎁 Promo code:"
+        promo_label = t("tasks.partner.promo_label", lang)
         lines.append(f"{promo_label} {html.escape(place.promo_code)}")
 
     hint_text = (getattr(place, "task_hint_en", None) or place.task_hint) if lang == "en" else (place.task_hint or "")
@@ -9026,11 +9015,7 @@ async def _build_partner_places_list_content(
                     [InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main")]
                 ]
             )
-            not_found = (
-                f"👤 Партнер @{html.escape(partner_slug)} не найден.\n\nПопробуй другой slug."
-                if lang == "ru"
-                else f"👤 Partner @{html.escape(partner_slug)} not found.\n\nTry another slug."
-            )
+            not_found = t("tasks.partner.not_found", lang).format(slug=html.escape(partner_slug))
             return not_found, keyboard
 
         has_user_location = user_lat is not None and user_lng is not None
@@ -9088,19 +9073,11 @@ async def _build_partner_places_list_content(
     else:
         header = f"👤 <b>{html.escape(partner_name)}</b>"
 
-    places_count_line = (
-        f"Найдено мест от партнера: <b>{len(places)}</b>"
-        if lang == "ru"
-        else f"Places found from partner: <b>{len(places)}</b>"
-    )
+    places_count_line = t("tasks.partner.places_found", lang).format(count=len(places))
     text = f"{header}\n\n{places_count_line}\n\n"
 
     if not places:
-        empty = (
-            "Пока нет доступных мест для этого партнера."
-            if lang == "ru"
-            else "No available places for this partner yet."
-        )
+        empty = t("tasks.partner.empty", lang)
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main")]

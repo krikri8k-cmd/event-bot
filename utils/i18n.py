@@ -39,6 +39,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "command.myevents": "📋 Мои события - просмотр созданных событий",
         "command.tasks": "🎯 Интересные места - найти задания поблизости",
         "command.mytasks": "🏆 Мои квесты - просмотр выполненных заданий",
+        "command.partner": "👤 Места от блогера",
         "command.share": "🔗 Добавить бота в чат",
         "command.help": "💬 Написать отзыв Разработчику",
         "help.feedback.text": (
@@ -205,6 +206,18 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.quest_taken": "✅ Квест взят",
         "tasks.quest_added_toast": "🎯 Квест добавлен в «Мои активности»",
         "tasks.quest_add_error": "❌ Ошибка при добавлении квеста: {error}",
+        "tasks.partner.usage": "Формат: `/partner <slug>` (например, `/partner {example_slug}`).",
+        "tasks.partner.not_found": "👤 Партнер @{slug} не найден.\n\nПопробуй другой slug.",
+        "tasks.partner.places_found": "Найдено мест от партнера: <b>{count}</b>",
+        "tasks.partner.empty": "Пока нет доступных мест для этого партнера.",
+        "tasks.partner.pick_label": "⭐ <b>Выбор от</b>",
+        "tasks.partner.review_label": "🎬Обзор",
+        "tasks.partner.promo_label": "🎁 Промокод:",
+        "tasks.city.bali": "Бали",
+        "tasks.city.moscow": "Москва",
+        "tasks.city.spb": "Санкт-Петербург",
+        "tasks.city.jakarta": "Джакарта",
+        "tasks.city.other": "Другое место",
         "tasks.location_received": (
             "✅ **Геолокация получена!**\n\n"
             "Выберите категорию для получения персонализированных заданий:\n\n"
@@ -735,6 +748,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "command.myevents": "📋 My events - view created events",
         "command.tasks": ("🎯 Interesting places - find tasks nearby"),
         "command.mytasks": "🏆 My quests - view completed tasks",
+        "command.partner": "👤 Places by blogger",
         "command.share": "🔗 Add bot to chat",
         "command.help": "💬 Write feedback to Developer",
         "help.feedback.text": (
@@ -1126,6 +1140,18 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.quest_taken": "✅ Quest taken",
         "tasks.quest_added_toast": "🎯 Quest added to «My activities»",
         "tasks.quest_add_error": "❌ Error adding quest: {error}",
+        "tasks.partner.usage": "Usage: `/partner <slug>` (for example `/partner {example_slug}`).",
+        "tasks.partner.not_found": "👤 Partner @{slug} not found.\n\nTry another slug.",
+        "tasks.partner.places_found": "Places found from partner: <b>{count}</b>",
+        "tasks.partner.empty": "No available places for this partner yet.",
+        "tasks.partner.pick_label": "⭐ <b>Picked by</b>",
+        "tasks.partner.review_label": "🎬Review",
+        "tasks.partner.promo_label": "🎁 Promo code:",
+        "tasks.city.bali": "Bali",
+        "tasks.city.moscow": "Moscow",
+        "tasks.city.spb": "Saint Petersburg",
+        "tasks.city.jakarta": "Jakarta",
+        "tasks.city.other": "Other place",
         "tasks.location_received": (
             "✅ **Location received!**\n\n"
             "Choose category for personalized tasks:\n\n"
