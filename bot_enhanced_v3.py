@@ -9010,7 +9010,6 @@ async def _build_partner_places_list_content(
     from sqlalchemy import and_, func
 
     from database import Partner, TaskPlace
-    from tasks_location_service import get_task_type_for_region, get_user_region, get_user_region_type
 
     lang = get_user_language_or_default(user_id)
     with get_session() as session:
@@ -9028,33 +9027,15 @@ async def _build_partner_places_list_content(
             not_found = t("tasks.partner.not_found", lang).format(slug=html.escape(partner_slug))
             return not_found, keyboard
 
-        has_user_location = user_lat is not None and user_lng is not None
-        if has_user_location:
-            region = get_user_region(user_lat, user_lng)
-            region_type = get_user_region_type(user_lat, user_lng)
-            task_type = get_task_type_for_region(region_type)
-        else:
-            region = "unknown"
-            task_type = "urban"
-
         base_query = session.query(TaskPlace).filter(
             and_(
                 TaskPlace.partner_id == partner.id,
                 TaskPlace.is_active == True,  # noqa: E712
             )
         )
-        if region != "unknown":
-            places = base_query.filter(
-                and_(
-                    TaskPlace.region == region,
-                    TaskPlace.task_type == task_type,
-                )
-            ).all()
-            # Fallback: если в текущем регионе мест нет, показываем все активные места партнера.
-            if not places:
-                places = base_query.all()
-        else:
-            places = base_query.all()
+        # Всегда показываем все активные места блогера, чтобы пользователь видел полный "путь" партнера.
+        # Геолокация влияет только на сортировку и формат строки локации (км или город).
+        places = base_query.all()
 
     if user_lat is not None and user_lng is not None:
         for place in places:
