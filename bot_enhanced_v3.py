@@ -3432,16 +3432,6 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
             user_lat = user.last_lat if user else None
             user_lng = user.last_lng if user else None
 
-        if not user_lat or not user_lng:
-            user_lang = get_user_language_or_default(user_id)
-            need_geo_text = (
-                "📍 Чтобы показать места от блогера, сначала отправь геолокацию."
-                if user_lang == "ru"
-                else "📍 To show blogger places, please send your location first."
-            )
-            await message.answer(need_geo_text, reply_markup=main_menu_kb(user_id=user_id))
-            return
-
         await show_tasks_for_partner(message, partner_slug, user_id, user_lat, user_lng, page=1)
         return
 
@@ -3569,16 +3559,6 @@ async def cmd_partner_places(message: types.Message, command: CommandObject = No
         user = session.query(User).filter(User.id == user_id).first()
         user_lat = user.last_lat if user else None
         user_lng = user.last_lng if user else None
-
-    user_lang = get_user_language_or_default(user_id)
-    if not user_lat or not user_lng:
-        need_geo_text = (
-            "📍 Чтобы показать места от блогера, сначала отправь геолокацию."
-            if user_lang == "ru"
-            else "📍 To show blogger places, please send your location first."
-        )
-        await message.answer(need_geo_text, reply_markup=main_menu_kb(user_id=user_id))
-        return
 
     await show_tasks_for_partner(message, partner_slug, user_id, user_lat, user_lng, page=1)
 
@@ -8876,16 +8856,18 @@ def _extract_partner_slug_from_text(text: str | None) -> str | None:
 
 def _format_place_location_line(place, lang: str) -> str:
     dist = getattr(place, "distance_km", None)
-    if dist is not None:
+    # Показываем км только если дистанция реалистична для nearby-сценария.
+    # Иначе (или без геолокации пользователя) показываем общий регион.
+    if dist is not None and dist <= 200:
         return t("tasks.km_from_you", lang).format(distance=dist)
-    region = (getattr(place, "region", None) or "").strip()
-    if not region:
-        return ""
-    return f"📍 Район: {html.escape(region)}" if lang == "ru" else f"📍 Area: {html.escape(region)}"
+    region = (getattr(place, "region", None) or "").strip().lower()
+    if region == "bali":
+        return "📍 Бали" if lang == "ru" else "📍 Bali"
+    return "📍 Другое место" if lang == "ru" else "📍 Other place"
 
 
 def _render_partner_pick_line(partner_name: str, partner_url: str | None, review_url: str | None, lang: str) -> str:
-    label = "⭐ Выбор" if lang == "ru" else "⭐ Pick"
+    label = "⭐ <b>Выбор от</b>" if lang == "ru" else "⭐ <b>Picked by</b>"
     safe_partner_name = html.escape(partner_name)
     if partner_url:
         partner_part = f'<a href="{html.escape(partner_url, quote=True)}">{safe_partner_name}</a>'
@@ -8893,7 +8875,7 @@ def _render_partner_pick_line(partner_name: str, partner_url: str | None, review
         partner_part = safe_partner_name
 
     if review_url:
-        review_text = "Обзор 🎬" if lang == "ru" else "Review 🎬"
+        review_text = "🎬Обзор" if lang == "ru" else "🎬Review"
         review_part = f'<a href="{html.escape(review_url, quote=True)}">{review_text}</a>'
         return f"{label} {partner_part} — {review_part}"
     return f"{label} {partner_part}"
@@ -8936,7 +8918,7 @@ def _render_place_card_html(
 
     if place.promo_code:
         promo_label = "🎁 Промокод:" if lang == "ru" else "🎁 Promo code:"
-        lines.append(f"{promo_label} <code>{html.escape(place.promo_code)}</code>")
+        lines.append(f"{promo_label} {html.escape(place.promo_code)}")
 
     hint_text = (getattr(place, "task_hint_en", None) or place.task_hint) if lang == "en" else (place.task_hint or "")
     if hint_text:
@@ -8946,7 +8928,8 @@ def _render_place_card_html(
         lines.append(html.escape(quest_taken_label))
     else:
         deep_link = f"https://t.me/{bot_username}?start=add_quest_{place.id}"
-        lines.append(f'🎯 <a href="{deep_link}">{html.escape(take_quest_label)}</a>')
+        plain_take_quest = re.sub(r"^[^\wА-Яа-яA-Za-z0-9]+", "", take_quest_label).strip()
+        lines.append(f'🎯 <a href="{deep_link}">{html.escape(plain_take_quest)}</a>')
 
     return "\n".join(lines)
 
@@ -8954,8 +8937,8 @@ def _render_place_card_html(
 async def _build_partner_places_list_content(
     partner_slug: str,
     user_id: int,
-    user_lat: float,
-    user_lng: float,
+    user_lat: float | None,
+    user_lng: float | None,
     page: int,
 ) -> tuple[str, InlineKeyboardMarkup]:
     from sqlalchemy import and_, func
@@ -8983,9 +8966,14 @@ async def _build_partner_places_list_content(
             )
             return not_found, keyboard
 
-        region = get_user_region(user_lat, user_lng)
-        region_type = get_user_region_type(user_lat, user_lng)
-        task_type = get_task_type_for_region(region_type)
+        has_user_location = user_lat is not None and user_lng is not None
+        if has_user_location:
+            region = get_user_region(user_lat, user_lng)
+            region_type = get_user_region_type(user_lat, user_lng)
+            task_type = get_task_type_for_region(region_type)
+        else:
+            region = "unknown"
+            task_type = "urban"
 
         base_query = session.query(TaskPlace).filter(
             and_(
@@ -9006,9 +8994,13 @@ async def _build_partner_places_list_content(
         else:
             places = base_query.all()
 
-    for place in places:
-        place.distance_km = haversine_km(user_lat, user_lng, place.lat, place.lng)
-    places.sort(key=lambda p: getattr(p, "distance_km", 10_000))
+    if user_lat is not None and user_lng is not None:
+        for place in places:
+            place.distance_km = haversine_km(user_lat, user_lng, place.lat, place.lng)
+        places.sort(key=lambda p: getattr(p, "distance_km", 10_000))
+    else:
+        for place in places:
+            place.distance_km = None
 
     places_per_page = 8
     total_pages = max(1, (len(places) + places_per_page - 1) // places_per_page)
@@ -9089,8 +9081,8 @@ async def show_tasks_for_partner(
     message_or_callback,
     partner_slug: str,
     user_id: int,
-    user_lat: float,
-    user_lng: float,
+    user_lat: float | None,
+    user_lng: float | None,
     page: int = 1,
     prefer_edit: bool = False,
 ):
@@ -9435,16 +9427,10 @@ async def handle_partner_places_page(callback: types.CallbackQuery):
     partner_slug = parts[1]
     page = int(parts[2])
     user_id = callback.from_user.id
-    user_lang = get_user_language_or_default(user_id)
-
     with get_session() as session:
         user = session.query(User).filter(User.id == user_id).first()
         user_lat = user.last_lat if user else None
         user_lng = user.last_lng if user else None
-
-    if not user_lat or not user_lng:
-        await callback.answer(t("tasks.require_location", user_lang))
-        return
 
     await show_tasks_for_partner(
         callback.message, partner_slug, user_id, user_lat, user_lng, page=page, prefer_edit=True
@@ -11586,16 +11572,6 @@ async def echo_message(message: types.Message, state: FSMContext):
             user = session.query(User).filter(User.id == user_id).first()
             user_lat = user.last_lat if user else None
             user_lng = user.last_lng if user else None
-
-        user_lang = get_user_language_or_default(user_id)
-        if not user_lat or not user_lng:
-            need_geo_text = (
-                "📍 Чтобы показать места от блогера, сначала отправь геолокацию."
-                if user_lang == "ru"
-                else "📍 To show blogger places, please send your location first."
-            )
-            await message.answer(need_geo_text, reply_markup=main_menu_kb(user_id=user_id))
-            return
 
         await show_tasks_for_partner(message, partner_slug, user_id, user_lat, user_lng, page=1)
         return
