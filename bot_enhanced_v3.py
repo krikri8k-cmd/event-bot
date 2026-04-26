@@ -9383,7 +9383,10 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
         if row:
             keyboard_rows.append(row)
         keyboard_rows.append(
-            [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")]
+            [
+                InlineKeyboardButton(text=t("tasks.button.list", user_lang), callback_data="back_to_tasks"),
+                InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main"),
+            ]
         )
 
         await callback.message.edit_text(
@@ -9479,7 +9482,10 @@ async def handle_back_to_partner_list(callback: types.CallbackQuery):
     if row:
         keyboard_rows.append(row)
     keyboard_rows.append(
-        [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")]
+        [
+            InlineKeyboardButton(text=t("tasks.button.list", user_lang), callback_data="back_to_tasks"),
+            InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main"),
+        ]
     )
 
     await callback.message.edit_text(
