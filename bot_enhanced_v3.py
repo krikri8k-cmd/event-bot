@@ -9032,7 +9032,10 @@ async def _build_partner_places_list_content(
         if not partner:
             keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[
-                    [InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main")]
+                    [
+                        InlineKeyboardButton(text=t("tasks.button.list", lang), callback_data="back_to_partner_list"),
+                        InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main"),
+                    ]
                 ]
             )
             not_found = t("tasks.partner.not_found", lang).format(slug=html.escape(partner_slug))
@@ -9082,7 +9085,10 @@ async def _build_partner_places_list_content(
         empty = t("tasks.partner.empty", lang)
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main")]
+                [
+                    InlineKeyboardButton(text=t("tasks.button.list", lang), callback_data="back_to_partner_list"),
+                    InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main"),
+                ]
             ]
         )
         return f"{text}{empty}", keyboard
@@ -9119,7 +9125,12 @@ async def _build_partner_places_list_content(
                 ),
             ]
         )
-    keyboard.append([InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main")])
+    keyboard.append(
+        [
+            InlineKeyboardButton(text=t("tasks.button.list", lang), callback_data="back_to_partner_list"),
+            InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main"),
+        ]
+    )
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
@@ -9421,6 +9432,60 @@ async def handle_partner_open(callback: types.CallbackQuery):
         user_lng,
         page=1,
         prefer_edit=True,
+    )
+    await callback.answer()
+
+
+@main_router.callback_query(F.data == "back_to_partner_list")
+async def handle_back_to_partner_list(callback: types.CallbackQuery):
+    user_id = callback.from_user.id
+    user_lang = get_user_language_or_default(user_id)
+    from database import Partner
+
+    with get_session() as session:
+        partners = (
+            session.query(Partner)
+            .filter(Partner.is_active == True)  # noqa: E712
+            .order_by(Partner.display_name.asc())
+            .all()
+        )
+
+    if not partners:
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")]
+            ]
+        )
+        await callback.message.edit_text(
+            t("tasks.partner.no_partners", user_lang),
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
+        await callback.answer()
+        return
+
+    keyboard_rows: list[list[InlineKeyboardButton]] = []
+    row: list[InlineKeyboardButton] = []
+    for partner in partners[:20]:
+        row.append(
+            InlineKeyboardButton(
+                text=partner.display_name,
+                callback_data=f"partner_open:{partner.slug}",
+            )
+        )
+        if len(row) == 2:
+            keyboard_rows.append(row)
+            row = []
+    if row:
+        keyboard_rows.append(row)
+    keyboard_rows.append(
+        [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")]
+    )
+
+    await callback.message.edit_text(
+        t("tasks.partner.choose", user_lang),
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
+        parse_mode="HTML",
     )
     await callback.answer()
 
