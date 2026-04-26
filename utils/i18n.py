@@ -233,14 +233,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "🍔 **Еда** - кафе, рестораны, уличная еда\n"
             "💪 **Здоровье** - спорт, йога, спа, клиники\n"
             "🌟 **Интересные места** - парки, выставки, храмы\n"
-            "🎬 **Выбор блогера** - места от партнеров"
+            "🎬 **Выбор блогера** - места с видеообзором"
         ),
         "tasks.categories_intro": (
             "Выберите категорию заданий:\n\n"
             "🍔 **Еда** - кафе, рестораны, уличная еда\n"
             "💪 **Здоровье** - спорт, йога, спа, клиники\n"
             "🌟 **Интересные места** - парки, выставки, храмы\n"
-            "🎬 **Выбор блогера** - места от партнеров"
+            "🎬 **Выбор блогера** - места с видеообзором"
         ),
         "myevents.auto_closed": "🤖 Автоматически закрыто {count} прошедших событий",
         "myevents.header": "📋 **Мои события:**\n",
@@ -1178,14 +1178,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "🍔 **Food** - cafes, restaurants, street food\n"
             "💪 **Health** - sports, yoga, spa, clinics\n"
             "🌟 **Interesting places** - parks, exhibitions, temples\n"
-            "🎬 **Blogger picks** - places from partners"
+            "🎬 **Blogger picks** - places with video reviews"
         ),
         "tasks.categories_intro": (
             "Choose task category:\n\n"
             "🍔 **Food** - cafes, restaurants, street food\n"
             "💪 **Health** - sports, yoga, spa, clinics\n"
             "🌟 **Interesting places** - parks, exhibitions, temples\n"
-            "🎬 **Blogger picks** - places from partners"
+            "🎬 **Blogger picks** - places with video reviews"
         ),
         "myevents.auto_closed": "🤖 Auto-closed {count} past events",
         "myevents.header": "📋 **My events:**\n",
