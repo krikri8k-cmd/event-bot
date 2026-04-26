@@ -69,6 +69,10 @@ from utils.user_participation_analytics import UserParticipationAnalytics
 # Тексты кнопок на обоих языках для сопоставления в обработчиках (reply-клавиатура)
 _MAIN_MENU_BUTTON_TEXTS = (t("myevents.button.main_menu", "ru"), t("myevents.button.main_menu", "en"))
 _FIND_ON_MAP_BUTTON_TEXTS = (t("tasks.button.find_on_map", "ru"), t("tasks.button.find_on_map", "en"))
+_INTERESTING_PLACES_BUTTON_TEXTS = (
+    t("menu.button.interesting_places", "ru"),
+    t("menu.button.interesting_places", "en"),
+)
 _MY_EVENTS_BUTTON_TEXTS = (t("myevents.button.my_events", "ru"), t("myevents.button.my_events", "en"))
 _MY_QUESTS_BUTTON_TEXTS = (t("myevents.button.my_quests", "ru"), t("myevents.button.my_quests", "en"))
 _CANCEL_BUTTON_TEXTS = (t("common.cancel", "ru"), t("common.cancel", "en"))
@@ -5933,9 +5937,9 @@ async def on_location_text_input_tasks(message: types.Message, state: FSMContext
         return
 
     # Специальная обработка для MacBook: если пользователь нажал кнопку "🎯 Интересные места" повторно
-    if text == "🎯 Интересные места":
+    if text in _INTERESTING_PLACES_BUTTON_TEXTS:
         logger.info(
-            f"📍 [TEXT_INPUT_TASKS] Обнаружен повторный запрос '🎯 Интересные места' от пользователя {user_id} (MacBook)"
+            f"📍 [TEXT_INPUT_TASKS] Обнаружен повторный запрос Interesting places от пользователя {user_id} (MacBook)"
         )
         user_lang = get_user_language_or_default(user_id)
         maps_keyboard = InlineKeyboardMarkup(
