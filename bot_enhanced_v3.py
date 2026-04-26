@@ -9489,9 +9489,14 @@ async def handle_back_to_tasks(callback: types.CallbackQuery):
     """Обработчик возврата к выбору категории заданий"""
     user_lang = get_user_language_or_default(callback.from_user.id)
     keyboard = [
-        [InlineKeyboardButton(text=t("tasks.category.food", user_lang), callback_data="task_category:food")],
-        [InlineKeyboardButton(text=t("tasks.category.health", user_lang), callback_data="task_category:health")],
-        [InlineKeyboardButton(text=t("tasks.category.places", user_lang), callback_data="task_category:places")],
+        [
+            InlineKeyboardButton(text=t("tasks.category.food", user_lang), callback_data="task_category:food"),
+            InlineKeyboardButton(text=t("tasks.category.health", user_lang), callback_data="task_category:health"),
+        ],
+        [
+            InlineKeyboardButton(text=t("tasks.category.places", user_lang), callback_data="task_category:places"),
+            InlineKeyboardButton(text=t("tasks.category.partner", user_lang), callback_data="task_category:partner"),
+        ],
         [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")],
     ]
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
