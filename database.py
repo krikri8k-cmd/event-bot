@@ -162,6 +162,9 @@ class Partner(Base):
     default_promo_code: Mapped[str | None] = mapped_column(String(100))
     priority: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
     is_featured: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+    list_in_blogger_choice: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     notes: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())

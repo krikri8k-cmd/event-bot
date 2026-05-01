@@ -17,6 +17,7 @@ What this script can do:
    - default_promo_code
    - priority
    - is_featured
+   - list_in_blogger_choice (paid «Выбор блогера» in bot; default false for new partners)
    - notes
 
 Usage examples:
@@ -31,6 +32,7 @@ Usage examples:
     --default-promo-code "ANYA10" \
     --priority 50 \
     --is-featured \
+    --list-in-blogger-choice \
     --place-ids 12,15,18 \
     --review-url "https://instagram.com/reel/abc" \
     --task-hint-ru "Попробуй фирменный десерт и поделись впечатлениями!" \
@@ -51,6 +53,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import re
 import sys
 from pathlib import Path
 
@@ -66,6 +69,16 @@ def _parse_place_ids(raw: str) -> list[int]:
     for item in items:
         place_ids.append(int(item))
     return place_ids
+
+
+def _normalize_slug(raw: str) -> str:
+    """Normalize slug to bot-safe format: lowercase + underscores."""
+    slug = (raw or "").strip().lower().lstrip("@")
+    slug = re.sub(r"[^a-z0-9_]+", "_", slug)
+    slug = re.sub(r"_+", "_", slug).strip("_")
+    if not slug:
+        raise ValueError("Invalid slug after normalization")
+    return slug
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -93,6 +106,18 @@ def _build_parser() -> argparse.ArgumentParser:
         "--not-featured",
         action="store_true",
         help="Mark partner as not featured",
+    )
+
+    blogger_choice = parser.add_mutually_exclusive_group()
+    blogger_choice.add_argument(
+        "--list-in-blogger-choice",
+        action="store_true",
+        help="Show partner in Telegram «Выбор блогера» (paid showcase)",
+    )
+    blogger_choice.add_argument(
+        "--no-list-in-blogger-choice",
+        action="store_true",
+        help="Hide from «Выбор блогера»; places can still use partner_id + review_url",
     )
 
     mode = parser.add_mutually_exclusive_group(required=True)
@@ -158,6 +183,10 @@ def main() -> None:
     from database import Partner, TaskPlace, get_session, init_engine
 
     args = _build_parser().parse_args()
+    normalized_slug = _normalize_slug(args.slug)
+    if normalized_slug != args.slug:
+        print(f"slug normalized: '{args.slug}' -> '{normalized_slug}'")
+    args.slug = normalized_slug
     settings = load_settings(require_bot=False)
     init_engine(settings.database_url)
 
@@ -201,6 +230,7 @@ def main() -> None:
                 default_promo_code=args.default_promo_code,
                 priority=args.priority or 0,
                 is_featured=bool(args.is_featured),
+                list_in_blogger_choice=bool(args.list_in_blogger_choice),
                 notes=args.notes,
                 is_active=not args.inactive,
             )
@@ -226,6 +256,10 @@ def main() -> None:
                 partner.is_featured = True
             elif args.not_featured:
                 partner.is_featured = False
+            if args.list_in_blogger_choice:
+                partner.list_in_blogger_choice = True
+            elif args.no_list_in_blogger_choice:
+                partner.list_in_blogger_choice = False
             partner_state = "updated"
 
         changed_places = 0
@@ -261,7 +295,8 @@ def main() -> None:
         print(
             f"partner {partner_state}: id={partner.id} slug={partner.slug} "
             f"display_name={partner.display_name} active={partner.is_active} "
-            f"featured={partner.is_featured} priority={partner.priority}"
+            f"featured={partner.is_featured} list_in_blogger_choice={partner.list_in_blogger_choice} "
+            f"priority={partner.priority}"
         )
         print(
             f"partner main_url={partner.main_url or '-'} "

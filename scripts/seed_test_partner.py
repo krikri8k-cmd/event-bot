@@ -28,9 +28,12 @@ def main() -> None:
                 display_name="Test Blogger",
                 main_url="https://instagram.com",
                 is_active=True,
+                list_in_blogger_choice=True,
             )
             session.add(partner)
             session.flush()
+        else:
+            partner.list_in_blogger_choice = True
 
         place = (
             session.query(TaskPlace)

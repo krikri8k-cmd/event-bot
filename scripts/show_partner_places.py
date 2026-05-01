@@ -71,6 +71,7 @@ def main() -> None:
             print(
                 f"- {partner.display_name} (@{partner.slug}) "
                 f"[id={partner.id}, featured={partner.is_featured}, "
+                f"list_in_blogger_choice={partner.list_in_blogger_choice}, "
                 f"priority={partner.priority}, active={partner.is_active}]"
             )
             print(

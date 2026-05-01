@@ -9261,7 +9261,10 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
         with get_session() as session:
             partners = (
                 session.query(Partner)
-                .filter(Partner.is_active == True)  # noqa: E712
+                .filter(
+                    Partner.is_active == True,  # noqa: E712
+                    Partner.list_in_blogger_choice == True,  # noqa: E712
+                )
                 .order_by(Partner.display_name.asc())
                 .all()
             )
@@ -9360,7 +9363,10 @@ async def handle_back_to_partner_list(callback: types.CallbackQuery):
     with get_session() as session:
         partners = (
             session.query(Partner)
-            .filter(Partner.is_active == True)  # noqa: E712
+            .filter(
+                Partner.is_active == True,  # noqa: E712
+                Partner.list_in_blogger_choice == True,  # noqa: E712
+            )
             .order_by(Partner.display_name.asc())
             .all()
         )
