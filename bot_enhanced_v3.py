@@ -3010,6 +3010,19 @@ def main_menu_kb(lang: str | None = None, user_id: int | None = None) -> ReplyKe
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
+def build_geo_request_reply_keyboard(lang: str) -> ReplyKeyboardMarkup:
+    """Reply-клавиатура для шага «отправь геолокацию / карта / домой» (события и квесты)."""
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=t("tasks.button.send_location", lang), request_location=True)],
+            [KeyboardButton(text=t("tasks.button.find_on_map", lang))],
+            [KeyboardButton(text=t("tasks.button.main_menu", lang))],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+    )
+
+
 def language_selection_kb(detected_lang: str | None = None) -> InlineKeyboardMarkup:
     """
     Создаёт клавиатуру выбора языка
@@ -5594,21 +5607,7 @@ async def on_nearby_events_callback(callback: types.CallbackQuery, state: FSMCon
     # Устанавливаем состояние для поиска событий
     await state.set_state(EventSearch.waiting_for_location)
 
-    # Создаем клавиатуру с кнопкой геолокации и главным меню
-    location_keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                KeyboardButton(
-                    text=t("tasks.button.send_location", user_lang),
-                    request_location=True,
-                )
-            ],
-            [KeyboardButton(text=t("tasks.button.find_on_map", user_lang))],
-            [KeyboardButton(text=t("tasks.button.main_menu", user_lang))],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=False,
-    )
+    location_keyboard = build_geo_request_reply_keyboard(user_lang)
 
     # Отправляем новое сообщение с ReplyKeyboardMarkup
     await callback.message.answer(
@@ -5668,16 +5667,7 @@ async def on_what_nearby(message: types.Message, state: FSMContext):
     current_state = await state.get_state()
     logger.debug("📍 Состояние установлено: %s для пользователя %s", current_state, user_id)
 
-    # Создаем клавиатуру с кнопкой геолокации и главным меню
-    location_keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text=t("tasks.button.send_location", lang), request_location=True)],
-            [KeyboardButton(text=t("tasks.button.find_on_map", lang))],
-            [KeyboardButton(text=t("tasks.button.main_menu", lang))],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=False,  # Изменено на False, чтобы кнопка не исчезала на MacBook
-    )
+    location_keyboard = build_geo_request_reply_keyboard(lang)
 
     await message.answer(
         t("tasks.press_location_hint", lang),
@@ -5792,20 +5782,10 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
         logger.info(
             f"📍 [TEXT_INPUT] Обнаружен повторный запрос '📍 События рядом' от пользователя {user_id} (MacBook)"
         )
-        maps_keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text=t("tasks.button.find_on_map", user_lang),
-                        url="https://www.google.com/maps",
-                    )
-                ],
-            ]
-        )
         await message.answer(
             t("search.geo_prompt", user_lang),
             parse_mode="Markdown",
-            reply_markup=maps_keyboard,
+            reply_markup=build_geo_request_reply_keyboard(user_lang),
         )
         return
 
@@ -5832,19 +5812,9 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
             )
             return
         else:
-            maps_keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [
-                        InlineKeyboardButton(
-                            text=t("tasks.button.find_on_map", user_lang),
-                            url="https://www.google.com/maps",
-                        )
-                    ],
-                ]
-            )
             await message.answer(
                 t("search.geo_prompt", user_lang),
-                reply_markup=maps_keyboard,
+                reply_markup=build_geo_request_reply_keyboard(user_lang),
             )
             return
 
@@ -5878,20 +5848,10 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
         pass
 
     # Если это не координаты и не ссылка, показываем подсказку
-    maps_keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=t("tasks.button.find_on_map", user_lang),
-                    url="https://www.google.com/maps",
-                )
-            ],
-        ]
-    )
     await message.answer(
         t("search.geo_prompt", user_lang),
         parse_mode="Markdown",
-        reply_markup=maps_keyboard,
+        reply_markup=build_geo_request_reply_keyboard(user_lang),
     )
 
 
@@ -5942,20 +5902,10 @@ async def on_location_text_input_tasks(message: types.Message, state: FSMContext
             f"📍 [TEXT_INPUT_TASKS] Обнаружен повторный запрос Interesting places от пользователя {user_id} (MacBook)"
         )
         user_lang = get_user_language_or_default(user_id)
-        maps_keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text=t("tasks.button.find_on_map", user_lang),
-                        url="https://www.google.com/maps",
-                    )
-                ],
-            ]
-        )
         await message.answer(
             t("tasks.press_location_hint", user_lang),
             parse_mode="Markdown",
-            reply_markup=maps_keyboard,
+            reply_markup=build_geo_request_reply_keyboard(user_lang),
         )
         return
 
@@ -6018,20 +5968,10 @@ async def on_location_text_input_tasks(message: types.Message, state: FSMContext
 
     # Если это не координаты и не ссылка, показываем подсказку
     user_lang = get_user_language_or_default(user_id)
-    maps_keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=t("tasks.button.find_on_map", user_lang),
-                    url="https://www.google.com/maps",
-                )
-            ],
-        ]
-    )
     await message.answer(
         t("tasks.press_location_hint", user_lang),
         parse_mode="Markdown",
-        reply_markup=maps_keyboard,
+        reply_markup=build_geo_request_reply_keyboard(user_lang),
     )
 
 
@@ -7739,21 +7679,7 @@ async def on_tasks_goal(message: types.Message, state: FSMContext):
     # Устанавливаем состояние для заданий
     await state.set_state(TaskFlow.waiting_for_location)
 
-    # Создаем клавиатуру с кнопкой геолокации (one_time_keyboard=False - кнопка не исчезнет на MacBook)
-    location_keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                KeyboardButton(
-                    text=t("tasks.button.send_location", user_lang),
-                    request_location=True,
-                )
-            ],
-            [KeyboardButton(text=t("tasks.button.find_on_map", user_lang))],
-            [KeyboardButton(text=t("tasks.button.main_menu", user_lang))],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=False,  # Изменено на False, чтобы кнопка не исчезала на MacBook
-    )
+    location_keyboard = build_geo_request_reply_keyboard(user_lang)
 
     quest_text = (
         f"{t('tasks.title', user_lang)}\n" f"{t('tasks.reward', user_lang)}\n\n" f"{t('tasks.description', user_lang)}"
@@ -7931,21 +7857,7 @@ async def cmd_tasks(message: types.Message, state: FSMContext):
     # Устанавливаем состояние для заданий
     await state.set_state(TaskFlow.waiting_for_location)
 
-    # Создаем клавиатуру с кнопкой геолокации
-    location_keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                KeyboardButton(
-                    text=t("tasks.button.send_location", user_lang),
-                    request_location=True,
-                )
-            ],
-            [KeyboardButton(text=t("tasks.button.find_on_map", user_lang))],
-            [KeyboardButton(text=t("tasks.button.main_menu", user_lang))],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=False,
-    )
+    location_keyboard = build_geo_request_reply_keyboard(user_lang)
 
     quest_text = (
         f"{t('tasks.title', user_lang)}\n" f"{t('tasks.reward', user_lang)}\n\n" f"{t('tasks.description', user_lang)}"
