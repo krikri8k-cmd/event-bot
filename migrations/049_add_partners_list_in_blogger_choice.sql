@@ -5,7 +5,7 @@ ALTER TABLE partners
 ADD COLUMN IF NOT EXISTS list_in_blogger_choice BOOLEAN NOT NULL DEFAULT FALSE;
 
 COMMENT ON COLUMN partners.list_in_blogger_choice IS
-    'If true, partner is listed in Telegram «Выбор блогера»; linking places does not imply this flag.';
+    $c$If true, partner appears in Telegram blogger-choice UI. Place links do not set this flag.$c$;
 
 -- Сохраняем текущее поведение: все активные партнёры остаются в кнопке до ручного снятия флага.
 UPDATE partners
