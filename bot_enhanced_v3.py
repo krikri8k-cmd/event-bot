@@ -5732,9 +5732,9 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
             ),
         ],
         [
+            InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main"),
             InlineKeyboardButton(text=t("tasks.category.partner", user_lang), callback_data="task_category:partner"),
         ],
-        [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")],
     ]
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
@@ -6024,9 +6024,9 @@ async def process_task_location(message: types.Message, state: FSMContext, lat: 
             ),
         ],
         [
+            InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main"),
             InlineKeyboardButton(text=t("tasks.category.partner", user_lang), callback_data="task_category:partner"),
         ],
-        [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")],
     ]
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
@@ -9499,9 +9499,9 @@ async def handle_back_to_tasks(callback: types.CallbackQuery):
             ),
         ],
         [
+            InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main"),
             InlineKeyboardButton(text=t("tasks.category.partner", user_lang), callback_data="task_category:partner"),
         ],
-        [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")],
     ]
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
