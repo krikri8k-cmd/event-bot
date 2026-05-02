@@ -12,24 +12,32 @@
 Строка 2: подсказка названия места (для поиска, если URL не совпал один в один)
 Строка 3: ссылка Google Maps (как в task_places.google_maps_url)
 
-Действия:
-  - partner: один партнёр на slug (из @handle). Уже есть — не создаём дубликат.
-    Новому: display_name = исходный ник из файла (без перевода и без title case).
-    main_url NULL — дозаполнишь в БД позже.
-    list_in_blogger_choice не трогаем (платная витрина отдельно).
-  - place: точный google_maps_url, затем вхождение short-id, затем однозначный ILIKE name,
-    затем ближайшее по координатам из ссылки (~350 м).
-  - task_places: partner_id, review_url; опционально task_hint RU и зеркало name_en.
+Рекомендуемый поток (у каждого места свой обзор → CSV для add_partner):
 
-Пример:
+  1) Сгенерировать CSV из блоков (после add_places… --update, чтобы place_id нашёлся):
+     python scripts/ingest_blogger_review_blocks.py notes.txt --emit-csv-out partner_batch.csv
+
+  2) Привязать все строки одним вызовом (свой review_url в каждой строке):
+     python scripts/add_partner.py --slug docpolli --display-name "doc_polli" \\
+       --main-url "https://www.instagram.com/doc_polli/" --csv partner_batch.csv
+
+  Колонки в CSV: place_id, review_url, promo_code, task_hint_ru, task_hint_en, name_en
+  (остальные колонки add_partner игнорирует; в файле могут быть partner_slug / maps_url_hint для тебя).
+
+Прямая запись в БД (без CSV) — опционально:
   python scripts/ingest_blogger_review_blocks.py blogger_place_reviews.txt
   python scripts/ingest_blogger_review_blocks.py blogger_place_reviews.txt --dry-run
   python scripts/ingest_blogger_review_blocks.py blogger_place_reviews.txt --set-task-hint-ru --translate-hint
+
+Логика при любом режиме:
+  - partner slug из handle; display_name — исходный ник без перевода.
+  - поиск места: URL, short-id, имя, гео ~350 м.
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
 import re
 import sys
 from pathlib import Path
@@ -188,6 +196,82 @@ def _maybe_translate_hints(place_ids: list[int]) -> None:
         session.commit()
 
 
+def _emit_partner_csv_for_add_partner(
+    path_out: Path,
+    blocks: list[tuple[str, str, str, str]],
+) -> int:
+    """
+    Пишет CSV для add_partner.py --csv: у каждой строки свой review_url и place_id.
+    Строки без найденного места — в отдельный *_needs_place_id.csv (place_id пустой).
+    """
+    from config import load_settings
+    from database import get_session, init_engine
+
+    settings = load_settings(require_bot=False)
+    init_engine(settings.database_url)
+
+    # add_partner читает place_id, review_url, promo_code, task_hint_ru, task_hint_en, name_en
+    fieldnames = [
+        "place_id",
+        "review_url",
+        "promo_code",
+        "task_hint_ru",
+        "task_hint_en",
+        "name_en",
+        "partner_slug",
+        "place_name_hint",
+        "maps_url_hint",
+    ]
+    resolved: list[dict[str, str]] = []
+    unresolved: list[dict[str, str]] = []
+
+    with get_session() as session:
+        for handle, review_url, maps_url, name_hint in blocks:
+            slug = _normalize_slug(handle)
+            place = _find_place(session, maps_url, name_hint)
+            base = {
+                "place_id": "",
+                "review_url": review_url.strip(),
+                "promo_code": "",
+                "task_hint_ru": "",
+                "task_hint_en": "",
+                "name_en": "",
+                "partner_slug": slug,
+                "place_name_hint": name_hint,
+                "maps_url_hint": maps_url,
+            }
+            if place:
+                base["place_id"] = str(place.id)
+                resolved.append(base)
+                print(f"OK row place_id={place.id} slug={slug} review={review_url[:50]}...")
+            else:
+                unresolved.append(base)
+                print(f"WARN no place maps={maps_url!r} hint={name_hint!r} slug={slug}")
+
+    path_out.parent.mkdir(parents=True, exist_ok=True)
+    with path_out.open("w", encoding="utf-8-sig", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="raise")
+        w.writeheader()
+        for row in resolved:
+            w.writerow(row)
+
+    print(f"→ {path_out}  ({len(resolved)} строк с place_id для add_partner --csv)")
+
+    if unresolved:
+        side = path_out.with_name(f"{path_out.stem}_needs_place_id{path_out.suffix}")
+        with side.open("w", encoding="utf-8-sig", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="raise")
+            w.writeheader()
+            for row in unresolved:
+                w.writerow(row)
+        print(f"→ {side}  ({len(unresolved)} строк без place_id — добей место или ссылку)")
+
+    print("\nДальше (один блогер на CSV; если в файле несколько slug — разрежь по partner_slug):")
+    print('  python scripts/add_partner.py --slug SLUG --display-name "как в инсте" \\')
+    print('    --main-url "https://..." --csv ПУТЬ/к/файлу.csv')
+    return 0 if not unresolved else 3
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Ingest blogger review blocks -> partners + task_places.")
     parser.add_argument(
@@ -195,6 +279,17 @@ def main() -> int:
         nargs="?",
         default="blogger_place_reviews.txt",
         help="Text file with blocks (default: blogger_place_reviews.txt in project root)",
+    )
+    parser.add_argument(
+        "--emit-csv-out",
+        metavar="PATH",
+        default=None,
+        help="Only write CSV for add_partner.py --csv (per-place review_url); no DB updates unless --also-apply",
+    )
+    parser.add_argument(
+        "--also-apply",
+        action="store_true",
+        help="After --emit-csv-out, also run direct DB link (same as without --emit-csv-out)",
     )
     parser.add_argument("--dry-run", action="store_true", help="Print actions, do not commit")
     parser.add_argument(
@@ -226,6 +321,14 @@ def main() -> int:
     if not blocks:
         print("No blocks parsed.")
         return 0
+
+    if args.emit_csv_out:
+        out_path = Path(args.emit_csv_out)
+        if not out_path.is_absolute():
+            out_path = PROJECT_ROOT / out_path
+        rc = _emit_partner_csv_for_add_partner(out_path, blocks)
+        if not args.also_apply:
+            return rc
 
     from config import load_settings
     from database import Partner, get_session, init_engine
