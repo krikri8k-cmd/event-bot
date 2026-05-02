@@ -25,8 +25,14 @@ health:gym:bali:
 
 health:spa:bali:
 
+Убуд
+
+# Spa
+
+# @voyageglam | review https://www.instagram.com/p/DK45c6zqq8x/
 Bali Dacha
-https://maps.app.goo.gl/mmgJ4eRMFe3PnEmQ8|Jungle26 Club day 50.000 IDR , private rent 10% 
+https://maps.app.goo.gl/mmgJ4eRMFe3PnEmQ8|"Jungle26"
+# Club day 50.000 IDR, private rent 10%
 
 # Тренажерные залы
 
@@ -115,6 +121,10 @@ https://maps.app.goo.gl/LoJrNR5UPGa2Va8j6
 health:spa:bali:
 
 Букит
+
+# @v.d_fitness | review https://www.instagram.com/reels/DTElhSrErat/
+Tropical Temptation
+https://maps.app.goo.gl/6c1bJc1oaoDfgbro6
 
 https://maps.app.goo.gl/v29RsjVU7i9eBs6z6
 
