@@ -53,12 +53,16 @@ from __future__ import annotations
 
 import argparse
 import csv
+import os
 import re
 import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
+
+# До импорта config: load_dotenv(..., override=True) в config.py не должен затирать DATABASE_URL из окружения.
+_preserved_database_url = (os.environ.get("DATABASE_URL") or "").strip() or None
 
 
 def _parse_place_ids(raw: str) -> list[int]:
@@ -177,6 +181,9 @@ def _load_rows_from_csv(path_str: str) -> list[dict[str, str]]:
 
 
 def main() -> None:
+    if _preserved_database_url:
+        os.environ["DATABASE_URL"] = _preserved_database_url
+
     from sqlalchemy import func
 
     from config import load_settings

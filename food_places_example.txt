@@ -10,7 +10,6 @@
 # Кафе в Москве
 food:cafe:moscow:
 https://maps.google.com/?cid=123456789
-https://maps.google.com/?cid=987654321|PROMO2024
 
 # Рестораны в Москве
 food:restaurant:moscow:
@@ -40,7 +39,6 @@ https://maps.google.com/?cid=111222333
 # Кафе в СПб
 food:cafe:spb:
 https://maps.google.com/?cid=123456789
-https://maps.google.com/?cid=987654321|PROMO2024
 
 # Рестораны в СПб
 food:restaurant:spb:
@@ -71,6 +69,9 @@ https://maps.google.com/?cid=111222333
 food:cafe:bali:
 
 Кафе Убуд 
+
+Ambrosia (Kebab & Gourmet)
+https://maps.app.goo.gl/hufMn5pJkQ1CnPcq9|Myguide 10% Discount
 
 Usha Cafe&Bakery
 https://maps.app.goo.gl/frzG51H3ijLPqEc46
@@ -200,12 +201,21 @@ WORD.BALI
 https://maps.app.goo.gl/chLspLCopdf8fcjv6
 
 Kalos Bali
-https://maps.app.goo.gl/9Pby1V1zHB1oADuz7|PROMO2024
+https://maps.app.goo.gl/9Pby1V1zHB1oADuz7
 
 Кафе Чангу
 
+Murmur Restaurant Lounge
+https://maps.app.goo.gl/3btMPaFiY6V7zMZ99|My guide 10% Discount
+
+Honey Murena - Asian & Uzbek Restaraunt, Cocktail Bar
+https://maps.app.goo.gl/UCbuDjRHrYndRBfW7|HONEY 10% Discount
+
+Chef's Crate
+https://maps.app.goo.gl/oKTSChgDj5tD6pDx9|BAGUS 11% Discount Food
+
 UNIBOWL PokeBowl Bali
-https://maps.app.goo.gl/9jYjf3FjxmGQVzz88|PROMO2024
+https://maps.app.goo.gl/9jYjf3FjxmGQVzz88
 
 Nüde cafe 
 https://maps.app.goo.gl/5M3tHYB6Fiue9Doz5
@@ -318,6 +328,17 @@ https://maps.app.goo.gl/QAyLberkARdXSAJ18
 
 Кафе Букит
 
+Chef's Crate
+https://maps.app.goo.gl/oKTSChgDj5tD6pDx9|BAGUS 11% Discount Food
+
+# @v.d_fitness | review https://www.instagram.com/reels/DUmPp89ks0G/
+EASY CAFE
+https://maps.app.goo.gl/WCpZcp6Vcfm3HZkU8
+
+
+# @voyageglam | review https://www.instagram.com/p/DLe3BPgK1Cr/
+Koral – Bali's First Aquarium Restaurant
+https://maps.app.goo.gl/qpF5cuV7AEDiBwBdA
 
 AMINO
 https://maps.app.goo.gl/7TMr4U9K3uAcM74q6
