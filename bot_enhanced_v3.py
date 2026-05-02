@@ -5727,6 +5727,11 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
         ],
         [
             InlineKeyboardButton(text=t("tasks.category.places", user_lang), callback_data="task_category:places"),
+            InlineKeyboardButton(
+                text=t("tasks.category.entertainment", user_lang), callback_data="task_category:entertainment"
+            ),
+        ],
+        [
             InlineKeyboardButton(text=t("tasks.category.partner", user_lang), callback_data="task_category:partner"),
         ],
         [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")],
@@ -6014,6 +6019,11 @@ async def process_task_location(message: types.Message, state: FSMContext, lat: 
         ],
         [
             InlineKeyboardButton(text=t("tasks.category.places", user_lang), callback_data="task_category:places"),
+            InlineKeyboardButton(
+                text=t("tasks.category.entertainment", user_lang), callback_data="task_category:entertainment"
+            ),
+        ],
+        [
             InlineKeyboardButton(text=t("tasks.category.partner", user_lang), callback_data="task_category:partner"),
         ],
         [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")],
@@ -6889,7 +6899,7 @@ def _build_my_tasks_list(
     km_suffix = t("mytasks.km_suffix", lang)
     place_label = t("mytasks.place_label", lang)
     for i, task in enumerate(page_tasks, start=start_idx + 1):
-        category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
+        category_emojis = {"food": "🍔", "health": "💪", "places": "🌟", "entertainment": "🎉"}
         category_emoji = category_emojis.get(task["category"], "📋")
         task_title = (task.get("title_en") if lang == "en" else None) or task["title"]
         message_text += f"{i}) {category_emoji} **{task_title}**\n"
@@ -8008,7 +8018,7 @@ async def show_task_detail(callback_or_message, tasks: list, task_index: int, us
     time_left = expires_at - datetime.now(UTC)
     int(time_left.total_seconds() / 3600)
 
-    category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
+    category_emojis = {"food": "🍔", "health": "💪", "places": "🌟", "entertainment": "🎉"}
     category_emoji = category_emojis.get(task["category"], "📋")
     category_name = t(f"tasks.category.{task['category']}", lang) if task.get("category") else task.get("category", "")
     task_title = (task.get("title_en") if lang == "en" else None) or task["title"]
@@ -9484,6 +9494,11 @@ async def handle_back_to_tasks(callback: types.CallbackQuery):
         ],
         [
             InlineKeyboardButton(text=t("tasks.category.places", user_lang), callback_data="task_category:places"),
+            InlineKeyboardButton(
+                text=t("tasks.category.entertainment", user_lang), callback_data="task_category:entertainment"
+            ),
+        ],
+        [
             InlineKeyboardButton(text=t("tasks.category.partner", user_lang), callback_data="task_category:partner"),
         ],
         [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")],
@@ -9593,7 +9608,7 @@ async def handle_task_manage(callback: types.CallbackQuery):
     # Проверка на истечение отключена - задания доступны всегда
     # Время истечения больше не показываем, так как ограничение снято
 
-    category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
+    category_emojis = {"food": "🍔", "health": "💪", "places": "🌟", "entertainment": "🎉"}
     category_emoji = category_emojis.get(task_info["category"], "📋")
 
     message = f"{category_emoji} **{task_info['title']}**\n\n"

@@ -177,7 +177,7 @@ class TaskPlace(Base):
     __tablename__ = "task_places"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    category: Mapped[str] = mapped_column(String(20), nullable=False)  # 'food', 'health', 'places'
+    category: Mapped[str] = mapped_column(String(20), nullable=False)  # 'food', 'health', 'places', 'entertainment'
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     lat: Mapped[float] = mapped_column(Float, nullable=False)
@@ -202,7 +202,7 @@ class TaskTemplate(Base):
     __tablename__ = "task_templates"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    category: Mapped[str] = mapped_column(String(20), nullable=False)  # 'food', 'health', 'places'
+    category: Mapped[str] = mapped_column(String(20), nullable=False)  # 'food', 'health', 'places', 'entertainment'
     place_type: Mapped[str] = mapped_column(String(50), nullable=False)  # 'park', 'cafe', 'library', etc.
     title: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)

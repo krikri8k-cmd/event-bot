@@ -197,6 +197,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.category.food": "🍔 Еда",
         "tasks.category.health": "💪 Здоровье",
         "tasks.category.places": "🌟 Интересные места",
+        "tasks.category.entertainment": "🎉 Развлечения",
         "tasks.category.partner": "🎬 Выбор блогера",
         "tasks.places_found": "📍 Найдено мест: {count}",
         "tasks.list_footer": "Задания выполняются в 📝 Мои активности — 🏆 Квесты",
@@ -233,14 +234,19 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "🍔 **Еда** - кафе, рестораны, уличная еда\n"
             "💪 **Здоровье** - спорт, йога, спа, клиники\n"
             "🌟 **Интересные места** - парки, выставки, храмы\n"
-            "🎬 **Выбор блогера** - места с видеообзором"
+            "🎉 **Развлечения** - клубы, бары, пляжные вечеринки, шоу, мастер-классы\n"
+            "🎬 **Выбор блогера** - места с видеообзором\n\n"
+            "_Одно место в базе = одна категория. Если в заведении и еда, и спа, и тусовка — "
+            "выбери главную для списка, остальное допиши в подсказке к квесту._"
         ),
         "tasks.categories_intro": (
             "Выберите категорию заданий:\n\n"
             "🍔 **Еда** - кафе, рестораны, уличная еда\n"
             "💪 **Здоровье** - спорт, йога, спа, клиники\n"
             "🌟 **Интересные места** - парки, выставки, храмы\n"
-            "🎬 **Выбор блогера** - места с видеообзором"
+            "🎉 **Развлечения** - клубы, бары, пляжные вечеринки, шоу, мастер-классы\n"
+            "🎬 **Выбор блогера** - места с видеообзором\n\n"
+            "_Одно место = одна категория в базе; комбо — в тексте подсказки к квесту._"
         ),
         "myevents.auto_closed": "🤖 Автоматически закрыто {count} прошедших событий",
         "myevents.header": "📋 **Мои события:**\n",
@@ -1142,6 +1148,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.category.food": "🍔 Food",
         "tasks.category.health": "💪 Health",
         "tasks.category.places": "🌟 Interesting places",
+        "tasks.category.entertainment": "🎉 Entertainment",
         "tasks.category.partner": "🎬 Blogger picks",
         "tasks.places_found": "📍 Places found: {count}",
         "tasks.list_footer": "Tasks are in 📝 My activities — 🏆 Quests",
@@ -1178,14 +1185,19 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "🍔 **Food** - cafes, restaurants, street food\n"
             "💪 **Health** - sports, yoga, spa, clinics\n"
             "🌟 **Interesting places** - parks, exhibitions, temples\n"
-            "🎬 **Blogger picks** - places with video reviews"
+            "🎉 **Entertainment** - clubs, bars, beach parties, shows, workshops\n"
+            "🎬 **Blogger picks** - places with video reviews\n\n"
+            "_One venue = one primary category in the database. If it mixes food, spa, and nightlife, "
+            "pick the main one for listings and mention the rest in the quest hint._"
         ),
         "tasks.categories_intro": (
             "Choose task category:\n\n"
             "🍔 **Food** - cafes, restaurants, street food\n"
             "💪 **Health** - sports, yoga, spa, clinics\n"
             "🌟 **Interesting places** - parks, exhibitions, temples\n"
-            "🎬 **Blogger picks** - places with video reviews"
+            "🎉 **Entertainment** - clubs, bars, beach parties, shows, workshops\n"
+            "🎬 **Blogger picks** - places with video reviews\n\n"
+            "_One place = one category; combos go in the quest hint text._"
         ),
         "myevents.auto_closed": "🤖 Auto-closed {count} past events",
         "myevents.header": "📋 **My events:**\n",

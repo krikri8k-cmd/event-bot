@@ -362,6 +362,17 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                                     "beach_club",
                                     "culture",
                                 ],
+                                "entertainment": [
+                                    "nightclub",
+                                    "bar",
+                                    "rooftop",
+                                    "beach_party",
+                                    "live_music",
+                                    "show_event",
+                                    "workshop_trip",
+                                    "karaoke",
+                                    "lounge",
+                                ],
                             }
                             place_types = category_place_types.get(task_category, ["park"])
                             place_type = place_types[0]  # Берем первый тип места
@@ -417,6 +428,17 @@ def get_user_active_tasks(user_id: int) -> list[dict]:
                                     "cliff",
                                     "beach_club",
                                     "culture",
+                                ],
+                                "entertainment": [
+                                    "nightclub",
+                                    "bar",
+                                    "rooftop",
+                                    "beach_party",
+                                    "live_music",
+                                    "show_event",
+                                    "workshop_trip",
+                                    "karaoke",
+                                    "lounge",
                                 ],
                             }
                             place_types = category_place_types.get(task_category, ["park"])

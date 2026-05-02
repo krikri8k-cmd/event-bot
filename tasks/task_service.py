@@ -23,6 +23,17 @@ class TaskService:
             "food": ["cafe", "restaurant", "street_food", "market", "bakery"],
             "health": ["gym", "spa", "lab", "clinic", "nature", "park", "beach", "yoga_studio", "outdoor_space"],
             "places": ["park", "exhibition", "temple", "trail", "viewpoint", "beach", "cliff", "beach_club", "culture"],
+            "entertainment": [
+                "nightclub",
+                "bar",
+                "rooftop",
+                "beach_party",
+                "live_music",
+                "show_event",
+                "workshop_trip",
+                "karaoke",
+                "lounge",
+            ],
             # Старые категории (для обратной совместимости)
             "body": ["park", "beach", "gym", "yoga_studio", "outdoor_space"],  # → health
             "spirit": ["temple", "viewpoint", "park", "beach", "cliff"],  # → places
