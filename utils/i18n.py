@@ -230,23 +230,20 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.city.other": "Другое место",
         "tasks.location_received": (
             "✅ **Геолокация получена!**\n\n"
-            "Выберите категорию для получения персонализированных заданий:\n\n"
+            "Выберите категорию, чтобы открыть новые места 🌎\n\n"
             "🍔 **Еда** - кафе, рестораны, уличная еда\n"
             "💪 **Здоровье** - спорт, йога, спа, клиники\n"
             "🌟 **Интересные места** - парки, выставки, храмы\n"
             "🎉 **Развлечения** - клубы, бары, пляжные вечеринки, шоу, мастер-классы\n"
-            "🎬 **Выбор блогера** - места с видеообзором\n\n"
-            "_Одно место в базе = одна категория. Если в заведении и еда, и спа, и тусовка — "
-            "выбери главную для списка, остальное допиши в подсказке к квесту._"
+            "🎬 **Выбор блогера** - места с видеообзором"
         ),
         "tasks.categories_intro": (
-            "Выберите категорию заданий:\n\n"
+            "Выберите категорию, чтобы открыть новые места 🌎\n\n"
             "🍔 **Еда** - кафе, рестораны, уличная еда\n"
             "💪 **Здоровье** - спорт, йога, спа, клиники\n"
             "🌟 **Интересные места** - парки, выставки, храмы\n"
             "🎉 **Развлечения** - клубы, бары, пляжные вечеринки, шоу, мастер-классы\n"
-            "🎬 **Выбор блогера** - места с видеообзором\n\n"
-            "_Одно место = одна категория в базе; комбо — в тексте подсказки к квесту._"
+            "🎬 **Выбор блогера** - места с видеообзором"
         ),
         "myevents.auto_closed": "🤖 Автоматически закрыто {count} прошедших событий",
         "myevents.header": "📋 **Мои события:**\n",
@@ -1181,23 +1178,20 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.city.other": "Other place",
         "tasks.location_received": (
             "✅ **Location received!**\n\n"
-            "Choose category for personalized tasks:\n\n"
+            "Pick a category to discover new places 🌎\n\n"
             "🍔 **Food** - cafes, restaurants, street food\n"
             "💪 **Health** - sports, yoga, spa, clinics\n"
             "🌟 **Interesting places** - parks, exhibitions, temples\n"
             "🎉 **Entertainment** - clubs, bars, beach parties, shows, workshops\n"
-            "🎬 **Blogger picks** - places with video reviews\n\n"
-            "_One venue = one primary category in the database. If it mixes food, spa, and nightlife, "
-            "pick the main one for listings and mention the rest in the quest hint._"
+            "🎬 **Blogger picks** - places with video reviews"
         ),
         "tasks.categories_intro": (
-            "Choose task category:\n\n"
+            "Pick a category to discover new places 🌎\n\n"
             "🍔 **Food** - cafes, restaurants, street food\n"
             "💪 **Health** - sports, yoga, spa, clinics\n"
             "🌟 **Interesting places** - parks, exhibitions, temples\n"
             "🎉 **Entertainment** - clubs, bars, beach parties, shows, workshops\n"
-            "🎬 **Blogger picks** - places with video reviews\n\n"
-            "_One place = one category; combos go in the quest hint text._"
+            "🎬 **Blogger picks** - places with video reviews"
         ),
         "myevents.auto_closed": "🤖 Auto-closed {count} past events",
         "myevents.header": "📋 **My events:**\n",
