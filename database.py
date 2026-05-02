@@ -356,7 +356,11 @@ def make_async_engine(database_url: str):
 
 
 def _ensure_events_community_en_columns() -> None:
-    """Добавляет title_en, description_en в events_community, archive и events, если их нет (миграция при старте)."""
+    """Добавляет title_en, description_en в events_community, archive и events, если их нет (миграция при старте).
+
+    Каждый ALTER в SAVEPOINT: если таблицы archive нет, без этого весь outer-транзакшн в Postgres
+    переходит в aborted и не применяются даже ALTER к `events` (city, event_source и т.д.).
+    """
     if engine is None:
         return
     log = logging.getLogger(__name__)
@@ -373,16 +377,21 @@ def _ensure_events_community_en_columns() -> None:
         ),
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS title_en VARCHAR(255)"),
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS description_en TEXT"),
+        ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS location_name_en VARCHAR(255)"),
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS translation_retry_count INT DEFAULT 0"),
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS translation_failed BOOLEAN DEFAULT false"),
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS event_source VARCHAR(32)"),
+        ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS city VARCHAR(128)"),
+        ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS country VARCHAR(64)"),
+        ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS place_id TEXT"),
         ("task_places", "ALTER TABLE task_places ADD COLUMN IF NOT EXISTS name_en VARCHAR(255)"),
         ("task_places", "ALTER TABLE task_places ADD COLUMN IF NOT EXISTS task_hint_en VARCHAR(200)"),
     ]
     with engine.begin() as conn:
         for table, sql in statements:
             try:
-                conn.execute(text(sql))
+                with conn.begin_nested():
+                    conn.execute(text(sql))
             except Exception as e:
                 log.warning("ensure_events_community_en_columns %s: %s", table, e)
 
