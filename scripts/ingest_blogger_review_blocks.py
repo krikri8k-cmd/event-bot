@@ -14,7 +14,8 @@
 
 Действия:
   - partner: один партнёр на slug (из @handle). Уже есть — не создаём дубликат.
-    Новому: display_name из ника, main_url NULL — дозаполнишь в БД позже.
+    Новому: display_name = исходный ник из файла (без перевода и без title case).
+    main_url NULL — дозаполнишь в БД позже.
     list_in_blogger_choice не трогаем (платная витрина отдельно).
   - place: точный google_maps_url, затем вхождение short-id, затем однозначный ILIKE name,
     затем ближайшее по координатам из ссылки (~350 м).
@@ -53,9 +54,9 @@ def _normalize_slug(raw: str) -> str:
     return slug
 
 
-def _display_from_handle(handle: str) -> str:
-    h = handle.strip().lstrip("@")
-    return h.replace("_", " ").replace(".", " ").strip().title() or h
+def _partner_display_name(handle: str) -> str:
+    """Имя блогера как в файле — не переводим и не преобразуем (никакого .title())."""
+    return (handle or "").strip()
 
 
 def _extract_maps_short_id(url: str) -> str | None:
@@ -237,13 +238,13 @@ def main() -> int:
     with get_session() as session:
         for handle, review_url, maps_url, name_hint in blocks:
             slug = _normalize_slug(handle)
-            display = _display_from_handle(handle)
+            display_name = _partner_display_name(handle)
 
             partner = session.query(Partner).filter(func.lower(Partner.slug) == slug.lower()).first()
             if not partner:
                 partner = Partner(
                     slug=slug,
-                    display_name=display,
+                    display_name=display_name,
                     main_url=None,
                     is_active=True,
                     list_in_blogger_choice=False,
