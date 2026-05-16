@@ -977,11 +977,13 @@ class ModernEventScheduler:
         self.scheduler = BackgroundScheduler(timezone="UTC")
 
         # Основной цикл парсинга событий BaliForum (2 раза в день по времени Бали)
-        # Утренний запуск: 18:02 UTC = 00:02 Бали (начало нового дня по Бали)
+        # Утренний запуск: 16:02 UTC = 00:02 Asia/Makassar (сразу после полуночи на Бали).
+        # Раньше было hour=18 (+8ч = 02:02 по Бали) — между полночью и инжестом «завтра»
+        # в БД могли отсутствовать события на календарный следующий день.
         self.scheduler.add_job(
             self.run_full_ingest,
             "cron",
-            hour=18,
+            hour=16,
             minute=2,
             id="modern-ingest-morning",
             max_instances=1,
