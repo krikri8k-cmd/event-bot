@@ -26,8 +26,17 @@ def api_engine():
         pytest.skip(f"Failed to create PostgreSQL engine: {e}")
 
 
-@pytest.fixture(scope="session", autouse=True)
-def ensure_events_table(api_engine):
+@pytest.fixture(autouse=True)
+def ensure_events_table(request):
+    if request.node.get_closest_marker("no_db"):
+        yield
+        return
+
+    try:
+        api_engine = request.getfixturevalue("api_engine")
+    except Exception as e:
+        pytest.skip(f"Failed to get api_engine: {e}")
+
     try:
         from sqlalchemy import text
 
