@@ -18,6 +18,10 @@
 # БАЛИ
 # ============================================
 
+# @dimin10 | review https://www.instagram.com/p/DX3XmLAvejZ/
+Svaha Spa Bisma
+https://maps.app.goo.gl/xofPh7Ub8Up62CWL8
+
 # Тренажерные залы
 health:gym:bali:
 
@@ -25,8 +29,14 @@ health:gym:bali:
 
 health:spa:bali:
 
+Убуд
+
+# Spa
+
+# @voyageglam | review https://www.instagram.com/p/DK45c6zqq8x/
 Bali Dacha
-https://maps.app.goo.gl/mmgJ4eRMFe3PnEmQ8|Jungle26 Club day 50.000 IDR , private rent 10% 
+https://maps.app.goo.gl/mmgJ4eRMFe3PnEmQ8|"Jungle26" Club day - 50.000 IDR, private rent 10%
+
 
 # Тренажерные залы
 
@@ -109,6 +119,7 @@ https://maps.app.goo.gl/H43VWphFew1PcTAT8
 
 Букит
 
+Bambu Fitness Bali
 https://maps.app.goo.gl/LoJrNR5UPGa2Va8j6
 
 # Спа и wellness
@@ -116,10 +127,15 @@ health:spa:bali:
 
 Букит
 
-https://maps.app.goo.gl/v29RsjVU7i9eBs6z6
+# @v.d_fitness | review https://www.instagram.com/reels/DTElhSrErat/
+Tropical Temptation
+https://maps.app.goo.gl/6c1bJc1oaoDfgbro6
 
+
+Senses Spa
 https://maps.app.goo.gl/eQDRPVmumRmpVkUL7
 
+Spa Factory Bali
 https://maps.app.goo.gl/KxPsXncySZXgTwYr6
 
 # Йога студии

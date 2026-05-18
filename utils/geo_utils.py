@@ -556,6 +556,66 @@ def _extract_maps_url_from_html(html: str, base_url: str) -> str | None:
     return None
 
 
+def _is_valid_lat_lng(lat: float, lng: float) -> bool:
+    return -90.0 <= lat <= 90.0 and -180.0 <= lng <= 180.0
+
+
+def _extract_place_pin_coordinates(url: str) -> tuple[float, float] | None:
+    """
+    Координаты маркера места в URL Google Maps (!3d…!4d… или 3d=…&4d=…).
+    Важнее, чем @lat,lng — это центр камеры (viewport), он может быть на км от POI.
+    """
+    if not url:
+        return None
+
+    pin_pairs: list[tuple[float, float]] = []
+
+    for match in re.finditer(r"!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)", url):
+        lat, lng = float(match.group(1)), float(match.group(2))
+        if _is_valid_lat_lng(lat, lng):
+            pin_pairs.append((lat, lng))
+
+    for match in re.finditer(r"3d=(-?\d+\.?\d*)[^&!]*4d=(-?\d+\.?\d*)", url):
+        lat, lng = float(match.group(1)), float(match.group(2))
+        if _is_valid_lat_lng(lat, lng):
+            pair = (lat, lng)
+            if pair not in pin_pairs:
+                pin_pairs.append(pair)
+
+    if pin_pairs:
+        return pin_pairs[-1]
+    return None
+
+
+def _extract_viewport_coordinates(url: str) -> tuple[float, float] | None:
+    """Центр карты из фрагмента @lat,lng,zoom (fallback, если нет pin)."""
+    match = re.search(r"@(-?\d+\.?\d*),(-?\d+\.?\d*),\d+", url)
+    if not match:
+        return None
+    lat, lng = float(match.group(1)), float(match.group(2))
+    if _is_valid_lat_lng(lat, lng):
+        return lat, lng
+    return None
+
+
+def _extract_coordinates_from_maps_url(url: str) -> tuple[float, float] | None:
+    """Pin POI приоритетнее viewport @; для «голой» карты без pin — только @."""
+    pin = _extract_place_pin_coordinates(url)
+    if pin:
+        return pin
+    return _extract_viewport_coordinates(url)
+
+
+def _coords_result_from_maps_url(url: str) -> dict | None:
+    """Собирает dict lat/lng/name, если координаты удалось извлечь из URL."""
+    coords = _extract_coordinates_from_maps_url(url)
+    if not coords:
+        return None
+    lat, lng = coords
+    name = extract_place_name_from_url(url)
+    return {"lat": lat, "lng": lng, "name": name, "raw_link": url}
+
+
 async def parse_google_maps_link(link: str) -> dict | None:
     """
     Парсит Google Maps ссылку и извлекает координаты и название места.
@@ -641,27 +701,19 @@ async def parse_google_maps_link(link: str) -> dict | None:
 
         # Сначала проверяем, не короткая ли это ссылка
         if "goo.gl/maps" in link or "maps.app.goo.gl" in link:
-            # Для коротких ссылок пытаемся получить полную ссылку
             expanded_link = await expand_short_url(link)
             if expanded_link:
-                print(f"🔗 Расширили короткую ссылку: {link} -> {expanded_link}")
                 link = unquote(expanded_link)
+                coords_from_expanded = _coords_result_from_maps_url(link)
+                if coords_from_expanded:
+                    return coords_from_expanded
             else:
-                print(f"⚠️ Не удалось расширить короткую ссылку: {link}")
-                # Для коротких ссылок без координат возвращаем ссылку для геокодирования
+                print(f"WARN: could not expand short Google Maps link: {link[:80]}")
                 return {"lat": None, "lng": None, "name": "Место на карте", "raw_link": link}
 
-        # Паттерн 1: @lat,lng,zoom (самый частый)
-        pattern1 = r"@(-?\d+\.?\d*),(-?\d+\.?\d*),\d+"
-        match1 = re.search(pattern1, link)
-        if match1:
-            lat = float(match1.group(1))
-            lng = float(match1.group(2))
-
-            # Пытаемся извлечь название из URL
-            name = extract_place_name_from_url(link)
-
-            return {"lat": lat, "lng": lng, "name": name, "raw_link": link}
+        coords_from_url = _coords_result_from_maps_url(link)
+        if coords_from_url:
+            return coords_from_url
 
         # Паттерн 2: q=lat,lng или q=адрес
         pattern2 = r"[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)"
@@ -717,18 +769,6 @@ async def parse_google_maps_link(link: str) -> dict | None:
         if match4:
             lat = float(match4.group(1))
             lng = float(match4.group(2))
-
-            name = extract_place_name_from_url(link)
-
-            return {"lat": lat, "lng": lng, "name": name, "raw_link": link}
-
-        # Паттерн 5: 3d=lat&4d=lng (новый формат Google Maps)
-        pattern5 = r"3d=(-?\d+\.?\d*).*?4d=(-?\d+\.?\d*)"
-        match5 = re.search(pattern5, link)
-        if match5:
-            lat = float(match5.group(1))
-            lng = float(match5.group(2))
-            print(f"🎯 Найдены координаты в формате 3d/4d: {lat}, {lng}")
 
             name = extract_place_name_from_url(link)
 

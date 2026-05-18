@@ -79,4 +79,5 @@ markers = [
     "db: DB-smoke без FastAPI",
     "meetup: tests that require Meetup enabled",
     "timeout: marks tests with timeout",
+    "no_db: pure unit tests without PostgreSQL autouse fixtures",
 ]
