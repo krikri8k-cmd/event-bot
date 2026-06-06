@@ -105,8 +105,17 @@ def load_settings(require_bot: bool = False) -> Settings:
     # Environment files are already loaded at module level
     # Just get the current ENV_FILE value for reference
 
-    telegram_token = (os.getenv("TELEGRAM_TOKEN") or "").strip()
-    database_url = (os.getenv("DATABASE_URL") or "").strip()
+    # Backward-compatible resolution:
+    # 1) explicit TELEGRAM_TOKEN / DATABASE_URL (current behavior)
+    # 2) mode-based DEV_* / PROD_* variables via APP_ENV|BOT_ENV
+    app_env = (os.getenv("APP_ENV") or os.getenv("BOT_ENV") or "prod").strip().lower()
+    is_dev = app_env in {"dev", "development", "test", "staging"}
+
+    token_fallback = os.getenv("DEV_BOT_TOKEN") if is_dev else os.getenv("PROD_BOT_TOKEN")
+    db_fallback = os.getenv("DEV_DB_URL") if is_dev else os.getenv("PROD_DB_URL")
+
+    telegram_token = (os.getenv("TELEGRAM_TOKEN") or token_fallback or "").strip()
+    database_url = (os.getenv("DATABASE_URL") or db_fallback or "").strip()
     openai_api_key = (os.getenv("OPENAI_API_KEY") or "").strip() or None
     openai_organization = os.getenv("OPENAI_ORGANIZATION")
     eventbrite_api_key = os.getenv("EVENTBRITE_API_KEY")
