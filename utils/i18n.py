@@ -39,6 +39,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "command.myevents": "📋 Мои события - просмотр созданных событий",
         "command.tasks": "🎯 Интересные места - найти задания поблизости",
         "command.mytasks": "🏆 Мои квесты - просмотр выполненных заданий",
+        "command.partner": "👤 Места от блогера",
         "command.share": "🔗 Добавить бота в чат",
         "command.help": "💬 Написать отзыв Разработчику",
         "help.feedback.text": (
@@ -185,11 +186,19 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.start_error": "❌ Ошибка при начале задания",
         "tasks.page_edge": "Это крайняя страница",
         "tasks.require_location": "📍 Требуется геолокация",
+        "tasks.require_location_long": (
+            "📍 **Требуется геолокация**\n\n"
+            "Для получения персонализированных заданий с локациями рядом с вами, "
+            "пожалуйста, отправьте вашу геолокацию.\n\n"
+            "Нажмите кнопку '📍 Отправить геолокацию' в меню."
+        ),
         "tasks.complete_not_found": "❌ Ошибка: не найдено задание для завершения.",
         "tasks.task_not_found": "❌ Ошибка: не найдено задание.",
         "tasks.category.food": "🍔 Еда",
         "tasks.category.health": "💪 Здоровье",
         "tasks.category.places": "🌟 Интересные места",
+        "tasks.category.entertainment": "🎉 Развлечения",
+        "tasks.category.partner": "🎬 Выбор блогера",
         "tasks.places_found": "📍 Найдено мест: {count}",
         "tasks.list_footer": "Задания выполняются в 📝 Мои активности — 🏆 Квесты",
         "tasks.km_from_you": "📍 {distance:.1f} км от вас",
@@ -205,18 +214,36 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.quest_taken": "✅ Квест взят",
         "tasks.quest_added_toast": "🎯 Квест добавлен в «Мои активности»",
         "tasks.quest_add_error": "❌ Ошибка при добавлении квеста: {error}",
+        "tasks.partner.usage": "Формат: `/partner <slug>` (например, `/partner {example_slug}`).",
+        "tasks.partner.not_found": "👤 Партнер @{slug} не найден.\n\nПопробуй другой slug.",
+        "tasks.partner.places_found": "Найдено мест от партнера: <b>{count}</b>",
+        "tasks.partner.empty": "Пока нет доступных мест для этого партнера.",
+        "tasks.partner.pick_label": "⭐ <b>Выбор от</b>",
+        "tasks.partner.review_label": "🎬Обзор",
+        "tasks.partner.promo_label": "🎁 Промокод:",
+        "tasks.partner.choose": "🎬 <b>Выбери блогера</b>",
+        "tasks.partner.no_partners": "Пока нет активных блогеров.",
+        "tasks.city.bali": "Бали",
+        "tasks.city.moscow": "Москва",
+        "tasks.city.spb": "Санкт-Петербург",
+        "tasks.city.jakarta": "Джакарта",
+        "tasks.city.other": "Другое место",
         "tasks.location_received": (
             "✅ **Геолокация получена!**\n\n"
-            "Выберите категорию для получения персонализированных заданий:\n\n"
+            "Выберите категорию, чтобы открыть новые места 🌎\n\n"
             "🍔 **Еда** - кафе, рестораны, уличная еда\n"
             "💪 **Здоровье** - спорт, йога, спа, клиники\n"
-            "🌟 **Интересные места** - парки, выставки, храмы"
+            "🌟 **Интересные места** - парки, выставки, храмы\n"
+            "🎉 **Развлечения** - клубы, бары, пляжные вечеринки, шоу, мастер-классы\n"
+            "🎬 **Выбор блогера** - места с видеообзором"
         ),
         "tasks.categories_intro": (
-            "Выберите категорию заданий:\n\n"
+            "Выберите категорию, чтобы открыть новые места 🌎\n\n"
             "🍔 **Еда** - кафе, рестораны, уличная еда\n"
             "💪 **Здоровье** - спорт, йога, спа, клиники\n"
-            "🌟 **Интересные места** - парки, выставки, храмы"
+            "🌟 **Интересные места** - парки, выставки, храмы\n"
+            "🎉 **Развлечения** - клубы, бары, пляжные вечеринки, шоу, мастер-классы\n"
+            "🎬 **Выбор блогера** - места с видеообзором"
         ),
         "myevents.auto_closed": "🤖 Автоматически закрыто {count} прошедших событий",
         "myevents.header": "📋 **Мои события:**\n",
@@ -735,6 +762,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "command.myevents": "📋 My events - view created events",
         "command.tasks": ("🎯 Interesting places - find tasks nearby"),
         "command.mytasks": "🏆 My quests - view completed tasks",
+        "command.partner": "👤 Places by blogger",
         "command.share": "🔗 Add bot to chat",
         "command.help": "💬 Write feedback to Developer",
         "help.feedback.text": (
@@ -1106,11 +1134,19 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.start_error": "❌ Error starting task",
         "tasks.page_edge": "This is the last page",
         "tasks.require_location": "📍 Location required",
+        "tasks.require_location_long": (
+            "📍 **Location required**\n\n"
+            "To get personalized tasks with places near you, "
+            "please send your location.\n\n"
+            "Tap the '📍 Send location' button in the menu."
+        ),
         "tasks.complete_not_found": "❌ Error: no task found to complete.",
         "tasks.task_not_found": "❌ Error: task not found.",
         "tasks.category.food": "🍔 Food",
         "tasks.category.health": "💪 Health",
         "tasks.category.places": "🌟 Interesting places",
+        "tasks.category.entertainment": "🎉 Entertainment",
+        "tasks.category.partner": "🎬 Blogger picks",
         "tasks.places_found": "📍 Places found: {count}",
         "tasks.list_footer": "Tasks are in 📝 My activities — 🏆 Quests",
         "tasks.km_from_you": "📍 {distance:.1f} km from you",
@@ -1126,18 +1162,36 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "tasks.quest_taken": "✅ Quest taken",
         "tasks.quest_added_toast": "🎯 Quest added to «My activities»",
         "tasks.quest_add_error": "❌ Error adding quest: {error}",
+        "tasks.partner.usage": "Usage: `/partner <slug>` (for example `/partner {example_slug}`).",
+        "tasks.partner.not_found": "👤 Partner @{slug} not found.\n\nTry another slug.",
+        "tasks.partner.places_found": "Places found from partner: <b>{count}</b>",
+        "tasks.partner.empty": "No available places for this partner yet.",
+        "tasks.partner.pick_label": "⭐ <b>Picked by</b>",
+        "tasks.partner.review_label": "🎬Review",
+        "tasks.partner.promo_label": "🎁 Promo code:",
+        "tasks.partner.choose": "🎬 <b>Choose a blogger</b>",
+        "tasks.partner.no_partners": "No active bloggers yet.",
+        "tasks.city.bali": "Bali",
+        "tasks.city.moscow": "Moscow",
+        "tasks.city.spb": "Saint Petersburg",
+        "tasks.city.jakarta": "Jakarta",
+        "tasks.city.other": "Other place",
         "tasks.location_received": (
             "✅ **Location received!**\n\n"
-            "Choose category for personalized tasks:\n\n"
+            "Pick a category to discover new places 🌎\n\n"
             "🍔 **Food** - cafes, restaurants, street food\n"
             "💪 **Health** - sports, yoga, spa, clinics\n"
-            "🌟 **Interesting places** - parks, exhibitions, temples"
+            "🌟 **Interesting places** - parks, exhibitions, temples\n"
+            "🎉 **Entertainment** - clubs, bars, beach parties, shows, workshops\n"
+            "🎬 **Blogger picks** - places with video reviews"
         ),
         "tasks.categories_intro": (
-            "Choose task category:\n\n"
+            "Pick a category to discover new places 🌎\n\n"
             "🍔 **Food** - cafes, restaurants, street food\n"
             "💪 **Health** - sports, yoga, spa, clinics\n"
-            "🌟 **Interesting places** - parks, exhibitions, temples"
+            "🌟 **Interesting places** - parks, exhibitions, temples\n"
+            "🎉 **Entertainment** - clubs, bars, beach parties, shows, workshops\n"
+            "🎬 **Blogger picks** - places with video reviews"
         ),
         "myevents.auto_closed": "🤖 Auto-closed {count} past events",
         "myevents.header": "📋 **My events:**\n",

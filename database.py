@@ -150,11 +150,34 @@ class Report(Base):
     status: Mapped[str] = mapped_column(String(16), default="new")
 
 
+class Partner(Base):
+    __tablename__ = "partners"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    slug: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+    display_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    main_url: Mapped[str | None] = mapped_column(String(255))
+    telegram_contact: Mapped[str | None] = mapped_column(String(100))
+    telegram_user_id: Mapped[int | None] = mapped_column(BigInteger)
+    default_promo_code: Mapped[str | None] = mapped_column(String(100))
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    is_featured: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+    list_in_blogger_choice: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    notes: Mapped[str | None] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at_utc: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class TaskPlace(Base):
     __tablename__ = "task_places"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    category: Mapped[str] = mapped_column(String(20), nullable=False)  # 'food', 'health', 'places'
+    category: Mapped[str] = mapped_column(String(20), nullable=False)  # 'food', 'health', 'places', 'entertainment'
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     lat: Mapped[float] = mapped_column(Float, nullable=False)
@@ -165,6 +188,10 @@ class TaskPlace(Base):
     place_type: Mapped[str | None] = mapped_column(String(50))  # 'cafe', 'park', 'gym', 'yoga_studio', etc.
     task_type: Mapped[str] = mapped_column(String(20), default="urban")  # 'urban' или 'island'
     promo_code: Mapped[str | None] = mapped_column(String(100))  # Промокод или реферальный код для партнеров
+    partner_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("partners.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    review_url: Mapped[str | None] = mapped_column(String(255))
     task_hint: Mapped[str | None] = mapped_column(String(200))  # Короткое задание/подсказка (1 предложение)
     name_en: Mapped[str | None] = mapped_column(String(255))  # название на английском
     task_hint_en: Mapped[str | None] = mapped_column(String(200))  # задание/подсказка на английском
@@ -175,7 +202,7 @@ class TaskTemplate(Base):
     __tablename__ = "task_templates"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    category: Mapped[str] = mapped_column(String(20), nullable=False)  # 'food', 'health', 'places'
+    category: Mapped[str] = mapped_column(String(20), nullable=False)  # 'food', 'health', 'places', 'entertainment'
     place_type: Mapped[str] = mapped_column(String(50), nullable=False)  # 'park', 'cafe', 'library', etc.
     title: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
@@ -329,7 +356,11 @@ def make_async_engine(database_url: str):
 
 
 def _ensure_events_community_en_columns() -> None:
-    """Добавляет title_en, description_en в events_community, archive и events, если их нет (миграция при старте)."""
+    """Добавляет title_en, description_en в events_community, archive и events, если их нет (миграция при старте).
+
+    Каждый ALTER в SAVEPOINT: если таблицы archive нет, без этого весь outer-транзакшн в Postgres
+    переходит в aborted и не применяются даже ALTER к `events` (city, event_source и т.д.).
+    """
     if engine is None:
         return
     log = logging.getLogger(__name__)
@@ -346,16 +377,21 @@ def _ensure_events_community_en_columns() -> None:
         ),
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS title_en VARCHAR(255)"),
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS description_en TEXT"),
+        ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS location_name_en VARCHAR(255)"),
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS translation_retry_count INT DEFAULT 0"),
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS translation_failed BOOLEAN DEFAULT false"),
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS event_source VARCHAR(32)"),
+        ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS city VARCHAR(128)"),
+        ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS country VARCHAR(64)"),
+        ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS place_id TEXT"),
         ("task_places", "ALTER TABLE task_places ADD COLUMN IF NOT EXISTS name_en VARCHAR(255)"),
         ("task_places", "ALTER TABLE task_places ADD COLUMN IF NOT EXISTS task_hint_en VARCHAR(200)"),
     ]
     with engine.begin() as conn:
         for table, sql in statements:
             try:
-                conn.execute(text(sql))
+                with conn.begin_nested():
+                    conn.execute(text(sql))
             except Exception as e:
                 log.warning("ensure_events_community_en_columns %s: %s", table, e)
 

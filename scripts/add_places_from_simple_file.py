@@ -50,11 +50,18 @@ from dotenv import load_dotenv
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+# Импорт geo_utils тянет config.py → load_dotenv(app.local.env, override=True) и может
+# затереть DATABASE_URL из `railway run`. Сохраняем URL из окружения до импортов.
+_preserved_database_url = (os.environ.get("DATABASE_URL") or "").strip() or None
+
 from database import TaskPlace, get_session, init_engine  # noqa: E402
 from tasks_location_service import get_user_region  # noqa: E402
 from utils.geo_utils import parse_google_maps_link  # noqa: E402
 
-# Загружаем переменные окружения
+if _preserved_database_url:
+    os.environ["DATABASE_URL"] = _preserved_database_url
+
+# Загружаем переменные окружения (override по умолчанию False — не затираем восстановленный URL)
 env_path = project_root / "app.local.env"
 if env_path.exists():
     load_dotenv(env_path)
@@ -379,9 +386,15 @@ def parse_simple_file(file_path: str) -> list[dict]:
     with open(file_path, encoding="utf-8") as f:
         for line_num, line in enumerate(f, start=1):
             line = line.strip()
+            show = (line[:80] + "...") if len(line) > 80 else line
+            print(f">>> Обрабатываю строку {line_num}: {show!r}")
 
             # Пропускаем пустые строки и комментарии
             if not line or line.startswith("#"):
+                if not line:
+                    print("!!! СТРОКА ПРОПУЩЕНА: пустая")
+                else:
+                    print("!!! СТРОКА ПРОПУЩЕНА: комментарий")
                 continue
 
             # Проверяем, является ли строка заголовком категории
@@ -395,17 +408,18 @@ def parse_simple_file(file_path: str) -> list[dict]:
                     current_promo_code = parts[3].strip() if len(parts) > 3 else None
                     promo_info = f", Промокод: {current_promo_code}" if current_promo_code else ""
                     print(
-                        f"\nCategory: {current_category}, "
-                        f"Type: {current_place_type}, "
-                        f"Region: {current_region}{promo_info}"
+                        f">>> Результат парсинга заголовка: Category={current_category}, "
+                        f"Type={current_place_type}, Region={current_region}{promo_info}"
                     )
                     pending_name = None  # Сбрасываем название при смене категории
+                else:
+                    print("!!! СТРОКА ПРОПУЩЕНА: заголовок с ':', но частей < 2")
                 continue
 
             # Если это ссылка
             if line.startswith(("http://", "https://")):
                 if not current_category or not current_place_type:
-                    print(f"WARN: Строка {line_num}: пропущена (нет категории/типа)")
+                    print("!!! СТРОКА ПРОПУЩЕНА: нет категории/типа (ссылка без заголовка)")
                     continue
 
                 # Проверяем, есть ли промокод после ссылки через |
@@ -426,11 +440,13 @@ def parse_simple_file(file_path: str) -> list[dict]:
                         "name": pending_name,  # Используем сохраненное название, если есть
                     }
                 )
+                print(f">>> Результат парсинга: Name={pending_name!r}, URL={url[:50]}..., Category={current_category}")
                 pending_name = None  # Сбрасываем после использования
             else:
                 # Если это не ссылка и не заголовок - это может быть название места
                 # Сохраняем его для следующей ссылки
                 pending_name = line
+                print(f">>> Результат парсинга (название для след. ссылки): {line!r}")
 
     return result
 

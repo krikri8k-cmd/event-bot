@@ -159,7 +159,7 @@ def find_nearest_available_place(
     Находит ближайшее доступное место с учетом ротации
 
     Args:
-        category: Категория задания ('food', 'health', 'places')
+        category: Категория задания ('food', 'health', 'places', 'entertainment')
         place_type: Тип места ('cafe', 'park', 'gym', etc.)
         user_lat: Широта пользователя
         user_lng: Долгота пользователя
@@ -382,7 +382,7 @@ def get_tasks_with_places(
     Получает задания с локациями для категории и типа задания
 
     Args:
-        category: Категория заданий ('food', 'health', 'places')
+        category: Категория заданий ('food', 'health', 'places', 'entertainment')
         user_id: ID пользователя
         user_lat: Широта пользователя
         user_lng: Долгота пользователя
@@ -400,6 +400,17 @@ def get_tasks_with_places(
         "food": ["cafe", "restaurant", "street_food", "market", "bakery", "coworking"],
         "health": ["gym", "spa", "lab", "clinic", "nature"],
         "places": ["park", "exhibition", "temple", "trail", "viewpoint", "beach", "cliff", "beach_club", "culture"],
+        "entertainment": [
+            "nightclub",
+            "bar",
+            "rooftop",
+            "beach_party",
+            "live_music",
+            "show_event",
+            "workshop_trip",
+            "karaoke",
+            "lounge",
+        ],
     }
 
     place_types = category_place_types.get(category, ["park"])
@@ -469,7 +480,7 @@ def get_all_places_for_category(
     Получает все доступные места для категории с учетом ротации
 
     Args:
-        category: Категория заданий ('food', 'health', 'places')
+        category: Категория заданий ('food', 'health', 'places', 'entertainment')
         user_id: ID пользователя
         user_lat: Широта пользователя
         user_lng: Долгота пользователя

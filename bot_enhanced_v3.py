@@ -11,7 +11,8 @@ import re
 import time
 from datetime import UTC, datetime
 from math import ceil
-from urllib.parse import quote_plus, urlparse
+from urllib.parse import quote_plus, unquote, urlparse
+from urllib.request import Request, urlopen
 
 # Импорт psutil для мониторинга памяти (опционально)
 try:
@@ -68,6 +69,10 @@ from utils.user_participation_analytics import UserParticipationAnalytics
 # Тексты кнопок на обоих языках для сопоставления в обработчиках (reply-клавиатура)
 _MAIN_MENU_BUTTON_TEXTS = (t("myevents.button.main_menu", "ru"), t("myevents.button.main_menu", "en"))
 _FIND_ON_MAP_BUTTON_TEXTS = (t("tasks.button.find_on_map", "ru"), t("tasks.button.find_on_map", "en"))
+_INTERESTING_PLACES_BUTTON_TEXTS = (
+    t("menu.button.interesting_places", "ru"),
+    t("menu.button.interesting_places", "en"),
+)
 _MY_EVENTS_BUTTON_TEXTS = (t("myevents.button.my_events", "ru"), t("myevents.button.my_events", "en"))
 _MY_QUESTS_BUTTON_TEXTS = (t("myevents.button.my_quests", "ru"), t("myevents.button.my_quests", "en"))
 _CANCEL_BUTTON_TEXTS = (t("common.cancel", "ru"), t("common.cancel", "en"))
@@ -80,6 +85,7 @@ _ADD_BOT_TO_CHAT_BUTTON_TEXTS = (
     t("menu.button.add_bot_to_chat", "ru"),
     t("menu.button.add_bot_to_chat", "en"),
 )
+_PARTNER_SLUG_RE = re.compile(r"^[a-z0-9_]{2,50}$")
 
 
 def _build_tracking_url(click_type: str, event: dict, target_url: str, user_id: int | None) -> str:
@@ -3004,6 +3010,19 @@ def main_menu_kb(lang: str | None = None, user_id: int | None = None) -> ReplyKe
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
+def build_geo_request_reply_keyboard(lang: str) -> ReplyKeyboardMarkup:
+    """Reply-клавиатура для шага «отправь геолокацию / карта / домой» (события и квесты)."""
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=t("tasks.button.send_location", lang), request_location=True)],
+            [KeyboardButton(text=t("tasks.button.find_on_map", lang))],
+            [KeyboardButton(text=t("tasks.button.main_menu", lang))],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+    )
+
+
 def language_selection_kb(detected_lang: str | None = None) -> InlineKeyboardMarkup:
     """
     Создаёт клавиатуру выбора языка
@@ -3026,6 +3045,7 @@ def _build_public_commands(lang: str) -> list:
     return [
         types.BotCommand(command="language", description=t("command.language", lang)),
         types.BotCommand(command="start", description=t("command.start", lang)),
+        types.BotCommand(command="partner", description=t("command.partner", lang)),
         types.BotCommand(command="nearby", description=t("command.nearby", lang)),
         types.BotCommand(command="create", description=t("command.create", lang)),
         types.BotCommand(command="myevents", description=t("command.myevents", lang)),
@@ -3393,7 +3413,8 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
                         chat_id=message.chat.id,
                         text=text,
                         reply_markup=reply_markup,
-                        parse_mode="Markdown",
+                        parse_mode="HTML",
+                        disable_web_page_preview=True,
                     )
                     list_updated = True
                     _last_places_list_message[user_id] = (message.chat.id, sent.message_id, cat, p)
@@ -3415,6 +3436,19 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
             return
         except (ValueError, Exception) as e:
             logger.warning(f"🎯 cmd_start: неверный параметр add_quest_ {command.args}: {e}")
+
+    # Deep link партнёра: /start {slug} -> сразу показываем места блогера
+    raw_start_arg = (command.args or "") if command else ""
+    is_reserved_start_arg = raw_start_arg.startswith(("group_", "edit_group_", "add_quest_"))
+    partner_slug = _normalize_partner_slug(raw_start_arg if not is_reserved_start_arg else None)
+    if partner_slug and chat_type == "private":
+        with get_session() as session:
+            user = session.query(User).filter(User.id == user_id).first()
+            user_lat = user.last_lat if user else None
+            user_lng = user.last_lng if user else None
+
+        await show_tasks_for_partner(message, partner_slug, user_id, user_lat, user_lng, page=1)
+        return
 
     # Если это переход из группы для редактирования, запускаем FSM для редактирования
     if edit_params and chat_type == "private":
@@ -3503,6 +3537,37 @@ async def cmd_start(message: types.Message, state: FSMContext, command: CommandO
         )
 
         await message.answer(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
+
+
+@main_router.message(Command("partner"))
+async def cmd_partner_places(message: types.Message, command: CommandObject = None):
+    """Роут мест от блогера по slug.
+
+    Примеры:
+    - /partner test
+    - /partner anya
+    """
+    user_id = message.from_user.id
+    raw_arg = (command.args or "").strip() if command else ""
+    if raw_arg:
+        partner_slug = _normalize_partner_slug(raw_arg)
+        if not partner_slug:
+            user_lang = get_user_language_or_default(user_id)
+            usage = t("tasks.partner.usage", user_lang).format(example_slug="anya")
+            await message.answer(usage, parse_mode="Markdown", reply_markup=main_menu_kb(user_id=user_id))
+            return
+    else:
+        user_lang = get_user_language_or_default(user_id)
+        usage = t("tasks.partner.usage", user_lang).format(example_slug="test")
+        await message.answer(usage, parse_mode="Markdown", reply_markup=main_menu_kb(user_id=user_id))
+        return
+
+    with get_session() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        user_lat = user.last_lat if user else None
+        user_lng = user.last_lng if user else None
+
+    await show_tasks_for_partner(message, partner_slug, user_id, user_lat, user_lng, page=1)
 
 
 @main_router.message(Command("language"))
@@ -4191,7 +4256,11 @@ async def pm_handle_location_input(message: types.Message, state: FSMContext):
         if location_data:
             # Обновляем событие с данными из ссылки
             success = await update_community_event_field_pm(
-                event_id, "location_name", location_data.get("name", "Место на карте"), user_id, chat_id
+                event_id,
+                "location_name",
+                location_data.get("name", t("group.list.place_on_map", user_lang)),
+                user_id,
+                chat_id,
             )
             if success:
                 # Обновляем URL
@@ -4201,7 +4270,7 @@ async def pm_handle_location_input(message: types.Message, state: FSMContext):
                     format_translation(
                         "edit.location_updated",
                         user_lang,
-                        location=location_data.get("name", "Место на карте"),
+                        location=location_data.get("name", t("group.list.place_on_map", user_lang)),
                     ),
                     parse_mode="Markdown",
                 )
@@ -5346,7 +5415,7 @@ async def publish_community_event_to_world(
         engine = get_engine()
         events_service = UnifiedEventsService(engine)
 
-        location_name = event_data.get("location_name") or "Место на карте"
+        location_name = event_data.get("location_name") or t("group.list.place_on_map", "en")
         location_url = event_data.get("location_url")
         chat_id = event_data.get("group_id")
 
@@ -5538,21 +5607,7 @@ async def on_nearby_events_callback(callback: types.CallbackQuery, state: FSMCon
     # Устанавливаем состояние для поиска событий
     await state.set_state(EventSearch.waiting_for_location)
 
-    # Создаем клавиатуру с кнопкой геолокации и главным меню
-    location_keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                KeyboardButton(
-                    text=t("tasks.button.send_location", user_lang),
-                    request_location=True,
-                )
-            ],
-            [KeyboardButton(text=t("tasks.button.find_on_map", user_lang))],
-            [KeyboardButton(text=t("tasks.button.main_menu", user_lang))],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=False,
-    )
+    location_keyboard = build_geo_request_reply_keyboard(user_lang)
 
     # Отправляем новое сообщение с ReplyKeyboardMarkup
     await callback.message.answer(
@@ -5612,16 +5667,7 @@ async def on_what_nearby(message: types.Message, state: FSMContext):
     current_state = await state.get_state()
     logger.debug("📍 Состояние установлено: %s для пользователя %s", current_state, user_id)
 
-    # Создаем клавиатуру с кнопкой геолокации и главным меню
-    location_keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text=t("tasks.button.send_location", lang), request_location=True)],
-            [KeyboardButton(text=t("tasks.button.find_on_map", lang))],
-            [KeyboardButton(text=t("tasks.button.main_menu", lang))],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=False,  # Изменено на False, чтобы кнопка не исчезала на MacBook
-    )
+    location_keyboard = build_geo_request_reply_keyboard(lang)
 
     await message.answer(
         t("tasks.press_location_hint", lang),
@@ -5675,10 +5721,20 @@ async def on_location_for_tasks(message: types.Message, state: FSMContext):
     # Показываем выбор категории после получения геолокации
     user_lang = get_user_language_or_default(user_id)
     keyboard = [
-        [InlineKeyboardButton(text=t("tasks.category.food", user_lang), callback_data="task_category:food")],
-        [InlineKeyboardButton(text=t("tasks.category.health", user_lang), callback_data="task_category:health")],
-        [InlineKeyboardButton(text=t("tasks.category.places", user_lang), callback_data="task_category:places")],
-        [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")],
+        [
+            InlineKeyboardButton(text=t("tasks.category.food", user_lang), callback_data="task_category:food"),
+            InlineKeyboardButton(text=t("tasks.category.health", user_lang), callback_data="task_category:health"),
+        ],
+        [
+            InlineKeyboardButton(text=t("tasks.category.places", user_lang), callback_data="task_category:places"),
+            InlineKeyboardButton(
+                text=t("tasks.category.entertainment", user_lang), callback_data="task_category:entertainment"
+            ),
+        ],
+        [
+            InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main"),
+            InlineKeyboardButton(text=t("tasks.category.partner", user_lang), callback_data="task_category:partner"),
+        ],
     ]
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
@@ -5731,20 +5787,10 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
         logger.info(
             f"📍 [TEXT_INPUT] Обнаружен повторный запрос '📍 События рядом' от пользователя {user_id} (MacBook)"
         )
-        maps_keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text=t("tasks.button.find_on_map", user_lang),
-                        url="https://www.google.com/maps",
-                    )
-                ],
-            ]
-        )
         await message.answer(
             t("search.geo_prompt", user_lang),
             parse_mode="Markdown",
-            reply_markup=maps_keyboard,
+            reply_markup=build_geo_request_reply_keyboard(user_lang),
         )
         return
 
@@ -5771,19 +5817,9 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
             )
             return
         else:
-            maps_keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [
-                        InlineKeyboardButton(
-                            text=t("tasks.button.find_on_map", user_lang),
-                            url="https://www.google.com/maps",
-                        )
-                    ],
-                ]
-            )
             await message.answer(
                 t("search.geo_prompt", user_lang),
-                reply_markup=maps_keyboard,
+                reply_markup=build_geo_request_reply_keyboard(user_lang),
             )
             return
 
@@ -5817,20 +5853,10 @@ async def on_location_text_input(message: types.Message, state: FSMContext):
         pass
 
     # Если это не координаты и не ссылка, показываем подсказку
-    maps_keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=t("tasks.button.find_on_map", user_lang),
-                    url="https://www.google.com/maps",
-                )
-            ],
-        ]
-    )
     await message.answer(
         t("search.geo_prompt", user_lang),
         parse_mode="Markdown",
-        reply_markup=maps_keyboard,
+        reply_markup=build_geo_request_reply_keyboard(user_lang),
     )
 
 
@@ -5876,25 +5902,15 @@ async def on_location_text_input_tasks(message: types.Message, state: FSMContext
         return
 
     # Специальная обработка для MacBook: если пользователь нажал кнопку "🎯 Интересные места" повторно
-    if text == "🎯 Интересные места":
+    if text in _INTERESTING_PLACES_BUTTON_TEXTS:
         logger.info(
-            f"📍 [TEXT_INPUT_TASKS] Обнаружен повторный запрос '🎯 Интересные места' от пользователя {user_id} (MacBook)"
+            f"📍 [TEXT_INPUT_TASKS] Обнаружен повторный запрос Interesting places от пользователя {user_id} (MacBook)"
         )
         user_lang = get_user_language_or_default(user_id)
-        maps_keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text=t("tasks.button.find_on_map", user_lang),
-                        url="https://www.google.com/maps",
-                    )
-                ],
-            ]
-        )
         await message.answer(
             t("tasks.press_location_hint", user_lang),
             parse_mode="Markdown",
-            reply_markup=maps_keyboard,
+            reply_markup=build_geo_request_reply_keyboard(user_lang),
         )
         return
 
@@ -5957,20 +5973,10 @@ async def on_location_text_input_tasks(message: types.Message, state: FSMContext
 
     # Если это не координаты и не ссылка, показываем подсказку
     user_lang = get_user_language_or_default(user_id)
-    maps_keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=t("tasks.button.find_on_map", user_lang),
-                    url="https://www.google.com/maps",
-                )
-            ],
-        ]
-    )
     await message.answer(
         t("tasks.press_location_hint", user_lang),
         parse_mode="Markdown",
-        reply_markup=maps_keyboard,
+        reply_markup=build_geo_request_reply_keyboard(user_lang),
     )
 
 
@@ -6007,10 +6013,20 @@ async def process_task_location(message: types.Message, state: FSMContext, lat: 
     # Показываем выбор категории после получения геолокации
     user_lang = get_user_language_or_default(user_id)
     keyboard = [
-        [InlineKeyboardButton(text=t("tasks.category.food", user_lang), callback_data="task_category:food")],
-        [InlineKeyboardButton(text=t("tasks.category.health", user_lang), callback_data="task_category:health")],
-        [InlineKeyboardButton(text=t("tasks.category.places", user_lang), callback_data="task_category:places")],
-        [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")],
+        [
+            InlineKeyboardButton(text=t("tasks.category.food", user_lang), callback_data="task_category:food"),
+            InlineKeyboardButton(text=t("tasks.category.health", user_lang), callback_data="task_category:health"),
+        ],
+        [
+            InlineKeyboardButton(text=t("tasks.category.places", user_lang), callback_data="task_category:places"),
+            InlineKeyboardButton(
+                text=t("tasks.category.entertainment", user_lang), callback_data="task_category:entertainment"
+            ),
+        ],
+        [
+            InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main"),
+            InlineKeyboardButton(text=t("tasks.category.partner", user_lang), callback_data="task_category:partner"),
+        ],
     ]
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
@@ -6883,7 +6899,7 @@ def _build_my_tasks_list(
     km_suffix = t("mytasks.km_suffix", lang)
     place_label = t("mytasks.place_label", lang)
     for i, task in enumerate(page_tasks, start=start_idx + 1):
-        category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
+        category_emojis = {"food": "🍔", "health": "💪", "places": "🌟", "entertainment": "🎉"}
         category_emoji = category_emojis.get(task["category"], "📋")
         task_title = (task.get("title_en") if lang == "en" else None) or task["title"]
         message_text += f"{i}) {category_emoji} **{task_title}**\n"
@@ -7673,21 +7689,7 @@ async def on_tasks_goal(message: types.Message, state: FSMContext):
     # Устанавливаем состояние для заданий
     await state.set_state(TaskFlow.waiting_for_location)
 
-    # Создаем клавиатуру с кнопкой геолокации (one_time_keyboard=False - кнопка не исчезнет на MacBook)
-    location_keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                KeyboardButton(
-                    text=t("tasks.button.send_location", user_lang),
-                    request_location=True,
-                )
-            ],
-            [KeyboardButton(text=t("tasks.button.find_on_map", user_lang))],
-            [KeyboardButton(text=t("tasks.button.main_menu", user_lang))],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=False,  # Изменено на False, чтобы кнопка не исчезала на MacBook
-    )
+    location_keyboard = build_geo_request_reply_keyboard(user_lang)
 
     quest_text = (
         f"{t('tasks.title', user_lang)}\n" f"{t('tasks.reward', user_lang)}\n\n" f"{t('tasks.description', user_lang)}"
@@ -7865,21 +7867,7 @@ async def cmd_tasks(message: types.Message, state: FSMContext):
     # Устанавливаем состояние для заданий
     await state.set_state(TaskFlow.waiting_for_location)
 
-    # Создаем клавиатуру с кнопкой геолокации
-    location_keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                KeyboardButton(
-                    text=t("tasks.button.send_location", user_lang),
-                    request_location=True,
-                )
-            ],
-            [KeyboardButton(text=t("tasks.button.find_on_map", user_lang))],
-            [KeyboardButton(text=t("tasks.button.main_menu", user_lang))],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=False,
-    )
+    location_keyboard = build_geo_request_reply_keyboard(user_lang)
 
     quest_text = (
         f"{t('tasks.title', user_lang)}\n" f"{t('tasks.reward', user_lang)}\n\n" f"{t('tasks.description', user_lang)}"
@@ -8030,7 +8018,7 @@ async def show_task_detail(callback_or_message, tasks: list, task_index: int, us
     time_left = expires_at - datetime.now(UTC)
     int(time_left.total_seconds() / 3600)
 
-    category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
+    category_emojis = {"food": "🍔", "health": "💪", "places": "🌟", "entertainment": "🎉"}
     category_emoji = category_emojis.get(task["category"], "📋")
     category_name = t(f"tasks.category.{task['category']}", lang) if task.get("category") else task.get("category", "")
     task_title = (task.get("title_en") if lang == "en" else None) or task["title"]
@@ -8772,6 +8760,332 @@ async def handle_task_cancel(callback: types.CallbackQuery):
 _last_places_list_message: dict[int, tuple[int, int, str, int]] = {}  # user_id -> (chat_id, message_id, category, page)
 
 
+def _normalize_partner_slug(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    slug = raw.strip().lower()
+    if slug.startswith("@"):
+        slug = slug[1:]
+    if not _PARTNER_SLUG_RE.fullmatch(slug):
+        return None
+    return slug
+
+
+def _extract_partner_slug_from_text(text: str | None) -> str | None:
+    """Поддерживает: `anya`, `@anya`, `места от @anya`, `покажи места от anya`."""
+    if not text:
+        return None
+
+    normalized = text.strip().lower()
+    phrase_match = re.match(r"^(?:места\s+от|покажи\s+места\s+от)\s+(@?[a-z0-9_]{2,50})$", normalized)
+    if phrase_match:
+        return _normalize_partner_slug(phrase_match.group(1))
+
+    return _normalize_partner_slug(normalized)
+
+
+def _format_place_location_line(place, lang: str) -> str:
+    dist = getattr(place, "distance_km", None)
+    # Показываем км только если дистанция реалистична для nearby-сценария.
+    # Иначе (или без геолокации пользователя) показываем общий регион.
+    if dist is not None and dist <= 100:
+        return t("tasks.km_from_you", lang).format(distance=dist)
+
+    region_to_title = {
+        "bali": t("tasks.city.bali", lang),
+        "moscow": t("tasks.city.moscow", lang),
+        "spb": t("tasks.city.spb", lang),
+        "jakarta": t("tasks.city.jakarta", lang),
+    }
+
+    region = (getattr(place, "region", None) or "").strip().lower()
+    if not region:
+        place_lat = getattr(place, "lat", None)
+        place_lng = getattr(place, "lng", None)
+        if place_lat is not None and place_lng is not None:
+            from tasks_location_service import get_user_region
+
+            region = get_user_region(place_lat, place_lng)
+
+    city = region_to_title.get(region, t("tasks.city.other", lang))
+    return f"📍 {city}"
+
+
+def _render_partner_pick_line(partner_name: str, partner_url: str | None, review_url: str | None, lang: str) -> str:
+    label = t("tasks.partner.pick_label", lang)
+    safe_partner_name = html.escape(partner_name)
+    if partner_url:
+        partner_part = f'<a href="{html.escape(partner_url, quote=True)}">{safe_partner_name}</a>'
+    else:
+        partner_part = safe_partner_name
+
+    if review_url:
+        review_text = t("tasks.partner.review_label", lang)
+        review_part = f'<a href="{html.escape(review_url, quote=True)}">{review_text}</a>'
+        return f"{label} {partner_part} — {review_part}"
+    return f"{label} {partner_part}"
+
+
+_GOOGLE_SHORT_URL_CACHE: dict[str, str | None] = {}
+
+
+def _expand_google_maps_short_url(url: str) -> str | None:
+    cached = _GOOGLE_SHORT_URL_CACHE.get(url)
+    if cached is not None:
+        return cached
+
+    try:
+        req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urlopen(req, timeout=2.5) as resp:  # nosec B310
+            final_url = resp.geturl()
+    except Exception:
+        final_url = None
+
+    _GOOGLE_SHORT_URL_CACHE[url] = final_url
+    return final_url
+
+
+def _guess_place_name_from_google_maps_url(url: str | None) -> str | None:
+    if not url:
+        return None
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return None
+
+    # Example:
+    # /maps/place/VERA+Coffee%26Tea+(Keto+and+Healthy+dishes%26desserts)/@...
+    match = re.search(r"/maps/place/([^/]+)", parsed.path or "")
+    if not match and parsed.netloc.lower().endswith("maps.app.goo.gl"):
+        expanded_url = _expand_google_maps_short_url(url)
+        if expanded_url:
+            try:
+                expanded = urlparse(expanded_url)
+                match = re.search(r"/maps/place/([^/]+)", expanded.path or "")
+            except Exception:
+                match = None
+    if not match:
+        return None
+
+    raw_name = unquote(match.group(1)).replace("+", " ").strip()
+    if not raw_name:
+        return None
+    return raw_name
+
+
+def _render_place_card_html(
+    *,
+    idx: int,
+    place,
+    lang: str,
+    bot_username: str,
+    take_quest_label: str,
+    quest_taken_label: str,
+    is_taken: bool,
+    partner_name: str | None = None,
+    partner_url: str | None = None,
+) -> str:
+    lines: list[str] = []
+    place_name = (getattr(place, "name_en", None) or place.name) if lang == "en" else place.name
+    normalized_place_name = (place_name or "").strip().lower()
+    if normalized_place_name in {"место на карте", "place on map"}:
+        guessed_name = _guess_place_name_from_google_maps_url(getattr(place, "google_maps_url", None))
+        if guessed_name:
+            place_name = guessed_name
+        else:
+            place_name = t("create.place_on_map", lang)
+    safe_place_name = html.escape(place_name)
+
+    if place.google_maps_url:
+        lines.append(f'<b>{idx}. <a href="{html.escape(place.google_maps_url, quote=True)}">{safe_place_name}</a></b>')
+    else:
+        lines.append(f"<b>{idx}. {safe_place_name}</b>")
+
+    location_line = _format_place_location_line(place, lang)
+    if location_line:
+        lines.append(location_line)
+
+    if getattr(place, "partner_id", None) and partner_name:
+        lines.append(
+            _render_partner_pick_line(
+                partner_name=partner_name,
+                partner_url=partner_url,
+                review_url=getattr(place, "review_url", None),
+                lang=lang,
+            )
+        )
+
+    if place.promo_code:
+        promo_label = t("tasks.partner.promo_label", lang)
+        lines.append(f"{promo_label} {html.escape(place.promo_code)}")
+
+    hint_text = (getattr(place, "task_hint_en", None) or place.task_hint) if lang == "en" else (place.task_hint or "")
+    if hint_text:
+        lines.append(f"💡 <i>{html.escape(hint_text)}</i>")
+
+    if is_taken:
+        lines.append(html.escape(quest_taken_label))
+    else:
+        deep_link = f"https://t.me/{bot_username}?start=add_quest_{place.id}"
+        plain_take_quest = re.sub(r"^[^\wА-Яа-яA-Za-z0-9]+", "", take_quest_label).strip()
+        lines.append(f'🎯 <a href="{deep_link}">{html.escape(plain_take_quest)}</a>')
+
+    return "\n".join(lines)
+
+
+async def _build_partner_places_list_content(
+    partner_slug: str,
+    user_id: int,
+    user_lat: float | None,
+    user_lng: float | None,
+    page: int,
+) -> tuple[str, InlineKeyboardMarkup]:
+    from sqlalchemy import and_, func
+
+    from database import Partner, TaskPlace
+
+    lang = get_user_language_or_default(user_id)
+    with get_session() as session:
+        partner = (
+            session.query(Partner)
+            .filter(and_(func.lower(Partner.slug) == partner_slug, Partner.is_active == True))  # noqa: E712
+            .first()
+        )
+        if not partner:
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(text=t("tasks.button.list", lang), callback_data="back_to_partner_list"),
+                        InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main"),
+                    ]
+                ]
+            )
+            not_found = t("tasks.partner.not_found", lang).format(slug=html.escape(partner_slug))
+            return not_found, keyboard
+
+        base_query = session.query(TaskPlace).filter(
+            and_(
+                TaskPlace.partner_id == partner.id,
+                TaskPlace.is_active == True,  # noqa: E712
+            )
+        )
+        # Всегда показываем все активные места блогера, чтобы пользователь видел полный "путь" партнера.
+        # Геолокация влияет только на сортировку и формат строки локации (км или город).
+        places = base_query.all()
+
+    if user_lat is not None and user_lng is not None:
+        for place in places:
+            place.distance_km = haversine_km(user_lat, user_lng, place.lat, place.lng)
+        places.sort(key=lambda p: getattr(p, "distance_km", 10_000))
+    else:
+        for place in places:
+            place.distance_km = None
+
+    places_per_page = 8
+    total_pages = max(1, (len(places) + places_per_page - 1) // places_per_page)
+    page = max(1, min(page, total_pages))
+    start_idx = (page - 1) * places_per_page
+    end_idx = min(start_idx + places_per_page, len(places))
+    page_places = places[start_idx:end_idx]
+
+    active_tasks = get_user_active_tasks(user_id)
+    taken_place_ids = {t.get("place_id") for t in active_tasks if t.get("place_id")}
+    bot_username = get_bot_username()
+    take_quest_label = t("tasks.take_quest", lang)
+    quest_taken_label = t("tasks.quest_taken", lang)
+
+    partner_name = partner.display_name
+    if partner.main_url:
+        header = f'👤 <b><a href="{html.escape(partner.main_url, quote=True)}">{html.escape(partner_name)}</a></b>'
+    else:
+        header = f"👤 <b>{html.escape(partner_name)}</b>"
+
+    places_count_line = t("tasks.partner.places_found", lang).format(count=len(places))
+    text = f"{header}\n\n{places_count_line}\n\n"
+
+    if not places:
+        empty = t("tasks.partner.empty", lang)
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text=t("tasks.button.list", lang), callback_data="back_to_partner_list"),
+                    InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main"),
+                ]
+            ]
+        )
+        return f"{text}{empty}", keyboard
+
+    for idx, place in enumerate(page_places, start=start_idx + 1):
+        text += _render_place_card_html(
+            idx=idx,
+            place=place,
+            lang=lang,
+            bot_username=bot_username,
+            take_quest_label=take_quest_label,
+            quest_taken_label=quest_taken_label,
+            is_taken=place.id in taken_place_ids,
+            partner_name=partner_name,
+            partner_url=partner.main_url,
+        )
+        text += "\n\n"
+
+    keyboard: list[list[InlineKeyboardButton]] = []
+    if total_pages > 1:
+        prev_p = total_pages if page == 1 else page - 1
+        next_p = 1 if page == total_pages else page + 1
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    text=format_translation("pager.page", lang, page=page, total=total_pages),
+                    callback_data="partner_places_page:noop",
+                ),
+                InlineKeyboardButton(
+                    text=t("pager.prev", lang), callback_data=f"partner_places_page:{partner_slug}:{prev_p}"
+                ),
+                InlineKeyboardButton(
+                    text=t("pager.next", lang), callback_data=f"partner_places_page:{partner_slug}:{next_p}"
+                ),
+            ]
+        )
+    keyboard.append(
+        [
+            InlineKeyboardButton(text=t("tasks.button.list", lang), callback_data="back_to_partner_list"),
+            InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main"),
+        ]
+    )
+    return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+async def show_tasks_for_partner(
+    message_or_callback,
+    partner_slug: str,
+    user_id: int,
+    user_lat: float | None,
+    user_lng: float | None,
+    page: int = 1,
+    prefer_edit: bool = False,
+):
+    text, reply_markup = await _build_partner_places_list_content(partner_slug, user_id, user_lat, user_lng, page)
+    if prefer_edit and hasattr(message_or_callback, "edit_text"):
+        try:
+            await message_or_callback.edit_text(
+                text,
+                parse_mode="HTML",
+                reply_markup=reply_markup,
+                disable_web_page_preview=True,
+            )
+            return
+        except Exception:
+            # Fallback на обычную отправку сообщения, если редактирование невозможно
+            pass
+    await message_or_callback.answer(
+        text,
+        parse_mode="HTML",
+        reply_markup=reply_markup,
+        disable_web_page_preview=True,
+    )
+
+
 async def _build_places_list_content(
     category: str,
     user_id: int,
@@ -8782,6 +9096,7 @@ async def _build_places_list_content(
 ) -> tuple[str, InlineKeyboardMarkup]:
     """Собирает текст и клавиатуру списка мест. just_added_place_id — только что добавленный квест (уже в БД),
     передаём явно, чтобы список показывал «Квест взят» без зависимости от кэша/реплики."""
+    from database import Partner
     from tasks_location_service import get_all_places_for_category, get_task_type_for_region, get_user_region_type
 
     region_type = get_user_region_type(user_lat, user_lng)
@@ -8802,10 +9117,12 @@ async def _build_places_list_content(
                 [InlineKeyboardButton(text=t("tasks.button.main_menu", lang), callback_data="back_to_main")],
             ]
         )
-        return f"🎯 **{category_name}**\n\n{no_places_text}", reply_markup
+        return f"🎯 <b>{html.escape(category_name)}</b>\n\n{html.escape(no_places_text)}", reply_markup
 
-    # Промо-приоритет: места с promo_code в радиусе 2 км идут первыми (stable partition),
-    # остальной порядок сохраняем как был (включая текущую сортировку/ротацию внутри all_places).
+    # Приоритет в общем списке:
+    # 1) места с promo_code в радиусе 2 км
+    # 2) партнерские места (partner_id) в радиусе 2 км
+    # Дальше сохраняем исходный порядок (stable sort).
     PROMO_PRIORITY_RADIUS_KM = 2.0
 
     def _promo_priority(p) -> bool:
@@ -8813,9 +9130,19 @@ async def _build_places_list_content(
         dist = getattr(p, "distance_km", None)
         return bool(code) and dist is not None and dist <= PROMO_PRIORITY_RADIUS_KM
 
-    promo_places = [p for p in all_places if _promo_priority(p)]
-    other_places = [p for p in all_places if not _promo_priority(p)]
-    all_places = promo_places + other_places
+    def _partner_priority(p) -> bool:
+        dist = getattr(p, "distance_km", None)
+        return bool(getattr(p, "partner_id", None)) and dist is not None and dist <= PROMO_PRIORITY_RADIUS_KM
+
+    indexed_places = list(enumerate(all_places))
+    indexed_places.sort(
+        key=lambda pair: (
+            0 if _promo_priority(pair[1]) else 1,
+            0 if _partner_priority(pair[1]) else 1,
+            pair[0],
+        )
+    )
+    all_places = [place for _, place in indexed_places]
 
     places_per_page = 8
     total_pages = (len(all_places) + places_per_page - 1) // places_per_page
@@ -8823,6 +9150,12 @@ async def _build_places_list_content(
     start_idx = (page - 1) * places_per_page
     end_idx = min(start_idx + places_per_page, len(all_places))
     page_places = all_places[start_idx:end_idx]
+    partner_ids = sorted({getattr(p, "partner_id", None) for p in page_places if getattr(p, "partner_id", None)})
+    partners_by_id: dict[int, Partner] = {}
+    if partner_ids:
+        with get_session() as session:
+            partners = session.query(Partner).filter(Partner.id.in_(partner_ids)).all()
+            partners_by_id = {p.id: p for p in partners}
 
     # Свежий запрос к БД при каждом формировании списка — без кэша. Узнаём, какие квесты пользователь уже взял.
     active_tasks = get_user_active_tasks(user_id)
@@ -8834,37 +9167,29 @@ async def _build_places_list_content(
     take_quest_label = t("tasks.take_quest", lang)
     quest_taken_label = t("tasks.quest_taken", lang)
 
-    text = f"🎯 **{category_name}**\n\n"
-    text += t("tasks.places_found", lang).format(count=len(all_places)) + "\n\n"
+    text = f"🎯 <b>{html.escape(category_name)}</b>\n\n"
+    text += html.escape(t("tasks.places_found", lang).format(count=len(all_places))) + "\n\n"
 
     for idx, place in enumerate(page_places, start=start_idx + 1):
-        place_display_name = (getattr(place, "name_en", None) or place.name) if lang == "en" else place.name
-        if place.google_maps_url:
-            escaped_name = (
-                place_display_name.replace("[", "\\[").replace("]", "\\]").replace("(", "\\(").replace(")", "\\)")
-            )
-            text += f"**{idx}. [{escaped_name}]({place.google_maps_url})**\n"
-        else:
-            text += f"**{idx}. {place_display_name}**\n"
-        if hasattr(place, "distance_km") and place.distance_km:
-            text += t("tasks.km_from_you", lang).format(distance=place.distance_km) + "\n"
-        if place.promo_code:
-            text += t("tasks.promo_code", lang).format(code=place.promo_code) + "\n"
-        hint_text = (
-            (getattr(place, "task_hint_en", None) or place.task_hint) if lang == "en" else (place.task_hint or "")
-        )
-        if hint_text:
-            text += f"💡 {hint_text}\n"
-        # Fail-safe: если place_id == just_added_place_id — гарантированно «✅ Квест взят». Иначе — по свежему списку из БД.
+        partner = partners_by_id.get(getattr(place, "partner_id", None))
+        partner_name = partner.display_name if partner else None
+        partner_url = partner.main_url if partner else None
         is_taken = (just_added_place_id is not None and place.id == just_added_place_id) or place.id in taken_place_ids
-        if is_taken:
-            text += quest_taken_label + "\n\n"
-        else:
-            deep_link = f"https://t.me/{bot_username}?start=add_quest_{place.id}"
-            text += f"[{take_quest_label}]({deep_link})\n\n"
+        text += _render_place_card_html(
+            idx=idx,
+            place=place,
+            lang=lang,
+            bot_username=bot_username,
+            take_quest_label=take_quest_label,
+            quest_taken_label=quest_taken_label,
+            is_taken=is_taken,
+            partner_name=partner_name,
+            partner_url=partner_url,
+        )
+        text += "\n\n"
 
     if page == 1:
-        text += t("tasks.list_footer", lang)
+        text += html.escape(t("tasks.list_footer", lang))
 
     # Один ряд навигации: [ Стр. N/M ] [ Назад ] [ Вперёд ], затем Список | Главное меню
     keyboard = []
@@ -8905,9 +9230,19 @@ async def show_tasks_for_category(
     text, reply_markup = await _build_places_list_content(category, user_id, user_lat, user_lng, page)
 
     if hasattr(message_or_callback, "edit_text"):
-        await message_or_callback.edit_text(text, parse_mode="Markdown", reply_markup=reply_markup)
+        await message_or_callback.edit_text(
+            text,
+            parse_mode="HTML",
+            reply_markup=reply_markup,
+            disable_web_page_preview=True,
+        )
     else:
-        await message_or_callback.answer(text, parse_mode="Markdown", reply_markup=reply_markup)
+        await message_or_callback.answer(
+            text,
+            parse_mode="HTML",
+            reply_markup=reply_markup,
+            disable_web_page_preview=True,
+        )
 
     # Сохраняем сообщение списка, чтобы по deep link «Забрать квест» обновить его на месте
     if hasattr(message_or_callback, "chat") and hasattr(message_or_callback, "message_id"):
@@ -8928,6 +9263,64 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
     """Обработчик выбора категории задания"""
     category = callback.data.split(":")[1]
     user_id = callback.from_user.id
+    user_lang = get_user_language_or_default(user_id)
+
+    if category == "partner":
+        from database import Partner
+
+        with get_session() as session:
+            partners = (
+                session.query(Partner)
+                .filter(
+                    Partner.is_active == True,  # noqa: E712
+                    Partner.list_in_blogger_choice == True,  # noqa: E712
+                )
+                .order_by(Partner.display_name.asc())
+                .all()
+            )
+
+        if not partners:
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")]
+                ]
+            )
+            await callback.message.edit_text(
+                t("tasks.partner.no_partners", user_lang),
+                reply_markup=keyboard,
+                parse_mode="HTML",
+            )
+            await callback.answer()
+            return
+
+        keyboard_rows: list[list[InlineKeyboardButton]] = []
+        row: list[InlineKeyboardButton] = []
+        for partner in partners[:20]:
+            row.append(
+                InlineKeyboardButton(
+                    text=partner.display_name,
+                    callback_data=f"partner_open:{partner.slug}",
+                )
+            )
+            if len(row) == 2:
+                keyboard_rows.append(row)
+                row = []
+        if row:
+            keyboard_rows.append(row)
+        keyboard_rows.append(
+            [
+                InlineKeyboardButton(text=t("tasks.button.list", user_lang), callback_data="back_to_tasks"),
+                InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main"),
+            ]
+        )
+
+        await callback.message.edit_text(
+            t("tasks.partner.choose", user_lang),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
+            parse_mode="HTML",
+        )
+        await callback.answer()
+        return
 
     # Получаем координаты пользователя из БД
     with get_session() as session:
@@ -8938,10 +9331,7 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
     # Если координаты отсутствуют, просим отправить геолокацию
     if not user_lat or not user_lng:
         await callback.message.edit_text(
-            "📍 **Требуется геолокация**\n\n"
-            "Для получения персонализированных заданий с локациями рядом с вами, "
-            "пожалуйста, отправьте вашу геолокацию.\n\n"
-            "Нажмите кнопку '📍 Отправить геолокацию' в меню.",
+            t("tasks.require_location_long", user_lang),
             parse_mode="Markdown",
         )
         await callback.answer()
@@ -8949,6 +9339,88 @@ async def handle_task_category_selection(callback: types.CallbackQuery, state: F
 
     # Используем общую функцию для показа мест (страница 1)
     await show_tasks_for_category(callback.message, category, user_id, user_lat, user_lng, state, page=1)
+    await callback.answer()
+
+
+@main_router.callback_query(F.data.startswith("partner_open:"))
+async def handle_partner_open(callback: types.CallbackQuery):
+    partner_slug = callback.data.split(":", 1)[1]
+    user_id = callback.from_user.id
+
+    with get_session() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        user_lat = user.last_lat if user else None
+        user_lng = user.last_lng if user else None
+
+    await show_tasks_for_partner(
+        callback.message,
+        partner_slug,
+        user_id,
+        user_lat,
+        user_lng,
+        page=1,
+        prefer_edit=True,
+    )
+    await callback.answer()
+
+
+@main_router.callback_query(F.data == "back_to_partner_list")
+async def handle_back_to_partner_list(callback: types.CallbackQuery):
+    user_id = callback.from_user.id
+    user_lang = get_user_language_or_default(user_id)
+    from database import Partner
+
+    with get_session() as session:
+        partners = (
+            session.query(Partner)
+            .filter(
+                Partner.is_active == True,  # noqa: E712
+                Partner.list_in_blogger_choice == True,  # noqa: E712
+            )
+            .order_by(Partner.display_name.asc())
+            .all()
+        )
+
+    if not partners:
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")]
+            ]
+        )
+        await callback.message.edit_text(
+            t("tasks.partner.no_partners", user_lang),
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
+        await callback.answer()
+        return
+
+    keyboard_rows: list[list[InlineKeyboardButton]] = []
+    row: list[InlineKeyboardButton] = []
+    for partner in partners[:20]:
+        row.append(
+            InlineKeyboardButton(
+                text=partner.display_name,
+                callback_data=f"partner_open:{partner.slug}",
+            )
+        )
+        if len(row) == 2:
+            keyboard_rows.append(row)
+            row = []
+    if row:
+        keyboard_rows.append(row)
+    keyboard_rows.append(
+        [
+            InlineKeyboardButton(text=t("tasks.button.list", user_lang), callback_data="back_to_tasks"),
+            InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main"),
+        ]
+    )
+
+    await callback.message.edit_text(
+        t("tasks.partner.choose", user_lang),
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
+        parse_mode="HTML",
+    )
     await callback.answer()
 
 
@@ -9016,10 +9488,20 @@ async def handle_back_to_tasks(callback: types.CallbackQuery):
     """Обработчик возврата к выбору категории заданий"""
     user_lang = get_user_language_or_default(callback.from_user.id)
     keyboard = [
-        [InlineKeyboardButton(text=t("tasks.category.food", user_lang), callback_data="task_category:food")],
-        [InlineKeyboardButton(text=t("tasks.category.health", user_lang), callback_data="task_category:health")],
-        [InlineKeyboardButton(text=t("tasks.category.places", user_lang), callback_data="task_category:places")],
-        [InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main")],
+        [
+            InlineKeyboardButton(text=t("tasks.category.food", user_lang), callback_data="task_category:food"),
+            InlineKeyboardButton(text=t("tasks.category.health", user_lang), callback_data="task_category:health"),
+        ],
+        [
+            InlineKeyboardButton(text=t("tasks.category.places", user_lang), callback_data="task_category:places"),
+            InlineKeyboardButton(
+                text=t("tasks.category.entertainment", user_lang), callback_data="task_category:entertainment"
+            ),
+        ],
+        [
+            InlineKeyboardButton(text=t("tasks.button.main_menu", user_lang), callback_data="back_to_main"),
+            InlineKeyboardButton(text=t("tasks.category.partner", user_lang), callback_data="task_category:partner"),
+        ],
     ]
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
@@ -9061,6 +9543,27 @@ async def handle_places_page(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
+@main_router.callback_query(F.data.startswith("partner_places_page:"))
+async def handle_partner_places_page(callback: types.CallbackQuery):
+    parts = callback.data.split(":")
+    if len(parts) < 3 or parts[1] == "noop":
+        await callback.answer()
+        return
+
+    partner_slug = parts[1]
+    page = int(parts[2])
+    user_id = callback.from_user.id
+    with get_session() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        user_lat = user.last_lat if user else None
+        user_lng = user.last_lng if user else None
+
+    await show_tasks_for_partner(
+        callback.message, partner_slug, user_id, user_lat, user_lng, page=page, prefer_edit=True
+    )
+    await callback.answer()
+
+
 @main_router.callback_query(F.data.startswith("add_place_to_quests:"))
 async def handle_add_place_to_quests(callback: types.CallbackQuery, state: FSMContext):
     """Обработчик добавления места в квесты (для старых сообщений с кнопкой). В списке теперь только ссылки."""
@@ -9086,6 +9589,7 @@ async def handle_task_manage(callback: types.CallbackQuery):
     """Обработчик управления заданием"""
     user_task_id = int(callback.data.split(":")[1])
     user_id = callback.from_user.id
+    user_lang = get_user_language_or_default(user_id)
 
     # Получаем информацию о задании
     active_tasks = get_user_active_tasks(user_id)
@@ -9104,7 +9608,7 @@ async def handle_task_manage(callback: types.CallbackQuery):
     # Проверка на истечение отключена - задания доступны всегда
     # Время истечения больше не показываем, так как ограничение снято
 
-    category_emojis = {"food": "🍔", "health": "💪", "places": "🌟"}
+    category_emojis = {"food": "🍔", "health": "💪", "places": "🌟", "entertainment": "🎉"}
     category_emoji = category_emojis.get(task_info["category"], "📋")
 
     message = f"{category_emoji} **{task_info['title']}**\n\n"
@@ -9112,7 +9616,7 @@ async def handle_task_manage(callback: types.CallbackQuery):
 
     # Показываем локацию, если есть
     if task_info.get("place_name") or task_info.get("place_url"):
-        place_name = task_info.get("place_name", "Место на карте")
+        place_name = task_info.get("place_name", t("group.list.place_on_map", user_lang))
         place_url = task_info.get("place_url")
         distance = task_info.get("distance_km")
 
@@ -9454,15 +9958,15 @@ async def handle_location_type_text(message: types.Message, state: FSMContext):
 
         if location_data:
             # Сохраняем данные локации
+            user_lang = get_user_language_or_default(message.from_user.id)
             await state.update_data(
-                location_name=location_data.get("name", "Место на карте"),
+                location_name=location_data.get("name", t("group.list.place_on_map", user_lang)),
                 location_lat=location_data.get("lat"),
                 location_lng=location_data.get("lng"),
             )
 
             # Переходим к описанию
             await state.set_state(EventCreation.waiting_for_description)
-            user_lang = get_user_language_or_default(message.from_user.id)
             await message.answer(
                 format_translation(
                     "create.place_defined",
@@ -10569,6 +11073,8 @@ async def process_community_location_url_group(message: types.Message, state: FS
     else:
         # Это ссылка
         location_url = location_input
+        user_lang = get_user_language_or_default(message.from_user.id)
+        place_on_map_label = t("group.list.place_on_map", user_lang)
         try:
             if "maps.google.com" in location_url or "goo.gl" in location_url or "maps.app.goo.gl" in location_url:
                 from utils.geo_utils import parse_google_maps_link
@@ -10576,11 +11082,11 @@ async def process_community_location_url_group(message: types.Message, state: FS
                 location_data = await parse_google_maps_link(location_url)
                 logger.info(f"🌍 parse_google_maps_link (community group) ответ: {location_data}")
                 if location_data:
-                    location_name = location_data.get("name") or "Место на карте"
+                    location_name = location_data.get("name") or place_on_map_label
                     location_lat = location_data.get("lat")
                     location_lng = location_data.get("lng")
                 else:
-                    location_name = "Место на карте"
+                    location_name = place_on_map_label
             elif "yandex.ru/maps" in location_url:
                 location_name = "Место на Яндекс.Картах"
             else:
@@ -11188,6 +11694,17 @@ async def echo_message(message: types.Message, state: FSMContext):
     logger.info(
         f"echo_message: получили сообщение '{message.text}' от пользователя {message.from_user.id}, состояние: {current_state}"
     )
+    partner_slug = _extract_partner_slug_from_text(message.text)
+    if partner_slug:
+        user_id = message.from_user.id
+        with get_session() as session:
+            user = session.query(User).filter(User.id == user_id).first()
+            user_lat = user.last_lat if user else None
+            user_lng = user.last_lng if user else None
+
+        await show_tasks_for_partner(message, partner_slug, user_id, user_lat, user_lng, page=1)
+        return
+
     logger.info("echo_message: отвечаем общим сообщением")
     user_id = message.from_user.id
     user_lang = get_user_language_or_default(user_id)
@@ -12832,7 +13349,10 @@ async def handle_location_input(message: types.Message, state: FSMContext):
         if location_data:
             # Обновляем событие с данными из ссылки
             success = update_event_field(
-                event_id, "location_name", location_data.get("name", "Место на карте"), message.from_user.id
+                event_id,
+                "location_name",
+                location_data.get("name", t("group.list.place_on_map", user_lang)),
+                message.from_user.id,
             )
             if success:
                 # Обновляем URL и координаты
@@ -12843,7 +13363,9 @@ async def handle_location_input(message: types.Message, state: FSMContext):
 
                 await message.answer(
                     format_translation(
-                        "edit.location_updated", user_lang, location=location_data.get("name", "Место на карте")
+                        "edit.location_updated",
+                        user_lang,
+                        location=location_data.get("name", t("group.list.place_on_map", user_lang)),
                     ),
                     parse_mode="Markdown",
                 )
