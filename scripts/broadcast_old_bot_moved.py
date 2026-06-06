@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 """
-Рассылка от СТАРОГО бота всем пользователям из БД: "Мы переехали, новый бот: ..."
+Рассылка от СТАРОГО бота всем пользователям из БД: «Мы переехали» → новый @MyGuide_EventBot.
 
-Запуск:
-  set OLD_TELEGRAM_TOKEN=<старый_токен>
-  set NEW_BOT_USERNAME=<username_нового_бота_без_@>
+Переменные окружения (.env / app.local.env / export):
+  OLD_TELEGRAM_TOKEN — токен старого бота (не путать с TELEGRAM_TOKEN нового)
+  DATABASE_URL       — PostgreSQL (полный URL, обычно …/railway в конце)
+  NEW_BOT_USERNAME   — опционально, например MyGuide_EventBot или @MyGuide_EventBot
+
+Запуск (Windows cmd):
+  set OLD_TELEGRAM_TOKEN=...
+  python scripts/broadcast_old_bot_moved.py --dry-run
   python scripts/broadcast_old_bot_moved.py
 
-Сначала проверка без отправки:
+Bash:
+  export OLD_TELEGRAM_TOKEN=...
   python scripts/broadcast_old_bot_moved.py --dry-run
-
-Требуется DATABASE_URL (из .env / app.local.env / railway.env).
 """
 
 import argparse
@@ -19,32 +23,45 @@ import os
 import sys
 from pathlib import Path
 
-from aiogram import Bot
-from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
-from dotenv import load_dotenv
-from sqlalchemy import select
+# Запуск: python scripts/broadcast_old_bot_moved.py из корня репозитория
+_ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
-from database import User, get_engine, init_engine
+from aiogram import Bot  # noqa: E402
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError  # noqa: E402
+from dotenv import load_dotenv  # noqa: E402
+from sqlalchemy import select  # noqa: E402
+
+from database import User, get_engine, init_engine  # noqa: E402
 
 
 def _load_env():
+    """Подгружаем все найденные файлы; последний перекрывает ключи.
+    Порядок: сначала общие, потом .env, в конце .env.local (локальные секреты всегда побеждают)."""
     root = Path(__file__).resolve().parent.parent
-    for name in ("app.local.env", ".env.local", ".env"):
+    for name in ("app.local.env", ".env", ".env.local"):
         path = root / name
         if path.exists():
-            load_dotenv(path, override=False)
-            break
+            load_dotenv(path, override=True)
 
 
-MESSAGE_RU = (
-    "🚀 Мы переехали!\n\n"
-    "Теперь мы здесь — нажмите ссылку и начните с /start:\n"
-    "{link}\n\n"
-    "Спасибо, что были с нами!"
-)
-MESSAGE_EN = (
-    "🚀 We've moved!\n\n" "Find us here — tap the link and send /start:\n" "{link}\n\n" "Thanks for staying with us!"
-)
+def _normalize_username(raw: str) -> str:
+    """Без @ для ссылок t.me/username."""
+    s = (raw or "").strip()
+    if s.startswith("@"):
+        s = s[1:]
+    return s
+
+
+def _message_ru(display_at: str, link: str) -> str:
+    return (
+        "Привет! Мы обновили бота и переехали.\n\n"
+        f"Новый бот: {display_at}\n"
+        f"{link}\n\n"
+        "Открой его и нажми /start — там актуальные события и места.\n\n"
+        "Спасибо, что были с нами!"
+    )
 
 
 async def main():
@@ -55,14 +72,25 @@ async def main():
     args = parser.parse_args()
 
     old_token = os.getenv("OLD_TELEGRAM_TOKEN")
-    new_username = (os.getenv("NEW_BOT_USERNAME") or "MyGuide_EventBot").strip()
+    new_username = _normalize_username(os.getenv("NEW_BOT_USERNAME") or "MyGuide_EventBot")
     db_url = os.getenv("DATABASE_URL")
 
     if not old_token:
-        print("Set OLD_TELEGRAM_TOKEN.")
+        root = Path(__file__).resolve().parent.parent
+        env_files = [root / n for n in ("app.local.env", ".env", ".env.local")]
+        found = [p for p in env_files if p.exists()]
+        # ASCII-only: avoids UnicodeEncodeError on Windows cp1252 consoles
+        print("OLD_TELEGRAM_TOKEN is not set.")
+        if found:
+            print("  Env files loaded:", ", ".join(p.name for p in found))
+            print("  Add OLD_TELEGRAM_TOKEN=... to one of them (no spaces around =).")
+        else:
+            print("  No env files in project root:", ", ".join(p.name for p in env_files))
+            print("  Create .env or .env.local next to requirements.txt, or export vars in shell.")
+            print("  Tip: Save the file in the editor (Ctrl+S) — dotenv reads from disk, not unsaved buffers.")
         sys.exit(1)
     if not new_username:
-        print("Set NEW_BOT_USERNAME (new bot username without @).")
+        print("Set NEW_BOT_USERNAME (e.g. MyGuide_EventBot or @MyGuide_EventBot).")
         sys.exit(1)
     if not db_url:
         print("Set DATABASE_URL (e.g. in app.local.env).")
@@ -70,13 +98,12 @@ async def main():
 
     init_engine(db_url)
     engine = get_engine()
-    link = f"https://t.me/{new_username}"
 
     with engine.connect() as conn:
         result = conn.execute(select(User.id))
-        user_ids = [row[0] for row in result]
+        user_ids = sorted({int(row[0]) for row in result})
 
-    print(f"Users in DB: {len(user_ids)}")
+    print(f"Users in DB (unique): {len(user_ids)}")
     if not user_ids:
         print("No users to notify.")
         return
@@ -86,6 +113,9 @@ async def main():
         return
 
     bot = Bot(token=old_token.strip())
+    display_at = f"@{new_username}"
+    link = f"https://t.me/{new_username}"
+    text = _message_ru(display_at, link)
     sent = 0
     forbidden = 0
     other_errors = 0
@@ -93,10 +123,7 @@ async def main():
     try:
         for i, user_id in enumerate(user_ids):
             try:
-                await bot.send_message(
-                    chat_id=user_id,
-                    text=MESSAGE_RU.format(link=link) + "\n\n---\n\n" + MESSAGE_EN.format(link=link),
-                )
+                await bot.send_message(chat_id=user_id, text=text)
                 sent += 1
                 if (i + 1) % 50 == 0:
                     print(f"  sent {i + 1}/{len(user_ids)} ...")
