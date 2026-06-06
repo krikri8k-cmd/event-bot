@@ -85,7 +85,11 @@ _ADD_BOT_TO_CHAT_BUTTON_TEXTS = (
     t("menu.button.add_bot_to_chat", "ru"),
     t("menu.button.add_bot_to_chat", "en"),
 )
-_PARTNER_SLUG_RE = re.compile(r"^[a-z0-9_]{2,50}$")
+# Допускаем мягкие разделители (_ . -), чтобы пользователь мог ввести видимое имя блогера
+# (например doc_polli, nastya.mavi, v.d_fitness). Пробел сознательно НЕ разрешён, иначе обычные
+# фразы из двух слов в чате трактовались бы как slug. Точное сопоставление с базой делает
+# канонический ключ (_canonical_partner_key), который убирает все эти разделители.
+_PARTNER_SLUG_RE = re.compile(r"^[a-z0-9_.\-]{2,50}$")
 
 
 def _build_tracking_url(click_type: str, event: dict, target_url: str, user_id: int | None) -> str:
@@ -8771,6 +8775,17 @@ def _normalize_partner_slug(raw: str | None) -> str | None:
     return slug
 
 
+def _canonical_partner_key(raw: str | None) -> str:
+    """Канонический ключ для толерантного сравнения: только [a-z0-9].
+
+    Убирает мягкие разделители и регистр, чтобы doc_polli / docpolli / nastya.mavi
+    сопоставлялись со slug-ом в базе независимо от точек/подчёркиваний/дефисов.
+    """
+    if not raw:
+        return ""
+    return re.sub(r"[^a-z0-9]", "", raw.lower())
+
+
 def _extract_partner_slug_from_text(text: str | None) -> str | None:
     """Поддерживает: `anya`, `@anya`, `места от @anya`, `покажи места от anya`."""
     if not text:
@@ -8940,7 +8955,7 @@ async def _build_partner_places_list_content(
     user_lng: float | None,
     page: int,
 ) -> tuple[str, InlineKeyboardMarkup]:
-    from sqlalchemy import and_, func
+    from sqlalchemy import and_, func, or_
 
     from database import Partner, TaskPlace
 
@@ -8951,6 +8966,24 @@ async def _build_partner_places_list_content(
             .filter(and_(func.lower(Partner.slug) == partner_slug, Partner.is_active == True))  # noqa: E712
             .first()
         )
+        if not partner:
+            # Толерантный fallback: сопоставляем по каноническому ключу (без _ . -)
+            # как со slug-ом, так и с display_name, чтобы doc_polli == docpolli и т.п.
+            canonical = _canonical_partner_key(partner_slug)
+            if canonical:
+                slug_canon = func.regexp_replace(func.lower(Partner.slug), r"[^a-z0-9]", "", "g")
+                name_canon = func.regexp_replace(func.lower(Partner.display_name), r"[^a-z0-9]", "", "g")
+                partner = (
+                    session.query(Partner)
+                    .filter(
+                        and_(
+                            Partner.is_active == True,  # noqa: E712
+                            or_(slug_canon == canonical, name_canon == canonical),
+                        )
+                    )
+                    .order_by(Partner.priority.desc(), Partner.id.asc())
+                    .first()
+                )
         if not partner:
             keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[
