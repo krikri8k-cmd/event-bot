@@ -354,6 +354,14 @@ def add_place_from_url(
 
             if generate_hint_for_place(place):
                 print(f"   AI: Сгенерирована подсказка: {place.task_hint[:50]}...")
+                try:
+                    from utils.event_translation import translate_task_hints_batch
+
+                    hints_en = translate_task_hints_batch([place.task_hint])
+                    if hints_en and hints_en[0]:
+                        place.task_hint_en = hints_en[0]
+                except Exception as e_tr:
+                    print(f"   WARN: Не удалось перевести task_hint_en: {e_tr}")
         except Exception as e:
             print(f"   WARN: Не удалось сгенерировать подсказку: {e}")
 
