@@ -1143,9 +1143,9 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
 
     logger.debug("🕐 render_event_html: title=%s, when_str=%s", title[:40] if title else "", when)
 
-    # Если when_str пустое, используем функцию human_when с учетом часового пояса пользователя
+    # Если when_str пустое, формируем строку времени по сценарию (диапазон / старт / весь день)
     if not when:
-        when = human_when(e, user_id=user_id)
+        when = format_event_when(e, user_id=user_id)
     dist = f"{e['distance_km']:.1f} км" if e.get("distance_km") is not None else ""
 
     # Определяем тип события, если не установлен
@@ -2058,6 +2058,8 @@ async def perform_nearby_search(
                     "description_en": event.get("description_en"),
                     "time_local": event["starts_at"].strftime("%Y-%m-%d %H:%M") if event["starts_at"] else None,
                     "starts_at": event["starts_at"],
+                    "ends_at": event.get("ends_at"),
+                    "time_mode": event.get("time_mode"),
                     "city": event.get("city"),
                     "location_name": event["location_name"],
                     "location_name_en": event.get("location_name_en"),
@@ -2908,6 +2910,89 @@ def human_when(event: dict, region: str = None, user_id: int = None) -> str:
         return ""
     except Exception:
         return ""
+
+
+def _resolve_event_timezone(event: dict, region: str = None) -> str:
+    """Определяет IANA-таймзону события: city -> координаты -> region -> UTC."""
+    from utils.simple_timezone import get_city_from_coordinates, get_city_timezone
+
+    event_tz = "UTC"
+    event_city = event.get("city")
+    if event_city:
+        known_cities = ["bali", "moscow", "spb", "jakarta"]
+        if event_city.lower() in known_cities:
+            event_tz = get_city_timezone(event_city)
+    if event_tz == "UTC" and event.get("lat") and event.get("lng"):
+        city = get_city_from_coordinates(event["lat"], event["lng"])
+        if city:
+            event_tz = get_city_timezone(city)
+    if event_tz == "UTC" and region:
+        region_tz_map = {
+            "bali": "Asia/Makassar",
+            "moscow": "Europe/Moscow",
+            "spb": "Europe/Moscow",
+            "jakarta": "Asia/Jakarta",
+        }
+        event_tz = region_tz_map.get(region, "UTC")
+    return event_tz
+
+
+def format_event_when(event: dict, region: str = None, user_id: int = None) -> str:
+    """Возвращает строку времени по трём сценариям (в локальном времени события):
+
+    - time_mode == 'all_day'      -> локализованное «Весь день» / «All day»
+    - есть ends_at (диапазон)      -> «HH:MM–HH:MM»
+    - только начало                -> «HH:MM»
+
+    Время 00:00 без явного режима трактуется как «время не указано» -> "".
+    """
+    from datetime import datetime
+
+    import pytz
+
+    lang = get_user_language_or_default(user_id) if user_id else "ru"
+
+    time_mode = event.get("time_mode")
+    if time_mode == "all_day":
+        return t("event.all_day", lang)
+
+    start = event.get("starts_at") or event.get("start_time")
+    if not start:
+        return ""
+
+    def _to_local(dt_value):
+        if isinstance(dt_value, str):
+            try:
+                dt_value = datetime.fromisoformat(dt_value.replace("Z", "+00:00"))
+            except Exception:
+                return None
+        try:
+            event_tz = _resolve_event_timezone(event, region)
+            utc = pytz.UTC
+            tz = pytz.timezone(event_tz)
+            if dt_value.tzinfo is None:
+                dt_value = utc.localize(dt_value)
+            return dt_value.astimezone(tz)
+        except Exception:
+            return None
+
+    local_start = _to_local(start)
+    if local_start is None:
+        return ""
+
+    # 00:00 без явного режима — считаем, что точное время не указано
+    if time_mode != "range" and local_start.hour == 0 and local_start.minute == 0 and not event.get("ends_at"):
+        return ""
+
+    start_str = local_start.strftime("%H:%M")
+
+    ends_at = event.get("ends_at") or event.get("end_time")
+    if ends_at:
+        local_end = _to_local(ends_at)
+        if local_end is not None:
+            return f"{start_str}–{local_end.strftime('%H:%M')}"
+
+    return start_str
 
 
 def format_event_time(starts_at, event_tz="UTC") -> str:
@@ -6181,6 +6266,8 @@ async def on_location(message: types.Message, state: FSMContext):
                     "description_en": event.get("description_en"),
                     "time_local": event["starts_at"].strftime("%Y-%m-%d %H:%M") if event["starts_at"] else None,
                     "starts_at": event["starts_at"],  # Добавляем поле starts_at!
+                    "ends_at": event.get("ends_at"),
+                    "time_mode": event.get("time_mode"),
                     "city": event.get("city"),  # Город события (может быть None)
                     "location_name": event["location_name"],
                     "location_name_en": event.get("location_name_en"),

@@ -20,6 +20,8 @@ class RawEvent:
     external_id: str | None = None
     url: str | None = None
     description: str | None = None
+    ends_at: dt.datetime | None = None  # время окончания (если известно)
+    time_mode: str | None = None  # 'range' | 'start' | 'all_day' (см. миграцию 051)
 
     def fingerprint(self) -> str:
         """

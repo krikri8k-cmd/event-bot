@@ -105,6 +105,7 @@ class Event(Base):
     time_utc: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))  # legacy, используем starts_at
     starts_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))  # время начала события
     ends_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))  # время окончания события
+    time_mode: Mapped[str | None] = mapped_column(String(16))  # 'range' | 'start' | 'all_day' (см. миграцию 051)
     url: Mapped[str | None] = mapped_column(Text)  # ссылка на событие
     referral_code: Mapped[str | None] = mapped_column(String(64))  # реферальный код для партнёров
     referral_param: Mapped[str | None] = mapped_column(String(16), default="ref")  # название параметра

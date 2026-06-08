@@ -2,7 +2,12 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from sources.baliforum import _extract_latlng_from_maps, _parse_time, _ru_date_to_dt
+from sources.baliforum import (
+    _determine_time_mode,
+    _extract_latlng_from_maps,
+    _parse_time,
+    _ru_date_to_dt,
+)
 
 
 def test_parse_time():
@@ -62,12 +67,32 @@ def test_ru_date_to_dt():
     assert start is not None
     assert start.day == 9  # завтра
 
-    # Весь день
+    # Весь день: жёсткое окно 09:00–21:00 по Бали
     start, end = _ru_date_to_dt("Сегодня весь день", now, tz)
     assert start is not None
     assert end is not None
+    assert start.hour == 9
+    assert start.minute == 0
+    assert end.hour == 21
+    assert end.minute == 0
+
+    # Весь день с явной датой ("10 июля весь день")
+    start, end = _ru_date_to_dt("10 июля весь день", now, tz)
+    assert start is not None and end is not None
+    assert start.hour == 9 and end.hour == 21
+    assert start.month == 7 and start.day == 10
 
     # Невалидная дата
     start, end = _ru_date_to_dt("invalid date", now, tz)
     assert start is None
     assert end is None
+
+
+def test_determine_time_mode():
+    """Режим времени: all_day / range / start."""
+    assert _determine_time_mode("Сегодня весь день", has_end=False) == "all_day"
+    assert _determine_time_mode("10 июля весь день", has_end=True) == "all_day"
+    assert _determine_time_mode("Сегодня с 09:00 до 19:00", has_end=True) == "range"
+    assert _determine_time_mode("Сегодня в 13:00", has_end=False) == "start"
+    assert _determine_time_mode("", has_end=False) == "start"
+    assert _determine_time_mode(None, has_end=False) == "start"

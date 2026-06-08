@@ -105,11 +105,14 @@ class UnifiedEventsService:
                            current_participants, status, created_at_utc,
                            community_name, chat_id, location_name as venue_name,
                            location_name as address, place_id,
-                           '' as geo_hash, starts_at as starts_at_normalized
+                           '' as geo_hash, starts_at as starts_at_normalized, ends_at, time_mode
                     FROM events
                     WHERE starts_at >= :start_utc
                     AND starts_at < :end_utc
-                    AND starts_at >= NOW() - INTERVAL '3 hours'
+                    AND (
+                        (ends_at IS NOT NULL AND ends_at >= NOW())
+                        OR (ends_at IS NULL AND starts_at >= NOW() - INTERVAL '3 hours')
+                    )
                     AND lat IS NOT NULL AND lng IS NOT NULL
                     AND status NOT IN ('closed', 'canceled')
                     {city_filter}
@@ -144,11 +147,14 @@ class UnifiedEventsService:
                            current_participants, status, created_at_utc,
                            community_name, chat_id, location_name as venue_name,
                            location_name as address, place_id,
-                           '' as geo_hash, starts_at as starts_at_normalized
+                           '' as geo_hash, starts_at as starts_at_normalized, ends_at, time_mode
                     FROM events
                     WHERE starts_at >= :start_utc
                     AND starts_at < :end_utc
-                    AND starts_at >= NOW() - INTERVAL '3 hours'
+                    AND (
+                        (ends_at IS NOT NULL AND ends_at >= NOW())
+                        OR (ends_at IS NULL AND starts_at >= NOW() - INTERVAL '3 hours')
+                    )
                     AND status NOT IN ('closed', 'canceled')
                     {city_filter}
                     ORDER BY starts_at
@@ -197,6 +203,8 @@ class UnifiedEventsService:
                     "venue_name": row[22] if len(row) > 22 else None,
                     "address": row[23] if len(row) > 23 else None,
                     "place_id": row[24] if len(row) > 24 else None,
+                    "ends_at": row[27] if len(row) > 27 else None,
+                    "time_mode": row[28] if len(row) > 28 else None,
                 }
 
                 # Логируем пользовательские события
@@ -229,11 +237,14 @@ class UnifiedEventsService:
                                current_participants, status, created_at_utc,
                                community_name, chat_id, location_name as venue_name,
                                location_name as address, place_id,
-                               '' as geo_hash, starts_at as starts_at_normalized
+                               '' as geo_hash, starts_at as starts_at_normalized, ends_at, time_mode
                         FROM events
                         WHERE starts_at >= :start_utc
                         AND starts_at < :end_utc
-                        AND starts_at >= NOW() - INTERVAL '3 hours'
+                        AND (
+                        (ends_at IS NOT NULL AND ends_at >= NOW())
+                        OR (ends_at IS NULL AND starts_at >= NOW() - INTERVAL '3 hours')
+                    )
                         AND status NOT IN ('closed', 'canceled')
                         ORDER BY starts_at
                         LIMIT 50
@@ -275,6 +286,8 @@ class UnifiedEventsService:
                             "venue_name": row[22] if len(row) > 22 else None,
                             "address": row[23] if len(row) > 23 else None,
                             "place_id": row[24] if len(row) > 24 else None,
+                            "ends_at": row[27] if len(row) > 27 else None,
+                            "time_mode": row[28] if len(row) > 28 else None,
                         }
                         events.append(event_data)
                     if events:
@@ -570,6 +583,8 @@ class UnifiedEventsService:
         title_en: str = None,
         description_en: str = None,
         location_name_en: str = None,
+        ends_at_utc: datetime | None = None,
+        time_mode: str | None = None,
     ) -> int:
         """
         Сохранение парсерного события в единую таблицу events.
@@ -639,7 +654,8 @@ class UnifiedEventsService:
                     SET title = :title, title_en = :title_en,
                         description = :description, description_en = :description_en,
                         location_name = :location_name, location_name_en = :location_name_en,
-                        starts_at = :starts_at, city = :city, lat = :lat, lng = :lng,
+                        starts_at = :starts_at, ends_at = :ends_at, time_mode = :time_mode,
+                        city = :city, lat = :lat, lng = :lng,
                         location_url = :location_url, url = :url, country = :country,
                         place_id = :place_id, event_source = 'parser', updated_at_utc = NOW()
                     WHERE source = :source AND external_id = :external_id
@@ -652,6 +668,8 @@ class UnifiedEventsService:
                         "location_name": location_name,
                         "location_name_en": location_name_en,
                         "starts_at": starts_at_utc,
+                        "ends_at": ends_at_utc,
+                        "time_mode": time_mode,
                         "city": city,
                         "lat": lat,
                         "lng": lng,
@@ -669,12 +687,12 @@ class UnifiedEventsService:
                     text("""
                     INSERT INTO events
                     (source, external_id, event_source, title, title_en, description, description_en,
-                     starts_at, city, lat, lng, location_name, location_name_en,
+                     starts_at, ends_at, time_mode, city, lat, lng, location_name, location_name_en,
                      location_url, url, country, is_generated_by_ai, status,
                      current_participants, place_id)
                     VALUES
                     (:source, :external_id, 'parser', :title, :title_en, :description, :description_en,
-                     :starts_at, :city, :lat, :lng, :location_name, :location_name_en,
+                     :starts_at, :ends_at, :time_mode, :city, :lat, :lng, :location_name, :location_name_en,
                      :location_url, :url, :country, :is_ai, 'open', 0, :place_id)
                     ON CONFLICT (source, external_id) DO UPDATE SET
                         title = EXCLUDED.title,
@@ -685,6 +703,8 @@ class UnifiedEventsService:
                         location_name_en = EXCLUDED.location_name_en,
                         event_source = 'parser',
                         starts_at = EXCLUDED.starts_at,
+                        ends_at = EXCLUDED.ends_at,
+                        time_mode = EXCLUDED.time_mode,
                         city = EXCLUDED.city,
                         lat = EXCLUDED.lat,
                         lng = EXCLUDED.lng,
@@ -702,6 +722,8 @@ class UnifiedEventsService:
                         "description": description,
                         "description_en": description_en,
                         "starts_at": starts_at_utc,
+                        "ends_at": ends_at_utc,
+                        "time_mode": time_mode,
                         "city": city,
                         "lat": lat,
                         "lng": lng,

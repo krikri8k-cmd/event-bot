@@ -73,6 +73,8 @@ class ModernEventScheduler:
                     external_id=external_id,
                     url=event["url"],
                     description=event.get("description"),
+                    ends_at=event.get("end_time"),
+                    time_mode=event.get("time_mode"),
                 )
                 raw_events.append(raw_event)
 
@@ -272,6 +274,8 @@ class ModernEventScheduler:
                             "title": event.title,
                             "description": event.description,
                             "starts_at_utc": event.starts_at,
+                            "ends_at_utc": event.ends_at,
+                            "time_mode": event.time_mode,
                             "city": "bali",
                             "lat": event.lat,
                             "lng": event.lng,
@@ -326,6 +330,8 @@ class ModernEventScheduler:
                         title=p["title"],
                         description=p["description"],
                         starts_at_utc=p["starts_at_utc"],
+                        ends_at_utc=p.get("ends_at_utc"),
+                        time_mode=p.get("time_mode"),
                         city=p["city"],
                         lat=p["lat"],
                         lng=p["lng"],

@@ -66,6 +66,18 @@ TIME_RE = re.compile(r"(?P<h>\d{1,2}):(?P<m>\d{2})")
 MAP_RE = re.compile(r"/@(?P<lat>-?\d+\.\d+),(?P<lng>-?\d+\.\d+)|query=(?P<lat2>-?\d+\.\d+)%2C(?P<lng2>-?\d+\.\d+)")
 
 
+def _determine_time_mode(date_text: str | None, has_end: bool) -> str:
+    """Определяет режим времени события по тексту даты и наличию конца.
+
+    - 'all_day' — текст содержит "весь день" (старт 09:00, конец 21:00 по Бали)
+    - 'range'   — известны и начало, и конец
+    - 'start'   — известно только начало
+    """
+    if "весь день" in (date_text or "").lower():
+        return "all_day"
+    return "range" if has_end else "start"
+
+
 def _parse_time(s: str) -> tuple[int, int] | None:
     """Парсит время в формате HH:MM или диапазон HH:MM-HH:MM (берет начало)"""
     # Сначала ищем диапазон времени
@@ -162,8 +174,11 @@ def _ru_date_to_dt(label: str, now: datetime, tz: ZoneInfo) -> tuple[datetime | 
 
         if day:
             if "весь день" in label or "весь день" in original_label:
-                start_dt = datetime.combine(day, datetime.min.time(), tz)
-                end_dt = start_dt + timedelta(hours=23, minutes=59)
+                # Событие "весь день": жёсткое окно 09:00–21:00 по Бали.
+                # Появляется в утренней выдаче и скрывается к вечеру (большинство
+                # маркетов/фестивалей к 21:00 закрываются). Конвертация в UTC — у вызывающего.
+                start_dt = datetime(day.year, day.month, day.day, 9, 0, tzinfo=tz)
+                end_dt = datetime(day.year, day.month, day.day, 21, 0, tzinfo=tz)
             else:
                 # Ищем время в разных форматах
                 time_found = False
@@ -681,6 +696,9 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
         normalized_url = url.split("?")[0].split("#")[0]  # Убираем UTM и якоря
         external_id = hashlib.sha1(f"baliforum|{normalized_url}".encode()).hexdigest()[:16]
 
+        # Определяем режим времени для трёх сценариев отображения/видимости
+        time_mode = _determine_time_mode(date_text, bool(end))
+
         try:
             events.append(
                 {
@@ -688,6 +706,7 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
                     "title": title or "Событие",
                     "start_time": start,
                     "end_time": end,
+                    "time_mode": time_mode,
                     "venue": venue,
                     "address": venue,  # пусть address=venue для начала
                     "lat": lat,
@@ -772,6 +791,8 @@ def fetch(limit: int = 200) -> list[RawEvent]:
             external_id=external_id,
             url=event["url"],
             description="\n".join(description_parts) if description_parts else None,
+            ends_at=event.get("end_time"),
+            time_mode=event.get("time_mode"),
         )
         # Сохраняем дополнительные данные в атрибуте raw_event для использования при сохранении
         raw_event._raw_data = raw_data  # type: ignore
