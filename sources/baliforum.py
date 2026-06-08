@@ -268,19 +268,46 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
 
     logging.getLogger(__name__)
 
-    # Формируем URL с фильтром по дате если указан
     if date_filter:
-        url = f"{LIST_URL}?dateStart={date_filter}"
         logging.info(f"🌴 Парсим BaliForum с фильтром по дате: {date_filter}")
     else:
-        url = LIST_URL
-        logging.info("🌴 Парсим BaliForum без фильтра (главная страница)")
+        logging.info("🌴 Парсим BaliForum (с обходом пагинации)")
 
-    html = _fetch(url)
-    soup = BeautifulSoup(html, "html.parser")
+    def _build_page_url(page: int) -> str:
+        """Собирает URL списка с учётом фильтра по дате и номера страницы."""
+        params = []
+        if date_filter:
+            params.append(f"dateStart={date_filter}")
+        if page > 1:
+            params.append(f"page={page}")
+        return f"{LIST_URL}?{'&'.join(params)}" if params else LIST_URL
 
-    # Ищем карточки событий
-    cards = soup.select("div.event-card, article.event") or soup.select("li.event-item")
+    # Обходим страницы ?page=1..N, пока они не станут пустыми.
+    # MAX_PAGES — предохранитель от бесконечного цикла (на baliforum обычно ~4 страницы).
+    MAX_PAGES = 25
+    cards = []
+    for page in range(1, MAX_PAGES + 1):
+        page_url = _build_page_url(page)
+        try:
+            page_html = _fetch(page_url)
+        except Exception as e:
+            logger.warning("baliforum: ошибка загрузки страницы %s (%s): %s", page, page_url, e)
+            break
+
+        page_soup = BeautifulSoup(page_html, "html.parser")
+        page_cards = page_soup.select("div.event-card, article.event") or page_soup.select("li.event-item")
+        if not page_cards:
+            logger.info("baliforum: страница %s пустая — останавливаем пагинацию", page)
+            break
+
+        cards.extend(page_cards)
+        logger.info("baliforum: страница %s -> %s карточек (всего собрано %s)", page, len(page_cards), len(cards))
+
+        if len(cards) >= limit:
+            break
+        # Небольшая пауза между страницами, чтобы не долбить сайт
+        time.sleep(0.3)
+
     events: list[dict] = []
 
     parsed_count = 0
@@ -327,6 +354,11 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
             r"\d{1,2} (?:янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|нояб|дек)[а-я]*\.? \d{1,2}:\d{2}",
             # Диапазоны времени (только если есть контекст дня)
             r"\d{1,2}:\d{2}[–-]\d{1,2}:\d{2}",
+            # События "весь день" (крупные фестивали и ретриты без точного времени).
+            # Ставим ПОСЛЕ паттернов с временем, чтобы точное время всегда имело приоритет.
+            r"Сегодня весь день",
+            r"Завтра весь день",
+            r"\d{1,2} (?:янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|нояб|дек)[а-я]*\.? весь день",
         ]
 
         for pattern in date_patterns:
@@ -380,6 +412,9 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
         lat = lng = None
         location_url = None
         place_name_from_maps = None
+        # ВАЖНO: инициализируем на каждой итерации, иначе при координатах не из Google Maps
+        # (data-атрибуты, текст, геокодинг) словим NameError или утечку чужого place_id.
+        place_id = None
         try:
             detail = _fetch(url)
             ds = BeautifulSoup(detail, "html.parser")
