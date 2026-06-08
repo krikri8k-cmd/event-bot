@@ -62,8 +62,17 @@ class ModernEventScheduler:
             # Конвертируем в RawEvent формат
             from event_apis import RawEvent
 
+            # BaliForum дублирует карточки на странице «сегодня» и в фильтре «завтра».
+            # Если просто append — второй проход перезапишет starts_at на завтра в БД.
+            seen_ext_ids = {e.external_id for e in raw_events if e.external_id}
+            tomorrow_added = 0
+            tomorrow_skipped_dup = 0
             for event in tomorrow_events:
                 external_id = event.get("external_id", event["url"].rstrip("/").split("/")[-1])
+                if external_id in seen_ext_ids:
+                    tomorrow_skipped_dup += 1
+                    continue
+                seen_ext_ids.add(external_id)
                 raw_event = RawEvent(
                     title=event["title"],
                     lat=event.get("lat") or 0.0,
@@ -77,8 +86,12 @@ class ModernEventScheduler:
                     time_mode=event.get("time_mode"),
                 )
                 raw_events.append(raw_event)
+                tomorrow_added += 1
 
-            logger.info(f"🌴 Всего найдено событий: {len(raw_events)} (сегодня + завтра)")
+            logger.info(
+                f"🌴 Всего найдено событий: {len(raw_events)} "
+                f"(сегодня + завтра: добавлено завтра={tomorrow_added}, пропущено дублей={tomorrow_skipped_dup})"
+            )
 
             prepared = []
             skipped_no_coords = 0
