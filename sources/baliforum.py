@@ -263,6 +263,34 @@ def _extract_latlng_from_maps(url: str) -> tuple[float | None, float | None, str
     return lat, lng, place_name, url  # Возвращаем оригинальную ссылку
 
 
+def _extract_venue_from_soup(ds) -> str | None:
+    """Извлекает название места с детальной страницы BaliForum."""
+    if not ds:
+        return None
+
+    # Актуальная разметка: <dd class="event__place">Чангу • Milu by Nook</dd>
+    place_el = ds.select_one("dd.event__place, .event__place")
+    if place_el:
+        link = place_el.find("a")
+        if link and link.get_text(strip=True):
+            return link.get_text(strip=True)
+        text = place_el.get_text(" ", strip=True)
+        if "•" in text:
+            venue_part = text.split("•", 1)[1].strip()
+            if venue_part:
+                return venue_part
+        if text:
+            return text
+
+    v = ds.select_one(".event-venue, .place, .location, .event-meta .place")
+    if v:
+        text = v.get_text(strip=True)
+        if text:
+            return text
+
+    return None
+
+
 def _fetch(url: str, timeout=15) -> str:
     """Получает HTML страницу"""
     r = requests.get(url, headers={"User-Agent": UA}, timeout=timeout)
@@ -507,9 +535,8 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
                             )
                             break
 
-            # Извлекаем venue из HTML страницы
-            v = ds.select_one(".event-venue, .place, .location, .event-meta .place")
-            venue = v.get_text(strip=True) if v else None
+            # Извлекаем venue из HTML страницы (event__place на актуальной вёрстке)
+            venue = _extract_venue_from_soup(ds)
 
             # Если venue не найдено, но есть название места из Google Maps, используем его
             if not venue and place_name_from_maps:

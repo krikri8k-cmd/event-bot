@@ -2,9 +2,12 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from bs4 import BeautifulSoup
+
 from sources.baliforum import (
     _determine_time_mode,
     _extract_latlng_from_maps,
+    _extract_venue_from_soup,
     _parse_time,
     _ru_date_to_dt,
 )
@@ -86,6 +89,21 @@ def test_ru_date_to_dt():
     start, end = _ru_date_to_dt("invalid date", now, tz)
     assert start is None
     assert end is None
+
+
+def test_extract_venue_from_soup():
+    """Название места с детальной страницы BaliForum (dd.event__place)."""
+    html = """
+    <dl>
+      <dt>Место</dt>
+      <dd class="event__place">Чангу • <a href="/places/milu">Milu by Nook</a></dd>
+    </dl>
+    """
+    venue = _extract_venue_from_soup(BeautifulSoup(html, "html.parser"))
+    assert venue == "Milu by Nook"
+
+    html_plain = '<dd class="event__place">Убуд • Pison Ubud</dd>'
+    assert _extract_venue_from_soup(BeautifulSoup(html_plain, "html.parser")) == "Pison Ubud"
 
 
 def test_determine_time_mode():
