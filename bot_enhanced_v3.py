@@ -1087,6 +1087,27 @@ def truncate_html_safely(html_text: str, max_length: int) -> str:
         return truncated_html
 
 
+_CAP_SKIP_CHARS = frozenset(" \t\n\r«»\"'`„“”‘’([{<")
+
+
+def _capitalize_first_letter(text: str) -> str:
+    """Делает заглавной первую значимую букву строки, не меняя регистр остального.
+
+    Примеры: 'женская игра' -> 'Женская игра'; 'Family First' -> без изменений.
+    Пропускает ведущие пробелы и кавычки/скобки: '«антарктика»' -> '«Антарктика»'.
+    Если строка начинается с цифры/символа (например '123 событие') — не трогаем.
+    """
+    if not text:
+        return text
+    i = 0
+    n = len(text)
+    while i < n and text[i] in _CAP_SKIP_CHARS:
+        i += 1
+    if i < n and text[i].isalpha():
+        return text[:i] + text[i].upper() + text[i + 1 :]
+    return text
+
+
 def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool = False) -> str:
     """Рендерит одну карточку в HTML. EN: title_en/description_en с fallback на RU; локация — всегда оригинальный location_name (без GPT)."""
     import logging
@@ -1117,7 +1138,7 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     source_link_label = t("event.source_link", lang)
     route_link_label = t("event.route_link", lang)
 
-    title = html.escape(display_title or "Событие")
+    title = html.escape(_capitalize_first_letter(display_title or "Событие"))
     when = e.get("when_str", "")
 
     logger.debug("🕐 render_event_html: title=%s, when_str=%s", title[:40] if title else "", when)
@@ -1604,7 +1625,7 @@ def render_page(
         except Exception as e_render:
             logger.error(f"❌ Ошибка рендеринга события {idx}: {e_render}")
             # Fallback для одного события
-            title = e.get("title", "Без названия")
+            title = _capitalize_first_letter(e.get("title", "Без названия"))
             parts.append(f"{idx}) {title}")
 
     return "\n".join(parts).strip(), total_pages
