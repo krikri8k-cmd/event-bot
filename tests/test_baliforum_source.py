@@ -131,6 +131,7 @@ def test_merge_tomorrow_baliforum_events():
             "url": "https://baliforum.ru/events/today",
             "external_id": "today-id",
             "venue": "Should not apply",
+            "raw": {"date_text": "Завтра с 11:00"},
         },
         {
             "title": "Wrong date",
@@ -142,6 +143,7 @@ def test_merge_tomorrow_baliforum_events():
             "url": "https://baliforum.ru/events/fix",
             "external_id": "fix-id",
             "venue": "Plant Bistro",
+            "raw": {"date_text": "10 июня с 11:00 до 13:00"},
         },
         {
             "title": "Only tomorrow page",
@@ -151,17 +153,43 @@ def test_merge_tomorrow_baliforum_events():
             "url": "https://baliforum.ru/events/new",
             "external_id": "new-id",
             "venue": "New venue",
+            "raw": {"date_text": "Завтра с 11:00"},
+        },
+        {
+            "title": "Multi-day festival",
+            "lat": -8.55,
+            "lng": 115.15,
+            "start_time": tomorrow_start,
+            "end_time": datetime(2026, 6, 10, 22, 30, tzinfo=tz),
+            "time_mode": "range",
+            "url": "https://baliforum.ru/events/festival",
+            "external_id": "festival-id",
+            "venue": "Labyrinth Dome",
+            "raw": {"date_text": "10 июнь, с 10:30 до 22:30"},
         },
     ]
 
+    today_festival = RawEvent(
+        title="Multi-day festival",
+        lat=-8.55,
+        lng=115.15,
+        starts_at=today_start,
+        source="baliforum",
+        external_id="festival-id",
+        url="https://baliforum.ru/events/festival",
+    )
+    raw_events.append(today_festival)
+
     merged, added, skipped, updated = merge_tomorrow_baliforum_events(raw_events, tomorrow_events, now=now)
-    assert len(merged) == 3
-    assert added == 1
+    assert len(merged) == 5
+    assert added == 2
     assert skipped == 1
     assert updated == 1
     assert today_event.starts_at == today_start
     assert wrong_date_event.starts_at == tomorrow_start
     assert wrong_date_event._raw_data["venue"] == "Plant Bistro"  # type: ignore[attr-defined]
+    tomorrow_occurrence = next(e for e in merged if e.external_id == "festival-id#2026-06-10")
+    assert tomorrow_occurrence.starts_at == tomorrow_start
 
 
 @pytest.mark.no_db

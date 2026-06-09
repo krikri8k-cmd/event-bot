@@ -64,6 +64,24 @@ RU_MONTHS = {
 
 TIME_RE = re.compile(r"(?P<h>\d{1,2}):(?P<m>\d{2})")
 MAP_RE = re.compile(r"/@(?P<lat>-?\d+\.\d+),(?P<lng>-?\d+\.\d+)|query=(?P<lat2>-?\d+\.\d+)%2C(?P<lng2>-?\d+\.\d+)")
+EXPLICIT_CALENDAR_DATE_RE = re.compile(
+    r"^\d{1,2}\s+(?:янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|нояб|дек)",
+    re.IGNORECASE,
+)
+
+
+def _is_multiday_tomorrow_occurrence(date_text: str | None) -> bool:
+    """BaliForum показывает многодневные события на фильтре «завтра» с явной датой («10 июнь»)."""
+    if not date_text:
+        return False
+    normalized = date_text.strip().lower()
+    if normalized.startswith("завтра") or normalized.startswith("сегодня"):
+        return False
+    return bool(EXPLICIT_CALENDAR_DATE_RE.search(normalized))
+
+
+def _tomorrow_occurrence_external_id(base_id: str, day: datetime.date) -> str:
+    return f"{base_id}#{day.isoformat()}"
 
 
 def _determine_time_mode(date_text: str | None, has_end: bool) -> str:
@@ -806,6 +824,7 @@ def event_dict_to_raw_event(event: dict) -> RawEvent:
         "location_url": event.get("location_url"),
         "place_name_from_maps": event.get("raw", {}).get("place_name_from_maps"),
         "place_id": event.get("raw", {}).get("place_id"),
+        "date_text": event.get("raw", {}).get("date_text"),
     }
     return raw_event
 
@@ -819,7 +838,8 @@ def merge_tomorrow_baliforum_events(
     """
     Добавляет уникальные события с фильтра «завтра» и уточняет дату у дублей.
 
-    Не перезаписывает события с датой «сегодня» (фикс прошлого бага с затиранием).
+    Не перезаписывает события с датой «сегодня», кроме многодневных: на главной
+    они помечены «Сегодня», а на фильтре завтра — явной датой («10 июнь»).
     """
     tz = ZoneInfo("Asia/Makassar")
     now = now or datetime.now(tz)
@@ -849,7 +869,19 @@ def merge_tomorrow_baliforum_events(
                 continue
             existing_date = existing_start.astimezone(tz).date()
             if existing_date == today_bali:
-                skipped_dup += 1
+                tomorrow_date_text = (event.get("raw") or {}).get("date_text")
+                if _is_multiday_tomorrow_occurrence(tomorrow_date_text):
+                    occurrence_id = _tomorrow_occurrence_external_id(external_id, tomorrow_bali)
+                    if occurrence_id in by_id:
+                        skipped_dup += 1
+                        continue
+                    raw_event = event_dict_to_raw_event(event)
+                    raw_event.external_id = occurrence_id
+                    raw_events.append(raw_event)
+                    by_id[occurrence_id] = raw_event
+                    added += 1
+                else:
+                    skipped_dup += 1
                 continue
             if existing_date == tomorrow_bali:
                 skipped_dup += 1
