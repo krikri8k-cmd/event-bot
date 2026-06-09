@@ -1,6 +1,11 @@
 import pytest
 
-from utils.event_category_manager import EventCategoryManager, dedupe_categories, normalize_tag
+from utils.event_category_manager import (
+    EventCategoryManager,
+    dedupe_categories,
+    normalize_tag,
+    parse_source_display_tags,
+)
 from utils.unified_events_service import _parse_categories_value, _search_row_to_event_dict
 
 
@@ -28,6 +33,26 @@ def test_baliforum_multiple_categories():
     manager = EventCategoryManager()
     categories = manager.assign_categories({"tags": ["Бизнес", "еда"]}, "baliforum")
     assert categories == ["Бизнес", "Еда"]
+
+
+@pytest.mark.no_db
+def test_baliforum_dukhovnoe_and_meditation_map_to_spiritual():
+    manager = EventCategoryManager()
+    assert manager.assign_categories({"tags": ["Духовное"]}, "baliforum") == ["Духовное"]
+    assert manager.assign_categories({"tags": ["Медитация", "Тренинг"]}, "baliforum") == ["Духовное"]
+
+
+@pytest.mark.no_db
+def test_parse_source_display_tags_prefers_tags_over_internal_categories():
+    assert parse_source_display_tags({"tags": ["Фестиваль", "Музыка"], "categories": ["Выставка"]}) == [
+        "Фестиваль",
+        "Музыка",
+    ]
+    assert parse_source_display_tags({"raw_category": "Концерт, Живая музыка"}) == [
+        "Концерт",
+        "Живая музыка",
+    ]
+    assert parse_source_display_tags({"categories": ["Выставка"]}) == []
 
 
 @pytest.mark.no_db
@@ -108,3 +133,4 @@ def test_search_row_to_event_dict_includes_categories():
     event = _search_row_to_event_dict(row)
     assert event["categories"] == ["Выставка"]
     assert event["raw_category"] == "Фестиваль, Искусство"
+    assert event["tags"] == ["Фестиваль", "Искусство"]

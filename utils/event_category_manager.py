@@ -13,6 +13,8 @@ BALIFORUM_TAG_MAP: dict[str, str] = {
     "искусство": "Выставка",
     "фестиваль": "Выставка",
     "йога": "Духовное",
+    "духовное": "Духовное",
+    "медитация": "Духовное",
     "бизнес": "Бизнес",
     "it": "IT",
     "вечеринка": "Вечеринка",
@@ -26,6 +28,19 @@ def normalize_tag(tag: str) -> str:
 
 def dedupe_categories(categories: list[str]) -> list[str]:
     return list(dict.fromkeys(categories))
+
+
+def parse_source_display_tags(event_data: dict) -> list[str]:
+    """Теги источника для UI: tags или разбор raw_category (не internal categories)."""
+    tags = event_data.get("tags")
+    if isinstance(tags, list):
+        cleaned = [str(t).strip() for t in tags if str(t).strip()]
+        if cleaned:
+            return cleaned
+    raw = event_data.get("raw_category")
+    if raw:
+        return [t.strip() for t in str(raw).split(",") if t.strip()]
+    return []
 
 
 class EventCategoryManager:

@@ -54,11 +54,12 @@ from tasks_service import (
     create_task_from_place,
     get_user_active_tasks,
 )
+from utils.event_category_manager import parse_source_display_tags
 from utils.event_translation import ensure_bilingual
 from utils.geo_utils import get_timezone, haversine_km
 from utils.i18n import format_translation, get_bot_username, t
 from utils.static_map import build_static_map_url, fetch_static_map
-from utils.unified_events_service import UnifiedEventsService, _parse_categories_value
+from utils.unified_events_service import UnifiedEventsService
 from utils.user_language import (
     get_user_language_or_default,
     needs_language_selection,
@@ -1109,15 +1110,15 @@ def _capitalize_first_letter(text: str) -> str:
 
 
 def _build_event_info_line(e: dict, venue_display: str, user_id: int | None) -> str:
-    """Строка категорий и локации: 🎭 Cat1 / Cat2 • 📍 <venue с tracking route URL>."""
-    categories = _parse_categories_value(e.get("categories"))
+    """Строка тегов источника и локации: 🎭 Tag1 / Tag2 • 📍 <venue с tracking route URL>."""
+    display_tags = parse_source_display_tags(e)
     maps_url = build_maps_url(e)
     tracking_url = _build_tracking_url("route", e, maps_url, user_id)
     venue_link = f'📍 <a href="{tracking_url}">{venue_display}</a>'
-    if categories:
-        cats = " / ".join(html.escape(c) for c in categories if c)
-        if cats:
-            return f"🎭 {cats} • {venue_link}"
+    if display_tags:
+        tags_line = " / ".join(html.escape(t) for t in display_tags if t)
+        if tags_line:
+            return f"🎭 {tags_line} • {venue_link}"
     return venue_link
 
 

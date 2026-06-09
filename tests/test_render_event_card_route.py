@@ -184,26 +184,41 @@ class TestRenderEventCardRoute:
         assert "🚗" not in html
         assert "Маршрут" not in html
 
-    def test_categories_in_info_line(self):
-        """Категории отображаются перед локацией"""
+    def test_source_tags_in_info_line(self):
+        """Теги источника отображаются перед локацией (не internal categories)."""
         event = self.base_event(
-            venue_name="Savaya",
-            categories=["Вечеринка", "Выставка"],
+            venue_name="GWK Cultural Park",
+            tags=["Фестиваль", "Музыка"],
+            categories=["Выставка"],
         )
         html = render_event_html(event, 1)
-        assert "🎭 Вечеринка / Выставка • 📍" in html
-        assert "Savaya</a>" in html
+        assert "🎭 Фестиваль / Музыка • 📍" in html
+        assert "Выставка" not in html
+        assert "GWK Cultural Park</a>" in html
 
-    def test_empty_categories_no_theater_emoji(self):
-        """Без категорий — только 📍 с ссылкой"""
-        event = self.base_event(venue_name="Cafe", categories=[])
+    def test_raw_category_fallback_for_display_tags(self):
+        event = self.base_event(
+            venue_name="Savaya",
+            raw_category="Вечеринка, Музыка",
+            categories=["Вечеринка"],
+        )
+        html = render_event_html(event, 1)
+        assert "🎭 Вечеринка / Музыка • 📍" in html
+
+    def test_empty_tags_no_theater_emoji(self):
+        """Без тегов источника — только 📍 с ссылкой"""
+        event = self.base_event(venue_name="Cafe", categories=["Еда"])
         html = render_event_html(event, 1)
         assert "🎭" not in html
         assert "📍 <a href=" in html
         assert "Cafe</a>" in html
 
     def test_build_event_info_line_directly(self):
-        event = self.base_event(venue_name="Venue X", categories=["Еда"])
+        event = self.base_event(
+            venue_name="Venue X",
+            tags=["Фестиваль", "Музыка"],
+            categories=["Выставка"],
+        )
         line = _build_event_info_line(event, "Venue X", user_id=None)
-        assert line.startswith("🎭 Еда • 📍")
+        assert line.startswith("🎭 Фестиваль / Музыка • 📍")
         assert "Venue X</a>" in line

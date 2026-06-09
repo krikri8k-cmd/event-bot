@@ -34,6 +34,12 @@ _SEARCH_EVENT_SELECT = """
 """
 
 
+def _parse_raw_category_tags(raw_category) -> list[str]:
+    if not raw_category:
+        return []
+    return [t.strip() for t in str(raw_category).split(",") if t.strip()]
+
+
 def _parse_categories_value(value) -> list:
     if value is None:
         return []
@@ -81,6 +87,7 @@ def _search_row_to_event_dict(row) -> dict:
         "time_mode": row[28] if len(row) > 28 else None,
         "categories": _parse_categories_value(row[29] if len(row) > 29 else None),
         "raw_category": row[30] if len(row) > 30 else None,
+        "tags": _parse_raw_category_tags(row[30] if len(row) > 30 else None),
     }
 
 
