@@ -689,11 +689,11 @@ class UnifiedEventsService:
                     (source, external_id, event_source, title, title_en, description, description_en,
                      starts_at, ends_at, time_mode, city, lat, lng, location_name, location_name_en,
                      location_url, url, country, is_generated_by_ai, status,
-                     current_participants, place_id)
+                     current_participants, place_id, organizer_id)
                     VALUES
                     (:source, :external_id, 'parser', :title, :title_en, :description, :description_en,
                      :starts_at, :ends_at, :time_mode, :city, :lat, :lng, :location_name, :location_name_en,
-                     :location_url, :url, :country, :is_ai, 'open', 0, :place_id)
+                     :location_url, :url, :country, :is_ai, 'open', 0, :place_id, NULL)
                     ON CONFLICT (source, external_id) DO UPDATE SET
                         title = EXCLUDED.title,
                         title_en = EXCLUDED.title_en,
