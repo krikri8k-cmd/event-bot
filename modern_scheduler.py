@@ -260,6 +260,9 @@ class ModernEventScheduler:
                             logger.warning(f"⚠️ Ошибка при PlaceResolver для '{event.title[:50]}': {e}")
 
                     ext_id = event.external_id or event.url.split("/")[-1]
+                    event_tags = []
+                    if hasattr(event, "_raw_data") and event._raw_data:
+                        event_tags = event._raw_data.get("tags") or []
                     prepared.append(
                         {
                             "source": "baliforum",
@@ -276,6 +279,7 @@ class ModernEventScheduler:
                             "location_url": location_url,
                             "url": event.url,
                             "place_id": place_id_from_maps,
+                            "tags": event_tags,
                         }
                     )
 
@@ -333,6 +337,7 @@ class ModernEventScheduler:
                         url=p["url"],
                         place_id=p.get("place_id"),
                         title_en=title_en,
+                        tags=p.get("tags"),
                     )
                     if event_id:
                         saved_count += 1

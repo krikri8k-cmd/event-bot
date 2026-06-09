@@ -281,6 +281,18 @@ def _extract_latlng_from_maps(url: str) -> tuple[float | None, float | None, str
     return lat, lng, place_name, url  # Возвращаем оригинальную ссылку
 
 
+def _extract_tags_from_card(card) -> list[str]:
+    """Теги BaliForum из карточки списка (a.event-types__item)."""
+    if not card:
+        return []
+    tags: list[str] = []
+    for link in card.select("a.event-types__item"):
+        text = link.get_text(strip=True)
+        if text:
+            tags.append(text)
+    return tags
+
+
 def _extract_venue_from_soup(ds) -> str | None:
     """Извлекает название места с детальной страницы BaliForum."""
     if not ds:
@@ -396,6 +408,7 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
             url = BASE + url
 
         title = a.get_text(strip=True).strip()
+        tags = _extract_tags_from_card(card)
 
         # Ищем дату в тексте карточки
         date_text = ""
@@ -762,8 +775,10 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
                     "booking_url": None,
                     "ticket_url": None,
                     "external_id": external_id,
+                    "tags": tags,
                     "raw": {
                         "date_text": date_text,
+                        "tags": tags,
                         "place_name_from_maps": place_name_from_maps,
                         "place_id": place_id,
                     },
@@ -825,6 +840,7 @@ def event_dict_to_raw_event(event: dict) -> RawEvent:
         "place_name_from_maps": event.get("raw", {}).get("place_name_from_maps"),
         "place_id": event.get("raw", {}).get("place_id"),
         "date_text": event.get("raw", {}).get("date_text"),
+        "tags": event.get("tags") or event.get("raw", {}).get("tags") or [],
     }
     return raw_event
 

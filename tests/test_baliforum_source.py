@@ -9,6 +9,7 @@ from event_apis import RawEvent
 from sources.baliforum import (
     _determine_time_mode,
     _extract_latlng_from_maps,
+    _extract_tags_from_card,
     _extract_venue_from_soup,
     _parse_time,
     _ru_date_to_dt,
@@ -190,6 +191,18 @@ def test_merge_tomorrow_baliforum_events():
     assert wrong_date_event._raw_data["venue"] == "Plant Bistro"  # type: ignore[attr-defined]
     tomorrow_occurrence = next(e for e in merged if e.external_id == "festival-id#2026-06-10")
     assert tomorrow_occurrence.starts_at == tomorrow_start
+
+
+@pytest.mark.no_db
+def test_extract_tags_from_card():
+    html = """
+    <div class="event-card">
+      <a class="event-types__item" href="/events?types=9">Йога</a>
+      <a class="event-types__item" href="/events?types=1">Фестиваль</a>
+    </div>
+    """
+    tags = _extract_tags_from_card(BeautifulSoup(html, "html.parser").select_one("div.event-card"))
+    assert tags == ["Йога", "Фестиваль"]
 
 
 @pytest.mark.no_db

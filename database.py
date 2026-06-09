@@ -388,6 +388,11 @@ def _ensure_events_community_en_columns() -> None:
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS city VARCHAR(128)"),
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS country VARCHAR(64)"),
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS place_id TEXT"),
+        (
+            "events",
+            "ALTER TABLE events ADD COLUMN IF NOT EXISTS categories JSONB NOT NULL DEFAULT '[]'::jsonb",
+        ),
+        ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS raw_category TEXT"),
         ("task_places", "ALTER TABLE task_places ADD COLUMN IF NOT EXISTS name_en VARCHAR(255)"),
         ("task_places", "ALTER TABLE task_places ADD COLUMN IF NOT EXISTS task_hint_en VARCHAR(200)"),
     ]

@@ -2,6 +2,7 @@
 УНИФИЦИРОВАННЫЙ сервис для работы с событиями через единую таблицу events
 """
 
+import json
 import logging
 import threading
 import time
@@ -9,6 +10,7 @@ from datetime import datetime
 
 from sqlalchemy import text
 
+from utils.event_category_manager import EventCategoryManager
 from utils.event_translation import (
     detect_event_language,
     translate_event_to_english,
@@ -18,6 +20,68 @@ from utils.simple_timezone import get_today_start_utc, get_tomorrow_start_utc
 from utils.structured_logging import StructuredLogger
 
 logger = logging.getLogger(__name__)
+
+_SEARCH_EVENT_SELECT = """
+    source, id, title, description, title_en, description_en, location_name_en,
+    starts_at, city, lat, lng, location_name,
+    location_url, url as event_url,
+    organizer_id, organizer_username, max_participants,
+    current_participants, status, created_at_utc,
+    community_name, chat_id, location_name as venue_name,
+    location_name as address, place_id,
+    '' as geo_hash, starts_at as starts_at_normalized, ends_at, time_mode,
+    categories, raw_category
+"""
+
+
+def _parse_categories_value(value) -> list:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+            return parsed if isinstance(parsed, list) else []
+        except json.JSONDecodeError:
+            return []
+    return []
+
+
+def _search_row_to_event_dict(row) -> dict:
+    source_type = "user" if row[0] == "user" else "parser"
+    return {
+        "source_type": source_type,
+        "source": row[0],
+        "id": row[1],
+        "title": row[2],
+        "description": row[3],
+        "title_en": row[4] if len(row) > 4 else None,
+        "description_en": row[5] if len(row) > 5 else None,
+        "location_name_en": row[6] if len(row) > 6 else None,
+        "starts_at": row[7],
+        "city": row[8],
+        "lat": row[9],
+        "lng": row[10],
+        "location_name": row[11],
+        "location_url": row[12],
+        "event_url": row[13],
+        "organizer_id": row[14],
+        "organizer_username": row[15],
+        "max_participants": row[16],
+        "current_participants": row[17],
+        "status": row[18],
+        "created_at_utc": row[19],
+        "community_name": row[20] if len(row) > 20 else None,
+        "chat_id": row[21] if len(row) > 21 else None,
+        "venue_name": row[22] if len(row) > 22 else None,
+        "address": row[23] if len(row) > 23 else None,
+        "place_id": row[24] if len(row) > 24 else None,
+        "ends_at": row[27] if len(row) > 27 else None,
+        "time_mode": row[28] if len(row) > 28 else None,
+        "categories": _parse_categories_value(row[29] if len(row) > 29 else None),
+        "raw_category": row[30] if len(row) > 30 else None,
+    }
 
 
 class UnifiedEventsService:
@@ -98,14 +162,7 @@ class UnifiedEventsService:
                     params["city"] = city
 
                 query = text(f"""
-                    SELECT source, id, title, description, title_en, description_en, location_name_en,
-                           starts_at, city, lat, lng, location_name,
-                           location_url, url as event_url,
-                           organizer_id, organizer_username, max_participants,
-                           current_participants, status, created_at_utc,
-                           community_name, chat_id, location_name as venue_name,
-                           location_name as address, place_id,
-                           '' as geo_hash, starts_at as starts_at_normalized, ends_at, time_mode
+                    SELECT {_SEARCH_EVENT_SELECT}
                     FROM events
                     WHERE starts_at >= :start_utc
                     AND starts_at < :end_utc
@@ -140,14 +197,7 @@ class UnifiedEventsService:
                     params["city"] = city
 
                 query = text(f"""
-                    SELECT source, id, title, description, title_en, description_en, location_name_en,
-                           starts_at, city, lat, lng, location_name,
-                           location_url, url as event_url,
-                           organizer_id, organizer_username, max_participants,
-                           current_participants, status, created_at_utc,
-                           community_name, chat_id, location_name as venue_name,
-                           location_name as address, place_id,
-                           '' as geo_hash, starts_at as starts_at_normalized, ends_at, time_mode
+                    SELECT {_SEARCH_EVENT_SELECT}
                     FROM events
                     WHERE starts_at >= :start_utc
                     AND starts_at < :end_utc
@@ -167,47 +217,13 @@ class UnifiedEventsService:
             found_parser = 0
 
             for row in result:
-                # Определяем source_type для совместимости с существующим кодом
-                source_type = "user" if row[0] == "user" else "parser"
-
-                # Подсчитываем по источникам
                 if row[0] == "user":
                     found_user += 1
                 else:
                     found_parser += 1
 
-                event_data = {
-                    "source_type": source_type,
-                    "source": row[0],
-                    "id": row[1],
-                    "title": row[2],
-                    "description": row[3],
-                    "title_en": row[4] if len(row) > 4 else None,
-                    "description_en": row[5] if len(row) > 5 else None,
-                    "location_name_en": row[6] if len(row) > 6 else None,
-                    "starts_at": row[7],
-                    "city": row[8],
-                    "lat": row[9],
-                    "lng": row[10],
-                    "location_name": row[11],
-                    "location_url": row[12],
-                    "event_url": row[13],
-                    "organizer_id": row[14],
-                    "organizer_username": row[15],
-                    "max_participants": row[16],
-                    "current_participants": row[17],
-                    "status": row[18],
-                    "created_at_utc": row[19],
-                    "community_name": row[20] if len(row) > 20 else None,
-                    "chat_id": row[21] if len(row) > 21 else None,
-                    "venue_name": row[22] if len(row) > 22 else None,
-                    "address": row[23] if len(row) > 23 else None,
-                    "place_id": row[24] if len(row) > 24 else None,
-                    "ends_at": row[27] if len(row) > 27 else None,
-                    "time_mode": row[28] if len(row) > 28 else None,
-                }
+                event_data = _search_row_to_event_dict(row)
 
-                # Логируем пользовательские события
                 if row[0] == "user":
                     logger.info(
                         f"🔍 DB EVENT: title='{row[2]}', source='{row[0]}', "
@@ -229,15 +245,8 @@ class UnifiedEventsService:
                         f"Определен регион: '{detected_city}'. Пробуем поиск без радиуса..."
                     )
                     # Fallback: поиск без радиуса по временным границам региона
-                    fallback_query = text("""
-                        SELECT source, id, title, description, title_en, description_en, location_name_en,
-                               starts_at, city, lat, lng, location_name,
-                               location_url, url as event_url,
-                               organizer_id, organizer_username, max_participants,
-                               current_participants, status, created_at_utc,
-                               community_name, chat_id, location_name as venue_name,
-                               location_name as address, place_id,
-                               '' as geo_hash, starts_at as starts_at_normalized, ends_at, time_mode
+                    fallback_query = text(f"""
+                        SELECT {_SEARCH_EVENT_SELECT}
                         FROM events
                         WHERE starts_at >= :start_utc
                         AND starts_at < :end_utc
@@ -258,38 +267,7 @@ class UnifiedEventsService:
                     )
                     # Обрабатываем результаты fallback поиска
                     for row in fallback_result:
-                        source_type = "user" if row[0] == "user" else "parser"
-                        event_data = {
-                            "source_type": source_type,
-                            "source": row[0],
-                            "id": row[1],
-                            "title": row[2],
-                            "description": row[3],
-                            "title_en": row[4] if len(row) > 4 else None,
-                            "description_en": row[5] if len(row) > 5 else None,
-                            "location_name_en": row[6] if len(row) > 6 else None,
-                            "starts_at": row[7],
-                            "city": row[8],
-                            "lat": row[9],
-                            "lng": row[10],
-                            "location_name": row[11],
-                            "location_url": row[12],
-                            "event_url": row[13],
-                            "organizer_id": row[14],
-                            "organizer_username": row[15],
-                            "max_participants": row[16],
-                            "current_participants": row[17],
-                            "status": row[18],
-                            "created_at_utc": row[19],
-                            "community_name": row[20] if len(row) > 20 else None,
-                            "chat_id": row[21] if len(row) > 21 else None,
-                            "venue_name": row[22] if len(row) > 22 else None,
-                            "address": row[23] if len(row) > 23 else None,
-                            "place_id": row[24] if len(row) > 24 else None,
-                            "ends_at": row[27] if len(row) > 27 else None,
-                            "time_mode": row[28] if len(row) > 28 else None,
-                        }
-                        events.append(event_data)
+                        events.append(_search_row_to_event_dict(row))
                     if events:
                         logger.info(
                             f"✅ Fallback поиск нашел {len(events)} событий для региона '{city}' "
@@ -585,12 +563,25 @@ class UnifiedEventsService:
         location_name_en: str = None,
         ends_at_utc: datetime | None = None,
         time_mode: str | None = None,
+        tags: list[str] | None = None,
+        raw_api_category: str | None = None,
+        category_event_data: dict | None = None,
     ) -> int:
         """
         Сохранение парсерного события в единую таблицу events.
         При создании или при изменении текста вызывается перевод RU→EN (title_en, description_en, location_name_en).
         При ошибке API перевода _en остаются NULL.
         """
+        category_manager = EventCategoryManager()
+        category_ctx = dict(category_event_data or {})
+        if tags is not None:
+            category_ctx["tags"] = tags
+        if raw_api_category is not None:
+            category_ctx["raw_api_category"] = raw_api_category
+        categories = category_manager.assign_categories(category_ctx, source)
+        raw_category = category_manager.resolve_raw_category(category_ctx, source)
+        categories_json = json.dumps(categories, ensure_ascii=False)
+
         with self.engine.begin() as conn:
             existing_row = conn.execute(
                 text("""
@@ -657,7 +648,8 @@ class UnifiedEventsService:
                         starts_at = :starts_at, ends_at = :ends_at, time_mode = :time_mode,
                         city = :city, lat = :lat, lng = :lng,
                         location_url = :location_url, url = :url, country = :country,
-                        place_id = :place_id, event_source = 'parser', updated_at_utc = NOW()
+                        place_id = :place_id, categories = CAST(:categories AS jsonb),
+                        raw_category = :raw_category, event_source = 'parser', updated_at_utc = NOW()
                     WHERE source = :source AND external_id = :external_id
                 """),
                     {
@@ -677,6 +669,8 @@ class UnifiedEventsService:
                         "url": url,
                         "country": country,
                         "place_id": place_id,
+                        "categories": categories_json,
+                        "raw_category": raw_category,
                         "source": source,
                         "external_id": external_id,
                     },
@@ -689,11 +683,12 @@ class UnifiedEventsService:
                     (source, external_id, event_source, title, title_en, description, description_en,
                      starts_at, ends_at, time_mode, city, lat, lng, location_name, location_name_en,
                      location_url, url, country, is_generated_by_ai, status,
-                     current_participants, place_id, organizer_id)
+                     current_participants, place_id, organizer_id, categories, raw_category)
                     VALUES
                     (:source, :external_id, 'parser', :title, :title_en, :description, :description_en,
                      :starts_at, :ends_at, :time_mode, :city, :lat, :lng, :location_name, :location_name_en,
-                     :location_url, :url, :country, :is_ai, 'open', 0, :place_id, NULL)
+                     :location_url, :url, :country, :is_ai, 'open', 0, :place_id, NULL,
+                     CAST(:categories AS jsonb), :raw_category)
                     ON CONFLICT (source, external_id) DO UPDATE SET
                         title = EXCLUDED.title,
                         title_en = EXCLUDED.title_en,
@@ -711,7 +706,9 @@ class UnifiedEventsService:
                         location_url = EXCLUDED.location_url,
                         url = EXCLUDED.url,
                         country = EXCLUDED.country,
-                        place_id = EXCLUDED.place_id
+                        place_id = EXCLUDED.place_id,
+                        categories = EXCLUDED.categories,
+                        raw_category = EXCLUDED.raw_category
                     RETURNING id
                 """),
                     {
@@ -734,6 +731,8 @@ class UnifiedEventsService:
                         "country": country,
                         "is_ai": is_ai,
                         "place_id": place_id,
+                        "categories": categories_json,
+                        "raw_category": raw_category,
                     },
                 )
                 event_id = result.fetchone()[0]
