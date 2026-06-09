@@ -160,8 +160,8 @@ class TestRenderEventCardRoute:
         """Тест отображения источника в карточке"""
         event = self.base_event(source_url="https://valid.site/event")
         html = render_event_html(event, 1)
-        assert "🌐" in html
-        assert "Источник" in html
+        assert "🔗" in html
+        assert "Подробнее" in html
         assert "https://valid.site/event" in html
 
         event = self.base_event(source_url="https://example.com/event")
@@ -180,7 +180,7 @@ class TestRenderEventCardRoute:
         assert "(2.5 км)" in html
         assert "📍 <a href=" in html
         assert "Test Venue</a>" in html
-        assert '🌐 <a href="https://valid.site/event">Источник</a>' in html
+        assert '🔗 <a href="https://valid.site/event">Подробнее</a>' in html
         assert "🚗" not in html
         assert "Маршрут" not in html
 

@@ -1354,7 +1354,7 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         if src:
             # Используем API endpoint для отслеживания кликов
             tracking_url = _build_tracking_url("source", e, src, user_id)
-            src_part = f'🌐 <a href="{html.escape(tracking_url)}">{source_link_label}</a>'
+            src_part = f'🔗 <a href="{html.escape(tracking_url)}">{source_link_label}</a>'
         else:
             src_part = f"ℹ️ {t('event.source_not_specified', lang)}"
 
