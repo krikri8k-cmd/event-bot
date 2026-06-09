@@ -182,6 +182,62 @@ def ensure_events_table(request):
                     ) THEN
                         ALTER TABLE events ADD COLUMN place_id TEXT;
                     END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'title_en'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN title_en TEXT;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'description_en'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN description_en TEXT;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'location_name_en'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN location_name_en TEXT;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'ends_at'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN ends_at TIMESTAMPTZ;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'time_mode'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN time_mode VARCHAR(16);
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'chat_id'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN chat_id BIGINT;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'categories'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN categories JSONB NOT NULL DEFAULT '[]'::jsonb;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'raw_category'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN raw_category TEXT;
+                    END IF;
                 END $$;
             """)
             c.execute(add_columns_script)

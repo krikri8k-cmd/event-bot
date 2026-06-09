@@ -1,6 +1,7 @@
 import pytest
 
 from utils.event_category_manager import EventCategoryManager, dedupe_categories, normalize_tag
+from utils.unified_events_service import _parse_categories_value, _search_row_to_event_dict
 
 
 @pytest.mark.no_db
@@ -60,3 +61,50 @@ def test_resolve_raw_category_baliforum():
 @pytest.mark.no_db
 def test_dedupe_categories_helper():
     assert dedupe_categories(["Выставка", "Бизнес", "Выставка"]) == ["Выставка", "Бизнес"]
+
+
+@pytest.mark.no_db
+def test_parse_categories_value():
+    assert _parse_categories_value('["Выставка"]') == ["Выставка"]
+    assert _parse_categories_value(["Бизнес", "Еда"]) == ["Бизнес", "Еда"]
+    assert _parse_categories_value(None) == []
+
+
+@pytest.mark.no_db
+def test_search_row_to_event_dict_includes_categories():
+    row = (
+        "baliforum",
+        1,
+        "Fest",
+        None,
+        None,
+        None,
+        None,
+        None,
+        "bali",
+        -8.5,
+        115.2,
+        "Venue",
+        None,
+        "https://example.com",
+        None,
+        None,
+        None,
+        0,
+        "open",
+        None,
+        None,
+        None,
+        "Venue",
+        "Venue",
+        None,
+        "",
+        None,
+        None,
+        "start",
+        ["Выставка"],
+        "Фестиваль, Искусство",
+    )
+    event = _search_row_to_event_dict(row)
+    assert event["categories"] == ["Выставка"]
+    assert event["raw_category"] == "Фестиваль, Искусство"
