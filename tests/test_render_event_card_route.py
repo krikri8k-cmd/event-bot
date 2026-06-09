@@ -1,5 +1,5 @@
 """
-Интеграционные тесты для рендера карточки события с кнопкой "Маршрут"
+Интеграционные тесты для рендера карточки события: локация-как-ссылка и категории
 """
 
 import datetime as dt
@@ -9,11 +9,11 @@ import sys
 # Добавляем корень проекта в путь для импорта
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from bot_enhanced_v3 import build_maps_url, render_event_html
+from bot_enhanced_v3 import _build_event_info_line, build_maps_url, render_event_html
 
 
 class TestRenderEventCardRoute:
-    """Тесты для рендера карточки события с кнопкой Маршрут"""
+    """Тесты для рендера карточки события с кликабельной локацией (бывш. Маршрут)"""
 
     def base_event(self, **kwargs):
         """Создает базовое событие с дефолтными значениями"""
@@ -30,14 +30,15 @@ class TestRenderEventCardRoute:
         return event
 
     def test_route_with_venue_name(self):
-        """Тест A: Есть venue (название места)"""
+        """Тест A: Есть venue (название места) — ссылка ведёт на maps с venue"""
         event = self.base_event(venue_name="Museum Bali", address=None, coords=None)
 
         html = render_event_html(event, 1)
 
-        # Проверяем что в HTML есть кнопка Маршрут с venue
-        assert "🚗" in html
-        assert "Маршрут" in html
+        assert "🚗" not in html
+        assert "Маршрут" not in html
+        assert "📍 <a href=" in html
+        assert "Museum Bali</a>" in html
         assert "Museum+Bali" in html or "Museum%2BBali" in html
         assert "https://www.google.com/maps/search/?api=1&query=" in html
 
@@ -47,11 +48,9 @@ class TestRenderEventCardRoute:
 
         html = render_event_html(event, 1)
 
-        # Проверяем что в HTML есть кнопка Маршрут с адресом
-        assert "🚗" in html
-        assert "Маршрут" in html
+        assert "📍 <a href=" in html
+        assert "Jl. Danau Tamblingan 80</a>" in html
         assert "Jl.+Danau+Tamblingan+80" in html or "Jl.%2BDanau%2BTamblingan%2B80" in html
-        assert "https://www.google.com/maps/search/?api=1&query=" in html
 
     def test_route_with_coords(self):
         """Тест C: Есть только coords"""
@@ -59,11 +58,9 @@ class TestRenderEventCardRoute:
 
         html = render_event_html(event, 1)
 
-        # Проверяем что в HTML есть кнопка Маршрут с координатами
-        assert "🚗" in html
-        assert "Маршрут" in html
+        assert "📍 <a href=" in html
+        assert "координаты (-8.6700, 115.2500)</a>" in html
         assert "-8.670000,115.250000" in html
-        assert "https://www.google.com/maps/search/?api=1&query=" in html
 
     def test_route_with_no_location(self):
         """Тест D: Нет venue/address/coords"""
@@ -71,11 +68,8 @@ class TestRenderEventCardRoute:
 
         html = render_event_html(event, 1)
 
-        # Проверяем что есть нейтральная фраза и кнопка Маршрут все равно есть
-        assert "Локация" in html
-        assert "🚗" in html
-        assert "Маршрут" in html
-        # Должна быть дефолтная ссылка на Google Maps
+        assert "Локация</a>" in html
+        assert "📍 <a href=" in html
         assert "https://www.google.com/maps" in html
 
     def test_route_priority_venue_over_address(self):
@@ -84,7 +78,6 @@ class TestRenderEventCardRoute:
 
         html = render_event_html(event, 1)
 
-        # Должен использоваться venue_name, а не address
         assert "Cafe+Moka" in html or "Cafe%2BMoka" in html
         assert "Jl.+Danau+Tamblingan" not in html
 
@@ -94,7 +87,6 @@ class TestRenderEventCardRoute:
 
         html = render_event_html(event, 1)
 
-        # Должен использоваться address, а не coords
         assert "Jl.+Danau+Tamblingan" in html or "Jl.%2BDanau%2BTamblingan" in html
         assert "-8.67,115.25" not in html
 
@@ -109,52 +101,43 @@ class TestRenderEventCardRoute:
 
         html = render_event_html(event, 1)
 
-        # Должен использоваться venue_name
         assert "Museum+Bali" in html or "Museum%2BBali" in html
         assert "Jl.+Danau+Tamblingan" not in html
         assert "-8.67,115.25" not in html
 
     def test_venue_display_priority(self):
-        """Тест отображения venue в карточке"""
-        # С venue_name
+        """Тест отображения venue в карточке (как текст ссылки)"""
         event = self.base_event(venue_name="Cafe Moka")
         html = render_event_html(event, 1)
-        assert "Cafe Moka" in html
+        assert "Cafe Moka</a>" in html
 
-        # С address (без venue_name)
         event = self.base_event(venue_name=None, address="Jl. Danau Tamblingan 80")
         html = render_event_html(event, 1)
-        assert "Jl. Danau Tamblingan 80" in html
+        assert "Jl. Danau Tamblingan 80</a>" in html
 
-        # С coords (без venue_name и address)
         event = self.base_event(venue_name=None, address=None, lat=-8.67, lng=115.25)
         html = render_event_html(event, 1)
-        assert "координаты (-8.6700, 115.2500)" in html
+        assert "координаты (-8.6700, 115.2500)</a>" in html
 
-        # Без ничего
         event = self.base_event(venue_name=None, address=None, coords=None)
         html = render_event_html(event, 1)
-        assert "Локация" in html
+        assert "Локация</a>" in html
 
     def test_build_maps_url_directly(self):
         """Тест функции build_maps_url напрямую"""
-        # С venue_name
         event = {"venue_name": "Museum Bali"}
         url = build_maps_url(event)
         assert "Museum+Bali" in url or "Museum%2BBali" in url
         assert "https://www.google.com/maps/search/?api=1&query=" in url
 
-        # С address
         event = {"address": "Jl. Danau Tamblingan 80, Sanur"}
         url = build_maps_url(event)
         assert "Jl.+Danau+Tamblingan" in url or "Jl.%2BDanau%2BTamblingan" in url
 
-        # С coords
         event = {"lat": -8.67, "lng": 115.25}
         url = build_maps_url(event)
         assert "-8.670000,115.250000" in url
 
-        # Без ничего
         event = {}
         url = build_maps_url(event)
         assert url == "https://www.google.com/maps"
@@ -163,27 +146,24 @@ class TestRenderEventCardRoute:
         """Тест новой структуры venue (venue.name, venue.address)"""
         event = self.base_event(
             venue={"name": "New Venue", "address": "New Address"},
-            venue_name="Old Venue",  # должен игнорироваться
-            address="Old Address",  # должен игнорироваться
+            venue_name="Old Venue",
+            address="Old Address",
         )
 
         html = render_event_html(event, 1)
 
-        # Должна использоваться новая структура
-        assert "New Venue" in html
+        assert "New Venue</a>" in html
         assert "Old Venue" not in html
         assert "New+Venue" in html or "New%2BVenue" in html
 
     def test_source_url_in_card(self):
         """Тест отображения источника в карточке"""
-        # С валидным источником (иконка источника — 🌐)
         event = self.base_event(source_url="https://valid.site/event")
         html = render_event_html(event, 1)
         assert "🌐" in html
         assert "Источник" in html
         assert "https://valid.site/event" in html
 
-        # С заблокированным источником
         event = self.base_event(source_url="https://example.com/event")
         html = render_event_html(event, 1)
         assert "ℹ️ Источник не указан" in html
@@ -195,11 +175,35 @@ class TestRenderEventCardRoute:
 
         html = render_event_html(event, 1)
 
-        # Проверяем основные элементы карточки
         assert "1) <b>Test Event</b>" in html
         assert "сегодня в 15:00" in html
-        assert "(2.5 км)" in html  # расстояние
-        assert "📍 Test Venue" in html
+        assert "(2.5 км)" in html
+        assert "📍 <a href=" in html
+        assert "Test Venue</a>" in html
         assert '🌐 <a href="https://valid.site/event">Источник</a>' in html
-        assert "🚗 <a href=" in html
-        assert "Маршрут</a>" in html
+        assert "🚗" not in html
+        assert "Маршрут" not in html
+
+    def test_categories_in_info_line(self):
+        """Категории отображаются перед локацией"""
+        event = self.base_event(
+            venue_name="Savaya",
+            categories=["Вечеринка", "Выставка"],
+        )
+        html = render_event_html(event, 1)
+        assert "🎭 Вечеринка / Выставка • 📍" in html
+        assert "Savaya</a>" in html
+
+    def test_empty_categories_no_theater_emoji(self):
+        """Без категорий — только 📍 с ссылкой"""
+        event = self.base_event(venue_name="Cafe", categories=[])
+        html = render_event_html(event, 1)
+        assert "🎭" not in html
+        assert "📍 <a href=" in html
+        assert "Cafe</a>" in html
+
+    def test_build_event_info_line_directly(self):
+        event = self.base_event(venue_name="Venue X", categories=["Еда"])
+        line = _build_event_info_line(event, "Venue X", user_id=None)
+        assert line.startswith("🎭 Еда • 📍")
+        assert "Venue X</a>" in line

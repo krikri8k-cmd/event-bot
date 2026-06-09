@@ -58,7 +58,7 @@ from utils.event_translation import ensure_bilingual
 from utils.geo_utils import get_timezone, haversine_km
 from utils.i18n import format_translation, get_bot_username, t
 from utils.static_map import build_static_map_url, fetch_static_map
-from utils.unified_events_service import UnifiedEventsService
+from utils.unified_events_service import UnifiedEventsService, _parse_categories_value
 from utils.user_language import (
     get_user_language_or_default,
     needs_language_selection,
@@ -1108,6 +1108,19 @@ def _capitalize_first_letter(text: str) -> str:
     return text
 
 
+def _build_event_info_line(e: dict, venue_display: str, user_id: int | None) -> str:
+    """Строка категорий и локации: 🎭 Cat1 / Cat2 • 📍 <venue с tracking route URL>."""
+    categories = _parse_categories_value(e.get("categories"))
+    maps_url = build_maps_url(e)
+    tracking_url = _build_tracking_url("route", e, maps_url, user_id)
+    venue_link = f'📍 <a href="{html.escape(tracking_url)}">{venue_display}</a>'
+    if categories:
+        cats = " / ".join(html.escape(c) for c in categories if c)
+        if cats:
+            return f"🎭 {cats} • {venue_link}"
+    return venue_link
+
+
 def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool = False) -> str:
     """Рендерит одну карточку в HTML. EN: title_en/description_en с fallback на RU; локация — всегда оригинальный location_name (без GPT)."""
     import logging
@@ -1136,7 +1149,6 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     display_venue_name = (e.get("venue_name") or e.get("location_name") or "").strip()
     # Локализация подписей ссылок по языку пользователя
     source_link_label = t("event.source_link", lang)
-    route_link_label = t("event.route_link", lang)
 
     title = html.escape(_capitalize_first_letter(display_title or "Событие"))
     when = e.get("when_str", "")
@@ -1343,10 +1355,6 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         else:
             src_part = f"ℹ️ {t('event.source_not_specified', lang)}"
 
-    # Маршрут с приоритетом venue_name → address → coords
-    maps_url = build_maps_url(e)
-    map_part = f'🚗 <a href="{_build_tracking_url("route", e, maps_url, user_id)}">{route_link_label}</a>'
-
     # Добавляем таймер для пользовательских событий
     timer_part = ""
     if event_type == "user":
@@ -1372,20 +1380,18 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
                 pass
 
     logger.debug("🕐 render_event_html ИТОГ: title=%s, when=%s, dist=%s", (title or "")[:40], when, dist)
-    logger.debug("🔍 src_part len=%s, map_part len=%s", len(src_part or ""), len(map_part or ""))
+    logger.debug("🔍 src_part len=%s", len(src_part or ""))
 
     # Формируем строку с автором и группой (для community событий)
     if event_type == "community":
-        # Для событий от групп: автор → маршрут → группа
         group_name = e.get("community_name")
         if group_name:
             group_part = f"  💥@{html.escape(group_name)}"
         else:
             group_part = f"  💥{t('event.from_groups_solo', lang)}"
-        author_line = f"{src_part}  {map_part}{group_part}" if src_part else f"{map_part}{group_part}"
+        author_line = f"{src_part}{group_part}" if src_part else group_part.lstrip()
     else:
-        # Для остальных событий: автор → маршрут
-        author_line = f"{src_part}  {map_part}" if src_part else map_part
+        author_line = src_part or ""
     logger.debug("🔍 author_line len=%s", len(author_line or ""))
 
     # Добавляем описание для пользовательских событий и событий от групп (уже по языку: display_description)
@@ -1403,9 +1409,8 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     test_venue = venue_display
     logger.debug("🔍 test_venue=%s", (test_venue or "")[:30])
 
-    final_html = (
-        f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n📍 {test_venue}\n{author_line}{description_part}\n"
-    )
+    info_line = _build_event_info_line(e, test_venue, user_id)
+    final_html = f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n{info_line}\n{author_line}{description_part}\n"
     logger.debug("🔍 ПОСЛЕ final_html: venue_display len=%s", len(venue_display or ""))
     logger.debug("🔍 FINAL HTML (lang=%s): %s", lang, final_html[:300] + ("..." if len(final_html) > 300 else ""))
     return final_html
