@@ -2,14 +2,17 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import pytest
 from bs4 import BeautifulSoup
 
+from event_apis import RawEvent
 from sources.baliforum import (
     _determine_time_mode,
     _extract_latlng_from_maps,
     _extract_venue_from_soup,
     _parse_time,
     _ru_date_to_dt,
+    merge_tomorrow_baliforum_events,
 )
 
 
@@ -91,6 +94,77 @@ def test_ru_date_to_dt():
     assert end is None
 
 
+@pytest.mark.no_db
+def test_merge_tomorrow_baliforum_events():
+    """Слияние завтра: новые события + без затирания «сегодня»."""
+    tz = ZoneInfo("Asia/Makassar")
+    now = datetime(2026, 6, 9, 10, 0, tzinfo=tz)
+    today_start = datetime(2026, 6, 9, 13, 0, tzinfo=tz)
+    tomorrow_start = datetime(2026, 6, 10, 11, 0, tzinfo=tz)
+
+    today_event = RawEvent(
+        title="Today event",
+        lat=-8.5,
+        lng=115.2,
+        starts_at=today_start,
+        source="baliforum",
+        external_id="today-id",
+        url="https://baliforum.ru/events/today",
+    )
+    wrong_date_event = RawEvent(
+        title="Wrong date",
+        lat=-8.5,
+        lng=115.2,
+        starts_at=datetime(2026, 6, 12, 11, 0, tzinfo=tz),
+        source="baliforum",
+        external_id="fix-id",
+        url="https://baliforum.ru/events/fix",
+    )
+    raw_events = [today_event, wrong_date_event]
+
+    tomorrow_events = [
+        {
+            "title": "Today event",
+            "lat": -8.5,
+            "lng": 115.2,
+            "start_time": tomorrow_start,
+            "url": "https://baliforum.ru/events/today",
+            "external_id": "today-id",
+            "venue": "Should not apply",
+        },
+        {
+            "title": "Wrong date",
+            "lat": -8.5,
+            "lng": 115.2,
+            "start_time": tomorrow_start,
+            "end_time": datetime(2026, 6, 10, 13, 0, tzinfo=tz),
+            "time_mode": "range",
+            "url": "https://baliforum.ru/events/fix",
+            "external_id": "fix-id",
+            "venue": "Plant Bistro",
+        },
+        {
+            "title": "Only tomorrow page",
+            "lat": -8.6,
+            "lng": 115.1,
+            "start_time": tomorrow_start,
+            "url": "https://baliforum.ru/events/new",
+            "external_id": "new-id",
+            "venue": "New venue",
+        },
+    ]
+
+    merged, added, skipped, updated = merge_tomorrow_baliforum_events(raw_events, tomorrow_events, now=now)
+    assert len(merged) == 3
+    assert added == 1
+    assert skipped == 1
+    assert updated == 1
+    assert today_event.starts_at == today_start
+    assert wrong_date_event.starts_at == tomorrow_start
+    assert wrong_date_event._raw_data["venue"] == "Plant Bistro"  # type: ignore[attr-defined]
+
+
+@pytest.mark.no_db
 def test_extract_venue_from_soup():
     """Название места с детальной страницы BaliForum (dd.event__place)."""
     html = """

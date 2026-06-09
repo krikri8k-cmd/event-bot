@@ -59,38 +59,18 @@ class ModernEventScheduler:
 
             # Увеличиваем limit до 200 для парсинга большего количества событий
             tomorrow_events = fetch_baliforum_events(limit=200, date_filter=tomorrow_str)
-            # Конвертируем в RawEvent формат
-            from event_apis import RawEvent
+            from sources.baliforum import merge_tomorrow_baliforum_events
 
-            # BaliForum дублирует карточки на странице «сегодня» и в фильтре «завтра».
-            # Если просто append — второй проход перезапишет starts_at на завтра в БД.
-            seen_ext_ids = {e.external_id for e in raw_events if e.external_id}
-            tomorrow_added = 0
-            tomorrow_skipped_dup = 0
-            for event in tomorrow_events:
-                external_id = event.get("external_id", event["url"].rstrip("/").split("/")[-1])
-                if external_id in seen_ext_ids:
-                    tomorrow_skipped_dup += 1
-                    continue
-                seen_ext_ids.add(external_id)
-                raw_event = RawEvent(
-                    title=event["title"],
-                    lat=event.get("lat") or 0.0,
-                    lng=event.get("lng") or 0.0,
-                    starts_at=event.get("start_time"),
-                    source="baliforum",
-                    external_id=external_id,
-                    url=event["url"],
-                    description=event.get("description"),
-                    ends_at=event.get("end_time"),
-                    time_mode=event.get("time_mode"),
-                )
-                raw_events.append(raw_event)
-                tomorrow_added += 1
+            # BaliForum дублирует карточки на главной и в фильтре «завтра».
+            # Добавляем уникальные и уточняем дату, но не затираем события «сегодня».
+            raw_events, tomorrow_added, tomorrow_skipped_dup, tomorrow_updated = merge_tomorrow_baliforum_events(
+                raw_events, tomorrow_events, now=datetime.now(tz_bali)
+            )
 
             logger.info(
                 f"🌴 Всего найдено событий: {len(raw_events)} "
-                f"(сегодня + завтра: добавлено завтра={tomorrow_added}, пропущено дублей={tomorrow_skipped_dup})"
+                f"(завтра: добавлено={tomorrow_added}, дублей={tomorrow_skipped_dup}, "
+                f"уточнена дата={tomorrow_updated})"
             )
 
             prepared = []

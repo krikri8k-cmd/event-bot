@@ -778,51 +778,101 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
     return events
 
 
+def event_dict_to_raw_event(event: dict) -> RawEvent:
+    """Конвертирует словарь парсера в RawEvent с venue/location в _raw_data."""
+    external_id = event.get("external_id", event["url"].rstrip("/").split("/")[-1])
+    venue = event.get("venue")
+
+    description_parts = []
+    if event.get("description"):
+        description_parts.append(event["description"])
+    if venue:
+        description_parts.append(f"\n📍 Место: {venue}")
+
+    raw_event = RawEvent(
+        title=event["title"],
+        lat=event["lat"] or 0.0,
+        lng=event["lng"] or 0.0,
+        starts_at=event["start_time"],
+        source="baliforum",
+        external_id=external_id,
+        url=event["url"],
+        description="\n".join(description_parts) if description_parts else None,
+        ends_at=event.get("end_time"),
+        time_mode=event.get("time_mode"),
+    )
+    raw_event._raw_data = {  # type: ignore[attr-defined]
+        "venue": venue,
+        "location_url": event.get("location_url"),
+        "place_name_from_maps": event.get("raw", {}).get("place_name_from_maps"),
+        "place_id": event.get("raw", {}).get("place_id"),
+    }
+    return raw_event
+
+
+def merge_tomorrow_baliforum_events(
+    raw_events: list,
+    tomorrow_events: list[dict],
+    *,
+    now: datetime | None = None,
+) -> tuple[list, int, int, int]:
+    """
+    Добавляет уникальные события с фильтра «завтра» и уточняет дату у дублей.
+
+    Не перезаписывает события с датой «сегодня» (фикс прошлого бага с затиранием).
+    """
+    tz = ZoneInfo("Asia/Makassar")
+    now = now or datetime.now(tz)
+    today_bali = now.date()
+    tomorrow_bali = (now + timedelta(days=1)).date()
+
+    by_id = {e.external_id: e for e in raw_events if e.external_id}
+    added = 0
+    skipped_dup = 0
+    updated_date = 0
+
+    for event in tomorrow_events:
+        external_id = event.get("external_id", event["url"].rstrip("/").split("/")[-1])
+        tomorrow_start = event.get("start_time")
+        if not tomorrow_start:
+            continue
+
+        tomorrow_date = tomorrow_start.astimezone(tz).date()
+        if tomorrow_date != tomorrow_bali:
+            continue
+
+        existing = by_id.get(external_id)
+        if existing:
+            existing_start = existing.starts_at
+            if not existing_start:
+                skipped_dup += 1
+                continue
+            existing_date = existing_start.astimezone(tz).date()
+            if existing_date == today_bali:
+                skipped_dup += 1
+                continue
+            if existing_date == tomorrow_bali:
+                skipped_dup += 1
+                continue
+
+            refreshed = event_dict_to_raw_event(event)
+            existing.starts_at = refreshed.starts_at
+            existing.ends_at = refreshed.ends_at
+            existing.time_mode = refreshed.time_mode
+            existing.description = refreshed.description
+            existing._raw_data = refreshed._raw_data  # type: ignore[attr-defined]
+            updated_date += 1
+            continue
+
+        raw_event = event_dict_to_raw_event(event)
+        raw_events.append(raw_event)
+        by_id[external_id] = raw_event
+        added += 1
+
+    return raw_events, added, skipped_dup, updated_date
+
+
 def fetch(limit: int = 200) -> list[RawEvent]:
     """Главная точка входа для инжеста - возвращает RawEvent объекты"""
     events = fetch_baliforum_events(limit)
-
-    # Конвертируем в RawEvent объекты
-    raw_events = []
-    for event in events:
-        # Используем стабильный external_id из парсера
-        external_id = event.get("external_id", event["url"].rstrip("/").split("/")[-1])
-
-        # Парсим дату если есть
-        starts_at = event["start_time"]
-
-        # Формируем description с venue и location_url для передачи в БД
-        description_parts = []
-        if event.get("description"):
-            description_parts.append(event["description"])
-
-        # Добавляем venue в description, если есть
-        venue = event.get("venue")
-        if venue:
-            description_parts.append(f"\n📍 Место: {venue}")
-
-        # Сохраняем location_url и venue в raw для использования при сохранении
-        raw_data = {
-            "venue": venue,
-            "location_url": event.get("location_url"),
-            "place_name_from_maps": event.get("raw", {}).get("place_name_from_maps"),
-            "place_id": event.get("raw", {}).get("place_id"),
-        }
-
-        raw_event = RawEvent(
-            title=event["title"],
-            lat=event["lat"] or 0.0,
-            lng=event["lng"] or 0.0,
-            starts_at=starts_at,
-            source="baliforum",
-            external_id=external_id,
-            url=event["url"],
-            description="\n".join(description_parts) if description_parts else None,
-            ends_at=event.get("end_time"),
-            time_mode=event.get("time_mode"),
-        )
-        # Сохраняем дополнительные данные в атрибуте raw_event для использования при сохранении
-        raw_event._raw_data = raw_data  # type: ignore
-        raw_events.append(raw_event)
-
-    return raw_events
+    return [event_dict_to_raw_event(event) for event in events]
