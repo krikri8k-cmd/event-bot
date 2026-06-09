@@ -1113,7 +1113,7 @@ def _build_event_info_line(e: dict, venue_display: str, user_id: int | None) -> 
     categories = _parse_categories_value(e.get("categories"))
     maps_url = build_maps_url(e)
     tracking_url = _build_tracking_url("route", e, maps_url, user_id)
-    venue_link = f'📍 <a href="{html.escape(tracking_url)}">{venue_display}</a>'
+    venue_link = f'📍 <a href="{tracking_url}">{venue_display}</a>'
     if categories:
         cats = " / ".join(html.escape(c) for c in categories if c)
         if cats:

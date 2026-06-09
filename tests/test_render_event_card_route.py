@@ -49,7 +49,7 @@ class TestRenderEventCardRoute:
         html = render_event_html(event, 1)
 
         assert "📍 <a href=" in html
-        assert "Jl. Danau Tamblingan 80</a>" in html
+        assert "Jl. Danau Tamblingan 80, Sanur</a>" in html
         assert "Jl.+Danau+Tamblingan+80" in html or "Jl.%2BDanau%2BTamblingan%2B80" in html
 
     def test_route_with_coords(self):
