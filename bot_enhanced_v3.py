@@ -1161,7 +1161,7 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     # Если when_str пустое, формируем строку времени по сценарию (диапазон / старт / весь день)
     if not when:
         when = format_event_when(e, user_id=user_id)
-    dist = f"{e['distance_km']:.1f} км" if e.get("distance_km") is not None else ""
+    dist = f"{e['distance_km']:.1f} {t('mytasks.km_suffix', lang)}" if e.get("distance_km") is not None else ""
 
     # Определяем тип события, если не установлен
     event_type = e.get("type")

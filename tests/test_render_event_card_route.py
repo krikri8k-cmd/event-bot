@@ -225,6 +225,19 @@ class TestRenderEventCardRoute:
         assert line.startswith("🎭 Фестиваль / Музыка • 📍")
         assert "Venue X</a>" in line
 
+    def test_distance_km_suffix_en(self):
+        event = self.base_event(venue_name="Test Venue", source_url="https://valid.site/event")
+        html = render_event_html(event, 1, user_id=999)
+        # user_id без языка в БД → ru по умолчанию
+        assert "(2.5 км)" in html
+
+        from unittest.mock import patch
+
+        with patch("bot_enhanced_v3.get_user_language_or_default", return_value="en"):
+            html_en = render_event_html(event, 1, user_id=999)
+        assert "(2.5 km)" in html_en
+        assert " км)" not in html_en
+
     def test_source_tags_en_in_info_line(self):
         """EN: теги BaliForum через статический словарь."""
         event = self.base_event(
