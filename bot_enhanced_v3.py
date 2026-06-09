@@ -54,7 +54,7 @@ from tasks_service import (
     create_task_from_place,
     get_user_active_tasks,
 )
-from utils.event_category_manager import parse_source_display_tags
+from utils.event_category_manager import format_source_display_tags
 from utils.event_translation import ensure_bilingual
 from utils.geo_utils import get_timezone, haversine_km
 from utils.i18n import format_translation, get_bot_username, t
@@ -1109,9 +1109,11 @@ def _capitalize_first_letter(text: str) -> str:
     return text
 
 
-def _build_event_info_line(e: dict, venue_display: str, user_id: int | None) -> str:
+def _build_event_info_line(e: dict, venue_display: str, user_id: int | None, lang: str | None = None) -> str:
     """Строка тегов источника и локации: 🎭 Tag1 / Tag2 • 📍 <venue с tracking route URL>."""
-    display_tags = parse_source_display_tags(e)
+    if lang is None:
+        lang = get_user_language_or_default(user_id) if user_id else "ru"
+    display_tags = format_source_display_tags(e, lang)
     maps_url = build_maps_url(e)
     tracking_url = _build_tracking_url("route", e, maps_url, user_id)
     venue_link = f'📍 <a href="{tracking_url}">{venue_display}</a>'
@@ -1410,7 +1412,7 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     test_venue = venue_display
     logger.debug("🔍 test_venue=%s", (test_venue or "")[:30])
 
-    info_line = _build_event_info_line(e, test_venue, user_id)
+    info_line = _build_event_info_line(e, test_venue, user_id, lang=lang)
     final_html = f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n{info_line}\n{author_line}{description_part}\n"
     logger.debug("🔍 ПОСЛЕ final_html: venue_display len=%s", len(venue_display or ""))
     logger.debug("🔍 FINAL HTML (lang=%s): %s", lang, final_html[:300] + ("..." if len(final_html) > 300 else ""))

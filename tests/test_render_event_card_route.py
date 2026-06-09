@@ -187,6 +187,7 @@ class TestRenderEventCardRoute:
     def test_source_tags_in_info_line(self):
         """Теги источника отображаются перед локацией (не internal categories)."""
         event = self.base_event(
+            source="baliforum",
             venue_name="GWK Cultural Park",
             tags=["Фестиваль", "Музыка"],
             categories=["Выставка"],
@@ -215,10 +216,22 @@ class TestRenderEventCardRoute:
 
     def test_build_event_info_line_directly(self):
         event = self.base_event(
+            source="baliforum",
             venue_name="Venue X",
             tags=["Фестиваль", "Музыка"],
             categories=["Выставка"],
         )
-        line = _build_event_info_line(event, "Venue X", user_id=None)
+        line = _build_event_info_line(event, "Venue X", user_id=None, lang="ru")
         assert line.startswith("🎭 Фестиваль / Музыка • 📍")
         assert "Venue X</a>" in line
+
+    def test_source_tags_en_in_info_line(self):
+        """EN: теги BaliForum через статический словарь."""
+        event = self.base_event(
+            source="baliforum",
+            venue_name="GWK Cultural Park",
+            tags=["Фестиваль", "Музыка"],
+        )
+        line = _build_event_info_line(event, "GWK Cultural Park", user_id=1, lang="en")
+        assert "🎭 Festival / Music • 📍" in line
+        assert "Фестиваль" not in line

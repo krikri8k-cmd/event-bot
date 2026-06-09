@@ -8,6 +8,34 @@ USER_COMMUNITY_SOURCES = frozenset({"user", "community"})
 # Источники с категорией из API (маппинг добавится позже).
 EXTERNAL_API_SOURCES = frozenset({"megatix", "savaya", "google_calendar"})
 
+# Отображение тегов BaliForum в карточке для lang=en (UI only, не internal categories).
+BALIFORUM_TAG_EN_MAP: dict[str, str] = {
+    "искусство": "Art",
+    "вечеринка": "Party",
+    "еда": "Food",
+    "семья": "Family",
+    "йога": "Yoga",
+    "кино": "Cinema",
+    "игра": "Games",
+    "напитки": "Drinks",
+    "бизнес": "Business",
+    "концерт": "Concert",
+    "открытый микрофон": "Open mic",
+    "медитация": "Meditation",
+    "тренинг": "Training",
+    "фестиваль": "Festival",
+    "мастер-класс": "Workshop",
+    "духовное": "Spiritual",
+    "музыка": "Music",
+    "танцы": "Dance",
+    "дети": "Kids",
+    "спорт": "Sport",
+    "живая музыка": "Live music",
+    "ремесло": "Crafts",
+    "шоу": "Show",
+    "стендап": "Stand-up",
+}
+
 BALIFORUM_TAG_MAP: dict[str, str] = {
     "выставка": "Выставка",
     "искусство": "Выставка",
@@ -41,6 +69,24 @@ def parse_source_display_tags(event_data: dict) -> list[str]:
     if raw:
         return [t.strip() for t in str(raw).split(",") if t.strip()]
     return []
+
+
+def localize_baliforum_tags(tags: list[str], lang: str) -> list[str]:
+    """Переводит теги BaliForum для отображения; неизвестные теги остаются как есть."""
+    if lang != "en":
+        return tags
+    return [BALIFORUM_TAG_EN_MAP.get(normalize_tag(tag), tag) for tag in tags]
+
+
+def format_source_display_tags(event_data: dict, lang: str = "ru") -> list[str]:
+    """Теги для строки 🎭 в карточке с учётом языка пользователя."""
+    tags = parse_source_display_tags(event_data)
+    if not tags:
+        return []
+    source = (event_data.get("source") or "").strip().lower()
+    if source == "baliforum":
+        return localize_baliforum_tags(tags, lang)
+    return tags
 
 
 class EventCategoryManager:

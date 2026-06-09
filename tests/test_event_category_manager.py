@@ -3,6 +3,8 @@ import pytest
 from utils.event_category_manager import (
     EventCategoryManager,
     dedupe_categories,
+    format_source_display_tags,
+    localize_baliforum_tags,
     normalize_tag,
     parse_source_display_tags,
 )
@@ -40,6 +42,30 @@ def test_baliforum_dukhovnoe_and_meditation_map_to_spiritual():
     manager = EventCategoryManager()
     assert manager.assign_categories({"tags": ["Духовное"]}, "baliforum") == ["Духовное"]
     assert manager.assign_categories({"tags": ["Медитация", "Тренинг"]}, "baliforum") == ["Духовное"]
+
+
+@pytest.mark.no_db
+def test_localize_baliforum_tags_en():
+    assert localize_baliforum_tags(["Фестиваль", "Музыка"], "en") == ["Festival", "Music"]
+    assert localize_baliforum_tags(["Фестиваль", "Музыка"], "ru") == ["Фестиваль", "Музыка"]
+    assert localize_baliforum_tags(["Неизвестный тег"], "en") == ["Неизвестный тег"]
+
+
+@pytest.mark.no_db
+def test_format_source_display_tags_baliforum_en():
+    event = {
+        "source": "baliforum",
+        "tags": ["Вечеринка", "Йога"],
+        "categories": ["Вечеринка", "Духовное"],
+    }
+    assert format_source_display_tags(event, "ru") == ["Вечеринка", "Йога"]
+    assert format_source_display_tags(event, "en") == ["Party", "Yoga"]
+
+
+@pytest.mark.no_db
+def test_format_source_display_tags_non_baliforum_not_translated():
+    event = {"source": "user", "tags": ["Custom"]}
+    assert format_source_display_tags(event, "en") == ["Custom"]
 
 
 @pytest.mark.no_db
