@@ -301,3 +301,19 @@ class TestRenderEventCardRoute:
             )
             == "Текст события"
         )
+
+    def test_location_display_replaces_plus_with_spaces(self):
+        """Google Maps URL-encoding в location_name не должен попадать в текст ссылки."""
+        event = self.base_event(
+            type="user",
+            venue_name="Mie+Gacoan+Canggu",
+            location_name="Mie+Gacoan+Canggu",
+            lat=-8.65,
+            lng=115.14,
+            organizer_id=123,
+            organizer_username="Fincontro",
+        )
+        html = render_event_html(event, 4)
+        assert "Mie Gacoan Canggu</a>" in html
+        assert "Mie+Gacoan" not in html
+        assert build_maps_url(event).startswith("https://www.google.com/maps")

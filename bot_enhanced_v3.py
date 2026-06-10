@@ -1118,6 +1118,13 @@ def _normalize_event_description_for_display(description: str, e: dict) -> str:
     return text
 
 
+def _format_location_display_text(text: str) -> str:
+    """Убирает URL-плюсы из названия локации только для отображения в карточке."""
+    if not text or text.startswith("координаты (") or text == "Локация":
+        return text
+    return " ".join(text.replace("+", " ").split())
+
+
 def _capitalize_first_letter(text: str) -> str:
     """Делает заглавной первую значимую букву строки, не меняя регистр остального.
 
@@ -1432,7 +1439,7 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     logger.debug("🔍 ПЕРЕД final_html: venue_display len=%s", len(venue_display or ""))
 
     # Проверяем venue_display прямо в f-string
-    test_venue = venue_display
+    test_venue = _format_location_display_text(venue_display)
     logger.debug("🔍 test_venue=%s", (test_venue or "")[:30])
 
     location_line = _build_event_location_line(e, test_venue, user_id, lang=lang)
