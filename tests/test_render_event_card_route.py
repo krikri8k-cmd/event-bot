@@ -9,7 +9,13 @@ import sys
 # Добавляем корень проекта в путь для импорта
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from bot_enhanced_v3 import _build_event_info_line, build_maps_url, render_event_html
+from bot_enhanced_v3 import (
+    _build_event_categories_line,
+    _build_event_info_line,
+    _build_event_location_line,
+    build_maps_url,
+    render_event_html,
+)
 
 
 class TestRenderEventCardRoute:
@@ -185,7 +191,7 @@ class TestRenderEventCardRoute:
         assert "Маршрут" not in html
 
     def test_source_tags_in_info_line(self):
-        """Теги источника отображаются перед локацией (не internal categories)."""
+        """Теги источника отображаются отдельной строкой после локации."""
         event = self.base_event(
             source="baliforum",
             venue_name="GWK Cultural Park",
@@ -193,9 +199,10 @@ class TestRenderEventCardRoute:
             categories=["Выставка"],
         )
         html = render_event_html(event, 1)
-        assert "🎭 Фестиваль / Музыка • 📍" in html
-        assert "Выставка" not in html
+        assert "📍 <a href=" in html
         assert "GWK Cultural Park</a>" in html
+        assert "\n🎭 Фестиваль / Музыка\n" in html
+        assert "Выставка" not in html
 
     def test_raw_category_fallback_for_display_tags(self):
         event = self.base_event(
@@ -204,7 +211,7 @@ class TestRenderEventCardRoute:
             categories=["Вечеринка"],
         )
         html = render_event_html(event, 1)
-        assert "🎭 Вечеринка / Музыка • 📍" in html
+        assert "\n🎭 Вечеринка / Музыка\n" in html
 
     def test_empty_tags_no_theater_emoji(self):
         """Без тегов источника — только 📍 с ссылкой"""
@@ -222,8 +229,21 @@ class TestRenderEventCardRoute:
             categories=["Выставка"],
         )
         line = _build_event_info_line(event, "Venue X", user_id=None, lang="ru")
-        assert line.startswith("🎭 Фестиваль / Музыка • 📍")
+        assert line.startswith("📍 <a href=")
         assert "Venue X</a>" in line
+        assert "\n🎭 Фестиваль / Музыка" in line
+
+    def test_build_event_location_and_categories_lines(self):
+        event = self.base_event(
+            source="baliforum",
+            venue_name="Venue X",
+            tags=["Фестиваль", "Музыка"],
+        )
+        location_line = _build_event_location_line(event, "Venue X", user_id=None, lang="ru")
+        categories_line = _build_event_categories_line(event, lang="ru")
+        assert location_line.startswith("📍 <a href=")
+        assert "Venue X</a>" in location_line
+        assert categories_line == "🎭 Фестиваль / Музыка"
 
     def test_distance_km_suffix_en(self):
         event = self.base_event(venue_name="Test Venue", source_url="https://valid.site/event")
@@ -245,6 +265,6 @@ class TestRenderEventCardRoute:
             venue_name="GWK Cultural Park",
             tags=["Фестиваль", "Музыка"],
         )
-        line = _build_event_info_line(event, "GWK Cultural Park", user_id=1, lang="en")
-        assert "🎭 Festival / Music • 📍" in line
-        assert "Фестиваль" not in line
+        categories_line = _build_event_categories_line(event, lang="en")
+        assert categories_line == "🎭 Festival / Music"
+        assert "Фестиваль" not in categories_line

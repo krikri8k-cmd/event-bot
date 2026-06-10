@@ -1109,19 +1109,35 @@ def _capitalize_first_letter(text: str) -> str:
     return text
 
 
-def _build_event_info_line(e: dict, venue_display: str, user_id: int | None, lang: str | None = None) -> str:
-    """Строка тегов источника и локации: 🎭 Tag1 / Tag2 • 📍 <venue с tracking route URL>."""
+def _build_event_location_line(e: dict, venue_display: str, user_id: int | None, lang: str | None = None) -> str:
+    """Строка локации: 📍 <venue с tracking route URL>."""
     if lang is None:
         lang = get_user_language_or_default(user_id) if user_id else "ru"
-    display_tags = format_source_display_tags(e, lang)
     maps_url = build_maps_url(e)
     tracking_url = _build_tracking_url("route", e, maps_url, user_id)
-    venue_link = f'📍 <a href="{tracking_url}">{venue_display}</a>'
-    if display_tags:
-        tags_line = " / ".join(html.escape(t) for t in display_tags if t)
-        if tags_line:
-            return f"🎭 {tags_line} • {venue_link}"
-    return venue_link
+    return f'📍 <a href="{tracking_url}">{venue_display}</a>'
+
+
+def _build_event_categories_line(e: dict, lang: str | None = None) -> str:
+    """Строка категорий источника: 🎭 Tag1 / Tag2 (пустая, если тегов нет)."""
+    if lang is None:
+        lang = "ru"
+    display_tags = format_source_display_tags(e, lang)
+    if not display_tags:
+        return ""
+    tags_line = " / ".join(html.escape(t) for t in display_tags if t)
+    if not tags_line:
+        return ""
+    return f"🎭 {tags_line}"
+
+
+def _build_event_info_line(e: dict, venue_display: str, user_id: int | None, lang: str | None = None) -> str:
+    """Обратная совместимость: локация + категории отдельными строками."""
+    location_line = _build_event_location_line(e, venue_display, user_id, lang=lang)
+    categories_line = _build_event_categories_line(e, lang=lang)
+    if categories_line:
+        return f"{location_line}\n{categories_line}"
+    return location_line
 
 
 def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool = False) -> str:
@@ -1282,26 +1298,6 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     elif e.get("lat") and e.get("lng"):
         venue_display = f"координаты ({e['lat']:.4f}, {e['lng']:.4f})"
         logger.debug(f"🔍 DEBUG: Используем координаты: '{venue_display}'")
-    elif event_type in ["user", "community"] and (e.get("description") or display_description):
-        # Для пользовательских событий и событий от групп показываем описание вместо "Локация уточняется"
-        description = display_description
-        if description:
-            # Ограничиваем длину описания для красоты
-            if len(description) > 100:
-                description = description[:97] + "..."
-            venue_display = html.escape(description)
-            logger.debug(f"🔍 DEBUG: Используем описание: '{venue_display}'")
-        else:
-            # Если нет описания, проверяем location_name перед координатами
-            if location_name_from_event and location_name_from_event not in generic_venues:
-                venue_display = html.escape(location_name_from_event)
-                logger.debug(f"🔍 DEBUG: Описание пустое, используем location_name: '{venue_display}'")
-            elif e.get("lat") and e.get("lng"):
-                venue_display = f"координаты ({e['lat']:.4f}, {e['lng']:.4f})"
-                logger.debug(f"🔍 DEBUG: Описание пустое, используем координаты: '{venue_display}'")
-            else:
-                venue_display = "Локация"
-                logger.debug(f"🔍 DEBUG: Описание пустое, используем fallback: '{venue_display}'")
     else:
         # Для событий от парсеров: проверяем location_name перед координатами
         if location_name_from_event and location_name_from_event not in generic_venues:
@@ -1397,13 +1393,12 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         author_line = src_part or ""
     logger.debug("🔍 author_line len=%s", len(author_line or ""))
 
-    # Добавляем описание для пользовательских событий и событий от групп (уже по языку: display_description)
-    description_part = ""
-    if event_type in ["user", "community"] and display_description:
+    description_line = ""
+    if display_description:
         desc = display_description
         if len(desc) > 150:
             desc = desc[:147] + "..."
-        description_part = f"\n📝 {html.escape(desc)}"
+        description_line = f"📝 {html.escape(desc)}"
         logger.debug(f"🔍 DEBUG: Добавлено описание: '{desc[:50]}...'")
 
     logger.debug("🔍 ПЕРЕД final_html: venue_display len=%s", len(venue_display or ""))
@@ -1412,8 +1407,16 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     test_venue = venue_display
     logger.debug("🔍 test_venue=%s", (test_venue or "")[:30])
 
-    info_line = _build_event_info_line(e, test_venue, user_id, lang=lang)
-    final_html = f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n{info_line}\n{author_line}{description_part}\n"
+    location_line = _build_event_location_line(e, test_venue, user_id, lang=lang)
+    categories_line = _build_event_categories_line(e, lang=lang)
+    card_lines = [f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}", location_line]
+    if categories_line:
+        card_lines.append(categories_line)
+    if description_line:
+        card_lines.append(description_line)
+    if author_line:
+        card_lines.append(author_line)
+    final_html = "\n".join(card_lines) + "\n"
     logger.debug("🔍 ПОСЛЕ final_html: venue_display len=%s", len(venue_display or ""))
     logger.debug("🔍 FINAL HTML (lang=%s): %s", lang, final_html[:300] + ("..." if len(final_html) > 300 else ""))
     return final_html
