@@ -1090,6 +1090,33 @@ def truncate_html_safely(html_text: str, max_length: int) -> str:
 
 _CAP_SKIP_CHARS = frozenset(" \t\n\r«»\"'`„“”‘’([{<")
 
+_PLACE_IN_DESC_RE = re.compile(
+    r"^📍\s*(?:Место|Place|Location)\s*:\s*.+\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def _normalize_event_description_for_display(description: str, e: dict) -> str:
+    """Убирает из описания дубли локации — в карточке локация отдельной строкой."""
+    if not description:
+        return ""
+    text = _PLACE_IN_DESC_RE.sub("", description).strip()
+    if not text:
+        return ""
+    venue_names = {
+        (e.get("venue_name") or "").strip(),
+        (e.get("location_name") or "").strip(),
+    }
+    venue = e.get("venue")
+    if isinstance(venue, dict):
+        venue_names.add((venue.get("name") or "").strip())
+    venue_names = {name for name in venue_names if name}
+    normalized = text.lower()
+    for name in venue_names:
+        if normalized == name.lower():
+            return ""
+    return text
+
 
 def _capitalize_first_letter(text: str) -> str:
     """Делает заглавной первую значимую букву строки, не меняя регистр остального.
@@ -1163,6 +1190,7 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         if lang == "en"
         else (e.get("description") or "").strip()
     )
+    display_description = _normalize_event_description_for_display(display_description, e)
     # Локация всегда только оригинал (location_name), не переводим названия заведений
     display_location_name = (e.get("location_name") or "").strip()
     display_venue_name = (e.get("venue_name") or e.get("location_name") or "").strip()

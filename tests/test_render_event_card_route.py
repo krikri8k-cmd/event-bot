@@ -13,6 +13,7 @@ from bot_enhanced_v3 import (
     _build_event_categories_line,
     _build_event_info_line,
     _build_event_location_line,
+    _normalize_event_description_for_display,
     build_maps_url,
     render_event_html,
 )
@@ -268,3 +269,35 @@ class TestRenderEventCardRoute:
         categories_line = _build_event_categories_line(event, lang="en")
         assert categories_line == "🎭 Festival / Music"
         assert "Фестиваль" not in categories_line
+
+    def test_hide_description_when_only_location_duplicate(self):
+        """Если в description только адрес — строка 📝 не показываем."""
+        event = self.base_event(
+            venue_name="Flow Place Berawa",
+            description="📍 Место: Flow Place Berawa",
+            source="baliforum",
+            tags=["Танцы", "Медитация"],
+        )
+        html = render_event_html(event, 1)
+        assert "📝" not in html
+        assert "Flow Place Berawa</a>" in html
+
+    def test_show_description_when_real_text_present(self):
+        event = self.base_event(
+            venue_name="Flow Place Berawa",
+            description="Женский круг для глубокой практики.\n📍 Место: Flow Place Berawa",
+        )
+        html = render_event_html(event, 1)
+        assert "📝 Женский круг для глубокой практики." in html
+        assert "📍 Место:" not in html
+
+    def test_normalize_event_description_for_display(self):
+        event = {"venue_name": "Flow Place Berawa", "location_name": "Flow Place Berawa"}
+        assert _normalize_event_description_for_display("📍 Место: Flow Place Berawa", event) == ""
+        assert (
+            _normalize_event_description_for_display(
+                "Текст события\n📍 Место: Flow Place Berawa",
+                event,
+            )
+            == "Текст события"
+        )

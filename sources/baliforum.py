@@ -819,8 +819,6 @@ def event_dict_to_raw_event(event: dict) -> RawEvent:
     description_parts = []
     if event.get("description"):
         description_parts.append(event["description"])
-    if venue:
-        description_parts.append(f"\n📍 Место: {venue}")
 
     raw_event = RawEvent(
         title=event["title"],

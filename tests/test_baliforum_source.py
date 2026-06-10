@@ -13,6 +13,7 @@ from sources.baliforum import (
     _extract_venue_from_soup,
     _parse_time,
     _ru_date_to_dt,
+    event_dict_to_raw_event,
     merge_tomorrow_baliforum_events,
 )
 
@@ -93,6 +94,22 @@ def test_ru_date_to_dt():
     start, end = _ru_date_to_dt("invalid date", now, tz)
     assert start is None
     assert end is None
+
+
+@pytest.mark.no_db
+def test_event_dict_to_raw_event_does_not_put_venue_in_description():
+    event = {
+        "title": "Женский круг",
+        "lat": -8.5,
+        "lng": 115.2,
+        "start_time": datetime(2026, 6, 10, 16, 0, tzinfo=ZoneInfo("Asia/Makassar")),
+        "url": "https://baliforum.ru/events/women-circle",
+        "external_id": "women-circle",
+        "venue": "Flow Place Berawa",
+    }
+    raw = event_dict_to_raw_event(event)
+    assert raw.description is None
+    assert raw._raw_data["venue"] == "Flow Place Berawa"  # type: ignore[attr-defined]
 
 
 @pytest.mark.no_db
