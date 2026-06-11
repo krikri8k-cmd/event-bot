@@ -113,7 +113,37 @@ async def _handle_message(event, service):
     service.update_last_processed_message_id(chat_id, message_id)
 
 
+def _start_health_server() -> None:
+    """Railway healthcheck: worker не uvicorn, но /health нужен для деплоя."""
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    port = int(os.getenv("PORT", "8080"))
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path in ("/health", "/"):
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain")
+                self.end_headers()
+                self.wfile.write(b"ok")
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        def log_message(self, format, *args):
+            return
+
+    def serve():
+        server = HTTPServer(("0.0.0.0", port), Handler)
+        logger.info("Health server listening on 0.0.0.0:%s", port)
+        server.serve_forever()
+
+    threading.Thread(target=serve, daemon=True).start()
+
+
 async def main():
+    _start_health_server()
     if not _ingest_enabled():
         logger.error("TELEGRAM_INGEST_ENABLED is not 1 — exiting")
         sys.exit(1)
