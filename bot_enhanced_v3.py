@@ -2590,7 +2590,13 @@ class DbSessionMiddleware(BaseMiddleware):
     ) -> Any:
         async with self.session_maker() as session:
             data["session"] = session
-            return await handler(event, data)
+            try:
+                result = await handler(event, data)
+                await session.commit()
+                return result
+            except Exception:
+                await session.rollback()
+                raise
 
 
 # Подключаем middleware для всех типов событий (если доступен async_session_maker)
@@ -2613,9 +2619,11 @@ dp.update.middleware(EnsureUserMiddleware())
 logging.info("✅ EnsureUser middleware подключен")
 
 if async_session_maker is not None:
-    dp.update.middleware(DbSessionMiddleware(async_session_maker))
-    dp.message.middleware(DbSessionMiddleware(async_session_maker))
-    dp.callback_query.middleware(DbSessionMiddleware(async_session_maker))
+    db_session_middleware = DbSessionMiddleware(async_session_maker)
+    dp.update.middleware(db_session_middleware)
+    dp.message.middleware(db_session_middleware)
+    dp.callback_query.middleware(db_session_middleware)
+    dp.my_chat_member.middleware(db_session_middleware)
     logging.info("✅ Async session middleware подключен")
 else:
     # Для тестов создаем заглушку middleware
@@ -13775,16 +13783,13 @@ async def handle_bot_chat_member_update(chat_member_update: ChatMemberUpdated, b
     """Обработчик изменения статуса бота в чате - настраиваем команды для групп"""
 
     new_status = chat_member_update.new_chat_member.status
-    old_status = getattr(chat_member_update.old_chat_member, "status", None)
     chat = chat_member_update.chat
 
-    bot_joined = new_status in ("administrator", "member") and old_status in (
-        "left",
-        "kicked",
-        None,
-    )
+    # Регистрируем чат при любом активном статусе бота (не только left→admin).
+    # Иначе промоут member→administrator или повторный /start без new_chat_members пропускаются.
+    bot_active = new_status in ("administrator", "member")
 
-    if bot_joined and chat.type in ("group", "supergroup", "channel"):
+    if bot_active and chat.type in ("group", "supergroup", "channel"):
         try:
             from utils.chat_settings_service import ensure_chat_settings
 
