@@ -111,7 +111,7 @@ class UnifiedEventsService:
                     AND starts_at < :end_utc
                     AND starts_at >= NOW() - INTERVAL '3 hours'
                     AND lat IS NOT NULL AND lng IS NOT NULL
-                    AND status NOT IN ('closed', 'canceled')
+                    AND status NOT IN ('closed', 'canceled', 'draft')
                     {city_filter}
                     AND 6371 * acos(
                         GREATEST(-1, LEAST(1,
@@ -149,7 +149,7 @@ class UnifiedEventsService:
                     WHERE starts_at >= :start_utc
                     AND starts_at < :end_utc
                     AND starts_at >= NOW() - INTERVAL '3 hours'
-                    AND status NOT IN ('closed', 'canceled')
+                    AND status NOT IN ('closed', 'canceled', 'draft')
                     {city_filter}
                     ORDER BY starts_at
                 """)
@@ -234,7 +234,7 @@ class UnifiedEventsService:
                         WHERE starts_at >= :start_utc
                         AND starts_at < :end_utc
                         AND starts_at >= NOW() - INTERVAL '3 hours'
-                        AND status NOT IN ('closed', 'canceled')
+                        AND status NOT IN ('closed', 'canceled', 'draft')
                         ORDER BY starts_at
                         LIMIT 50
                     """)
@@ -570,6 +570,13 @@ class UnifiedEventsService:
         title_en: str = None,
         description_en: str = None,
         location_name_en: str = None,
+        ends_at_utc: datetime | None = None,
+        status: str = "open",
+        community_name: str | None = None,
+        community_link: str | None = None,
+        chat_id: int | None = None,
+        organizer_username: str | None = None,
+        referral_code: str | None = None,
     ) -> int:
         """
         Сохранение парсерного события в единую таблицу events.
@@ -639,9 +646,15 @@ class UnifiedEventsService:
                     SET title = :title, title_en = :title_en,
                         description = :description, description_en = :description_en,
                         location_name = :location_name, location_name_en = :location_name_en,
-                        starts_at = :starts_at, city = :city, lat = :lat, lng = :lng,
+                        starts_at = :starts_at, ends_at = :ends_at, city = :city, lat = :lat, lng = :lng,
                         location_url = :location_url, url = :url, country = :country,
-                        place_id = :place_id, event_source = 'parser', updated_at_utc = NOW()
+                        place_id = :place_id, event_source = 'parser',
+                        community_name = COALESCE(:community_name, community_name),
+                        community_link = COALESCE(:community_link, community_link),
+                        chat_id = COALESCE(:chat_id, chat_id),
+                        organizer_username = COALESCE(:organizer_username, organizer_username),
+                        referral_code = COALESCE(:referral_code, referral_code),
+                        updated_at_utc = NOW()
                     WHERE source = :source AND external_id = :external_id
                 """),
                     {
@@ -652,6 +665,7 @@ class UnifiedEventsService:
                         "location_name": location_name,
                         "location_name_en": location_name_en,
                         "starts_at": starts_at_utc,
+                        "ends_at": ends_at_utc,
                         "city": city,
                         "lat": lat,
                         "lng": lng,
@@ -659,6 +673,11 @@ class UnifiedEventsService:
                         "url": url,
                         "country": country,
                         "place_id": place_id,
+                        "community_name": community_name,
+                        "community_link": community_link,
+                        "chat_id": chat_id,
+                        "organizer_username": organizer_username,
+                        "referral_code": referral_code,
                         "source": source,
                         "external_id": external_id,
                     },
@@ -669,13 +688,15 @@ class UnifiedEventsService:
                     text("""
                     INSERT INTO events
                     (source, external_id, event_source, title, title_en, description, description_en,
-                     starts_at, city, lat, lng, location_name, location_name_en,
+                     starts_at, ends_at, city, lat, lng, location_name, location_name_en,
                      location_url, url, country, is_generated_by_ai, status,
-                     current_participants, place_id)
+                     current_participants, place_id, community_name, community_link,
+                     chat_id, organizer_username, referral_code)
                     VALUES
                     (:source, :external_id, 'parser', :title, :title_en, :description, :description_en,
-                     :starts_at, :city, :lat, :lng, :location_name, :location_name_en,
-                     :location_url, :url, :country, :is_ai, 'open', 0, :place_id)
+                     :starts_at, :ends_at, :city, :lat, :lng, :location_name, :location_name_en,
+                     :location_url, :url, :country, :is_ai, :status, 0, :place_id,
+                     :community_name, :community_link, :chat_id, :organizer_username, :referral_code)
                     ON CONFLICT (source, external_id) DO UPDATE SET
                         title = EXCLUDED.title,
                         title_en = EXCLUDED.title_en,
@@ -685,13 +706,19 @@ class UnifiedEventsService:
                         location_name_en = EXCLUDED.location_name_en,
                         event_source = 'parser',
                         starts_at = EXCLUDED.starts_at,
+                        ends_at = EXCLUDED.ends_at,
                         city = EXCLUDED.city,
                         lat = EXCLUDED.lat,
                         lng = EXCLUDED.lng,
                         location_url = EXCLUDED.location_url,
                         url = EXCLUDED.url,
                         country = EXCLUDED.country,
-                        place_id = EXCLUDED.place_id
+                        place_id = EXCLUDED.place_id,
+                        community_name = COALESCE(EXCLUDED.community_name, events.community_name),
+                        community_link = COALESCE(EXCLUDED.community_link, events.community_link),
+                        chat_id = COALESCE(EXCLUDED.chat_id, events.chat_id),
+                        organizer_username = COALESCE(EXCLUDED.organizer_username, events.organizer_username),
+                        referral_code = COALESCE(EXCLUDED.referral_code, events.referral_code)
                     RETURNING id
                 """),
                     {
@@ -702,6 +729,7 @@ class UnifiedEventsService:
                         "description": description,
                         "description_en": description_en,
                         "starts_at": starts_at_utc,
+                        "ends_at": ends_at_utc,
                         "city": city,
                         "lat": lat,
                         "lng": lng,
@@ -711,7 +739,13 @@ class UnifiedEventsService:
                         "url": url,
                         "country": country,
                         "is_ai": is_ai,
+                        "status": status,
                         "place_id": place_id,
+                        "community_name": community_name,
+                        "community_link": community_link,
+                        "chat_id": chat_id,
+                        "organizer_username": organizer_username,
+                        "referral_code": referral_code,
                     },
                 )
                 event_id = result.fetchone()[0]

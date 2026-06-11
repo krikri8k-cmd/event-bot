@@ -71,6 +71,11 @@ def create_app() -> FastAPI:
     app.include_router(admin_router, prefix="/admin", tags=["admin"])
     logger.info("✅ Admin router mounted")
 
+    from api.telegram_ingest_internal import router as telegram_ingest_internal_router
+
+    app.include_router(telegram_ingest_internal_router, prefix="/internal", tags=["internal"])
+    logger.info("✅ Telegram ingest internal router mounted")
+
     # Meetup OAuth роутер (только если включен)
     if settings.enable_meetup_api:
         oauth_router = APIRouter(prefix="/oauth/meetup", tags=["oauth"])
@@ -245,6 +250,7 @@ def create_app() -> FastAPI:
                   WHERE lat BETWEEN :lat - :d AND :lat + :d
                     AND lng BETWEEN :lng - :d AND :lng + :d
                     AND starts_at >= NOW() - INTERVAL '3 hours'
+                    AND status NOT IN ('closed', 'canceled', 'draft')
                     AND (
                       6371 * 2 * ASIN(
                         SQRT(
