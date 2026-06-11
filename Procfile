@@ -1,3 +1,4 @@
 web: uvicorn api.app:app --host 0.0.0.0 --port $PORT
 worker: python start_production.py
+telegram_ingest: python workers/telegram_ingest.py
 

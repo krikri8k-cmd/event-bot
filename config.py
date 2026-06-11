@@ -85,6 +85,11 @@ class Settings:
     # Bot display username (для ссылок и текстов; без @). Fallback если bot_info ещё не получен.
     bot_username: str
 
+    # Telegram event ingestion (userbot worker + moderation)
+    telegram_ingest_enabled: bool
+    moderation_chat_id: int | None
+    internal_ingest_secret: str | None
+
 
 def _parse_admin_ids(value: str | None) -> set[int]:
     if not value:
@@ -203,6 +208,11 @@ def load_settings(require_bot: bool = False) -> Settings:
     # Username бота для ссылок/текстов (без @). Задаётся через BOT_USERNAME.
     bot_username = (os.getenv("BOT_USERNAME") or "MyGuide_EventBot").strip()
 
+    telegram_ingest_enabled = os.getenv("TELEGRAM_INGEST_ENABLED", "0").strip() == "1"
+    moderation_chat_id_raw = (os.getenv("MODERATION_CHAT_ID") or "").strip()
+    moderation_chat_id = int(moderation_chat_id_raw) if moderation_chat_id_raw.isdigit() else None
+    internal_ingest_secret = (os.getenv("INTERNAL_INGEST_SECRET") or "").strip() or None
+
     return Settings(
         telegram_token=telegram_token,
         database_url=database_url,
@@ -258,4 +268,7 @@ def load_settings(require_bot: bool = False) -> Settings:
         maps_cb_cooldown_min=int(os.getenv("MAPS_CB_COOLDOWN_MIN", "60")),
         api_base_url=api_base_url,
         bot_username=bot_username,
+        telegram_ingest_enabled=telegram_ingest_enabled,
+        moderation_chat_id=moderation_chat_id,
+        internal_ingest_secret=internal_ingest_secret,
     )

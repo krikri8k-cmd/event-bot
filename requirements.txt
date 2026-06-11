@@ -20,5 +20,6 @@ python-dateutil==2.9.0.post0
 aiohttp>=3.9.0
 googlemaps>=4.10.0
 psutil>=5.9.0  # Для мониторинга памяти (Memory guard)
+telethon>=1.36.0  # Telegram userbot worker (ingest)
 
 
