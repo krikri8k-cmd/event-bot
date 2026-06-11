@@ -19,7 +19,7 @@ from aiogram import Bot, F, Router, types
 from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import CallbackQuery, ChatMemberUpdated, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -831,7 +831,7 @@ async def handle_leave_event_command_short(message: Message, bot: Bot, session: 
         logger.warning(f"⚠️ Не удалось удалить сообщение пользователя: {delete_error}")
 
 
-@group_router.message(Command("start"))
+@group_router.message(Command("start"), F.chat.type.in_({"group", "supergroup", "channel"}))
 async def handle_start_command(message: Message, bot: Bot, session: AsyncSession):
     """Обработчик команды /start в группах и каналах - показываем панель Community"""
     # Проверяем тип чата - поддерживаем группы, супергруппы и каналы
@@ -1184,6 +1184,41 @@ async def setup_group_menu_button(bot, group_id: int = None):
 # Жёсткая изоляция: роутер работает ТОЛЬКО в группах
 group_router.message.filter(F.chat.type.in_({"group", "supergroup"}))
 group_router.callback_query.filter(F.message.chat.type.in_({"group", "supergroup"}))
+
+
+@group_router.my_chat_member(F.chat.type.in_({"group", "supergroup", "channel"}))
+async def handle_group_bot_member(update: ChatMemberUpdated, bot: Bot, session: AsyncSession):
+    """Регистрация chat_settings при любом активном статусе бота в группе/канале."""
+    new_status = update.new_chat_member.status
+    if new_status not in ("administrator", "member"):
+        return
+
+    chat = update.chat
+    try:
+        from utils.chat_settings_service import ensure_chat_settings
+
+        adder_id = update.from_user.id if update.from_user else None
+        created = await ensure_chat_settings(
+            session,
+            bot,
+            chat.id,
+            chat_type=chat.type,
+            adder_user_id=adder_id,
+            award_rockets=chat.type != "channel",
+        )
+        logger.info(
+            "✅ ensure_chat_settings (group my_chat_member) chat=%s status=%s created=%s",
+            chat.id,
+            new_status,
+            created,
+        )
+    except Exception as e:
+        logger.error(
+            "❌ ensure_chat_settings (group my_chat_member) chat=%s: %s",
+            chat.id,
+            e,
+            exc_info=True,
+        )
 
 
 # ПРИНУДИТЕЛЬНАЯ КЛАВИАТУРА ДЛЯ ВСЕХ СООБЩЕНИЙ В ГРУППЕ

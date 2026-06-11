@@ -63,8 +63,19 @@ async def ensure_chat_settings(
         bot_status="active",
         total_events=0,
     )
-    session.add(settings)
-    await session.commit()
+    try:
+        session.add(settings)
+        await session.commit()
+    except Exception as e:
+        await session.rollback()
+        logger.error(
+            "❌ Не удалось создать chat_settings для %s (chat_number_seq есть?): %s",
+            chat_id,
+            e,
+            exc_info=True,
+        )
+        raise
+
     logger.info("✅ chat_settings создан для чата %s, chat_number=%s", chat_id, chat_number)
 
     if award_rockets and adder_user_id and chat_type != "channel":
