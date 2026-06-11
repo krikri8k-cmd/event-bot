@@ -20,5 +20,5 @@ COPY . .
 # Права на запуск скрипта (если используется)
 RUN chmod +x railway-bot-start.sh
 
-# Запуск через uvicorn (порт из переменной окружения)
-CMD ["sh", "-c", "uvicorn api.app:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# START_COMMAND переопределяет запуск (например worker на отдельном Railway-сервисе)
+CMD ["sh", "-c", "${START_COMMAND:-uvicorn api.app:app --host 0.0.0.0 --port ${PORT:-8000}}"]

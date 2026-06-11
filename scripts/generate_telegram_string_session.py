@@ -2,8 +2,7 @@
 """Одноразовая генерация TELEGRAM_STRING_SESSION для userbot worker.
 
 Использование:
-  export TELEGRAM_API_ID=12345
-  export TELEGRAM_API_HASH=your_hash
+  Добавь TELEGRAM_API_ID и TELEGRAM_API_HASH в .env.local, затем:
   python scripts/generate_telegram_string_session.py
 
 При первом запуске Telethon запросит телефон и код из Telegram.
@@ -14,9 +13,28 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+
+def _load_local_env() -> None:
+    """Подхватить .env.local / app.local.env как в config.py."""
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+
+    for name in (".env.local", "app.local.env", ".env"):
+        path = ROOT / name
+        if path.exists():
+            load_dotenv(dotenv_path=path, encoding="utf-8-sig", override=True)
 
 
 def main() -> int:
+    _load_local_env()
     api_id_raw = (os.getenv("TELEGRAM_API_ID") or "").strip()
     api_hash = (os.getenv("TELEGRAM_API_HASH") or "").strip()
     if not api_id_raw or not api_hash:
