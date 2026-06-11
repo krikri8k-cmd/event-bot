@@ -843,6 +843,24 @@ async def handle_start_command(message: Message, bot: Bot, session: AsyncSession
         f"🔥 Команда /start от пользователя {message.from_user.id} в чате {message.chat.id} (тип: {message.chat.type})"
     )
 
+    try:
+        from utils.chat_settings_service import ensure_chat_settings
+
+        await ensure_chat_settings(
+            session,
+            bot,
+            message.chat.id,
+            chat_type=message.chat.type,
+            adder_user_id=message.from_user.id if message.from_user else None,
+        )
+    except Exception as e:
+        logger.error(
+            "❌ ensure_chat_settings при /start в чате %s: %s",
+            message.chat.id,
+            e,
+            exc_info=True,
+        )
+
     # Для каналов - особая обработка (в каналах боты не могут удалять сообщения пользователей)
     is_channel = message.chat.type == "channel"
 

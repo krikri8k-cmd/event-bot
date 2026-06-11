@@ -13572,15 +13572,46 @@ async def handle_prev_event(callback: types.CallbackQuery):
 
 # Обработчик изменения статуса бота в чате
 @main_router.my_chat_member()
-async def handle_bot_chat_member_update(chat_member_update: ChatMemberUpdated, bot: Bot):
+async def handle_bot_chat_member_update(chat_member_update: ChatMemberUpdated, bot: Bot, session: AsyncSession):
     """Обработчик изменения статуса бота в чате - настраиваем команды для групп"""
 
+    new_status = chat_member_update.new_chat_member.status
+    old_status = getattr(chat_member_update.old_chat_member, "status", None)
+    chat = chat_member_update.chat
+
+    bot_joined = new_status in ("administrator", "member") and old_status in (
+        "left",
+        "kicked",
+        None,
+    )
+
+    if bot_joined and chat.type in ("group", "supergroup", "channel"):
+        try:
+            from utils.chat_settings_service import ensure_chat_settings
+
+            adder_id = chat_member_update.from_user.id if chat_member_update.from_user else None
+            await ensure_chat_settings(
+                session,
+                bot,
+                chat.id,
+                chat_type=chat.type,
+                adder_user_id=adder_id,
+                award_rockets=chat.type != "channel",
+            )
+        except Exception as e:
+            logger.error(
+                "❌ ensure_chat_settings при my_chat_member для %s: %s",
+                chat.id,
+                e,
+                exc_info=True,
+            )
+
     # Проверяем, что это добавление бота в группу
-    if chat_member_update.new_chat_member.status == "administrator" and chat_member_update.chat.type in [
+    if new_status == "administrator" and chat.type in [
         "group",
         "supergroup",
     ]:
-        logger.info(f"Бот назначен админом в группе {chat_member_update.chat.id}")
+        logger.info(f"Бот назначен админом в группе {chat.id}")
 
         # Настраиваем команды для этой группы
         try:
