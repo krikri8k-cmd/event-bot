@@ -45,31 +45,52 @@ async def cmd_add_source(message: types.Message, bot):
     if not parsed:
         await message.answer(
             "Использование:\n"
-            "`/add_source @channel_username trusted`\n"
-            "`/add_source -100123456789 moderated`\n\n"
-            "trust_level: `trusted` (сразу open) или `moderated` (draft + модерация)",
-            parse_mode="Markdown",
+            "/add_source @channel_username trusted\n"
+            "/add_source -100123456789 moderated\n\n"
+            "trust_level:\n"
+            "• trusted — сразу open\n"
+            "• moderated — draft + модерация\n\n"
+            "Userbot (string session) должен быть участником канала/группы.\n"
+            "Бот MyConductor в группе не обязателен, если указываешь chat_id."
         )
         return
 
     target, trust = parsed
+    chat_id: int
+    username: str | None = None
+    title: str
+
     try:
         if target.lstrip("-").isdigit():
             chat_id = int(target)
-            chat = await bot.get_chat(chat_id)
+            try:
+                chat = await bot.get_chat(chat_id)
+                username = getattr(chat, "username", None)
+                title = getattr(chat, "title", None) or username or str(chat_id)
+            except Exception as e:
+                logger.info(
+                    "add_source: get_chat(%s) недоступен (%s), регистрируем по chat_id",
+                    chat_id,
+                    e,
+                )
+                title = f"Chat {chat_id}"
         else:
             username = target if target.startswith("@") else f"@{target}"
             chat = await bot.get_chat(username)
             chat_id = chat.id
+            username = getattr(chat, "username", None) or username.lstrip("@")
+            title = getattr(chat, "title", None) or username or str(chat_id)
     except Exception as e:
         logger.warning("add_source: cannot resolve chat %s: %s", target, e)
         await message.answer(
-            "Не удалось получить чат. Убедись, что бот добавлен в канал/группу " "и userbot подписан на источник."
+            "Не удалось получить чат по @username.\n\n"
+            "Проверь:\n"
+            "• канал публичный и username верный\n"
+            "• или укажи chat_id: /add_source -100123456789 moderated\n"
+            "• userbot подписан на источник\n\n"
+            f"Ошибка: {e}"
         )
         return
-
-    username = getattr(chat, "username", None)
-    title = getattr(chat, "title", None) or username or str(chat_id)
 
     engine = get_engine()
     service = TelegramSourcesService(engine)
