@@ -158,9 +158,12 @@ async def main():
     from telethon import TelegramClient, events
     from telethon.sessions import StringSession
 
-    from database import get_engine
+    from config import load_settings
+    from database import get_engine, init_engine
     from utils.telegram_sources_service import TelegramSourcesService
 
+    settings = load_settings(require_bot=False)
+    init_engine(settings.database_url)
     engine = get_engine()
     service = TelegramSourcesService(engine)
     await _reload_active_sources(service)
