@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import html
 import logging
 import re
 
@@ -183,15 +184,19 @@ async def cmd_ingest_stats(message: types.Message):
         )
         return
 
-    lines = [f"📊 **Ingest stats ({stats['days']}d)**\n"]
+    days = stats["days"]
+    lines = [f"📊 <b>Ingest stats ({days}d)</b>\n"]
     if not stats["by_stage"]:
-        lines.append("_Нет записей в telegram_ingest_log_")
+        lines.append("Нет записей в telegram_ingest_log")
     else:
-        lines.append("**Отсев по стадиям:**")
+        lines.append("<b>Отсев по стадиям:</b>")
         for row in stats["by_stage"][:15]:
-            lines.append(f"• {row['stage']} / {row['reason']}: {row['count']}")
+            stage = html.escape(str(row["stage"]))
+            reason = html.escape(str(row["reason"]))
+            lines.append(f"• {stage} / {reason}: {row['count']}")
     if stats["top_chats"]:
-        lines.append("\n**Топ каналов:**")
+        lines.append("\n<b>Топ каналов:</b>")
         for row in stats["top_chats"]:
-            lines.append(f"• {row['title']}: {row['count']}")
-    await message.answer("\n".join(lines), parse_mode="Markdown")
+            title = html.escape(str(row["title"]))
+            lines.append(f"• {title}: {row['count']}")
+    await message.answer("\n".join(lines), parse_mode="HTML")
