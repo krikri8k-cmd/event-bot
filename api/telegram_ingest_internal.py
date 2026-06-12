@@ -8,6 +8,7 @@ from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 
 from config import load_settings
+from database import get_engine, init_engine
 
 logger = logging.getLogger(__name__)
 
@@ -40,10 +41,27 @@ async def telegram_ingest_notify(
         return {"ok": True, "duplicate": True}
 
     _notified_event_ids.add(payload.event_id)
-    logger.info(
-        "telegram ingest notify: event_id=%s chat_id=%s message_id=%s (moderation card — PR3)",
-        payload.event_id,
-        payload.source_chat_id,
-        payload.message_id,
-    )
-    return {"ok": True, "queued": False, "note": "Moderation UI in PR3"}
+
+    settings = load_settings(require_bot=False)
+    init_engine(settings.database_url)
+    engine = get_engine()
+
+    from utils.telegram_moderation_service import send_moderation_card
+
+    try:
+        sent = await send_moderation_card(
+            engine,
+            event_id=payload.event_id,
+            source_chat_id=payload.source_chat_id,
+            message_id=payload.message_id,
+        )
+    except Exception:
+        logger.exception(
+            "telegram ingest notify failed event_id=%s chat_id=%s message_id=%s",
+            payload.event_id,
+            payload.source_chat_id,
+            payload.message_id,
+        )
+        raise HTTPException(status_code=500, detail="Failed to send moderation card") from None
+
+    return {"ok": True, "sent": sent}

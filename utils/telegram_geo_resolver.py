@@ -10,10 +10,14 @@ from dataclasses import dataclass
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
-from utils.geo_utils import geocode_address
+from utils.geo_utils import geocode_address, parse_google_maps_link
 from utils.telegram_sources_service import TelegramSource
 
 logger = logging.getLogger(__name__)
+
+_MAPS_URL_RE = re.compile(
+    r"https?://(?:maps\.app\.goo\.gl|goo\.gl/maps|www\.google\.com/maps|maps\.google\.com)[^\s\)>\"']+"
+)
 
 
 @dataclass
@@ -26,6 +30,21 @@ class GeoResolveResult:
     resolved_name: str | None = None
     method: str | None = None
     reject_reason: str | None = None
+
+
+def _find_maps_url(*texts: str | None) -> str | None:
+    for chunk in texts:
+        if not chunk:
+            continue
+        match = _MAPS_URL_RE.search(chunk)
+        if match:
+            return match.group(0).rstrip(".,;)")
+    return None
+
+
+def _is_maps_url(value: str) -> bool:
+    low = (value or "").lower()
+    return "goo.gl" in low or "google.com/maps" in low or "maps.google.com" in low
 
 
 def _normalize_place_name(name: str) -> str:
@@ -137,12 +156,43 @@ async def _geocode_location(location_name: str, region: str) -> tuple[float, flo
     return None
 
 
+async def _resolve_maps_url(url: str) -> GeoResolveResult | None:
+    parsed = await parse_google_maps_link(url)
+    if not parsed:
+        return None
+    lat, lng = parsed.get("lat"), parsed.get("lng")
+    if lat is None or lng is None:
+        return None
+    return GeoResolveResult(
+        ok=True,
+        lat=float(lat),
+        lng=float(lng),
+        location_url=url,
+        resolved_name=(parsed.get("name") or "Место на карте"),
+        method="google_maps_link",
+    )
+
+
 async def resolve_telegram_location(
     engine: Engine,
     source: TelegramSource,
     location_name: str | None,
+    raw_text: str | None = None,
 ) -> GeoResolveResult:
+    maps_url = None
+    if location_name and _is_maps_url(location_name):
+        maps_url = location_name.strip()
+    if not maps_url:
+        maps_url = _find_maps_url(location_name, raw_text)
+
+    if maps_url:
+        from_maps = await _resolve_maps_url(maps_url)
+        if from_maps and from_maps.ok:
+            return from_maps
+
     name = _normalize_place_name(location_name or "")
+    if _is_maps_url(name):
+        name = ""
     if not name:
         if source.allow_default_coords and source.default_lat is not None and source.default_lng is not None:
             return GeoResolveResult(

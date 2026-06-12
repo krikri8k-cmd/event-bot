@@ -2622,8 +2622,9 @@ async def log_location_updates_middleware(handler, event, data):
 
 dp.include_router(group_router)  # Групповой роутер (только группы) - ПЕРВЫМ!
 dp.include_router(diag)  # Диагностические команды для трекинга
-from telegram_ingest_handlers import telegram_ingest_router  # noqa: E402
+from telegram_ingest_handlers import telegram_ingest_mod_router, telegram_ingest_router  # noqa: E402
 
+dp.include_router(telegram_ingest_mod_router)  # Модерация ingest (группа)
 dp.include_router(telegram_ingest_router)  # Админ: telegram ingest sources
 dp.include_router(main_router)  # Основной роутер (только приватные чаты) - ПОСЛЕДНИМ!
 

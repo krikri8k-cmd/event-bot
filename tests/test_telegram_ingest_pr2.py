@@ -9,7 +9,7 @@ from utils.telegram_event_extractor import (
     compute_time_mode,
     validate_extracted_event,
 )
-from utils.telegram_geo_resolver import _geocode_queries, _normalize_place_name
+from utils.telegram_geo_resolver import _find_maps_url, _geocode_queries, _is_maps_url, _normalize_place_name
 
 pytestmark = pytest.mark.no_db
 
@@ -89,3 +89,34 @@ def test_normalize_place_name():
 def test_geocode_queries_bali():
     queries = _geocode_queries("Savaya Bali", "bali")
     assert "Savaya Bali, Bali, Indonesia" in queries
+
+
+def test_find_maps_url_in_text():
+    text = "Party @ https://maps.app.goo.gl/B8LGdDhiAcesEUxi6\n12 июня"
+    assert _find_maps_url(text) == "https://maps.app.goo.gl/B8LGdDhiAcesEUxi6"
+    assert _is_maps_url("https://maps.app.goo.gl/abc")
+
+
+def test_build_moderation_card():
+    from utils.telegram_moderation_service import build_moderation_card_text
+
+    card = build_moderation_card_text(
+        {
+            "id": 42,
+            "title": "Test Party",
+            "title_en": "Test Party",
+            "description": "Desc one. Desc two.",
+            "description_en": "En one. En two.",
+            "starts_at": None,
+            "ends_at": None,
+            "location_name": "Savaya",
+            "lat": -8.84,
+            "lng": 115.14,
+            "community_name": "Ingest test",
+            "url": None,
+        },
+        source_chat_id=-5179811176,
+        message_id=99,
+    )
+    assert "Test Party" in card
+    assert "42" in card

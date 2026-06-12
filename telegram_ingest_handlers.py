@@ -200,3 +200,59 @@ async def cmd_ingest_stats(message: types.Message):
             title = html.escape(str(row["title"]))
             lines.append(f"• {title}: {row['count']}")
     await message.answer("\n".join(lines), parse_mode="HTML")
+
+
+# Модерация ingest — callbacks в группе MODERATION_CHAT_ID (не только private)
+telegram_ingest_mod_router = Router()
+
+
+def _can_moderate_ingest(user_id: int, chat_id: int) -> bool:
+    if user_id not in load_settings().admin_ids:
+        return False
+    mod_chat = load_settings().moderation_chat_id
+    if mod_chat and chat_id != mod_chat:
+        return False
+    return True
+
+
+@telegram_ingest_mod_router.callback_query(F.data.startswith("tgingest:"))
+async def on_ingest_moderation(callback: types.CallbackQuery):
+    if not callback.message or not callback.from_user:
+        await callback.answer("Нет данных", show_alert=True)
+        return
+
+    if not _can_moderate_ingest(callback.from_user.id, callback.message.chat.id):
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+
+    m = re.match(r"tgingest:(approve|reject):(\d+)", callback.data or "")
+    if not m:
+        await callback.answer("Некорректные данные")
+        return
+
+    action, event_id_s = m.group(1), m.group(2)
+    event_id = int(event_id_s)
+    new_status = "open" if action == "approve" else "canceled"
+
+    from utils.telegram_moderation_service import set_telegram_event_status
+
+    engine = get_engine()
+    ok = set_telegram_event_status(engine, event_id, new_status)
+    if not ok:
+        await callback.answer("Событие не найдено или уже обработано", show_alert=True)
+        return
+
+    label = "✅ Опубликовано" if action == "approve" else "❌ Отклонено"
+    await callback.answer(label)
+
+    base = callback.message.html_text or callback.message.text or ""
+    if base:
+        suffix = f"\n\n<b>{html.escape(label)}</b> · admin {callback.from_user.id}"
+        try:
+            await callback.message.edit_text(
+                base + suffix,
+                parse_mode="HTML",
+                reply_markup=None,
+            )
+        except Exception:
+            logger.exception("Failed to edit moderation card event_id=%s", event_id)

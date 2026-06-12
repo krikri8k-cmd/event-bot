@@ -114,7 +114,7 @@ async def process_telegram_post(
         return
 
     data = extract.data or {}
-    geo = await resolve_telegram_location(engine, source, data.get("location_name"))
+    geo = await resolve_telegram_location(engine, source, data.get("location_name"), raw_text=text)
     if not geo.ok:
         service.log_reject(
             chat_id=chat_id,
