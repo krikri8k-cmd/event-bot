@@ -32,6 +32,19 @@ BALIFORUM_TAG_EN_MAP: dict[str, str] = {
     "стендап": "Stand-up",
 }
 
+BALIFORUM_TAG_MAP: dict[str, str] = {
+    "выставка": "Выставка",
+    "искусство": "Выставка",
+    "фестиваль": "Выставка",
+    "йога": "Духовное",
+    "духовное": "Духовное",
+    "медитация": "Духовное",
+    "бизнес": "Бизнес",
+    "it": "IT",
+    "вечеринка": "Вечеринка",
+    "еда": "Еда",
+}
+
 TELEGRAM_CATEGORY_ALIASES: dict[str, str] = {
     "party": "Вечеринка",
     "вечеринка": "Вечеринка",
@@ -100,6 +113,8 @@ class EventCategoryManager:
     """Единая точка категоризации событий для ingest."""
 
     def assign_categories(self, event_data: dict, source: str) -> list[str]:
+        if source == "baliforum":
+            return self._assign_baliforum(event_data)
         if source == "telegram":
             return self._assign_telegram(event_data)
         if source in USER_COMMUNITY_SOURCES:
@@ -110,6 +125,11 @@ class EventCategoryManager:
         return []
 
     def resolve_raw_category(self, event_data: dict, source: str) -> str | None:
+        if source == "baliforum":
+            tags = event_data.get("tags") or []
+            if not tags:
+                return None
+            return ", ".join(str(t).strip() for t in tags if str(t).strip())
         if source == "telegram":
             cats = self._assign_telegram(event_data)
             return ", ".join(cats) if cats else None
@@ -117,6 +137,15 @@ class EventCategoryManager:
             raw_api = event_data.get("raw_api_category")
             return str(raw_api).strip() if raw_api else None
         return None
+
+    def _assign_baliforum(self, event_data: dict) -> list[str]:
+        tags = event_data.get("tags") or []
+        categories: list[str] = []
+        for tag in tags:
+            mapped = BALIFORUM_TAG_MAP.get(normalize_tag(str(tag)))
+            if mapped:
+                categories.append(mapped)
+        return dedupe_categories(categories)
 
     def _assign_telegram(self, event_data: dict) -> list[str]:
         llm_categories = event_data.get("categories") or []

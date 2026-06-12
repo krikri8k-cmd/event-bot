@@ -11,7 +11,6 @@ import httpx
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
-from utils.event_category_manager import EventCategoryManager
 from utils.telegram_event_extractor import call_openai_telegram_extract, compute_time_mode
 from utils.telegram_geo_resolver import resolve_telegram_location
 from utils.telegram_post_links import build_telegram_post_url
@@ -160,16 +159,6 @@ async def process_telegram_post(
         time_mode,
     )
 
-    category_mgr = EventCategoryManager()
-    categories = category_mgr.assign_categories(
-        {"categories": data.get("categories") or [], "default_categories": source.default_categories},
-        "telegram",
-    )
-    raw_category = category_mgr.resolve_raw_category(
-        {"categories": categories or source.default_categories},
-        "telegram",
-    )
-
     organizer, organizer_id = _resolve_organizer(
         extracted_contact=data.get("extracted_contact"),
         poster_username=poster_username,
@@ -212,6 +201,10 @@ async def process_telegram_post(
             organizer_id=organizer_id,
             organizer_username=organizer,
             referral_code=referral_code,
+            category_event_data={
+                "categories": data.get("categories") or [],
+                "default_categories": source.default_categories,
+            },
         )
 
     try:
@@ -233,7 +226,7 @@ async def process_telegram_post(
         message_id=message_id,
         stage="save",
         reason="ok",
-        raw_snippet=f"event_id={event_id} status={status} cats={raw_category}",
+        raw_snippet=f"event_id={event_id} status={status}",
     )
     service.update_last_processed_message_id(chat_id, message_id)
 

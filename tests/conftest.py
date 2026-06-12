@@ -182,6 +182,34 @@ def ensure_events_table(request):
                     ) THEN
                         ALTER TABLE events ADD COLUMN place_id TEXT;
                     END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'community_link'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN community_link TEXT;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'ends_at'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN ends_at TIMESTAMPTZ;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'categories'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN categories JSONB NOT NULL DEFAULT '[]'::jsonb;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'events' AND column_name = 'raw_category'
+                    ) THEN
+                        ALTER TABLE events ADD COLUMN raw_category TEXT;
+                    END IF;
                 END $$;
             """)
             c.execute(add_columns_script)

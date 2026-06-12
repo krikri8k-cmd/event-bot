@@ -2200,6 +2200,8 @@ async def perform_nearby_search(
                     "address": event.get("address"),
                     "organizer_id": event.get("organizer_id"),
                     "organizer_username": event.get("organizer_username"),
+                    "tags": event.get("tags") or [],
+                    "raw_category": event.get("raw_category"),
                     "place_id": event.get("place_id"),
                 }
                 formatted_events.append(formatted_event)
@@ -6336,6 +6338,8 @@ async def on_location(message: types.Message, state: FSMContext):
                     # Добавляем поля автора для пользовательских событий
                     "organizer_id": event.get("organizer_id"),
                     "organizer_username": event.get("organizer_username"),
+                    "tags": event.get("tags") or [],
+                    "raw_category": event.get("raw_category"),
                 }
 
                 logger.debug(
@@ -8534,6 +8538,8 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             "address": event.get("address"),
             "organizer_id": event.get("organizer_id"),
             "organizer_username": event.get("organizer_username"),
+            "tags": event.get("tags") or [],
+            "raw_category": event.get("raw_category"),
         }
         formatted_events.append(formatted_event)
 
@@ -11987,6 +11993,8 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
                 "address": event.get("address"),
                 "organizer_id": event.get("organizer_id"),
                 "organizer_username": event.get("organizer_username"),
+                "tags": event.get("tags") or [],
+                "raw_category": event.get("raw_category"),
             }
             formatted_events.append(formatted_event)
 
