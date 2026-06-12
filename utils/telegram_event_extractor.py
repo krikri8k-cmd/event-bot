@@ -61,11 +61,18 @@ class TelegramExtractResult:
 
 def _build_system_prompt(timezone: str) -> str:
     return (
-        "You extract structured event data from Telegram channel posts for a Bali events guide. "
+        "You extract structured event data from Telegram channel posts for a Bali events guide (MyGuide). "
         f"Interpret all dates and times in timezone {timezone}. "
         "Return starts_at and ends_at as ISO8601 with numeric UTC offset (e.g. 2026-06-15T19:00:00+08:00). "
-        "description and description_en must be exactly two short sentences, max 220 characters each, "
+        "BILINGUAL OUTPUT (mandatory): "
+        "title and description — Russian (Cyrillic). "
+        "title_en and description_en — English (Latin). "
+        "Even if the source post is in English, still write title/description in Russian "
+        "(translate or transliterate the event name if needed). "
+        "Never copy the same English text into both RU and EN description fields. "
+        "description and description_en: exactly two short sentences each, max 220 characters, "
         "no links, hashtags, emojis, or promotional filler. "
+        "location_name: venue as written in the post (may be Latin). "
         "Set is_event=false for announcements, thank-you posts, memes, job ads, "
         "or generic chat without a dated gathering. "
         "Set is_all_day=true only when the post explicitly says all-day / весь день."

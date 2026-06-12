@@ -120,3 +120,5 @@ def test_build_moderation_card():
     )
     assert "Test Party" in card
     assert "42" in card
+    assert "🇷🇺" in card
+    assert "🇬🇧" in card
