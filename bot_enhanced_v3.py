@@ -1175,6 +1175,15 @@ def _build_event_categories_line(e: dict, lang: str | None = None) -> str:
     return f"🎭 {tags_line}"
 
 
+def _build_event_info_line(e: dict, venue_display: str, user_id: int | None, lang: str | None = None) -> str:
+    """Обратная совместимость: локация + категории отдельными строками."""
+    location_line = _build_event_location_line(e, venue_display, user_id, lang=lang)
+    categories_line = _build_event_categories_line(e, lang=lang)
+    if categories_line:
+        return f"{location_line}\n{categories_line}"
+    return location_line
+
+
 def _resolve_event_timezone(event: dict, region: str = None) -> str:
     from utils.simple_timezone import get_city_from_coordinates, get_city_timezone
 
