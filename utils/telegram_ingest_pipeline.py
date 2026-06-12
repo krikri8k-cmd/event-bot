@@ -14,6 +14,7 @@ from sqlalchemy.engine import Engine
 from utils.event_category_manager import EventCategoryManager
 from utils.telegram_event_extractor import call_openai_telegram_extract, compute_time_mode
 from utils.telegram_geo_resolver import resolve_telegram_location
+from utils.telegram_post_links import build_telegram_post_url
 from utils.telegram_sources_service import TelegramSource, TelegramSourcesService
 from utils.unified_events_service import UnifiedEventsService
 
@@ -29,10 +30,7 @@ def _strip_at(username: str | None) -> str | None:
 def _build_event_url(source: TelegramSource, message_id: int, external_registration_url: str | None) -> str | None:
     if external_registration_url and str(external_registration_url).startswith("http"):
         return str(external_registration_url).strip()
-    uname = _strip_at(source.username)
-    if uname:
-        return f"https://t.me/{uname}/{message_id}"
-    return None
+    return build_telegram_post_url(source.chat_id, message_id, source.username)
 
 
 def _community_link(source: TelegramSource) -> str | None:

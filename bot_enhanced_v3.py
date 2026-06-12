@@ -955,7 +955,14 @@ def get_source_url(e: dict) -> str | None:
 
     if t == "source":
         # Для источников: url > booking_url > ticket_url > source_url
-        candidates = [e.get("url"), e.get("booking_url"), e.get("ticket_url"), e.get("source_url"), e.get("link")]
+        candidates = [
+            e.get("url"),
+            e.get("booking_url"),
+            e.get("ticket_url"),
+            e.get("source_url"),
+            e.get("link"),
+            e.get("community_link") if e.get("source") == "telegram" else None,
+        ]
     elif t in ("ai", "ai_parsed", "ai_generated"):
         # Для AI-парсинга: source_url > url > original_url > location_url
         candidates = [e.get("source_url"), e.get("url"), e.get("original_url"), e.get("location_url")]

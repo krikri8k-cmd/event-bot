@@ -5,6 +5,7 @@ from __future__ import annotations
 import html
 import logging
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from sqlalchemy import text
@@ -23,7 +24,7 @@ def _fetch_event(engine: Engine, event_id: int) -> dict[str, Any] | None:
                 text("""
                 SELECT id, title, title_en, description, description_en,
                        starts_at, ends_at, location_name, lat, lng, city,
-                       community_name, community_link, status, url
+                       community_name, community_link, organizer_username, status, url
                 FROM events
                 WHERE id = :id AND source = 'telegram'
             """),
@@ -35,14 +36,21 @@ def _fetch_event(engine: Engine, event_id: int) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
-def _format_when(event: dict[str, Any]) -> str:
+def _format_when(event: dict[str, Any], timezone: str = "Asia/Makassar") -> str:
     starts = event.get("starts_at")
     ends = event.get("ends_at")
     if not starts:
         return "—"
-    start_s = starts.strftime("%d.%m.%Y %H:%M")
+    tz = ZoneInfo(timezone)
+    if starts.tzinfo is None:
+        starts = starts.replace(tzinfo=ZoneInfo("UTC"))
+    local_start = starts.astimezone(tz)
+    start_s = local_start.strftime("%d.%m.%Y %H:%M")
     if ends:
-        return f"{start_s} – {ends.strftime('%H:%M')}"
+        if ends.tzinfo is None:
+            ends = ends.replace(tzinfo=ZoneInfo("UTC"))
+        local_end = ends.astimezone(tz)
+        return f"{start_s} – {local_end.strftime('%H:%M')}"
     return start_s
 
 
@@ -52,21 +60,29 @@ def build_moderation_card_text(
     source_chat_id: int,
     message_id: int,
     source_title: str | None = None,
+    source_timezone: str = "Asia/Makassar",
+    source_username: str | None = None,
 ) -> str:
     title = html.escape(event.get("title") or "—")
     title_en = html.escape((event.get("title_en") or "").strip() or "—")
     desc = html.escape((event.get("description") or "")[:220])
     desc_en = html.escape((event.get("description_en") or "")[:220])
     loc = html.escape(event.get("location_name") or "—")
-    when = html.escape(_format_when(event))
+    when = html.escape(_format_when(event, source_timezone))
     community = html.escape(event.get("community_name") or source_title or str(source_chat_id))
     lat = event.get("lat")
     lng = event.get("lng")
     coords = f"{lat:.5f}, {lng:.5f}" if lat is not None and lng is not None else "—"
 
-    post_link = ""
-    if event.get("url"):
-        post_link = f'\n🔗 <a href="{html.escape(event["url"])}">Подробнее</a>'
+    organizer = (event.get("organizer_username") or "").strip()
+    contact_line = f"👤 @{html.escape(organizer.lstrip('@'))}" if organizer else "👤 контакт не указан"
+
+    post_url = event.get("url")
+    if post_url:
+        link_note = "публичный канал" if source_username else "закрытая группа (только участники)"
+        post_line = f'🔗 <a href="{html.escape(post_url)}">Пост</a> · {html.escape(link_note)}'
+    else:
+        post_line = "🔗 ссылка на пост недоступна"
 
     return (
         f"📋 <b>Telegram ingest — модерация</b>\n"
@@ -75,10 +91,11 @@ def build_moderation_card_text(
         f"🇬🇧 {title_en}\n\n"
         f"🇷🇺 {desc}\n"
         f"🇬🇧 {desc_en}\n\n"
-        f"📅 {when}\n"
+        f"📅 {when} ({html.escape(source_timezone)})\n"
         f"📍 {loc} ({html.escape(coords)})\n"
-        f"📡 {community} · msg <code>{message_id}</code>"
-        f"{post_link}"
+        f"📡 {community} · msg <code>{message_id}</code>\n"
+        f"{contact_line}\n"
+        f"{post_line}"
     )
 
 
@@ -120,6 +137,8 @@ async def send_moderation_card(
         source_chat_id=source_chat_id,
         message_id=message_id,
         source_title=source.title if source else None,
+        source_timezone=source.timezone if source else "Asia/Makassar",
+        source_username=source.username if source else None,
     )
 
     from bot_enhanced_v3 import bot

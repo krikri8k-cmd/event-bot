@@ -73,6 +73,7 @@ def _build_system_prompt(timezone: str) -> str:
         "description and description_en: exactly two short sentences each, max 220 characters, "
         "no links, hashtags, emojis, or promotional filler. "
         "location_name: venue as written in the post (may be Latin). "
+        "extracted_contact: @username of organizer/contact from the post if present, else null. "
         "Set is_event=false for announcements, thank-you posts, memes, job ads, "
         "or generic chat without a dated gathering. "
         "Set is_all_day=true only when the post explicitly says all-day / весь день."
