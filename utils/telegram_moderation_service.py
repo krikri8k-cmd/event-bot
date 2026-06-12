@@ -89,12 +89,18 @@ def build_moderation_card_text(
     else:
         contact_line = "👤 автор поста не определён"
 
+    from utils.telegram_source_visibility import is_public_telegram_source
+
+    is_public = is_public_telegram_source(source_username)
     post_url = event.get("url")
-    if post_url:
-        link_note = "публичный канал" if source_username else "закрытая группа (только участники)"
-        post_line = f'🔗 <a href="{html.escape(post_url)}">Пост</a> · {html.escape(link_note)}'
-    else:
+    if is_public and post_url:
+        post_line = f'🔗 <a href="{html.escape(post_url)}">Пост</a> · публичная группа'
+    elif is_public:
         post_line = "🔗 ссылка на пост недоступна"
+    elif organizer or organizer_id:
+        post_line = "🔗 закрытая группа · в ленте показываем контакт автора выше"
+    else:
+        post_line = "🔗 закрытая группа · автор не определён"
 
     return (
         f"📋 <b>Telegram ingest — модерация</b>\n"

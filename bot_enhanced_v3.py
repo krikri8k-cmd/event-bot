@@ -381,6 +381,7 @@ def prepare_events_for_feed(
     """
     from config import load_settings
     from logging_helpers import DropStats
+    from utils.telegram_source_visibility import is_public_telegram_event
     from venue_enrich import enrich_venue_from_text
 
     settings = load_settings()
@@ -446,7 +447,17 @@ def prepare_events_for_feed(
         )
 
         # Для source и ai*: пропускать события без URL И без локации
-        if event_type in ["source", "ai_parsed", "ai", "ai_generated"] and not url and not has_loc:
+        has_telegram_author = (
+            e.get("source") == "telegram"
+            and not is_public_telegram_event(e)
+            and (e.get("organizer_id") or e.get("organizer_username"))
+        )
+        if (
+            event_type in ["source", "ai_parsed", "ai", "ai_generated"]
+            and not url
+            and not has_loc
+            and not has_telegram_author
+        ):
             drop.add("source_without_url_and_location", title)
             continue
 
@@ -950,10 +961,15 @@ def build_maps_url(e: dict) -> str:
 
 def get_source_url(e: dict) -> str | None:
     """Единая точка истины для получения URL источника согласно ТЗ"""
+    from utils.telegram_source_visibility import is_public_telegram_event
+
     t = e.get("type")
     candidates: list[str | None] = []
 
     if t == "source":
+        # Закрытая telegram-группа: в ленте контакт автора, не ссылка на пост
+        if e.get("source") == "telegram" and not is_public_telegram_event(e):
+            return None
         # Для источников: url > booking_url > ticket_url > source_url
         candidates = [
             e.get("url"),
@@ -1316,14 +1332,26 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         src_part = src_part.replace("👤", "👥")
         logger.info(f"💬 Отображение автора из группы: {src_part}")
     else:
-        # Для источников и AI-парсинга показываем источник
-        src = get_source_url(e)
-        if src:
-            # Используем API endpoint для отслеживания кликов
-            tracking_url = _build_tracking_url("source", e, src, user_id)
-            src_part = f'🌐 <a href="{html.escape(tracking_url)}">{source_link_label}</a>'
+        from utils.telegram_source_visibility import is_public_telegram_event
+
+        if e.get("source") == "telegram" and not is_public_telegram_event(e):
+            # Закрытая группа → пишем автору публикации
+            from utils.author_display import format_author_display
+
+            organizer_id = e.get("organizer_id")
+            organizer_username = e.get("organizer_username")
+            if organizer_id or organizer_username:
+                src_part = format_author_display(organizer_id, organizer_username)
+            else:
+                src_part = f"ℹ️ {t('event.source_not_specified', lang)}"
         else:
-            src_part = f"ℹ️ {t('event.source_not_specified', lang)}"
+            # Публичная группа / другие источники → ссылка на пост
+            src = get_source_url(e)
+            if src:
+                tracking_url = _build_tracking_url("source", e, src, user_id)
+                src_part = f'🌐 <a href="{html.escape(tracking_url)}">{source_link_label}</a>'
+            else:
+                src_part = f"ℹ️ {t('event.source_not_specified', lang)}"
 
     # Маршрут с приоритетом venue_name → address → coords
     maps_url = build_maps_url(e)
