@@ -107,8 +107,9 @@ def test_render_event_html_without_source_shows_placeholder():
     html = render_event_html(e, idx=1)
     # есть заглушка «Источник не указан»
     assert "Источник не указан" in html
-    # есть рабочий «Маршрут»
-    assert "Маршрут" in html
+    # локация кликабельна (маршрут через 📍, отдельной кнопки «Маршрут» нет)
+    assert "📍 <a href=" in html
+    assert "google.com/maps" in html
     # не должно быть example.com
     assert "example.com" not in html
 
