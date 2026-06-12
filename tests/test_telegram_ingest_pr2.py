@@ -9,7 +9,7 @@ from utils.telegram_event_extractor import (
     compute_time_mode,
     validate_extracted_event,
 )
-from utils.telegram_geo_resolver import _normalize_place_name
+from utils.telegram_geo_resolver import _geocode_queries, _normalize_place_name
 
 pytestmark = pytest.mark.no_db
 
@@ -83,3 +83,9 @@ def test_compute_time_mode():
 
 def test_normalize_place_name():
     assert _normalize_place_name("  Savaya   Bali  ") == "Savaya Bali"
+    assert _normalize_place_name("@ Savaya Bali") == "Savaya Bali"
+
+
+def test_geocode_queries_bali():
+    queries = _geocode_queries("Savaya Bali", "bali")
+    assert "Savaya Bali, Bali, Indonesia" in queries
