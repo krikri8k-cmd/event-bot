@@ -390,7 +390,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "events.suggestion.repeat_search": "💡 Попробуй изменить радиус и повторить поиск\n",
         "events.suggestion.create_your_own": "➕ Или создай своё событие и собери свою компанию!",
         # Карточка события (подписи ссылок и создатель)
-        "event.source_link": "Источник",
+        "event.source_link": "Подробнее",
+        "event.all_day": "Весь день",
         "event.route_link": "Маршрут",
         "event.source_not_specified": "Источник не указан",
         "event.created_by": "Создано пользователем @{username}",
@@ -865,7 +866,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "events.suggestion.repeat_search": "💡 Try changing the radius and searching again\n",
         "events.suggestion.create_your_own": "➕ Or create your own event and gather your company!",
         # Event card (link labels and creator)
-        "event.source_link": "Source",
+        "event.source_link": "Details",
+        "event.all_day": "All day",
         "event.route_link": "Route",
         "event.source_not_specified": "Source not specified",
         "event.created_by": "Created by @{username}",

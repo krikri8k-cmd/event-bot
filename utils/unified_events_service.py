@@ -103,7 +103,7 @@ class UnifiedEventsService:
                            location_url, url as event_url,
                            organizer_id, organizer_username, max_participants,
                            current_participants, status, created_at_utc,
-                           community_name, chat_id, location_name as venue_name,
+                           community_name, community_link, chat_id, location_name as venue_name,
                            location_name as address, place_id,
                            '' as geo_hash, starts_at as starts_at_normalized
                     FROM events
@@ -142,7 +142,7 @@ class UnifiedEventsService:
                            location_url, url as event_url,
                            organizer_id, organizer_username, max_participants,
                            current_participants, status, created_at_utc,
-                           community_name, chat_id, location_name as venue_name,
+                           community_name, community_link, chat_id, location_name as venue_name,
                            location_name as address, place_id,
                            '' as geo_hash, starts_at as starts_at_normalized
                     FROM events
@@ -193,10 +193,11 @@ class UnifiedEventsService:
                     "status": row[18],
                     "created_at_utc": row[19],
                     "community_name": row[20] if len(row) > 20 else None,
-                    "chat_id": row[21] if len(row) > 21 else None,
-                    "venue_name": row[22] if len(row) > 22 else None,
-                    "address": row[23] if len(row) > 23 else None,
-                    "place_id": row[24] if len(row) > 24 else None,
+                    "community_link": row[21] if len(row) > 21 else None,
+                    "chat_id": row[22] if len(row) > 22 else None,
+                    "venue_name": row[23] if len(row) > 23 else None,
+                    "address": row[24] if len(row) > 24 else None,
+                    "place_id": row[25] if len(row) > 25 else None,
                 }
 
                 # Логируем пользовательские события

@@ -54,6 +54,7 @@ from tasks_service import (
     create_task_from_place,
     get_user_active_tasks,
 )
+from utils.event_category_manager import format_source_display_tags
 from utils.event_translation import ensure_bilingual
 from utils.geo_utils import get_timezone, haversine_km
 from utils.i18n import format_translation, get_bot_username, t
@@ -1106,6 +1107,142 @@ def truncate_html_safely(html_text: str, max_length: int) -> str:
         return truncated_html
 
 
+_CAP_SKIP_CHARS = frozenset(" \t\n\r«»\"'`„“”‘’([{<")
+
+_PLACE_IN_DESC_RE = re.compile(
+    r"^📍\s*(?:Место|Place|Location)\s*:\s*.+\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def _normalize_event_description_for_display(description: str, e: dict) -> str:
+    """Убирает из описания дубли локации — в карточке локация отдельной строкой."""
+    if not description:
+        return ""
+    text = _PLACE_IN_DESC_RE.sub("", description).strip()
+    if not text:
+        return ""
+    venue_names = {
+        (e.get("venue_name") or "").strip(),
+        (e.get("location_name") or "").strip(),
+    }
+    venue = e.get("venue")
+    if isinstance(venue, dict):
+        venue_names.add((venue.get("name") or "").strip())
+    venue_names = {name for name in venue_names if name}
+    normalized = text.lower()
+    for name in venue_names:
+        if normalized == name.lower():
+            return ""
+    return text
+
+
+def _format_location_display_text(text: str) -> str:
+    if not text or text.startswith("координаты (") or text == "Локация":
+        return text
+    return " ".join(text.replace("+", " ").split())
+
+
+def _capitalize_first_letter(text: str) -> str:
+    if not text:
+        return text
+    i = 0
+    n = len(text)
+    while i < n and text[i] in _CAP_SKIP_CHARS:
+        i += 1
+    if i < n and text[i].isalpha():
+        return text[:i] + text[i].upper() + text[i + 1 :]
+    return text
+
+
+def _build_event_location_line(e: dict, venue_display: str, user_id: int | None, lang: str | None = None) -> str:
+    if lang is None:
+        lang = get_user_language_or_default(user_id) if user_id else "ru"
+    maps_url = build_maps_url(e)
+    tracking_url = _build_tracking_url("route", e, maps_url, user_id)
+    return f'📍 <a href="{tracking_url}">{venue_display}</a>'
+
+
+def _build_event_categories_line(e: dict, lang: str | None = None) -> str:
+    if lang is None:
+        lang = "ru"
+    display_tags = format_source_display_tags(e, lang)
+    if not display_tags:
+        return ""
+    tags_line = " / ".join(html.escape(t) for t in display_tags if t)
+    if not tags_line:
+        return ""
+    return f"🎭 {tags_line}"
+
+
+def _resolve_event_timezone(event: dict, region: str = None) -> str:
+    from utils.simple_timezone import get_city_from_coordinates, get_city_timezone
+
+    event_tz = "UTC"
+    event_city = event.get("city")
+    if event_city:
+        known_cities = ["bali", "moscow", "spb", "jakarta"]
+        if event_city.lower() in known_cities:
+            event_tz = get_city_timezone(event_city)
+    if event_tz == "UTC" and event.get("lat") and event.get("lng"):
+        city = get_city_from_coordinates(event["lat"], event["lng"])
+        if city:
+            event_tz = get_city_timezone(city)
+    if event_tz == "UTC" and region:
+        region_tz_map = {
+            "bali": "Asia/Makassar",
+            "moscow": "Europe/Moscow",
+            "spb": "Europe/Moscow",
+            "jakarta": "Asia/Jakarta",
+        }
+        event_tz = region_tz_map.get(region, "UTC")
+    return event_tz
+
+
+def format_event_when(event: dict, region: str = None, user_id: int = None) -> str:
+    from datetime import datetime
+
+    import pytz
+
+    lang = get_user_language_or_default(user_id) if user_id else "ru"
+    time_mode = event.get("time_mode")
+    if time_mode == "all_day":
+        return t("event.all_day", lang)
+
+    start = event.get("starts_at") or event.get("start_time")
+    if not start:
+        return ""
+
+    def _to_local(dt_value):
+        if isinstance(dt_value, str):
+            try:
+                dt_value = datetime.fromisoformat(dt_value.replace("Z", "+00:00"))
+            except Exception:
+                return None
+        try:
+            event_tz = _resolve_event_timezone(event, region)
+            utc = pytz.UTC
+            tz = pytz.timezone(event_tz)
+            if dt_value.tzinfo is None:
+                dt_value = utc.localize(dt_value)
+            return dt_value.astimezone(tz)
+        except Exception:
+            return None
+
+    local_start = _to_local(start)
+    if local_start is None:
+        return ""
+    if time_mode != "range" and local_start.hour == 0 and local_start.minute == 0 and not event.get("ends_at"):
+        return ""
+    start_str = local_start.strftime("%H:%M")
+    ends_at = event.get("ends_at") or event.get("end_time")
+    if ends_at:
+        local_end = _to_local(ends_at)
+        if local_end is not None:
+            return f"{start_str}–{local_end.strftime('%H:%M')}"
+    return start_str
+
+
 def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool = False) -> str:
     """Рендерит одну карточку в HTML. EN: title_en/description_en с fallback на RU; локация — всегда оригинальный location_name (без GPT)."""
     import logging
@@ -1129,22 +1266,19 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         if lang == "en"
         else (e.get("description") or "").strip()
     )
-    # Локация всегда только оригинал (location_name), не переводим названия заведений
+    display_description = _normalize_event_description_for_display(display_description, e)
     display_location_name = (e.get("location_name") or "").strip()
     display_venue_name = (e.get("venue_name") or e.get("location_name") or "").strip()
-    # Локализация подписей ссылок по языку пользователя
     source_link_label = t("event.source_link", lang)
-    route_link_label = t("event.route_link", lang)
 
-    title = html.escape(display_title or "Событие")
+    title = html.escape(_capitalize_first_letter(display_title or "Событие"))
     when = e.get("when_str", "")
 
     logger.debug("🕐 render_event_html: title=%s, when_str=%s", title[:40] if title else "", when)
 
-    # Если when_str пустое, используем функцию human_when с учетом часового пояса пользователя
     if not when:
-        when = human_when(e, user_id=user_id)
-    dist = f"{e['distance_km']:.1f} км" if e.get("distance_km") is not None else ""
+        when = format_event_when(e, user_id=user_id) or human_when(e, user_id=user_id)
+    dist = f"{e['distance_km']:.1f} {t('mytasks.km_suffix', lang)}" if e.get("distance_km") is not None else ""
 
     # Определяем тип события, если не установлен
     event_type = e.get("type")
@@ -1265,26 +1399,6 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
     elif e.get("lat") and e.get("lng"):
         venue_display = f"координаты ({e['lat']:.4f}, {e['lng']:.4f})"
         logger.debug(f"🔍 DEBUG: Используем координаты: '{venue_display}'")
-    elif event_type in ["user", "community"] and (e.get("description") or display_description):
-        # Для пользовательских событий и событий от групп показываем описание вместо "Локация уточняется"
-        description = display_description
-        if description:
-            # Ограничиваем длину описания для красоты
-            if len(description) > 100:
-                description = description[:97] + "..."
-            venue_display = html.escape(description)
-            logger.debug(f"🔍 DEBUG: Используем описание: '{venue_display}'")
-        else:
-            # Если нет описания, проверяем location_name перед координатами
-            if location_name_from_event and location_name_from_event not in generic_venues:
-                venue_display = html.escape(location_name_from_event)
-                logger.debug(f"🔍 DEBUG: Описание пустое, используем location_name: '{venue_display}'")
-            elif e.get("lat") and e.get("lng"):
-                venue_display = f"координаты ({e['lat']:.4f}, {e['lng']:.4f})"
-                logger.debug(f"🔍 DEBUG: Описание пустое, используем координаты: '{venue_display}'")
-            else:
-                venue_display = "Локация"
-                logger.debug(f"🔍 DEBUG: Описание пустое, используем fallback: '{venue_display}'")
     else:
         # Для событий от парсеров: проверяем location_name перед координатами
         if location_name_from_event and location_name_from_event not in generic_venues:
@@ -1349,13 +1463,9 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
             src = get_source_url(e)
             if src:
                 tracking_url = _build_tracking_url("source", e, src, user_id)
-                src_part = f'🌐 <a href="{html.escape(tracking_url)}">{source_link_label}</a>'
+                src_part = f'🔗 <a href="{html.escape(tracking_url)}">{source_link_label}</a>'
             else:
                 src_part = f"ℹ️ {t('event.source_not_specified', lang)}"
-
-    # Маршрут с приоритетом venue_name → address → coords
-    maps_url = build_maps_url(e)
-    map_part = f'🚗 <a href="{_build_tracking_url("route", e, maps_url, user_id)}">{route_link_label}</a>'
 
     # Добавляем таймер для пользовательских событий
     timer_part = ""
@@ -1382,40 +1492,38 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
                 pass
 
     logger.debug("🕐 render_event_html ИТОГ: title=%s, when=%s, dist=%s", (title or "")[:40], when, dist)
-    logger.debug("🔍 src_part len=%s, map_part len=%s", len(src_part or ""), len(map_part or ""))
+    logger.debug("🔍 src_part len=%s", len(src_part or ""))
 
-    # Формируем строку с автором и группой (для community событий)
     if event_type == "community":
-        # Для событий от групп: автор → маршрут → группа
         group_name = e.get("community_name")
         if group_name:
             group_part = f"  💥@{html.escape(group_name)}"
         else:
             group_part = f"  💥{t('event.from_groups_solo', lang)}"
-        author_line = f"{src_part}  {map_part}{group_part}" if src_part else f"{map_part}{group_part}"
+        author_line = f"{src_part}{group_part}" if src_part else group_part.lstrip()
     else:
-        # Для остальных событий: автор → маршрут
-        author_line = f"{src_part}  {map_part}" if src_part else map_part
+        author_line = src_part or ""
     logger.debug("🔍 author_line len=%s", len(author_line or ""))
 
-    # Добавляем описание для пользовательских событий и событий от групп (уже по языку: display_description)
-    description_part = ""
-    if event_type in ["user", "community"] and display_description:
+    description_line = ""
+    if display_description:
         desc = display_description
         if len(desc) > 150:
             desc = desc[:147] + "..."
-        description_part = f"\n📝 {html.escape(desc)}"
+        description_line = f"📝 {html.escape(desc)}"
         logger.debug(f"🔍 DEBUG: Добавлено описание: '{desc[:50]}...'")
 
-    logger.debug("🔍 ПЕРЕД final_html: venue_display len=%s", len(venue_display or ""))
-
-    # Проверяем venue_display прямо в f-string
-    test_venue = venue_display
-    logger.debug("🔍 test_venue=%s", (test_venue or "")[:30])
-
-    final_html = (
-        f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}\n📍 {test_venue}\n{author_line}{description_part}\n"
-    )
+    test_venue = _format_location_display_text(venue_display)
+    location_line = _build_event_location_line(e, test_venue, user_id, lang=lang)
+    categories_line = _build_event_categories_line(e, lang=lang)
+    card_lines = [f"{idx}) <b>{title}</b> — {when} ({dist}){timer_part}", location_line]
+    if categories_line:
+        card_lines.append(categories_line)
+    if description_line:
+        card_lines.append(description_line)
+    if author_line:
+        card_lines.append(author_line)
+    final_html = "\n".join(card_lines) + "\n"
     logger.debug("🔍 ПОСЛЕ final_html: venue_display len=%s", len(venue_display or ""))
     logger.debug("🔍 FINAL HTML (lang=%s): %s", lang, final_html[:300] + ("..." if len(final_html) > 300 else ""))
     return final_html
@@ -2077,8 +2185,8 @@ async def perform_nearby_search(
                     "source": event.get("source", ""),
                     "source_type": event.get("source_type", ""),
                     "url": event.get("event_url", ""),
-                    "community_name": "",
-                    "community_link": "",
+                    "community_name": event.get("community_name") or "",
+                    "community_link": event.get("community_link") or "",
                     "venue_name": event.get("venue_name"),
                     "address": event.get("address"),
                     "organizer_id": event.get("organizer_id"),
@@ -6212,8 +6320,8 @@ async def on_location(message: types.Message, state: FSMContext):
                     "source": event.get("source", ""),  # Сохраняем оригинальный source из БД
                     "source_type": event.get("source_type", ""),  # Добавляем source_type отдельно
                     "url": event.get("event_url", ""),
-                    "community_name": "",
-                    "community_link": "",
+                    "community_name": event.get("community_name") or "",
+                    "community_link": event.get("community_link") or "",
                     "venue_name": event.get("venue_name"),
                     "address": event.get("address"),
                     # Добавляем поля автора для пользовательских событий
@@ -8411,8 +8519,8 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             "source": event.get("source", ""),
             "source_type": event.get("source_type", ""),
             "url": event.get("event_url", ""),
-            "community_name": "",
-            "community_link": "",
+            "community_name": event.get("community_name") or "",
+            "community_link": event.get("community_link") or "",
             "venue_name": event.get("venue_name"),
             "address": event.get("address"),
             "organizer_id": event.get("organizer_id"),
@@ -11864,8 +11972,8 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
                 "source": event.get("source", ""),
                 "source_type": event.get("source_type", ""),
                 "url": event.get("event_url", ""),
-                "community_name": "",
-                "community_link": "",
+                "community_name": event.get("community_name") or "",
+                "community_link": event.get("community_link") or "",
                 "venue_name": event.get("venue_name"),
                 "address": event.get("address"),
                 "organizer_id": event.get("organizer_id"),
