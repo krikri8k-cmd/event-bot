@@ -201,7 +201,10 @@ def load_settings(require_bot: bool = False) -> Settings:
 
     telegram_ingest_enabled = os.getenv("TELEGRAM_INGEST_ENABLED", "0").strip() == "1"
     moderation_chat_id_raw = (os.getenv("MODERATION_CHAT_ID") or "").strip()
-    moderation_chat_id = int(moderation_chat_id_raw) if moderation_chat_id_raw.isdigit() else None
+    try:
+        moderation_chat_id = int(moderation_chat_id_raw) if moderation_chat_id_raw else None
+    except ValueError:
+        moderation_chat_id = None
     internal_ingest_secret = (os.getenv("INTERNAL_INGEST_SECRET") or "").strip() or None
 
     return Settings(
