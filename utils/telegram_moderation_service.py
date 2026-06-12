@@ -24,7 +24,7 @@ def _fetch_event(engine: Engine, event_id: int) -> dict[str, Any] | None:
                 text("""
                 SELECT id, title, title_en, description, description_en,
                        starts_at, ends_at, location_name, lat, lng, city,
-                       community_name, community_link, organizer_username, status, url
+                       community_name, community_link, organizer_id, organizer_username, status, url
                 FROM events
                 WHERE id = :id AND source = 'telegram'
             """),
@@ -81,7 +81,13 @@ def build_moderation_card_text(
     coords = f"{lat:.5f}, {lng:.5f}" if lat is not None and lng is not None else "—"
 
     organizer = (event.get("organizer_username") or "").strip()
-    contact_line = f"👤 @{html.escape(organizer.lstrip('@'))}" if organizer else "👤 контакт не указан"
+    organizer_id = event.get("organizer_id")
+    if organizer:
+        contact_line = f"👤 @{html.escape(organizer.lstrip('@'))} · автор поста"
+    elif organizer_id:
+        contact_line = f'👤 <a href="tg://user?id={organizer_id}">автор поста</a> (без @username)'
+    else:
+        contact_line = "👤 автор поста не определён"
 
     post_url = event.get("url")
     if post_url:

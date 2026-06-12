@@ -97,6 +97,37 @@ def test_find_maps_url_in_text():
     assert _is_maps_url("https://maps.app.goo.gl/abc")
 
 
+def test_resolve_organizer_priority():
+    from utils.telegram_ingest_pipeline import _resolve_organizer
+
+    username, uid = _resolve_organizer(
+        extracted_contact="@from_post",
+        poster_username="poster",
+        poster_id=123,
+        default_contact="@default",
+    )
+    assert username == "from_post"
+    assert uid == 123
+
+    username, uid = _resolve_organizer(
+        extracted_contact=None,
+        poster_username="poster",
+        poster_id=456,
+        default_contact="@default",
+    )
+    assert username == "poster"
+    assert uid == 456
+
+    username, uid = _resolve_organizer(
+        extracted_contact=None,
+        poster_username=None,
+        poster_id=None,
+        default_contact="@default",
+    )
+    assert username == "default"
+    assert uid is None
+
+
 def test_format_when_shows_utc_and_local():
     from datetime import datetime
 

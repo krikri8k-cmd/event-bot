@@ -109,8 +109,21 @@ async def _handle_message(event, service):
         return
 
     from utils.telegram_ingest_pipeline import process_telegram_post
+    from utils.telegram_telethon_helpers import export_message_link, resolve_message_poster
 
     post_date = getattr(message, "date", None)
+    poster_id, poster_username = await resolve_message_poster(message)
+    post_url = await export_message_link(
+        event.client,
+        chat_id,
+        message_id,
+        source_username=source.username,
+    )
+    if poster_username:
+        logger.info("TG ingest poster @%s (id=%s)", poster_username, poster_id)
+    if post_url:
+        logger.info("TG ingest post_url=%s", post_url)
+
     await process_telegram_post(
         engine=service.engine,
         service=service,
@@ -118,6 +131,9 @@ async def _handle_message(event, service):
         message_id=message_id,
         text=text,
         post_date=post_date,
+        post_url=post_url,
+        poster_id=poster_id,
+        poster_username=poster_username,
     )
 
 

@@ -575,6 +575,7 @@ class UnifiedEventsService:
         community_name: str | None = None,
         community_link: str | None = None,
         chat_id: int | None = None,
+        organizer_id: int | None = None,
         organizer_username: str | None = None,
         referral_code: str | None = None,
     ) -> int:
@@ -652,6 +653,7 @@ class UnifiedEventsService:
                         community_name = COALESCE(:community_name, community_name),
                         community_link = COALESCE(:community_link, community_link),
                         chat_id = COALESCE(:chat_id, chat_id),
+                        organizer_id = COALESCE(:organizer_id, organizer_id),
                         organizer_username = COALESCE(:organizer_username, organizer_username),
                         referral_code = COALESCE(:referral_code, referral_code),
                         updated_at_utc = NOW()
@@ -676,6 +678,7 @@ class UnifiedEventsService:
                         "community_name": community_name,
                         "community_link": community_link,
                         "chat_id": chat_id,
+                        "organizer_id": organizer_id,
                         "organizer_username": organizer_username,
                         "referral_code": referral_code,
                         "source": source,
@@ -691,12 +694,12 @@ class UnifiedEventsService:
                      starts_at, ends_at, city, lat, lng, location_name, location_name_en,
                      location_url, url, country, is_generated_by_ai, status,
                      current_participants, place_id, community_name, community_link,
-                     chat_id, organizer_username, referral_code)
+                     chat_id, organizer_id, organizer_username, referral_code)
                     VALUES
                     (:source, :external_id, 'parser', :title, :title_en, :description, :description_en,
                      :starts_at, :ends_at, :city, :lat, :lng, :location_name, :location_name_en,
                      :location_url, :url, :country, :is_ai, :status, 0, :place_id,
-                     :community_name, :community_link, :chat_id, :organizer_username, :referral_code)
+                     :community_name, :community_link, :chat_id, :organizer_id, :organizer_username, :referral_code)
                     ON CONFLICT (source, external_id) DO UPDATE SET
                         title = EXCLUDED.title,
                         title_en = EXCLUDED.title_en,
@@ -717,6 +720,7 @@ class UnifiedEventsService:
                         community_name = COALESCE(EXCLUDED.community_name, events.community_name),
                         community_link = COALESCE(EXCLUDED.community_link, events.community_link),
                         chat_id = COALESCE(EXCLUDED.chat_id, events.chat_id),
+                        organizer_id = COALESCE(EXCLUDED.organizer_id, events.organizer_id),
                         organizer_username = COALESCE(EXCLUDED.organizer_username, events.organizer_username),
                         referral_code = COALESCE(EXCLUDED.referral_code, events.referral_code)
                     RETURNING id
@@ -744,6 +748,7 @@ class UnifiedEventsService:
                         "community_name": community_name,
                         "community_link": community_link,
                         "chat_id": chat_id,
+                        "organizer_id": organizer_id,
                         "organizer_username": organizer_username,
                         "referral_code": referral_code,
                     },

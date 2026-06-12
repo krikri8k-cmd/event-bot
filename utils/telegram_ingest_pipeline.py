@@ -27,9 +27,29 @@ def _strip_at(username: str | None) -> str | None:
     return username.lstrip("@").strip() or None
 
 
-def _build_event_url(source: TelegramSource, message_id: int, external_registration_url: str | None) -> str | None:
+def _resolve_organizer(
+    *,
+    extracted_contact: str | None,
+    poster_username: str | None,
+    poster_id: int | None,
+    default_contact: str | None,
+) -> tuple[str | None, int | None]:
+    """Контакт: из текста поста → автор публикации → default_contact источника."""
+    username = _strip_at(extracted_contact) or _strip_at(poster_username) or _strip_at(default_contact)
+    return username, poster_id
+
+
+def _build_event_url(
+    source: TelegramSource,
+    message_id: int,
+    external_registration_url: str | None,
+    *,
+    post_url: str | None = None,
+) -> str | None:
     if external_registration_url and str(external_registration_url).startswith("http"):
         return str(external_registration_url).strip()
+    if post_url and post_url.startswith("http"):
+        return post_url.strip()
     return build_telegram_post_url(source.chat_id, message_id, source.username)
 
 
@@ -91,6 +111,9 @@ async def process_telegram_post(
     message_id: int,
     text: str,
     post_date: datetime | None = None,
+    post_url: str | None = None,
+    poster_id: int | None = None,
+    poster_username: str | None = None,
 ) -> None:
     chat_id = source.chat_id
 
@@ -147,10 +170,20 @@ async def process_telegram_post(
         "telegram",
     )
 
-    organizer = _strip_at(data.get("extracted_contact")) or _strip_at(source.default_contact)
+    organizer, organizer_id = _resolve_organizer(
+        extracted_contact=data.get("extracted_contact"),
+        poster_username=poster_username,
+        poster_id=poster_id,
+        default_contact=source.default_contact,
+    )
     status = "open" if source.trust_level == "trusted" else "draft"
     external_id = f"tg:{chat_id}:{message_id}"
-    event_url = _build_event_url(source, message_id, data.get("external_registration_url"))
+    event_url = _build_event_url(
+        source,
+        message_id,
+        data.get("external_registration_url"),
+        post_url=post_url,
+    )
 
     events_service = UnifiedEventsService(engine)
     referral_code = _get_referral_code(engine, source.partner_id)
@@ -176,6 +209,7 @@ async def process_telegram_post(
             community_name=source.title,
             community_link=_community_link(source),
             chat_id=chat_id,
+            organizer_id=organizer_id,
             organizer_username=organizer,
             referral_code=referral_code,
         )
