@@ -1,6 +1,6 @@
 """PR2: telegram ingest LLM validation, time_mode, geo helpers."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -95,6 +95,19 @@ def test_find_maps_url_in_text():
     text = "Party @ https://maps.app.goo.gl/B8LGdDhiAcesEUxi6\n12 июня"
     assert _find_maps_url(text) == "https://maps.app.goo.gl/B8LGdDhiAcesEUxi6"
     assert _is_maps_url("https://maps.app.goo.gl/abc")
+
+
+def test_format_when_shows_utc_and_local():
+    from datetime import datetime
+
+    from utils.telegram_moderation_service import _format_when
+
+    when = _format_when(
+        {"starts_at": datetime(2026, 6, 12, 11, 0, tzinfo=UTC), "ends_at": None},
+        "Asia/Makassar",
+    )
+    assert "UTC 11:00" in when
+    assert "Asia/Makassar 19:00" in when
 
 
 def test_build_moderation_card():

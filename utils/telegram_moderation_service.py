@@ -37,21 +37,27 @@ def _fetch_event(engine: Engine, event_id: int) -> dict[str, Any] | None:
 
 
 def _format_when(event: dict[str, Any], timezone: str = "Asia/Makassar") -> str:
+    """Локальное время для модератора + UTC в скобках (для масштабирования по регионам)."""
     starts = event.get("starts_at")
     ends = event.get("ends_at")
     if not starts:
         return "—"
     tz = ZoneInfo(timezone)
+    utc = ZoneInfo("UTC")
     if starts.tzinfo is None:
-        starts = starts.replace(tzinfo=ZoneInfo("UTC"))
+        starts = starts.replace(tzinfo=utc)
     local_start = starts.astimezone(tz)
-    start_s = local_start.strftime("%d.%m.%Y %H:%M")
+    utc_start = starts.astimezone(utc)
+    core = (
+        f"{local_start.strftime('%d.%m.%Y')} "
+        f"(UTC {utc_start.strftime('%H:%M')} · {timezone} {local_start.strftime('%H:%M')})"
+    )
     if ends:
         if ends.tzinfo is None:
-            ends = ends.replace(tzinfo=ZoneInfo("UTC"))
+            ends = ends.replace(tzinfo=utc)
         local_end = ends.astimezone(tz)
-        return f"{start_s} – {local_end.strftime('%H:%M')}"
-    return start_s
+        return f"{core} – {local_end.strftime('%H:%M')}"
+    return core
 
 
 def build_moderation_card_text(
@@ -91,7 +97,7 @@ def build_moderation_card_text(
         f"🇬🇧 {title_en}\n\n"
         f"🇷🇺 {desc}\n"
         f"🇬🇧 {desc_en}\n\n"
-        f"📅 {when} ({html.escape(source_timezone)})\n"
+        f"📅 {when}\n"
         f"📍 {loc} ({html.escape(coords)})\n"
         f"📡 {community} · msg <code>{message_id}</code>\n"
         f"{contact_line}\n"
