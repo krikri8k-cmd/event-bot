@@ -103,14 +103,22 @@ async def _handle_message(event, service):
 
     text = _message_text(message)
     logger.info("TG ingest [%s:%s] len=%s preview=%r", chat_id, message_id, len(text), text[:80])
-    service.log_reject(
-        chat_id=chat_id,
+
+    source = service.get_by_chat_id(chat_id)
+    if not source or not source.is_active:
+        return
+
+    from utils.telegram_ingest_pipeline import process_telegram_post
+
+    post_date = getattr(message, "date", None)
+    await process_telegram_post(
+        engine=service.engine,
+        service=service,
+        source=source,
         message_id=message_id,
-        stage="filter",
-        reason="logged_awaiting_llm_pr2",
-        raw_snippet=text[:200],
+        text=text,
+        post_date=post_date,
     )
-    service.update_last_processed_message_id(chat_id, message_id)
 
 
 def _start_health_server() -> None:
@@ -182,7 +190,7 @@ async def main():
             await asyncio.sleep(120)
             await _reload_active_sources(service)
 
-    logger.info("Starting Telethon userbot worker (PR1: log-only, LLM in PR2)...")
+    logger.info("Starting Telethon userbot worker (PR2: LLM + geo + save)...")
     await client.start()
     asyncio.create_task(refresh_sources_loop())
     await client.run_until_disconnected()
