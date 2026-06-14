@@ -132,6 +132,7 @@ async def process_telegram_post(
     post_url: str | None = None,
     poster_id: int | None = None,
     poster_username: str | None = None,
+    entity_links: list[tuple[str, str]] | None = None,
 ) -> None:
     chat_id = source.chat_id
 
@@ -153,7 +154,13 @@ async def process_telegram_post(
         return
 
     data = extract.data or {}
-    geo = await resolve_telegram_location(engine, source, data.get("location_name"), raw_text=text)
+    geo = await resolve_telegram_location(
+        engine,
+        source,
+        data.get("location_name"),
+        raw_text=text,
+        entity_links=entity_links,
+    )
     if not geo.ok:
         service.log_reject(
             chat_id=chat_id,

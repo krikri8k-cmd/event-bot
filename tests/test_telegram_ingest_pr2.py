@@ -9,7 +9,14 @@ from utils.telegram_event_extractor import (
     compute_time_mode,
     validate_extracted_event,
 )
-from utils.telegram_geo_resolver import _find_maps_url, _geocode_queries, _is_maps_url, _normalize_place_name
+from utils.telegram_geo_resolver import (
+    _find_maps_url,
+    _geocode_queries,
+    _is_maps_url,
+    _normalize_place_name,
+    collect_maps_url_candidates,
+    pick_best_maps_url,
+)
 
 pytestmark = pytest.mark.no_db
 
@@ -95,6 +102,73 @@ def test_find_maps_url_in_text():
     text = "Party @ https://maps.app.goo.gl/B8LGdDhiAcesEUxi6\n12 июня"
     assert _find_maps_url(text) == "https://maps.app.goo.gl/B8LGdDhiAcesEUxi6"
     assert _is_maps_url("https://maps.app.goo.gl/abc")
+
+
+def test_geocode_queries_cinema_variants():
+    queries = _geocode_queries("IMAX в ICON", "bali")
+    assert "IMAX в ICON cinema, Bali, Indonesia" in queries
+    assert "Cinema IMAX ICON, Bali, Indonesia" in queries
+
+
+def test_pick_best_maps_url_prefers_cinema_entity_link():
+    raw = (
+        "Балийцы - го в кино!\n"
+        "Иду сегодня на 21:15 в IMAX в ICON на Спилберга\n"
+        "Кино здесь:\n\n"
+        "Перед кино - ужин здесь:\n"
+        "Пицца у них - шикарная"
+    )
+    cinema_url = "https://maps.app.goo.gl/F65wLhwR5CTzKCvd6"
+    dinner_url = "https://maps.app.goo.gl/DinnerPlace123"
+    candidates = collect_maps_url_candidates(
+        location_name="IMAX в ICON",
+        raw_text=raw,
+        entity_links=[(cinema_url, "Кино здесь"), (dinner_url, "здесь")],
+    )
+    assert pick_best_maps_url(candidates, raw_text=raw) == cinema_url
+
+
+def test_pick_best_maps_url_entity_links_before_plain_text():
+    raw = "Встречаемся тут"
+    entity_url = "https://maps.app.goo.gl/EntityFirst"
+    text_url = "https://maps.app.goo.gl/TextSecond"
+    raw_with_text = f"{raw} {text_url}"
+    candidates = collect_maps_url_candidates(
+        location_name=None,
+        raw_text=raw_with_text,
+        entity_links=[(entity_url, "тут")],
+    )
+    assert pick_best_maps_url(candidates, raw_text=raw_with_text) == entity_url
+
+
+def test_extract_message_entity_links_text_url():
+    from utils.telegram_telethon_helpers import extract_message_entity_links
+
+    class FakeEntity:
+        def __init__(self, offset, length, url=None):
+            self.offset = offset
+            self.length = length
+            self.url = url
+
+    class FakeMessage:
+        message = "Кино здесь: ужин здесь:"
+        entities = []
+
+    try:
+        from telethon.tl.types import MessageEntityTextUrl
+    except ImportError:
+        pytest.skip("telethon not installed")
+
+    msg = FakeMessage()
+    msg.entities = [
+        MessageEntityTextUrl(offset=0, length=11, url="https://maps.app.goo.gl/Cinema"),
+        MessageEntityTextUrl(offset=12, length=11, url="https://maps.app.goo.gl/Dinner"),
+    ]
+    links = extract_message_entity_links(msg)
+    assert links == [
+        ("https://maps.app.goo.gl/Cinema", "Кино здесь:"),
+        ("https://maps.app.goo.gl/Dinner", "ужин здесь:"),
+    ]
 
 
 def test_resolve_organizer_priority():

@@ -29,6 +29,38 @@ async def resolve_message_poster(message) -> tuple[int | None, str | None]:
     return user_id, None
 
 
+def extract_message_entity_links(message) -> list[tuple[str, str]]:
+    """
+    URL из Telegram entities: text_link (вшитая ссылка) и plain url.
+    Returns: [(url, anchor_text), ...] в порядке появления в сообщении.
+    """
+    text = (getattr(message, "message", None) or getattr(message, "caption", None) or "").strip()
+    entities = getattr(message, "entities", None) or getattr(message, "caption_entities", None) or []
+    if not text or not entities:
+        return []
+
+    try:
+        from telethon.tl.types import MessageEntityTextUrl, MessageEntityUrl
+    except ImportError:
+        logger.warning("telethon types unavailable — skip entity URL extraction")
+        return []
+
+    links: list[tuple[str, str]] = []
+    for entity in entities:
+        start = entity.offset
+        end = entity.offset + entity.length
+        anchor = text[start:end].strip()
+        if isinstance(entity, MessageEntityTextUrl):
+            url = (getattr(entity, "url", None) or "").strip()
+            if url:
+                links.append((url, anchor or url))
+        elif isinstance(entity, MessageEntityUrl):
+            url = text[start:end].strip()
+            if url:
+                links.append((url, anchor or url))
+    return links
+
+
 async def export_message_link(
     client: TelegramClient,
     chat_id: int,

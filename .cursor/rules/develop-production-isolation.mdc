@@ -1,0 +1,54 @@
+---
+description: Изоляция develop/test от production — не трогать @MyGuide без явного разрешения
+alwaysApply: true
+---
+
+# Develop ≠ Production
+
+**Цель:** при работе с тестовым ботом не затрагивать основной (@MyGuide) и его инфраструктуру.
+
+## Окружения
+
+| | Develop (по умолчанию) | Production (только по запросу) |
+|---|---|---|
+| Бот | @MyConductorBot | @MyGuide |
+| Railway env | `develop` | `production` |
+| Git-ветка | `develop` | `main` |
+| БД | Postgres в `develop` | Postgres в `production` |
+
+## По умолчанию — только develop
+
+- Работать на ветке **`develop`**. Не переключаться на `main` без явной просьбы пользователя.
+- Деплой только в develop:
+  - `railway up -e develop -s event-bot -d`
+  - `railway up -e develop -s telegram-ingest -d`
+- Миграции и скрипты БД — только против **develop** Postgres (`DATABASE_PUBLIC_URL` из `develop`).
+- Локально использовать `.env.local` с токеном **@MyConductorBot**, не production-токен.
+
+## Запрещено без явного «да» от пользователя
+
+- `railway up -e production` (любой сервис)
+- Миграции / backfill / SQL против **production** БД
+- `git checkout main`, merge/rebase develop → main, push в `main`
+- Изменение Railway variables в `production`
+- Любые команды, где `-e production`, `-s Postgres` (production) или URL указывает на prod
+
+Фразы вроде «задеплой», «выкати» **без** слова production — считать запросом на **develop**.
+
+## Явное разрешение на production
+
+Трогать production только если пользователь **прямо** просит: «production», «@MyGuide», «основной бот», «prod».
+
+Перед действием — коротко подтвердить: что именно пойдёт в production (сервис, ветка, миграция).
+
+## Перед деплоем и миграцией — проверка
+
+1. Текущая ветка: `develop` (если не оговорено иное).
+2. Railway environment: `develop` (флаг `-e develop`).
+3. `DATABASE_URL` / `DATABASE_PUBLIC_URL` — из **develop** Postgres, не production.
+
+## Если пользователь тестирует фичу
+
+- Тестировать в **@MyConductorBot** на develop.
+- Не предлагать production как способ «проверить быстрее».
+- Старый UI на @MyGuide — это отставание деплоя, не повод трогать prod во время разработки.

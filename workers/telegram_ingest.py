@@ -101,15 +101,23 @@ async def _handle_message(event, service):
         service.update_last_processed_message_id(chat_id, message_id)
         return
 
+    from utils.telegram_telethon_helpers import extract_message_entity_links
+
     text = _message_text(message)
+    entity_links = extract_message_entity_links(message)
     logger.info("TG ingest [%s:%s] len=%s preview=%r", chat_id, message_id, len(text), text[:80])
+    if entity_links:
+        logger.info("TG ingest [%s:%s] entity_links=%s", chat_id, message_id, len(entity_links))
 
     source = service.get_by_chat_id(chat_id)
     if not source or not source.is_active:
         return
 
     from utils.telegram_ingest_pipeline import process_telegram_post
-    from utils.telegram_telethon_helpers import export_message_link, resolve_message_poster
+    from utils.telegram_telethon_helpers import (
+        export_message_link,
+        resolve_message_poster,
+    )
 
     post_date = getattr(message, "date", None)
     poster_id, poster_username = await resolve_message_poster(message)
@@ -134,6 +142,7 @@ async def _handle_message(event, service):
         post_url=post_url,
         poster_id=poster_id,
         poster_username=poster_username,
+        entity_links=entity_links,
     )
 
 
