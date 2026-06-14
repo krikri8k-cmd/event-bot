@@ -1545,18 +1545,26 @@ def render_fallback(lat: float, lng: float, lang: str = "ru") -> str:
     maps_url = f"https://www.google.com/maps/search/?api=1&query={lat},{lng}"
     link_route = f'🚗 <a href="{maps_url}">{route_txt}</a>'
     line = f"ℹ️ {src_txt}  {link_route}"
+    location_label = t("events.fallback.location", lang)
+    expand = t("events.fallback.expand_search", lang)
+    create_own = t("events.fallback.create_own", lang)
+    check_later = t("events.fallback.check_later", lang)
+    header = format_translation("events.header.found_nearby", lang, count=0)
+    from_users = format_translation("events.header.from_users", lang, count=0)
+    from_sources = format_translation("events.header.from_sources", lang, count=0)
+    dist_zero = "(0.0 km)" if lang == "en" else "(0.0 км)"
     return (
-        f"🗺 <b>Найдено рядом: 0</b>\n"
-        f"• 👥 От пользователей: 0\n"
-        f"• 🌐 Из источников: 0\n\n"
-        f"1) <b>Попробуйте расширить поиск</b> — (0.0 км)\n"
-        f"📍 Локация\n"
+        f"{header}\n"
+        f"{from_users}\n"
+        f"{from_sources}\n\n"
+        f"1) <b>{expand}</b> — {dist_zero}\n"
+        f"📍 {location_label}\n"
         f"{line}\n\n"
-        f"2) <b>Создайте своё событие</b> — (0.0 км)\n"
-        f"📍 Локация\n"
+        f"2) <b>{create_own}</b> — {dist_zero}\n"
+        f"📍 {location_label}\n"
         f"{line}\n\n"
-        f"3) <b>Проверьте позже</b> — (0.0 км)\n"
-        f"📍 Локация\n"
+        f"3) <b>{check_later}</b> — {dist_zero}\n"
+        f"📍 {location_label}\n"
         f"{line}"
     )
 
@@ -1686,6 +1694,7 @@ def render_page(
     user_id: int = None,
     is_caption: bool = False,
     first_page_was_photo: bool = False,
+    lang: str | None = None,
 ) -> tuple[str, int]:
     """
     Рендерит страницу событий
@@ -1698,8 +1707,13 @@ def render_page(
 
     logger = logging.getLogger(__name__)
 
+    if lang is None and user_id is not None:
+        lang = get_user_language_or_default(user_id)
+    elif lang is None:
+        lang = "ru"
+
     if not events:
-        return "Поблизости пока ничего не нашли.", 1
+        return t("events.page_empty", lang), 1
 
     # ВАЖНО: Правильный расчет total_pages с учетом смешанного размера страниц
     # Первая страница (с картой) имеет page_size=1, остальные - page_size=6
@@ -1838,6 +1852,16 @@ def make_counts(groups):
     }
     logger.debug("🔍 make_counts: groups=%s, counts=%s", list(groups.keys()), counts)
     return counts
+
+
+def _events_date_text(date_filter: str, lang: str) -> str:
+    key = "events.date_for_today" if date_filter == "today" else "events.date_for_tomorrow"
+    return t(key, lang)
+
+
+def _events_date_label(date_filter: str, lang: str) -> str:
+    key = "events.date_label_today" if date_filter == "today" else "events.date_label_tomorrow"
+    return t(key, lang)
 
 
 def render_header(counts, radius_km: int = None, lang: str = "ru") -> str:
@@ -2308,18 +2332,19 @@ async def perform_nearby_search(
                     else next((r for r in RADIUS_OPTIONS if r < current_radius), current_radius)
                 )
                 suggestion_line = (
-                    f"💡 Попробуй изменить радиус до {suggested_radius} км\n"
+                    format_translation("events.suggestion.change_radius", user_lang, radius=suggested_radius)
                     if suggested_radius != current_radius
-                    else "💡 Попробуй изменить радиус и повторить поиск\n"
+                    else format_translation("events.suggestion.repeat_search", user_lang)
                 )
 
-                # Формируем текст сообщения в зависимости от фильтра даты
-                date_text = "на сегодня" if date_filter_state == "today" else "на завтра"
+                date_text = _events_date_text(date_filter_state, user_lang)
+                not_found_text = format_translation(
+                    "events.not_found_with_radius", user_lang, radius=current_radius, date_text=date_text
+                )
+                create_text = format_translation("events.suggestion.create_your_own", user_lang)
 
                 await message.answer(
-                    f"📅 В радиусе {current_radius} км событий {date_text} не найдено.\n\n"
-                    f"{suggestion_line}"
-                    f"➕ Или создай своё событие и собери свою компанию!",
+                    f"{not_found_text}\n\n{suggestion_line}{create_text}",
                     reply_markup=inline_kb,
                 )
 
@@ -6502,7 +6527,7 @@ async def on_location(message: types.Message, state: FSMContext):
                 )
 
                 # Формируем текст сообщения в зависимости от фильтра даты
-                date_text = "на сегодня" if date_filter_state == "today" else "на завтра"
+                date_text = _events_date_text(date_filter_state, user_lang)
 
                 not_found_text = format_translation(
                     "events.not_found_with_radius", user_lang, radius=current_radius, date_text=date_text
@@ -8607,7 +8632,7 @@ async def handle_expand_radius(callback: types.CallbackQuery):
         )
 
         # Формируем текст сообщения в зависимости от фильтра даты
-        date_text = "на сегодня" if date_filter == "today" else "на завтра"
+        date_text = _events_date_text(date_filter, user_lang)
 
         not_found_text = format_translation(
             "events.not_found_with_radius", user_lang, radius=current_radius, date_text=date_text
@@ -11906,9 +11931,11 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
             await callback.answer(t("pager.date_already_selected", user_lang))
             return
 
+        user_lang = get_user_language_or_default(callback.from_user.id)
+
         # Показываем индикатор загрузки
         try:
-            await callback.message.edit_text("🔍 Загружаю события...")
+            await callback.message.edit_text(t("search.loading_toast", user_lang))
         except Exception:
             pass
 
@@ -12119,7 +12146,13 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
             await callback.answer(t("pager.date_switch_failed", user_lang), show_alert=True)
             return
 
-        await callback.answer(f"📅 Показаны события на {date_type}")
+        await callback.answer(
+            format_translation(
+                "pager.date_shown",
+                user_lang,
+                date_type=_events_date_label(date_type, user_lang),
+            )
+        )
 
     except Exception as e:
         logger.error(f"❌ Ошибка обработки переключения даты: {e}")
