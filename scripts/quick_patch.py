@@ -24,7 +24,9 @@ sys.path.insert(0, str(project_root))
 from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(project_root / "app.local.env")
+load_dotenv(project_root / ".env.local")
 
+from config import load_settings  # noqa: E402
 from database import TaskPlace, get_session, init_engine  # noqa: E402
 from tasks.ai_hints_generator import generate_hint_for_place  # noqa: E402
 from utils.event_translation import translate_task_hints_batch  # noqa: E402
@@ -32,14 +34,14 @@ from utils.event_translation import translate_task_hints_batch  # noqa: E402
 # Данные для патча: название, короткая ссылка (без |промо), промокод
 PLACES = [
     {
-        "name": "Bali Dacha",
-        "url": "https://maps.app.goo.gl/mmgJ4eRMFe3PnEmQ8",
-        "promo_code": "Jungle26 Club day 50.000 IDR , private rent 10%",
+        "name": "Taman Ujung",
+        "url": "https://maps.app.goo.gl/qD4P8hoCyxiT4KJVA",
+        "promo_code": "",
     },
 ]
 
-CATEGORY = "health"
-PLACE_TYPE = "spa"
+CATEGORY = "places"
+PLACE_TYPE = "culture"
 REGION = "bali"
 
 
@@ -55,6 +57,11 @@ def _url_key(url: str) -> str:
 
 def main():
     db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        try:
+            db_url = load_settings(require_bot=False).database_url
+        except Exception:
+            db_url = None
     if not db_url:
         print("❌ DATABASE_URL не найден. Задай в app.local.env или переменной окружения.")
         sys.exit(1)

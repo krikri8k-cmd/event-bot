@@ -1,70 +1,67 @@
 # Простой формат для добавления локаций
 # Формат: category:place_type:region:promo_code (промокод опционален)
+# Категории: food (еда), health (здоровье), places (интересные места)
 # Затем просто список Google Maps ссылок (по одной на строку)
 # Можно указать промокод после ссылки через |: https://maps.google.com/ссылка|ПРОМОКОД
 
-# Категория: Тело, Тип: Кафе, Регион: Москва, Промокод: EVENT2024
-body:cafe:moscow:EVENT2024
-https://maps.app.goo.gl/KLwv9g88ejSNWzB3A
-https://maps.app.goo.gl/BNhAeY8TX41RNASD7
+# Категория: Еда, Тип: Кафе, Регион: Москва, Промокод: EVENT2024
+food:cafe:moscow:EVENT2024
 
-# Категория: Тело, Тип: Парк, Регион: Москва
-body:park:moscow
-https://maps.app.goo.gl/RspER1TcfmU2sqxX8
 
-# Категория: Тело, Тип: Спортзал, Регион: Москва
-body:gym:moscow
-https://maps.app.goo.gl/G2yoFVyPrKFGfpCB6
-https://maps.app.goo.gl/npqrnoFf4iu1PGW96
-https://maps.app.goo.gl/LhqMn2waGrcCwg9K8
+# Категория: Здоровье, Тип: Парк, Регион: Москва
+health:park:moscow
 
-# Категория: Дух, Тип: Храм, Регион: Москва
-spirit:temple:moscow
-https://maps.app.goo.gl/faoUJd5JESRAbRAR7
-https://maps.app.goo.gl/smBkmt2Zpd4jxeQT9
 
-# Категория: Дух, Тип: Парк, Регион: Москва
-spirit:park:moscow
-https://maps.app.goo.gl/rGYd8biht51DFFB79
+# Категория: Здоровье, Тип: Спортзал, Регион: Москва
+health:gym:moscow
 
-# Категория: Тело, Тип: Кафе, Регион: СПб
-body:cafe:spb
-https://maps.app.goo.gl/mjULEtEucQfm4FAW6
 
-# Категория: Тело, Тип: Парк, Регион: СПб
-body:park:spb
+# Категория: Интересные места, Тип: Храм, Регион: Москва
+places:temple:moscow
 
-# Категория: Тело, Тип: Спортзал, Регион: СПб
-body:gym:spb
 
-# Категория: Тело, Тип: Йога-студия, Регион: СПб
-body:yoga_studio:spb
+# Категория: Здоровье, Тип: Парк, Регион: Москва
+health:park:moscow
 
-# Категория: Дух, Тип: Храм, Регион: СПб
-spirit:temple:spb
 
-# Категория: Дух, Тип: Парк, Регион: СПб
-spirit:park:spb
+# Категория: Еда, Тип: Кафе, Регион: СПб
+food:cafe:spb
 
-# Категория: Тело, Тип: Кафе, Регион: Бали
-body:cafe:bali
+
+# Категория: Здоровье, Тип: Парк, Регион: СПб
+health:park:spb
+
+# Категория: Здоровье, Тип: Спортзал, Регион: СПб
+health:gym:spb
+
+# Категория: Здоровье, Тип: Йога-студия, Регион: СПб
+health:yoga_studio:spb
+
+# Категория: Интересные места, Тип: Храм, Регион: СПб
+places:temple:spb
+
+# Категория: Здоровье, Тип: Парк, Регион: СПб
+health:park:spb
+
+# Категория: Еда, Тип: Кафе, Регион: Бали
+food:cafe:bali
 https://maps.app.goo.gl/T8s9tj1njmG226ydA
 
-# Категория: Тело, Тип: Пляж, Регион: Бали
-body:beach:bali
+# Категория: Здоровье, Тип: Пляж, Регион: Бали
+health:beach:bali
 
-# Категория: Тело, Тип: Йога-студия, Регион: Бали
-body:yoga_studio:bali
+# Категория: Здоровье, Тип: Йога-студия, Регион: Бали
+health:yoga_studio:bali
 
-# Категория: Дух, Тип: Храм, Регион: Бали
-spirit:temple:bali
+# Категория: Интересные места, Тип: Храм, Регион: Бали
+places:temple:bali
 
-# Категория: Дух, Тип: Смотровая площадка, Регион: Бали
-spirit:viewpoint:bali
+# Категория: Интересные места, Тип: Смотровая площадка, Регион: Бали
+places:viewpoint:bali
 
-# Категория: Дух, Тип: Утес, Регион: Бали
-spirit:cliff:bali
+# Категория: Интересные места, Тип: Утес, Регион: Бали
+places:cliff:bali
 
-# Категория: Дух, Тип: Пляж, Регион: Бали
-spirit:beach:bali
+# Категория: Интересные места, Тип: Пляж, Регион: Бали
+places:beach:bali
 

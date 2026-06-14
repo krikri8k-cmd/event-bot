@@ -401,8 +401,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "events.fallback.location": "Локация",
         # Карточка события (подписи ссылок и создатель)
         "event.source_link": "Подробнее",
-        "event.all_day": "Весь день",
         "event.route_link": "Маршрут",
+        "event.all_day": "Весь день",
         "event.source_not_specified": "Источник не указан",
         "event.coordinates_display": "координаты ({lat}, {lng})",
         "event.timer_hours_left": " ⏳ ещё {hours}ч {minutes}м",
@@ -890,8 +890,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "events.fallback.location": "Location",
         # Event card (link labels and creator)
         "event.source_link": "Details",
-        "event.all_day": "All day",
         "event.route_link": "Route",
+        "event.all_day": "All day",
         "event.source_not_specified": "Source not specified",
         "event.coordinates_display": "coordinates ({lat}, {lng})",
         "event.timer_hours_left": " ⏳ {hours}h {minutes}m left",

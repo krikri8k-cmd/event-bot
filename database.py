@@ -105,6 +105,7 @@ class Event(Base):
     time_utc: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))  # legacy, используем starts_at
     starts_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))  # время начала события
     ends_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))  # время окончания события
+    time_mode: Mapped[str | None] = mapped_column(String(16))  # 'range' | 'start' | 'all_day' (см. миграцию 051)
     url: Mapped[str | None] = mapped_column(Text)  # ссылка на событие
     referral_code: Mapped[str | None] = mapped_column(String(64))  # реферальный код для партнёров
     referral_param: Mapped[str | None] = mapped_column(String(16), default="ref")  # название параметра
@@ -165,6 +166,9 @@ class Partner(Base):
     list_in_blogger_choice: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false")
     )
+    linked_places_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    active_places_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    places_with_promo_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
     notes: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -384,6 +388,11 @@ def _ensure_events_community_en_columns() -> None:
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS city VARCHAR(128)"),
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS country VARCHAR(64)"),
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS place_id TEXT"),
+        (
+            "events",
+            "ALTER TABLE events ADD COLUMN IF NOT EXISTS categories JSONB NOT NULL DEFAULT '[]'::jsonb",
+        ),
+        ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS raw_category TEXT"),
         ("task_places", "ALTER TABLE task_places ADD COLUMN IF NOT EXISTS name_en VARCHAR(255)"),
         ("task_places", "ALTER TABLE task_places ADD COLUMN IF NOT EXISTS task_hint_en VARCHAR(200)"),
     ]

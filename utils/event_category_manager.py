@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+# Источники пользовательских / community-событий — классификация позже.
 USER_COMMUNITY_SOURCES = frozenset({"user", "community"})
+
+# Источники с категорией из API (маппинг добавится позже).
 EXTERNAL_API_SOURCES = frozenset({"megatix", "savaya", "google_calendar"})
 
+# Отображение тегов BaliForum в карточке для lang=en (UI only, не internal categories).
 BALIFORUM_TAG_EN_MAP: dict[str, str] = {
     "искусство": "Art",
     "вечеринка": "Party",
@@ -81,7 +85,7 @@ def dedupe_categories(categories: list[str]) -> list[str]:
 
 
 def parse_source_display_tags(event_data: dict) -> list[str]:
-    """Теги источника для UI: tags или разбор raw_category."""
+    """Теги источника для UI: tags или разбор raw_category (не internal categories)."""
     tags = event_data.get("tags")
     if isinstance(tags, list):
         cleaned = [str(t).strip() for t in tags if str(t).strip()]
@@ -94,12 +98,14 @@ def parse_source_display_tags(event_data: dict) -> list[str]:
 
 
 def localize_baliforum_tags(tags: list[str], lang: str) -> list[str]:
+    """Переводит теги BaliForum для отображения; неизвестные теги остаются как есть."""
     if lang != "en":
         return tags
     return [BALIFORUM_TAG_EN_MAP.get(normalize_tag(tag), tag) for tag in tags]
 
 
 def format_source_display_tags(event_data: dict, lang: str = "ru") -> list[str]:
+    """Теги для строки 🎭 в карточке с учётом языка пользователя."""
     tags = parse_source_display_tags(event_data)
     if not tags:
         return []
@@ -110,7 +116,7 @@ def format_source_display_tags(event_data: dict, lang: str = "ru") -> list[str]:
 
 
 class EventCategoryManager:
-    """Единая точка категоризации событий для ingest."""
+    """Единая точка категоризации событий для ingest и backfill."""
 
     def assign_categories(self, event_data: dict, source: str) -> list[str]:
         if source == "baliforum":

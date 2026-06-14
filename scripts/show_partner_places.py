@@ -49,24 +49,8 @@ def main() -> None:
 
         print("=== PARTNER SUMMARY ===")
         for partner in partners:
-            places_count = (
+            places_live = (
                 session.query(func.count(TaskPlace.id)).filter(TaskPlace.partner_id == partner.id).scalar() or 0
-            )
-            active_places_count = (
-                session.query(func.count(TaskPlace.id))
-                .filter(TaskPlace.partner_id == partner.id, TaskPlace.is_active == True)  # noqa: E712
-                .scalar()
-                or 0
-            )
-            places_with_promo_count = (
-                session.query(func.count(TaskPlace.id))
-                .filter(
-                    TaskPlace.partner_id == partner.id,
-                    TaskPlace.promo_code.isnot(None),
-                    func.length(func.trim(TaskPlace.promo_code)) > 0,
-                )
-                .scalar()
-                or 0
             )
             print(
                 f"- {partner.display_name} (@{partner.slug}) "
@@ -75,8 +59,9 @@ def main() -> None:
                 f"priority={partner.priority}, active={partner.is_active}]"
             )
             print(
-                f"  places_count={places_count}, active_places_count={active_places_count}, "
-                f"places_with_promo_count={places_with_promo_count}"
+                f"  linked={partner.linked_places_count}, active={partner.active_places_count}, "
+                f"with_promo={partner.places_with_promo_count} (stored); "
+                f"places_count(live)={places_live}"
             )
             print(
                 f"  main_url={partner.main_url or '-'} "

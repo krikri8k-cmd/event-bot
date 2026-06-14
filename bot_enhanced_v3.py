@@ -86,7 +86,11 @@ _ADD_BOT_TO_CHAT_BUTTON_TEXTS = (
     t("menu.button.add_bot_to_chat", "ru"),
     t("menu.button.add_bot_to_chat", "en"),
 )
-_PARTNER_SLUG_RE = re.compile(r"^[a-z0-9_]{2,50}$")
+# Допускаем мягкие разделители (_ . -), чтобы пользователь мог ввести видимое имя блогера
+# (например doc_polli, nastya.mavi, v.d_fitness). Пробел сознательно НЕ разрешён, иначе обычные
+# фразы из двух слов в чате трактовались бы как slug. Точное сопоставление с базой делает
+# канонический ключ (_canonical_partner_key), который убирает все эти разделители.
+_PARTNER_SLUG_RE = re.compile(r"^[a-z0-9_.\-]{2,50}$")
 
 
 def _build_tracking_url(click_type: str, event: dict, target_url: str, user_id: int | None) -> str:
@@ -1138,12 +1142,19 @@ def _normalize_event_description_for_display(description: str, e: dict) -> str:
 
 
 def _format_location_display_text(text: str) -> str:
+    """Убирает URL-плюсы из названия локации только для отображения в карточке."""
     if not text or text.startswith("координаты (") or text == "Локация":
         return text
     return " ".join(text.replace("+", " ").split())
 
 
 def _capitalize_first_letter(text: str) -> str:
+    """Делает заглавной первую значимую букву строки, не меняя регистр остального.
+
+    Примеры: 'женская игра' -> 'Женская игра'; 'Family First' -> без изменений.
+    Пропускает ведущие пробелы и кавычки/скобки: '«антарктика»' -> '«Антарктика»'.
+    Если строка начинается с цифры/символа (например '123 событие') — не трогаем.
+    """
     if not text:
         return text
     i = 0
@@ -1156,6 +1167,7 @@ def _capitalize_first_letter(text: str) -> str:
 
 
 def _build_event_location_line(e: dict, venue_display: str, user_id: int | None, lang: str | None = None) -> str:
+    """Строка локации: 📍 <venue с tracking route URL>."""
     if lang is None:
         lang = get_user_language_or_default(user_id) if user_id else "ru"
     maps_url = build_maps_url(e)
@@ -1164,6 +1176,7 @@ def _build_event_location_line(e: dict, venue_display: str, user_id: int | None,
 
 
 def _build_event_categories_line(e: dict, lang: str | None = None) -> str:
+    """Строка категорий источника: 🎭 Tag1 / Tag2 (пустая, если тегов нет)."""
     if lang is None:
         lang = "ru"
     display_tags = format_source_display_tags(e, lang)
@@ -1182,74 +1195,6 @@ def _build_event_info_line(e: dict, venue_display: str, user_id: int | None, lan
     if categories_line:
         return f"{location_line}\n{categories_line}"
     return location_line
-
-
-def _resolve_event_timezone(event: dict, region: str = None) -> str:
-    from utils.simple_timezone import get_city_from_coordinates, get_city_timezone
-
-    event_tz = "UTC"
-    event_city = event.get("city")
-    if event_city:
-        known_cities = ["bali", "moscow", "spb", "jakarta"]
-        if event_city.lower() in known_cities:
-            event_tz = get_city_timezone(event_city)
-    if event_tz == "UTC" and event.get("lat") and event.get("lng"):
-        city = get_city_from_coordinates(event["lat"], event["lng"])
-        if city:
-            event_tz = get_city_timezone(city)
-    if event_tz == "UTC" and region:
-        region_tz_map = {
-            "bali": "Asia/Makassar",
-            "moscow": "Europe/Moscow",
-            "spb": "Europe/Moscow",
-            "jakarta": "Asia/Jakarta",
-        }
-        event_tz = region_tz_map.get(region, "UTC")
-    return event_tz
-
-
-def format_event_when(event: dict, region: str = None, user_id: int = None) -> str:
-    from datetime import datetime
-
-    import pytz
-
-    lang = get_user_language_or_default(user_id) if user_id else "ru"
-    time_mode = event.get("time_mode")
-    if time_mode == "all_day":
-        return t("event.all_day", lang)
-
-    start = event.get("starts_at") or event.get("start_time")
-    if not start:
-        return ""
-
-    def _to_local(dt_value):
-        if isinstance(dt_value, str):
-            try:
-                dt_value = datetime.fromisoformat(dt_value.replace("Z", "+00:00"))
-            except Exception:
-                return None
-        try:
-            event_tz = _resolve_event_timezone(event, region)
-            utc = pytz.UTC
-            tz = pytz.timezone(event_tz)
-            if dt_value.tzinfo is None:
-                dt_value = utc.localize(dt_value)
-            return dt_value.astimezone(tz)
-        except Exception:
-            return None
-
-    local_start = _to_local(start)
-    if local_start is None:
-        return ""
-    if time_mode != "range" and local_start.hour == 0 and local_start.minute == 0 and not event.get("ends_at"):
-        return ""
-    start_str = local_start.strftime("%H:%M")
-    ends_at = event.get("ends_at") or event.get("end_time")
-    if ends_at:
-        local_end = _to_local(ends_at)
-        if local_end is not None:
-            return f"{start_str}–{local_end.strftime('%H:%M')}"
-    return start_str
 
 
 def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool = False) -> str:
@@ -1276,6 +1221,7 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         else (e.get("description") or "").strip()
     )
     display_description = _normalize_event_description_for_display(display_description, e)
+    # Локация всегда только оригинал (location_name), не переводим названия заведений
     display_location_name = (e.get("location_name") or "").strip()
     display_venue_name = (e.get("venue_name") or e.get("location_name") or "").strip()
     source_link_label = t("event.source_link", lang)
@@ -1285,8 +1231,9 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
 
     logger.debug("🕐 render_event_html: title=%s, when_str=%s", title[:40] if title else "", when)
 
+    # Если when_str пустое, формируем строку времени по сценарию (диапазон / старт / весь день)
     if not when:
-        when = format_event_when(e, user_id=user_id) or human_when(e, user_id=user_id)
+        when = format_event_when(e, user_id=user_id)
     dist = f"{e['distance_km']:.1f} {t('mytasks.km_suffix', lang)}" if e.get("distance_km") is not None else ""
 
     # Определяем тип события, если не установлен
@@ -1770,7 +1717,7 @@ def render_page(
         except Exception as e_render:
             logger.error(f"❌ Ошибка рендеринга события {idx}: {e_render}")
             # Fallback для одного события
-            title = e.get("title", "Без названия")
+            title = _capitalize_first_letter(e.get("title", "Без названия"))
             parts.append(f"{idx}) {title}")
 
     return "\n".join(parts).strip(), total_pages
@@ -2222,6 +2169,8 @@ async def perform_nearby_search(
                     "description_en": event.get("description_en"),
                     "time_local": event["starts_at"].strftime("%Y-%m-%d %H:%M") if event["starts_at"] else None,
                     "starts_at": event["starts_at"],
+                    "ends_at": event.get("ends_at"),
+                    "time_mode": event.get("time_mode"),
                     "city": event.get("city"),
                     "location_name": event["location_name"],
                     "location_name_en": event.get("location_name_en"),
@@ -2240,6 +2189,7 @@ async def perform_nearby_search(
                     "tags": event.get("tags") or [],
                     "raw_category": event.get("raw_category"),
                     "place_id": event.get("place_id"),
+                    "categories": event.get("categories"),
                 }
                 formatted_events.append(formatted_event)
 
@@ -3088,6 +3038,89 @@ def human_when(event: dict, region: str = None, user_id: int = None) -> str:
         return ""
     except Exception:
         return ""
+
+
+def _resolve_event_timezone(event: dict, region: str = None) -> str:
+    """Определяет IANA-таймзону события: city -> координаты -> region -> UTC."""
+    from utils.simple_timezone import get_city_from_coordinates, get_city_timezone
+
+    event_tz = "UTC"
+    event_city = event.get("city")
+    if event_city:
+        known_cities = ["bali", "moscow", "spb", "jakarta"]
+        if event_city.lower() in known_cities:
+            event_tz = get_city_timezone(event_city)
+    if event_tz == "UTC" and event.get("lat") and event.get("lng"):
+        city = get_city_from_coordinates(event["lat"], event["lng"])
+        if city:
+            event_tz = get_city_timezone(city)
+    if event_tz == "UTC" and region:
+        region_tz_map = {
+            "bali": "Asia/Makassar",
+            "moscow": "Europe/Moscow",
+            "spb": "Europe/Moscow",
+            "jakarta": "Asia/Jakarta",
+        }
+        event_tz = region_tz_map.get(region, "UTC")
+    return event_tz
+
+
+def format_event_when(event: dict, region: str = None, user_id: int = None) -> str:
+    """Возвращает строку времени по трём сценариям (в локальном времени события):
+
+    - time_mode == 'all_day'      -> локализованное «Весь день» / «All day»
+    - есть ends_at (диапазон)      -> «HH:MM–HH:MM»
+    - только начало                -> «HH:MM»
+
+    Время 00:00 без явного режима трактуется как «время не указано» -> "".
+    """
+    from datetime import datetime
+
+    import pytz
+
+    lang = get_user_language_or_default(user_id) if user_id else "ru"
+
+    time_mode = event.get("time_mode")
+    if time_mode == "all_day":
+        return t("event.all_day", lang)
+
+    start = event.get("starts_at") or event.get("start_time")
+    if not start:
+        return ""
+
+    def _to_local(dt_value):
+        if isinstance(dt_value, str):
+            try:
+                dt_value = datetime.fromisoformat(dt_value.replace("Z", "+00:00"))
+            except Exception:
+                return None
+        try:
+            event_tz = _resolve_event_timezone(event, region)
+            utc = pytz.UTC
+            tz = pytz.timezone(event_tz)
+            if dt_value.tzinfo is None:
+                dt_value = utc.localize(dt_value)
+            return dt_value.astimezone(tz)
+        except Exception:
+            return None
+
+    local_start = _to_local(start)
+    if local_start is None:
+        return ""
+
+    # 00:00 без явного режима — считаем, что точное время не указано
+    if time_mode != "range" and local_start.hour == 0 and local_start.minute == 0 and not event.get("ends_at"):
+        return ""
+
+    start_str = local_start.strftime("%H:%M")
+
+    ends_at = event.get("ends_at") or event.get("end_time")
+    if ends_at:
+        local_end = _to_local(ends_at)
+        if local_end is not None:
+            return f"{start_str}–{local_end.strftime('%H:%M')}"
+
+    return start_str
 
 
 def format_event_time(starts_at, event_tz="UTC") -> str:
@@ -6362,6 +6395,8 @@ async def on_location(message: types.Message, state: FSMContext):
                     "description_en": event.get("description_en"),
                     "time_local": event["starts_at"].strftime("%Y-%m-%d %H:%M") if event["starts_at"] else None,
                     "starts_at": event["starts_at"],  # Добавляем поле starts_at!
+                    "ends_at": event.get("ends_at"),
+                    "time_mode": event.get("time_mode"),
                     "city": event.get("city"),  # Город события (может быть None)
                     "location_name": event["location_name"],
                     "location_name_en": event.get("location_name_en"),
@@ -6378,8 +6413,9 @@ async def on_location(message: types.Message, state: FSMContext):
                     # Добавляем поля автора для пользовательских событий
                     "organizer_id": event.get("organizer_id"),
                     "organizer_username": event.get("organizer_username"),
-                    "tags": event.get("tags") or [],
                     "raw_category": event.get("raw_category"),
+                    "tags": event.get("tags") or [],
+                    "categories": event.get("categories"),
                 }
 
                 logger.debug(
@@ -8578,8 +8614,9 @@ async def handle_expand_radius(callback: types.CallbackQuery):
             "address": event.get("address"),
             "organizer_id": event.get("organizer_id"),
             "organizer_username": event.get("organizer_username"),
-            "tags": event.get("tags") or [],
             "raw_category": event.get("raw_category"),
+            "tags": event.get("tags") or [],
+            "categories": event.get("categories"),
         }
         formatted_events.append(formatted_event)
 
@@ -8981,6 +9018,17 @@ def _normalize_partner_slug(raw: str | None) -> str | None:
     return slug
 
 
+def _canonical_partner_key(raw: str | None) -> str:
+    """Канонический ключ для толерантного сравнения: только [a-z0-9].
+
+    Убирает мягкие разделители и регистр, чтобы doc_polli / docpolli / nastya.mavi
+    сопоставлялись со slug-ом в базе независимо от точек/подчёркиваний/дефисов.
+    """
+    if not raw:
+        return ""
+    return re.sub(r"[^a-z0-9]", "", raw.lower())
+
+
 def _extract_partner_slug_from_text(text: str | None) -> str | None:
     """Поддерживает: `anya`, `@anya`, `места от @anya`, `покажи места от anya`."""
     if not text:
@@ -9150,7 +9198,7 @@ async def _build_partner_places_list_content(
     user_lng: float | None,
     page: int,
 ) -> tuple[str, InlineKeyboardMarkup]:
-    from sqlalchemy import and_, func
+    from sqlalchemy import and_, func, or_
 
     from database import Partner, TaskPlace
 
@@ -9161,6 +9209,24 @@ async def _build_partner_places_list_content(
             .filter(and_(func.lower(Partner.slug) == partner_slug, Partner.is_active == True))  # noqa: E712
             .first()
         )
+        if not partner:
+            # Толерантный fallback: сопоставляем по каноническому ключу (без _ . -)
+            # как со slug-ом, так и с display_name, чтобы doc_polli == docpolli и т.п.
+            canonical = _canonical_partner_key(partner_slug)
+            if canonical:
+                slug_canon = func.regexp_replace(func.lower(Partner.slug), r"[^a-z0-9]", "", "g")
+                name_canon = func.regexp_replace(func.lower(Partner.display_name), r"[^a-z0-9]", "", "g")
+                partner = (
+                    session.query(Partner)
+                    .filter(
+                        and_(
+                            Partner.is_active == True,  # noqa: E712
+                            or_(slug_canon == canonical, name_canon == canonical),
+                        )
+                    )
+                    .order_by(Partner.priority.desc(), Partner.id.asc())
+                    .first()
+                )
         if not partner:
             keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[
@@ -12035,8 +12101,9 @@ async def handle_date_filter_change(callback: types.CallbackQuery):
                 "address": event.get("address"),
                 "organizer_id": event.get("organizer_id"),
                 "organizer_username": event.get("organizer_username"),
-                "tags": event.get("tags") or [],
                 "raw_category": event.get("raw_category"),
+                "tags": event.get("tags") or [],
+                "categories": event.get("categories"),
             }
             formatted_events.append(formatted_event)
 

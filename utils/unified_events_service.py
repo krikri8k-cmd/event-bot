@@ -29,7 +29,7 @@ _SEARCH_EVENT_SELECT = """
     current_participants, status, created_at_utc,
     community_name, community_link, chat_id, location_name as venue_name,
     location_name as address, place_id,
-    '' as geo_hash, starts_at as starts_at_normalized, ends_at, NULL::text as time_mode,
+    '' as geo_hash, starts_at as starts_at_normalized, ends_at, time_mode,
     categories, raw_category
 """
 
@@ -174,7 +174,10 @@ class UnifiedEventsService:
                     FROM events
                     WHERE starts_at >= :start_utc
                     AND starts_at < :end_utc
-                    AND starts_at >= NOW() - INTERVAL '3 hours'
+                    AND (
+                        (ends_at IS NOT NULL AND ends_at >= NOW())
+                        OR (ends_at IS NULL AND starts_at >= NOW() - INTERVAL '3 hours')
+                    )
                     AND lat IS NOT NULL AND lng IS NOT NULL
                     AND status NOT IN ('closed', 'canceled', 'draft')
                     {city_filter}
@@ -206,7 +209,10 @@ class UnifiedEventsService:
                     FROM events
                     WHERE starts_at >= :start_utc
                     AND starts_at < :end_utc
-                    AND starts_at >= NOW() - INTERVAL '3 hours'
+                    AND (
+                        (ends_at IS NOT NULL AND ends_at >= NOW())
+                        OR (ends_at IS NULL AND starts_at >= NOW() - INTERVAL '3 hours')
+                    )
                     AND status NOT IN ('closed', 'canceled', 'draft')
                     {city_filter}
                     ORDER BY starts_at
@@ -252,7 +258,10 @@ class UnifiedEventsService:
                         FROM events
                         WHERE starts_at >= :start_utc
                         AND starts_at < :end_utc
-                        AND starts_at >= NOW() - INTERVAL '3 hours'
+                        AND (
+                            (ends_at IS NOT NULL AND ends_at >= NOW())
+                            OR (ends_at IS NULL AND starts_at >= NOW() - INTERVAL '3 hours')
+                        )
                         AND status NOT IN ('closed', 'canceled', 'draft')
                         ORDER BY starts_at
                         LIMIT 50
@@ -563,6 +572,7 @@ class UnifiedEventsService:
         ends_at_utc: datetime | None = None,
         time_mode: str | None = None,
         tags: list[str] | None = None,
+        raw_api_category: str | None = None,
         category_event_data: dict | None = None,
         status: str = "open",
         community_name: str | None = None,
@@ -581,6 +591,8 @@ class UnifiedEventsService:
         category_ctx = dict(category_event_data or {})
         if tags is not None:
             category_ctx["tags"] = tags
+        if raw_api_category is not None:
+            category_ctx["raw_api_category"] = raw_api_category
         categories = category_manager.assign_categories(category_ctx, source)
         raw_category = category_manager.resolve_raw_category(category_ctx, source)
         categories_json = json.dumps(categories, ensure_ascii=False)
@@ -648,7 +660,8 @@ class UnifiedEventsService:
                     SET title = :title, title_en = :title_en,
                         description = :description, description_en = :description_en,
                         location_name = :location_name, location_name_en = :location_name_en,
-                        starts_at = :starts_at, ends_at = :ends_at, city = :city, lat = :lat, lng = :lng,
+                        starts_at = :starts_at, ends_at = :ends_at, time_mode = :time_mode,
+                        city = :city, lat = :lat, lng = :lng,
                         location_url = :location_url, url = :url, country = :country,
                         place_id = :place_id, categories = CAST(:categories AS jsonb),
                         raw_category = :raw_category, event_source = 'parser',
@@ -670,6 +683,7 @@ class UnifiedEventsService:
                         "location_name_en": location_name_en,
                         "starts_at": starts_at_utc,
                         "ends_at": ends_at_utc,
+                        "time_mode": time_mode,
                         "city": city,
                         "lat": lat,
                         "lng": lng,
@@ -695,16 +709,16 @@ class UnifiedEventsService:
                     text("""
                     INSERT INTO events
                     (source, external_id, event_source, title, title_en, description, description_en,
-                     starts_at, ends_at, city, lat, lng, location_name, location_name_en,
+                     starts_at, ends_at, time_mode, city, lat, lng, location_name, location_name_en,
                      location_url, url, country, is_generated_by_ai, status,
-                     current_participants, place_id, community_name, community_link,
-                     chat_id, organizer_id, organizer_username, referral_code, categories, raw_category)
+                     current_participants, place_id, organizer_id, categories, raw_category,
+                     community_name, community_link, chat_id, organizer_username, referral_code)
                     VALUES
                     (:source, :external_id, 'parser', :title, :title_en, :description, :description_en,
-                     :starts_at, :ends_at, :city, :lat, :lng, :location_name, :location_name_en,
-                     :location_url, :url, :country, :is_ai, :status, 0, :place_id,
-                     :community_name, :community_link, :chat_id, :organizer_id, :organizer_username,
-                     :referral_code, CAST(:categories AS jsonb), :raw_category)
+                     :starts_at, :ends_at, :time_mode, :city, :lat, :lng, :location_name, :location_name_en,
+                     :location_url, :url, :country, :is_ai, :status, 0, :place_id, :organizer_id,
+                     CAST(:categories AS jsonb), :raw_category,
+                     :community_name, :community_link, :chat_id, :organizer_username, :referral_code)
                     ON CONFLICT (source, external_id) DO UPDATE SET
                         title = EXCLUDED.title,
                         title_en = EXCLUDED.title_en,
@@ -715,6 +729,7 @@ class UnifiedEventsService:
                         event_source = 'parser',
                         starts_at = EXCLUDED.starts_at,
                         ends_at = EXCLUDED.ends_at,
+                        time_mode = EXCLUDED.time_mode,
                         city = EXCLUDED.city,
                         lat = EXCLUDED.lat,
                         lng = EXCLUDED.lng,
@@ -722,14 +737,14 @@ class UnifiedEventsService:
                         url = EXCLUDED.url,
                         country = EXCLUDED.country,
                         place_id = EXCLUDED.place_id,
+                        categories = EXCLUDED.categories,
+                        raw_category = EXCLUDED.raw_category,
                         community_name = COALESCE(EXCLUDED.community_name, events.community_name),
                         community_link = COALESCE(EXCLUDED.community_link, events.community_link),
                         chat_id = COALESCE(EXCLUDED.chat_id, events.chat_id),
                         organizer_id = COALESCE(EXCLUDED.organizer_id, events.organizer_id),
                         organizer_username = COALESCE(EXCLUDED.organizer_username, events.organizer_username),
-                        referral_code = COALESCE(EXCLUDED.referral_code, events.referral_code),
-                        categories = EXCLUDED.categories,
-                        raw_category = EXCLUDED.raw_category
+                        referral_code = COALESCE(EXCLUDED.referral_code, events.referral_code)
                     RETURNING id
                 """),
                     {
@@ -741,6 +756,7 @@ class UnifiedEventsService:
                         "description_en": description_en,
                         "starts_at": starts_at_utc,
                         "ends_at": ends_at_utc,
+                        "time_mode": time_mode,
                         "city": city,
                         "lat": lat,
                         "lng": lng,
@@ -752,14 +768,14 @@ class UnifiedEventsService:
                         "is_ai": is_ai,
                         "status": status,
                         "place_id": place_id,
+                        "categories": categories_json,
+                        "raw_category": raw_category,
                         "community_name": community_name,
                         "community_link": community_link,
                         "chat_id": chat_id,
                         "organizer_id": organizer_id,
                         "organizer_username": organizer_username,
                         "referral_code": referral_code,
-                        "categories": categories_json,
-                        "raw_category": raw_category,
                     },
                 )
                 event_id = result.fetchone()[0]

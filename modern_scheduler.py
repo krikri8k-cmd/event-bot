@@ -59,24 +59,19 @@ class ModernEventScheduler:
 
             # Увеличиваем limit до 200 для парсинга большего количества событий
             tomorrow_events = fetch_baliforum_events(limit=200, date_filter=tomorrow_str)
-            # Конвертируем в RawEvent формат
-            from event_apis import RawEvent
+            from sources.baliforum import merge_tomorrow_baliforum_events
 
-            for event in tomorrow_events:
-                external_id = event.get("external_id", event["url"].rstrip("/").split("/")[-1])
-                raw_event = RawEvent(
-                    title=event["title"],
-                    lat=event.get("lat") or 0.0,
-                    lng=event.get("lng") or 0.0,
-                    starts_at=event.get("start_time"),
-                    source="baliforum",
-                    external_id=external_id,
-                    url=event["url"],
-                    description=event.get("description"),
-                )
-                raw_events.append(raw_event)
+            # BaliForum дублирует карточки на главной и в фильтре «завтра».
+            # Добавляем уникальные и уточняем дату, но не затираем события «сегодня».
+            raw_events, tomorrow_added, tomorrow_skipped_dup, tomorrow_updated = merge_tomorrow_baliforum_events(
+                raw_events, tomorrow_events, now=datetime.now(tz_bali)
+            )
 
-            logger.info(f"🌴 Всего найдено событий: {len(raw_events)} (сегодня + завтра)")
+            logger.info(
+                f"🌴 Всего найдено событий: {len(raw_events)} "
+                f"(завтра: добавлено={tomorrow_added}, дублей={tomorrow_skipped_dup}, "
+                f"уточнена дата={tomorrow_updated})"
+            )
 
             prepared = []
             skipped_no_coords = 0
@@ -265,7 +260,9 @@ class ModernEventScheduler:
                             logger.warning(f"⚠️ Ошибка при PlaceResolver для '{event.title[:50]}': {e}")
 
                     ext_id = event.external_id or event.url.split("/")[-1]
-                    event_tags = getattr(event, "_raw_data", {}).get("tags") or []
+                    event_tags = []
+                    if hasattr(event, "_raw_data") and event._raw_data:
+                        event_tags = event._raw_data.get("tags") or []
                     prepared.append(
                         {
                             "source": "baliforum",
@@ -273,6 +270,8 @@ class ModernEventScheduler:
                             "title": event.title,
                             "description": event.description,
                             "starts_at_utc": event.starts_at,
+                            "ends_at_utc": event.ends_at,
+                            "time_mode": event.time_mode,
                             "city": "bali",
                             "lat": event.lat,
                             "lng": event.lng,
@@ -328,6 +327,8 @@ class ModernEventScheduler:
                         title=p["title"],
                         description=p["description"],
                         starts_at_utc=p["starts_at_utc"],
+                        ends_at_utc=p.get("ends_at_utc"),
+                        time_mode=p.get("time_mode"),
                         city=p["city"],
                         lat=p["lat"],
                         lng=p["lng"],

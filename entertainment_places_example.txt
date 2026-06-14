@@ -82,6 +82,12 @@ https://maps.app.goo.gl/PJzDcYu9L1uMM5xMA
 # Пляжные клубы / day-party (были в interesting как beach_club)
 entertainment:beach_party:bali:
 
+# Убуд 
+
+# @nastya.mavi | review https://www.instagram.com/p/DMNT9pMv075/
+The Jungle Club Ubud by Wonderspace
+https://maps.app.goo.gl/PN5ppXfpV7Mkedir9
+
 # Чангу / Берава / Переренан
 FINNS
 https://maps.app.goo.gl/Pgs6DsgQGEazoSd38
@@ -115,6 +121,10 @@ entertainment:lounge:bali:
 # Букит — Улувату
 Ulu Cliffhouse
 https://maps.app.goo.gl/dx1gc1fdagQ89W5G8
+
+# @nastya.mavi | review https://www.instagram.com/p/DKhDCqMvwQx/
+Chill ZONE movie & lounge
+https://maps.app.goo.gl/Xrzx9pmKHW1JViA88
 
 # Нуса-Дуа
 Beach House at Regent

@@ -64,6 +64,36 @@ RU_MONTHS = {
 
 TIME_RE = re.compile(r"(?P<h>\d{1,2}):(?P<m>\d{2})")
 MAP_RE = re.compile(r"/@(?P<lat>-?\d+\.\d+),(?P<lng>-?\d+\.\d+)|query=(?P<lat2>-?\d+\.\d+)%2C(?P<lng2>-?\d+\.\d+)")
+EXPLICIT_CALENDAR_DATE_RE = re.compile(
+    r"^\d{1,2}\s+(?:янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|нояб|дек)",
+    re.IGNORECASE,
+)
+
+
+def _is_multiday_tomorrow_occurrence(date_text: str | None) -> bool:
+    """BaliForum показывает многодневные события на фильтре «завтра» с явной датой («10 июнь»)."""
+    if not date_text:
+        return False
+    normalized = date_text.strip().lower()
+    if normalized.startswith("завтра") or normalized.startswith("сегодня"):
+        return False
+    return bool(EXPLICIT_CALENDAR_DATE_RE.search(normalized))
+
+
+def _tomorrow_occurrence_external_id(base_id: str, day: datetime.date) -> str:
+    return f"{base_id}#{day.isoformat()}"
+
+
+def _determine_time_mode(date_text: str | None, has_end: bool) -> str:
+    """Определяет режим времени события по тексту даты и наличию конца.
+
+    - 'all_day' — текст содержит "весь день" (старт 09:00, конец 21:00 по Бали)
+    - 'range'   — известны и начало, и конец
+    - 'start'   — известно только начало
+    """
+    if "весь день" in (date_text or "").lower():
+        return "all_day"
+    return "range" if has_end else "start"
 
 
 def _parse_time(s: str) -> tuple[int, int] | None:
@@ -162,8 +192,11 @@ def _ru_date_to_dt(label: str, now: datetime, tz: ZoneInfo) -> tuple[datetime | 
 
         if day:
             if "весь день" in label or "весь день" in original_label:
-                start_dt = datetime.combine(day, datetime.min.time(), tz)
-                end_dt = start_dt + timedelta(hours=23, minutes=59)
+                # Событие "весь день": жёсткое окно 09:00–21:00 по Бали.
+                # Появляется в утренней выдаче и скрывается к вечеру (большинство
+                # маркетов/фестивалей к 21:00 закрываются). Конвертация в UTC — у вызывающего.
+                start_dt = datetime(day.year, day.month, day.day, 9, 0, tzinfo=tz)
+                end_dt = datetime(day.year, day.month, day.day, 21, 0, tzinfo=tz)
             else:
                 # Ищем время в разных форматах
                 time_found = False
@@ -260,6 +293,34 @@ def _extract_tags_from_card(card) -> list[str]:
     return tags
 
 
+def _extract_venue_from_soup(ds) -> str | None:
+    """Извлекает название места с детальной страницы BaliForum."""
+    if not ds:
+        return None
+
+    # Актуальная разметка: <dd class="event__place">Чангу • Milu by Nook</dd>
+    place_el = ds.select_one("dd.event__place, .event__place")
+    if place_el:
+        link = place_el.find("a")
+        if link and link.get_text(strip=True):
+            return link.get_text(strip=True)
+        text = place_el.get_text(" ", strip=True)
+        if "•" in text:
+            venue_part = text.split("•", 1)[1].strip()
+            if venue_part:
+                return venue_part
+        if text:
+            return text
+
+    v = ds.select_one(".event-venue, .place, .location, .event-meta .place")
+    if v:
+        text = v.get_text(strip=True)
+        if text:
+            return text
+
+    return None
+
+
 def _fetch(url: str, timeout=15) -> str:
     """Получает HTML страницу"""
     r = requests.get(url, headers={"User-Agent": UA}, timeout=timeout)
@@ -280,19 +341,46 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
 
     logging.getLogger(__name__)
 
-    # Формируем URL с фильтром по дате если указан
     if date_filter:
-        url = f"{LIST_URL}?dateStart={date_filter}"
         logging.info(f"🌴 Парсим BaliForum с фильтром по дате: {date_filter}")
     else:
-        url = LIST_URL
-        logging.info("🌴 Парсим BaliForum без фильтра (главная страница)")
+        logging.info("🌴 Парсим BaliForum (с обходом пагинации)")
 
-    html = _fetch(url)
-    soup = BeautifulSoup(html, "html.parser")
+    def _build_page_url(page: int) -> str:
+        """Собирает URL списка с учётом фильтра по дате и номера страницы."""
+        params = []
+        if date_filter:
+            params.append(f"dateStart={date_filter}")
+        if page > 1:
+            params.append(f"page={page}")
+        return f"{LIST_URL}?{'&'.join(params)}" if params else LIST_URL
 
-    # Ищем карточки событий
-    cards = soup.select("div.event-card, article.event") or soup.select("li.event-item")
+    # Обходим страницы ?page=1..N, пока они не станут пустыми.
+    # MAX_PAGES — предохранитель от бесконечного цикла (на baliforum обычно ~4 страницы).
+    MAX_PAGES = 25
+    cards = []
+    for page in range(1, MAX_PAGES + 1):
+        page_url = _build_page_url(page)
+        try:
+            page_html = _fetch(page_url)
+        except Exception as e:
+            logger.warning("baliforum: ошибка загрузки страницы %s (%s): %s", page, page_url, e)
+            break
+
+        page_soup = BeautifulSoup(page_html, "html.parser")
+        page_cards = page_soup.select("div.event-card, article.event") or page_soup.select("li.event-item")
+        if not page_cards:
+            logger.info("baliforum: страница %s пустая — останавливаем пагинацию", page)
+            break
+
+        cards.extend(page_cards)
+        logger.info("baliforum: страница %s -> %s карточек (всего собрано %s)", page, len(page_cards), len(cards))
+
+        if len(cards) >= limit:
+            break
+        # Небольшая пауза между страницами, чтобы не долбить сайт
+        time.sleep(0.3)
+
     events: list[dict] = []
 
     parsed_count = 0
@@ -340,6 +428,11 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
             r"\d{1,2} (?:янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|нояб|дек)[а-я]*\.? \d{1,2}:\d{2}",
             # Диапазоны времени (только если есть контекст дня)
             r"\d{1,2}:\d{2}[–-]\d{1,2}:\d{2}",
+            # События "весь день" (крупные фестивали и ретриты без точного времени).
+            # Ставим ПОСЛЕ паттернов с временем, чтобы точное время всегда имело приоритет.
+            r"Сегодня весь день",
+            r"Завтра весь день",
+            r"\d{1,2} (?:янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|нояб|дек)[а-я]*\.? весь день",
         ]
 
         for pattern in date_patterns:
@@ -393,6 +486,9 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
         lat = lng = None
         location_url = None
         place_name_from_maps = None
+        # ВАЖНO: инициализируем на каждой итерации, иначе при координатах не из Google Maps
+        # (data-атрибуты, текст, геокодинг) словим NameError или утечку чужого place_id.
+        place_id = None
         try:
             detail = _fetch(url)
             ds = BeautifulSoup(detail, "html.parser")
@@ -470,9 +566,8 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
                             )
                             break
 
-            # Извлекаем venue из HTML страницы
-            v = ds.select_one(".event-venue, .place, .location, .event-meta .place")
-            venue = v.get_text(strip=True) if v else None
+            # Извлекаем venue из HTML страницы (event__place на актуальной вёрстке)
+            venue = _extract_venue_from_soup(ds)
 
             # Если venue не найдено, но есть название места из Google Maps, используем его
             if not venue and place_name_from_maps:
@@ -659,6 +754,9 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
         normalized_url = url.split("?")[0].split("#")[0]  # Убираем UTM и якоря
         external_id = hashlib.sha1(f"baliforum|{normalized_url}".encode()).hexdigest()[:16]
 
+        # Определяем режим времени для трёх сценариев отображения/видимости
+        time_mode = _determine_time_mode(date_text, bool(end))
+
         try:
             events.append(
                 {
@@ -666,6 +764,7 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
                     "title": title or "Событие",
                     "start_time": start,
                     "end_time": end,
+                    "time_mode": time_mode,
                     "venue": venue,
                     "address": venue,  # пусть address=venue для начала
                     "lat": lat,
@@ -712,50 +811,114 @@ def fetch_baliforum_events(limit: int = 200, date_filter: str | None = None) -> 
     return events
 
 
+def event_dict_to_raw_event(event: dict) -> RawEvent:
+    """Конвертирует словарь парсера в RawEvent с venue/location в _raw_data."""
+    external_id = event.get("external_id", event["url"].rstrip("/").split("/")[-1])
+    venue = event.get("venue")
+
+    description_parts = []
+    if event.get("description"):
+        description_parts.append(event["description"])
+
+    raw_event = RawEvent(
+        title=event["title"],
+        lat=event["lat"] or 0.0,
+        lng=event["lng"] or 0.0,
+        starts_at=event["start_time"],
+        source="baliforum",
+        external_id=external_id,
+        url=event["url"],
+        description="\n".join(description_parts) if description_parts else None,
+        ends_at=event.get("end_time"),
+        time_mode=event.get("time_mode"),
+    )
+    raw_event._raw_data = {  # type: ignore[attr-defined]
+        "venue": venue,
+        "location_url": event.get("location_url"),
+        "place_name_from_maps": event.get("raw", {}).get("place_name_from_maps"),
+        "place_id": event.get("raw", {}).get("place_id"),
+        "date_text": event.get("raw", {}).get("date_text"),
+        "tags": event.get("tags") or event.get("raw", {}).get("tags") or [],
+    }
+    return raw_event
+
+
+def merge_tomorrow_baliforum_events(
+    raw_events: list,
+    tomorrow_events: list[dict],
+    *,
+    now: datetime | None = None,
+) -> tuple[list, int, int, int]:
+    """
+    Добавляет уникальные события с фильтра «завтра» и уточняет дату у дублей.
+
+    Не перезаписывает события с датой «сегодня», кроме многодневных: на главной
+    они помечены «Сегодня», а на фильтре завтра — явной датой («10 июнь»).
+    """
+    tz = ZoneInfo("Asia/Makassar")
+    now = now or datetime.now(tz)
+    today_bali = now.date()
+    tomorrow_bali = (now + timedelta(days=1)).date()
+
+    by_id = {e.external_id: e for e in raw_events if e.external_id}
+    added = 0
+    skipped_dup = 0
+    updated_date = 0
+
+    for event in tomorrow_events:
+        external_id = event.get("external_id", event["url"].rstrip("/").split("/")[-1])
+        tomorrow_start = event.get("start_time")
+        if not tomorrow_start:
+            continue
+
+        tomorrow_date = tomorrow_start.astimezone(tz).date()
+        if tomorrow_date != tomorrow_bali:
+            continue
+
+        existing = by_id.get(external_id)
+        if existing:
+            existing_start = existing.starts_at
+            if not existing_start:
+                skipped_dup += 1
+                continue
+            existing_date = existing_start.astimezone(tz).date()
+            if existing_date == today_bali:
+                tomorrow_date_text = (event.get("raw") or {}).get("date_text")
+                if _is_multiday_tomorrow_occurrence(tomorrow_date_text):
+                    occurrence_id = _tomorrow_occurrence_external_id(external_id, tomorrow_bali)
+                    if occurrence_id in by_id:
+                        skipped_dup += 1
+                        continue
+                    raw_event = event_dict_to_raw_event(event)
+                    raw_event.external_id = occurrence_id
+                    raw_events.append(raw_event)
+                    by_id[occurrence_id] = raw_event
+                    added += 1
+                else:
+                    skipped_dup += 1
+                continue
+            if existing_date == tomorrow_bali:
+                skipped_dup += 1
+                continue
+
+            refreshed = event_dict_to_raw_event(event)
+            existing.starts_at = refreshed.starts_at
+            existing.ends_at = refreshed.ends_at
+            existing.time_mode = refreshed.time_mode
+            existing.description = refreshed.description
+            existing._raw_data = refreshed._raw_data  # type: ignore[attr-defined]
+            updated_date += 1
+            continue
+
+        raw_event = event_dict_to_raw_event(event)
+        raw_events.append(raw_event)
+        by_id[external_id] = raw_event
+        added += 1
+
+    return raw_events, added, skipped_dup, updated_date
+
+
 def fetch(limit: int = 200) -> list[RawEvent]:
     """Главная точка входа для инжеста - возвращает RawEvent объекты"""
     events = fetch_baliforum_events(limit)
-
-    # Конвертируем в RawEvent объекты
-    raw_events = []
-    for event in events:
-        # Используем стабильный external_id из парсера
-        external_id = event.get("external_id", event["url"].rstrip("/").split("/")[-1])
-
-        # Парсим дату если есть
-        starts_at = event["start_time"]
-
-        # Формируем description с venue и location_url для передачи в БД
-        description_parts = []
-        if event.get("description"):
-            description_parts.append(event["description"])
-
-        # Добавляем venue в description, если есть
-        venue = event.get("venue")
-        if venue:
-            description_parts.append(f"\n📍 Место: {venue}")
-
-        # Сохраняем location_url и venue в raw для использования при сохранении
-        raw_data = {
-            "venue": venue,
-            "location_url": event.get("location_url"),
-            "place_name_from_maps": event.get("raw", {}).get("place_name_from_maps"),
-            "place_id": event.get("raw", {}).get("place_id"),
-            "tags": event.get("tags") or event.get("raw", {}).get("tags") or [],
-        }
-
-        raw_event = RawEvent(
-            title=event["title"],
-            lat=event["lat"] or 0.0,
-            lng=event["lng"] or 0.0,
-            starts_at=starts_at,
-            source="baliforum",
-            external_id=external_id,
-            url=event["url"],
-            description="\n".join(description_parts) if description_parts else None,
-        )
-        # Сохраняем дополнительные данные в атрибуте raw_event для использования при сохранении
-        raw_event._raw_data = raw_data  # type: ignore
-        raw_events.append(raw_event)
-
-    return raw_events
+    return [event_dict_to_raw_event(event) for event in events]
