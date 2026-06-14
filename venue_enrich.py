@@ -71,8 +71,12 @@ def enrich_venue_from_text(event: dict) -> dict:
                     event["venue_name"] = name
                     break  # Нашли название места, больше не ищем
 
-    # 4) Геокодирование: если есть address/venue, но нет coords
-    if not event.get("coords") and (event.get("address") or event.get("venue_name")):
+    # 4) Геокодирование: если есть address/venue, но нет coords и нет lat/lng из БД
+    if (
+        not event.get("coords")
+        and not (event.get("lat") is not None and event.get("lng") is not None)
+        and (event.get("address") or event.get("venue_name"))
+    ):
         try:
             from geocode import geocode_best_effort
 

@@ -127,6 +127,19 @@ def test_no_location_filter():
     print("✅ test_no_location_filter passed")
 
 
+def test_enrich_preserves_db_coords():
+    """Не перезаписывать lat/lng из БД при геокодировании venue_name."""
+    e = base_event(
+        venue_name="Savaya",
+        lat=-8.6459978,
+        lng=115.1413188,
+    )
+    enriched = enrich_venue_from_text(e)
+    assert enriched["lat"] == -8.6459978
+    assert enriched["lng"] == 115.1413188
+    print("✅ test_enrich_preserves_db_coords passed")
+
+
 if __name__ == "__main__":
     print("🧪 Запуск тестов обогащения локации и фильтрации...")
 
@@ -137,5 +150,6 @@ if __name__ == "__main__":
     test_blacklist_domain()
     test_no_url_filter()
     test_no_location_filter()
+    test_enrich_preserves_db_coords()
 
     print("\n🎉 Все тесты прошли успешно!")
