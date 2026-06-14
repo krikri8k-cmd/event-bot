@@ -14,6 +14,7 @@ from sqlalchemy.engine import Engine
 from utils.telegram_event_extractor import call_openai_telegram_extract, compute_time_mode
 from utils.telegram_geo_resolver import resolve_telegram_location
 from utils.telegram_post_links import build_telegram_post_url
+from utils.telegram_source_visibility import is_public_telegram_source
 from utils.telegram_sources_service import TelegramSource, TelegramSourcesService
 from utils.unified_events_service import UnifiedEventsService
 
@@ -31,11 +32,29 @@ def _resolve_organizer(
     extracted_contact: str | None,
     poster_username: str | None,
     poster_id: int | None,
-    default_contact: str | None,
 ) -> tuple[str | None, int | None]:
-    """Контакт: из текста поста → автор публикации → default_contact источника."""
-    username = _strip_at(extracted_contact) or _strip_at(poster_username) or _strip_at(default_contact)
+    """Контакт: из текста поста → автор публикации (без подстановки default_contact)."""
+    username = _strip_at(extracted_contact) or _strip_at(poster_username)
     return username, poster_id
+
+
+def _has_actionable_contact(organizer_username: str | None, organizer_id: int | None) -> bool:
+    return bool(_strip_at(organizer_username)) or organizer_id is not None
+
+
+def _has_actionable_source(
+    source: TelegramSource,
+    event_url: str | None,
+    external_registration_url: str | None,
+) -> bool:
+    ext = (external_registration_url or "").strip()
+    if ext.startswith("http"):
+        return True
+    if not is_public_telegram_source(source.username):
+        return False
+    url = (event_url or "").strip()
+    uname = _strip_at(source.username)
+    return bool(uname) and f"t.me/{uname}/" in url
 
 
 def _build_event_url(
@@ -163,7 +182,6 @@ async def process_telegram_post(
         extracted_contact=data.get("extracted_contact"),
         poster_username=poster_username,
         poster_id=poster_id,
-        default_contact=source.default_contact,
     )
     status = "open" if source.trust_level == "trusted" else "draft"
     external_id = f"tg:{chat_id}:{message_id}"
@@ -173,6 +191,21 @@ async def process_telegram_post(
         data.get("external_registration_url"),
         post_url=post_url,
     )
+
+    if not _has_actionable_contact(organizer, organizer_id) and not _has_actionable_source(
+        source,
+        event_url,
+        data.get("external_registration_url"),
+    ):
+        service.log_reject(
+            chat_id=chat_id,
+            message_id=message_id,
+            stage="contact",
+            reason="no_contact_or_source",
+            raw_snippet=text[:200],
+        )
+        service.update_last_processed_message_id(chat_id, message_id)
+        return
 
     events_service = UnifiedEventsService(engine)
     referral_code = _get_referral_code(engine, source.partner_id)

@@ -104,7 +104,6 @@ def test_resolve_organizer_priority():
         extracted_contact="@from_post",
         poster_username="poster",
         poster_id=123,
-        default_contact="@default",
     )
     assert username == "from_post"
     assert uid == 123
@@ -113,7 +112,6 @@ def test_resolve_organizer_priority():
         extracted_contact=None,
         poster_username="poster",
         poster_id=456,
-        default_contact="@default",
     )
     assert username == "poster"
     assert uid == 456
@@ -122,10 +120,83 @@ def test_resolve_organizer_priority():
         extracted_contact=None,
         poster_username=None,
         poster_id=None,
-        default_contact="@default",
     )
-    assert username == "default"
+    assert username is None
     assert uid is None
+
+
+def test_actionable_contact_and_source():
+    from utils.telegram_ingest_pipeline import (
+        _has_actionable_contact,
+        _has_actionable_source,
+    )
+    from utils.telegram_sources_service import TelegramSource
+
+    assert _has_actionable_contact("host", None) is True
+    assert _has_actionable_contact(None, 12345) is True
+    assert _has_actionable_contact(None, None) is False
+
+    public_source = TelegramSource(
+        id=1,
+        chat_id=-1001,
+        username="publicchan",
+        title="Public",
+        is_active=True,
+        trust_level="moderated",
+        default_city="bali",
+        default_country="ID",
+        timezone=TZ,
+        allow_default_coords=False,
+        default_lat=None,
+        default_lng=None,
+        default_contact=None,
+        default_categories=[],
+        partner_id=None,
+        last_processed_message_id=None,
+    )
+    private_source = TelegramSource(
+        id=2,
+        chat_id=-5179811176,
+        username=None,
+        title="Ingest test",
+        is_active=True,
+        trust_level="moderated",
+        default_city="bali",
+        default_country="ID",
+        timezone=TZ,
+        allow_default_coords=False,
+        default_lat=None,
+        default_lng=None,
+        default_contact=None,
+        default_categories=[],
+        partner_id=None,
+        last_processed_message_id=None,
+    )
+
+    assert (
+        _has_actionable_source(
+            public_source,
+            "https://t.me/publicchan/42",
+            None,
+        )
+        is True
+    )
+    assert (
+        _has_actionable_source(
+            private_source,
+            "https://t.me/c/5179811176/42",
+            None,
+        )
+        is False
+    )
+    assert (
+        _has_actionable_source(
+            private_source,
+            None,
+            "https://example.com/register",
+        )
+        is True
+    )
 
 
 def test_format_when_shows_utc_and_local():
