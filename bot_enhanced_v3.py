@@ -1864,6 +1864,14 @@ def _events_date_label(date_filter: str, lang: str) -> str:
     return t(key, lang)
 
 
+def _reset_search_date_filter(chat_id: int) -> str:
+    """Новый поиск по геолокации всегда начинается с «сегодня»."""
+    state = user_state.get(chat_id)
+    if state is not None:
+        state["date_filter"] = "today"
+    return "today"
+
+
 def render_header(counts, radius_km: int = None, lang: str = "ru") -> str:
     """Рендерит заголовок с счетчиками (только ненулевые)"""
     if radius_km:
@@ -2154,6 +2162,7 @@ async def perform_nearby_search(
     """Универсальный обработчик поиска событий рядом по координатам."""
     user_id = message.from_user.id
     user_lang = get_user_language_or_default(user_id)
+    date_filter = _reset_search_date_filter(message.chat.id)
     logger.info(f"📍 perform_nearby_search: user_id={user_id}, lat={lat}, lng={lng}, source={source}")
 
     loading_message = await message.answer(
@@ -2263,8 +2272,8 @@ async def perform_nearby_search(
                 logger.info("📭 События не найдены после фильтрации")
                 current_radius = int(radius)
 
-                # Получаем date_filter из состояния пользователя (по умолчанию "today")
-                date_filter_state = user_state.get(message.chat.id, {}).get("date_filter", "today")
+                # Новый поиск — всегда «сегодня», не тащим tomorrow из прошлой сессии
+                date_filter_state = date_filter
 
                 keyboard_buttons = []
 
@@ -2320,7 +2329,7 @@ async def perform_nearby_search(
                     "lng": lng,
                     "radius": current_radius,
                     "page": 1,
-                    "date_filter": date_filter_state,
+                    "date_filter": "today",
                     "diag": diag,
                     "region": region,
                 }
@@ -2337,7 +2346,7 @@ async def perform_nearby_search(
                     else format_translation("events.suggestion.repeat_search", user_lang)
                 )
 
-                date_text = _events_date_text(date_filter_state, user_lang)
+                date_text = _events_date_text("today", user_lang)
                 not_found_text = format_translation(
                     "events.not_found_with_radius", user_lang, radius=current_radius, date_text=date_text
                 )
@@ -2422,8 +2431,7 @@ async def perform_nearby_search(
                 )
 
             total_pages = max(1, ceil(len(prepared) / 8))
-            date_filter_state = user_state.get(message.chat.id, {}).get("date_filter", "today")
-            combined_keyboard = kb_pager(1, total_pages, int(radius), date_filter=date_filter_state, lang=user_lang)
+            combined_keyboard = kb_pager(1, total_pages, int(radius), date_filter="today", lang=user_lang)
 
             # ИСПРАВЛЕНИЕ: Отправляем карту и список событий отдельными сообщениями
             if map_bytes:
@@ -6268,6 +6276,7 @@ async def on_location(message: types.Message, state: FSMContext):
 
     lat = message.location.latitude
     lng = message.location.longitude
+    date_filter = _reset_search_date_filter(message.chat.id)
 
     # Логируем получение геолокации
     logger.debug(f"📍 Получена геолокация для событий: lat={lat} lon={lng} (источник=пользователь)")
@@ -6434,8 +6443,8 @@ async def on_location(message: types.Message, state: FSMContext):
                 # Создаем кнопки расширения радиуса, используя фиксированные RADIUS_OPTIONS
                 current_radius = int(radius)
 
-                # Получаем date_filter из состояния пользователя (по умолчанию "today")
-                date_filter_state = user_state.get(message.chat.id, {}).get("date_filter", "today")
+                # Новый поиск — всегда «сегодня», не тащим tomorrow из прошлой сессии
+                date_filter_state = date_filter
 
                 keyboard_buttons = []
 
@@ -6501,12 +6510,12 @@ async def on_location(message: types.Message, state: FSMContext):
                     "lng": lng,
                     "radius": int(current_radius),
                     "page": 1,
-                    "date_filter": date_filter_state,  # Используем date_filter из состояния
+                    "date_filter": "today",
                     "diag": diag,
                     "region": region,
                 }
                 logger.info(
-                    f"💾 Состояние сохранено для пользователя {message.chat.id}: lat={lat}, lng={lng}, radius={current_radius}, region={region}, date_filter={date_filter_state}"
+                    f"💾 Состояние сохранено для пользователя {message.chat.id}: lat={lat}, lng={lng}, radius={current_radius}, region={region}, date_filter=today"
                 )
 
                 higher_options = [r for r in RADIUS_OPTIONS if r > current_radius]
@@ -6527,7 +6536,7 @@ async def on_location(message: types.Message, state: FSMContext):
                 )
 
                 # Формируем текст сообщения в зависимости от фильтра даты
-                date_text = _events_date_text(date_filter_state, user_lang)
+                date_text = _events_date_text("today", user_lang)
 
                 not_found_text = format_translation(
                     "events.not_found_with_radius", user_lang, radius=current_radius, date_text=date_text
@@ -6696,9 +6705,7 @@ async def on_location(message: types.Message, state: FSMContext):
                     events_text += f"\n\n📄 Страница 1 из {total_pages}"
 
                 # 6) Создаем клавиатуру с пагинацией И расширением радиуса
-                # Используем date_filter из состояния (по умолчанию "today")
-                date_filter_state = user_state.get(message.chat.id, {}).get("date_filter", "today")
-                combined_keyboard = kb_pager(1, total_pages, int(radius), date_filter=date_filter_state, lang=user_lang)
+                combined_keyboard = kb_pager(1, total_pages, int(radius), date_filter="today", lang=user_lang)
 
                 # 7) НОВАЯ ЛОГИКА: Отправляем карту и список событий ОТДЕЛЬНЫМИ сообщениями
                 # Это решает проблему с лимитом 1024 байта для caption и позволяет показывать больше событий
