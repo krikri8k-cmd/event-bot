@@ -1406,7 +1406,9 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
         venue_display = html.escape(location_name_from_event)
         logger.debug(f"🔍 DEBUG: Используем location_name: '{venue_display}'")
     elif e.get("lat") and e.get("lng"):
-        venue_display = f"координаты ({e['lat']:.4f}, {e['lng']:.4f})"
+        venue_display = format_translation(
+            "event.coordinates_display", lang, lat=f"{e['lat']:.4f}", lng=f"{e['lng']:.4f}"
+        )
         logger.debug(f"🔍 DEBUG: Используем координаты: '{venue_display}'")
     else:
         # Для событий от парсеров: проверяем location_name перед координатами
@@ -1414,10 +1416,12 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
             venue_display = html.escape(location_name_from_event)
             logger.debug(f"🔍 DEBUG: Используем location_name как fallback: '{venue_display}'")
         elif e.get("lat") and e.get("lng"):
-            venue_display = f"координаты ({e['lat']:.4f}, {e['lng']:.4f})"
+            venue_display = format_translation(
+                "event.coordinates_display", lang, lat=f"{e['lat']:.4f}", lng=f"{e['lng']:.4f}"
+            )
             logger.debug(f"🔍 DEBUG: Используем координаты как fallback: '{venue_display}'")
         else:
-            venue_display = "Локация"
+            venue_display = t("events.fallback.location", lang)
             logger.debug(f"🔍 DEBUG: Используем fallback: '{venue_display}'")
 
     # Источник/Автор - ТОЛЬКО из таблицы events
@@ -1494,9 +1498,9 @@ def render_event_html(e: dict, idx: int, user_id: int = None, is_caption: bool =
                     minutes = int((remaining.total_seconds() % 3600) // 60)
 
                     if hours > 0:
-                        timer_part = f" ⏳ ещё {hours}ч {minutes}м"
+                        timer_part = format_translation("event.timer_hours_left", lang, hours=hours, minutes=minutes)
                     else:
-                        timer_part = f" ⏳ ещё {minutes}м"
+                        timer_part = format_translation("event.timer_minutes_left", lang, minutes=minutes)
             except Exception:
                 pass
 
@@ -2378,11 +2382,13 @@ async def perform_nearby_search(
             page_html, _ = render_page(prepared, page=1, page_size=6, user_id=user_id)
             short_caption = header_html + "\n\n" + page_html
             if len(prepared) > 8:
-                short_caption += f"\n\n... и еще {len(prepared) - 8} событий"
+                short_caption += "\n\n" + format_translation("myevents.and_more", user_lang, count=len(prepared) - 8)
 
             if counts["all"] < 5:
                 next_radius = next(iter([r for r in RADIUS_OPTIONS if r > int(radius) and r != 5]), 20)
-                short_caption += f"\n🔍 <i>Можно расширить поиск до {next_radius} км</i>"
+                short_caption += "\n" + format_translation(
+                    "events.suggestion.expand_to_radius", user_lang, radius=next_radius
+                )
 
             points = []
             for i, event in enumerate(prepared[:12], 1):
@@ -6581,12 +6587,14 @@ async def on_location(message: types.Message, state: FSMContext):
             short_caption = header_html + "\n\n" + page_html
 
             if len(prepared) > 8:
-                short_caption += f"\n\n... и еще {len(prepared) - 8} событий"
+                short_caption += "\n\n" + format_translation("myevents.and_more", user_lang, count=len(prepared) - 8)
 
             # Добавляем подсказку о расширении поиска, если событий мало
             if counts["all"] < 5:
                 next_radius = next(iter([r for r in RADIUS_OPTIONS if r > int(radius) and r != 5]), 20)
-                short_caption += f"\n🔍 <i>Можно расширить поиск до {next_radius} км</i>"
+                short_caption += "\n" + format_translation(
+                    "events.suggestion.expand_to_radius", user_lang, radius=next_radius
+                )
 
             # Создаём карту с нумерованными метками
             points = []
