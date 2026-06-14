@@ -141,6 +141,12 @@ def test_pick_best_maps_url_entity_links_before_plain_text():
     assert pick_best_maps_url(candidates, raw_text=raw_with_text) == entity_url
 
 
+def test_export_message_link_channels_import():
+    from telethon.tl.functions.channels import ExportMessageLinkRequest
+
+    assert ExportMessageLinkRequest.__name__ == "ExportMessageLinkRequest"
+
+
 def test_extract_message_entity_links_text_url():
     from utils.telegram_telethon_helpers import extract_message_entity_links
 

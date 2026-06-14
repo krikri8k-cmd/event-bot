@@ -26,9 +26,9 @@ def main():
         sys.exit(1)
 
     load_env()
-    db_url = os.getenv("DATABASE_URL")
+    db_url = (os.getenv("DATABASE_PUBLIC_URL") or os.getenv("DATABASE_URL") or "").strip()
     if not db_url:
-        print("❌ DATABASE_URL is not set. Ensure app.local.env is configured.")
+        print("❌ DATABASE_URL / DATABASE_PUBLIC_URL is not set. Ensure app.local.env is configured.")
         sys.exit(1)
 
     engine = create_engine(db_url, future=True)

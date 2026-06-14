@@ -73,12 +73,22 @@ async def export_message_link(
     Fallback — эвристика t.me/c/… (может не работать для basic group).
     """
     try:
-        from telethon.tl.functions.messages import ExportMessageLinkRequest
+        from telethon.tl.functions.channels import ExportMessageLinkRequest
 
-        result = await client(ExportMessageLinkRequest(peer=chat_id, id=message_id, grouped=False))
+        result = await client(ExportMessageLinkRequest(channel=chat_id, id=message_id, grouped=False))
         link = (getattr(result, "link", None) or "").strip()
         if link.startswith("http"):
             return link
+    except ImportError:
+        try:
+            from telethon.tl.functions.messages import ExportMessageLinkRequest
+
+            result = await client(ExportMessageLinkRequest(peer=chat_id, id=message_id, grouped=False))
+            link = (getattr(result, "link", None) or "").strip()
+            if link.startswith("http"):
+                return link
+        except Exception as e:
+            logger.warning("exportMessageLink failed chat=%s msg=%s: %s", chat_id, message_id, e)
     except Exception as e:
         logger.warning("exportMessageLink failed chat=%s msg=%s: %s", chat_id, message_id, e)
     return build_telegram_post_url(chat_id, message_id, source_username)
