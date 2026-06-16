@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import math
 import re
 from datetime import datetime
@@ -10,6 +11,13 @@ from zoneinfo import ZoneInfo
 import httpx
 
 from config import load_settings
+
+logger = logging.getLogger(__name__)
+
+_MAPS_SHORT_URL_RE = re.compile(
+    r"(?:https?://)?(?:(?:maps\.app\.)?goo\.gl/maps|maps\.app\.goo\.gl)/[A-Za-z0-9_-]+(?:\?[A-Za-z0-9_=&%.-]*)?",
+    re.IGNORECASE,
+)
 
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -469,6 +477,25 @@ def _cleanup_link(link: str) -> str:
     return re.sub(r"\s+", "", link)
 
 
+def normalize_maps_link(link: str) -> str:
+    """Схема https, пробелы и хвост мусора после короткой goo.gl/maps ссылки."""
+    cleaned = _cleanup_link(link or "")
+    if not cleaned:
+        return cleaned
+
+    match = _MAPS_SHORT_URL_RE.search(cleaned)
+    if match:
+        cleaned = match.group(0)
+
+    low = cleaned.lower()
+    if cleaned.startswith("://"):
+        cleaned = "https" + cleaned
+    elif not low.startswith(("http://", "https://")):
+        if "goo.gl" in low or "google.com/maps" in low or "maps.google.com" in low:
+            cleaned = "https://" + cleaned.lstrip("/")
+    return cleaned
+
+
 def _extract_place_id(url: str) -> str | None:
     """Ищет place_id/cid/ftid внутри URL."""
     parsed = urlparse(url)
@@ -633,8 +660,8 @@ async def parse_google_maps_link(link: str) -> dict | None:
     if not link or not isinstance(link, str):
         return None
 
-    # Очищаем ссылку от пробелов и скрытых символов
-    link_cleaned = _cleanup_link(link)
+    # Очищаем ссылку от пробелов, скрытых символов и хвоста после URL
+    link_cleaned = normalize_maps_link(link)
     link = unquote(link_cleaned)
 
     try:
@@ -708,7 +735,7 @@ async def parse_google_maps_link(link: str) -> dict | None:
                 if coords_from_expanded:
                     return coords_from_expanded
             else:
-                print(f"WARN: could not expand short Google Maps link: {link[:80]}")
+                logger.debug("Short Google Maps link not expanded: %s", link[:80])
                 return {"lat": None, "lng": None, "name": "Место на карте", "raw_link": link}
 
         coords_from_url = _coords_result_from_maps_url(link)
@@ -854,6 +881,10 @@ async def parse_google_maps_link(link: str) -> dict | None:
 
 async def expand_short_url(short_url: str) -> str | None:
     """Расширяет короткую ссылку Google Maps до полной."""
+    short_url = normalize_maps_link(short_url)
+    if not short_url.lower().startswith(("http://", "https://")):
+        return None
+
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 "
@@ -867,7 +898,7 @@ async def expand_short_url(short_url: str) -> str | None:
         async with httpx.AsyncClient(follow_redirects=True, timeout=15, headers=headers) as client:
             response = await client.get(short_url)
             final_url = str(response.url)
-            print(f"[expand_short_url] GET (follow) {response.status_code} final={final_url}")
+            logger.debug("[expand_short_url] GET (follow) %s final=%s", response.status_code, final_url)
 
             if final_url and final_url != short_url and ("google." in final_url and "maps" in final_url):
                 return final_url
@@ -879,7 +910,7 @@ async def expand_short_url(short_url: str) -> str | None:
         # Fallback: один шаг по Location (если follow не дал распознаваемый maps URL)
         async with httpx.AsyncClient(follow_redirects=False, timeout=15, headers=headers) as client:
             response = await client.get(short_url)
-        print(f"[expand_short_url] GET (no redirect) {response.status_code} {short_url}")
+        logger.debug("[expand_short_url] GET (no redirect) %s %s", response.status_code, short_url)
 
         if response.status_code in [301, 302, 303, 307, 308]:
             location = response.headers.get("location")
