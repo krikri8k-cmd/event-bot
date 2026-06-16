@@ -69,26 +69,27 @@ async def export_message_link(
     source_username: str | None = None,
 ) -> str | None:
     """
-    Рабочая ссылка от Telegram API (корректна для закрытых супергрупп).
-    Fallback — эвристика t.me/c/… (может не работать для basic group).
+    Рабочая ссылка от Telegram API (супергруппы/каналы).
+    Для basic group API недоступен — fallback t.me/c/… без warning.
     """
+    fallback = build_telegram_post_url(chat_id, message_id, source_username)
     try:
         from telethon.tl.functions.channels import ExportMessageLinkRequest
+        from telethon.tl.types import InputPeerChannel
 
-        result = await client(ExportMessageLinkRequest(channel=chat_id, id=message_id, grouped=False))
+        peer = await client.get_input_entity(chat_id)
+        if not isinstance(peer, InputPeerChannel):
+            return fallback
+
+        result = await client(ExportMessageLinkRequest(channel=peer, id=message_id, grouped=False))
         link = (getattr(result, "link", None) or "").strip()
         if link.startswith("http"):
             return link
-    except ImportError:
-        try:
-            from telethon.tl.functions.messages import ExportMessageLinkRequest
-
-            result = await client(ExportMessageLinkRequest(peer=chat_id, id=message_id, grouped=False))
-            link = (getattr(result, "link", None) or "").strip()
-            if link.startswith("http"):
-                return link
-        except Exception as e:
-            logger.warning("exportMessageLink failed chat=%s msg=%s: %s", chat_id, message_id, e)
     except Exception as e:
-        logger.warning("exportMessageLink failed chat=%s msg=%s: %s", chat_id, message_id, e)
-    return build_telegram_post_url(chat_id, message_id, source_username)
+        logger.debug(
+            "exportMessageLink API unavailable chat=%s msg=%s: %s",
+            chat_id,
+            message_id,
+            e,
+        )
+    return fallback

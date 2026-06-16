@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
-from utils.geo_utils import geocode_address, parse_google_maps_link
+from utils.geo_utils import geocode_address, normalize_maps_link, parse_google_maps_link
 from utils.telegram_sources_service import TelegramSource
 
 logger = logging.getLogger(__name__)
@@ -122,7 +122,7 @@ def collect_maps_url_candidates(
     seen: set[str] = set()
 
     def add(url: str, anchor: str, bonus: int) -> None:
-        cleaned = url.rstrip(".,;)")
+        cleaned = normalize_maps_link(url.rstrip(".,;)"))
         if not cleaned or cleaned in seen:
             return
         seen.add(cleaned)

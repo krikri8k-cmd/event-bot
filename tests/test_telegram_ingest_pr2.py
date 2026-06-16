@@ -147,6 +147,15 @@ def test_export_message_link_channels_import():
     assert ExportMessageLinkRequest.__name__ == "ExportMessageLinkRequest"
 
 
+def test_normalize_maps_link_fixes_broken_scheme_and_cyrillic_tail():
+    from utils.geo_utils import normalize_maps_link
+
+    raw = "://maps.app.goo.gl/52ZbdY4BF9RJARi98?g_st=icДля"
+    assert normalize_maps_link(raw) == "https://maps.app.goo.gl/52ZbdY4BF9RJARi98?g_st=ic"
+
+    assert normalize_maps_link("maps.app.goo.gl/ABC123") == "https://maps.app.goo.gl/ABC123"
+
+
 def test_extract_message_entity_links_text_url():
     from utils.telegram_telethon_helpers import extract_message_entity_links
 
