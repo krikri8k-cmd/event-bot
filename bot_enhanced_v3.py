@@ -7584,6 +7584,54 @@ async def on_admin_event(message: types.Message):
         await message.answer(t("admin.event.error", user_lang))
 
 
+@main_router.message(Command("admin_delete_event"))
+async def on_admin_delete_event(message: types.Message):
+    """Жёсткое удаление события по ID (только ADMIN_IDS)."""
+    user_lang = get_user_language_or_default(message.from_user.id)
+    if not is_admin_user(message.from_user.id):
+        await message.answer(t("admin.permission.denied", user_lang))
+        return
+
+    try:
+        command_parts = message.text.split()
+        if len(command_parts) < 2:
+            await message.answer(t("admin.delete_event.usage", user_lang))
+            return
+
+        event_id = int(command_parts[1])
+        from database import get_engine
+        from utils.admin_event_delete import admin_delete_event
+
+        result = admin_delete_event(get_engine(), event_id)
+        if not result.get("ok"):
+            if result.get("reason") == "not_found":
+                await message.answer(format_translation("admin.delete_event.not_found", user_lang, event_id=event_id))
+            else:
+                await message.answer(format_translation("admin.delete_event.failed", user_lang, event_id=event_id))
+            return
+
+        lines = [
+            format_translation(
+                "admin.delete_event.success",
+                user_lang,
+                event_id=result["event_id"],
+                title=result["title"],
+                source=result["source"] or "—",
+                status=result["status"] or "—",
+                participations=result["participations_removed"],
+            )
+        ]
+        if result.get("community_deleted"):
+            lines.append(t("admin.delete_event.community", user_lang))
+        await message.answer("\n".join(lines))
+    except ValueError:
+        await message.answer(t("admin.event.invalid_id", user_lang))
+    except Exception as e:
+        logger.error(f"Ошибка в команде admin_delete_event: {e}")
+        error_text = str(e).replace("{", "{{").replace("}", "}}")
+        await message.answer(format_translation("admin.error.exception", user_lang, error=error_text))
+
+
 @main_router.message(Command("diag_webhook"))
 async def on_diag_webhook(message: types.Message):
     """Диагностика webhook"""
