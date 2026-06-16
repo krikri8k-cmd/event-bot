@@ -355,6 +355,19 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "admin.event.not_found": "Событие с ID {event_id} не найдено",
         "admin.event.invalid_id": "ID события должен быть числом",
         "admin.event.error": "Произошла ошибка при получении информации о событии",
+        "admin.delete_event.usage": (
+            "Использование: /admin_delete_event <id>\n\n"
+            "Пример: /admin_delete_event 4027\n"
+            "Удаляет событие из поиска навсегда (только админы)."
+        ),
+        "admin.delete_event.success": (
+            "🗑 Удалено событие #{event_id}\n"
+            "«{title}» · source={source} · status={status}\n"
+            "Участий снято: {participations}"
+        ),
+        "admin.delete_event.community": "Также удалено из events_community",
+        "admin.delete_event.not_found": "Событие с ID {event_id} не найдено",
+        "admin.delete_event.failed": "Не удалось удалить событие #{event_id}",
         # Ошибки
         "errors.not_found": "❌ Не найдено",
         "errors.banned": "🚫 Вы заблокированы в этом боте",
@@ -1359,6 +1372,19 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "admin.event.not_found": "Event with ID {event_id} not found",
         "admin.event.invalid_id": "Event ID must be a number",
         "admin.event.error": "Error getting event information",
+        "admin.delete_event.usage": (
+            "Usage: /admin_delete_event <id>\n\n"
+            "Example: /admin_delete_event 4027\n"
+            "Permanently removes the event from search (admins only)."
+        ),
+        "admin.delete_event.success": (
+            "🗑 Deleted event #{event_id}\n"
+            "“{title}” · source={source} · status={status}\n"
+            "Participations removed: {participations}"
+        ),
+        "admin.delete_event.community": "Also removed from events_community",
+        "admin.delete_event.not_found": "Event with ID {event_id} not found",
+        "admin.delete_event.failed": "Failed to delete event #{event_id}",
         # Errors
         "errors.not_found": "❌ Not found",
         "errors.banned": "🚫 You are blocked in this bot",
