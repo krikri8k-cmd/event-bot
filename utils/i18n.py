@@ -351,15 +351,17 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "admin.banlist.reason": "  Причина: {reason}",
         "admin.banlist.until": "  До: {date}",
         "admin.banlist.permanent": "  Навсегда",
-        "admin.event.usage": "Использование: /admin_event <id_события>",
+        "admin.event.usage": "Нажмите /admin_event и отправьте ID, или: /admin_event <id>",
+        "admin.event.prompt_id": "🔍 Введите ID события (только число).\nОтмена: /cancel",
         "admin.event.not_found": "Событие с ID {event_id} не найдено",
         "admin.event.invalid_id": "ID события должен быть числом",
         "admin.event.error": "Произошла ошибка при получении информации о событии",
         "admin.delete_event.usage": (
-            "Использование: /admin_delete_event <id>\n\n"
-            "Пример: /admin_delete_event 4027\n"
-            "Удаляет событие из поиска навсегда (только админы)."
+            "Нажмите /admin_delete_event и отправьте ID, или: /admin_delete_event <id>\n\n"
+            "Пример: /admin_delete_event 4027"
         ),
+        "admin.delete_event.prompt_id": "🗑 Введите ID события для удаления.\nОтмена: /cancel",
+        "admin.tools.cancelled": "Отменено.",
         "admin.delete_event.success": (
             "🗑 Удалено событие #{event_id}\n"
             "«{title}» · source={source} · status={status}\n"
@@ -1368,15 +1370,17 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "admin.banlist.reason": "  Reason: {reason}",
         "admin.banlist.until": "  Until: {date}",
         "admin.banlist.permanent": "  Permanent",
-        "admin.event.usage": "Usage: /admin_event <event_id>",
+        "admin.event.usage": "Tap /admin_event and send the ID, or: /admin_event <id>",
+        "admin.event.prompt_id": "🔍 Enter event ID (number only).\nCancel: /cancel",
         "admin.event.not_found": "Event with ID {event_id} not found",
         "admin.event.invalid_id": "Event ID must be a number",
         "admin.event.error": "Error getting event information",
         "admin.delete_event.usage": (
-            "Usage: /admin_delete_event <id>\n\n"
-            "Example: /admin_delete_event 4027\n"
-            "Permanently removes the event from search (admins only)."
+            "Tap /admin_delete_event and send the ID, or: /admin_delete_event <id>\n\n"
+            "Example: /admin_delete_event 4027"
         ),
+        "admin.delete_event.prompt_id": "🗑 Enter event ID to delete.\nCancel: /cancel",
+        "admin.tools.cancelled": "Cancelled.",
         "admin.delete_event.success": (
             "🗑 Deleted event #{event_id}\n"
             "“{title}” · source={source} · status={status}\n"
