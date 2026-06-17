@@ -1,6 +1,12 @@
 # Принудительная фиксация среды: Python 3.11 (Railway игнорирует runtime.txt)
 FROM python:3.11-slim
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DEFAULT_TIMEOUT=120 \
+    PIP_RETRIES=10
+
 # Системные зависимости
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
@@ -9,10 +15,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Установка Python зависимостей
+# Установка Python зависимостей (retries — против обрывов PyPI на Railway build)
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip \
- && pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --upgrade pip wheel setuptools \
+ && python -m pip install --retries 10 --timeout 120 requests==2.31.0 \
+ && python -m pip install --retries 10 --timeout 120 -r requirements.txt
 
 # Копирование кода
 COPY . .
