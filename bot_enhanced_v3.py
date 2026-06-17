@@ -9170,19 +9170,11 @@ def _format_place_location_line(place, lang: str) -> str:
     return f"📍 {city}"
 
 
-def _render_partner_pick_line(partner_name: str, partner_url: str | None, review_url: str | None, lang: str) -> str:
-    label = t("tasks.partner.pick_label", lang)
-    safe_partner_name = html.escape(partner_name)
-    if partner_url:
-        partner_part = f'<a href="{html.escape(partner_url, quote=True)}">{safe_partner_name}</a>'
-    else:
-        partner_part = safe_partner_name
-
-    if review_url:
-        review_text = t("tasks.partner.review_label", lang)
-        review_part = f'<a href="{html.escape(review_url, quote=True)}">{review_text}</a>'
-        return f"{label} {partner_part} — {review_part}"
-    return f"{label} {partner_part}"
+def _render_partner_pick_line(review_url: str | None, lang: str) -> str:
+    if not review_url:
+        return ""
+    review_text = t("tasks.partner.review_label", lang)
+    return f'<a href="{html.escape(review_url, quote=True)}">{review_text}</a>'
 
 
 _GOOGLE_SHORT_URL_CACHE: dict[str, str | None] = {}
@@ -9264,15 +9256,9 @@ def _render_place_card_html(
     if location_line:
         lines.append(location_line)
 
-    if getattr(place, "partner_id", None) and partner_name:
-        lines.append(
-            _render_partner_pick_line(
-                partner_name=partner_name,
-                partner_url=partner_url,
-                review_url=getattr(place, "review_url", None),
-                lang=lang,
-            )
-        )
+    review_url = getattr(place, "review_url", None)
+    if review_url:
+        lines.append(_render_partner_pick_line(review_url, lang))
 
     if place.promo_code:
         promo_label = t("tasks.partner.promo_label", lang)
