@@ -9,6 +9,8 @@ import re
 
 from aiogram import F, Router, types
 from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from config import load_settings
@@ -21,42 +23,47 @@ telegram_ingest_router = Router()
 telegram_ingest_router.message.filter(F.chat.type == "private")
 
 
+class IngestAdminSetup(StatesGroup):
+    waiting_source_target = State()
+
+
 def _is_admin(user_id: int) -> bool:
     return user_id in load_settings().admin_ids
 
 
+def _parse_source_line(line: str) -> tuple[str, str] | None:
+    """@channel trusted | -100123 moderated | @channel (default moderated)."""
+    raw = (line or "").strip()
+    if not raw:
+        return None
+    parts = raw.split()
+    if len(parts) >= 2 and parts[-1].lower() in TRUST_LEVELS:
+        return parts[0], parts[-1].lower()
+    if len(parts) == 1:
+        return parts[0], "moderated"
+    return None
+
+
 def _parse_add_source_args(text: str) -> tuple[str, str] | None:
-    parts = (text or "").split(maxsplit=2)
+    parts = (text or "").split(maxsplit=1)
     if len(parts) < 2:
         return None
-    target = parts[1].strip()
-    trust = (parts[2].strip().lower() if len(parts) > 2 else "moderated") or "moderated"
-    if trust not in TRUST_LEVELS:
-        return None
-    return target, trust
+    return _parse_source_line(parts[1])
 
 
-@telegram_ingest_router.message(Command("add_source"))
-async def cmd_add_source(message: types.Message, bot):
-    if not _is_admin(message.from_user.id):
-        await message.answer("⛔ Команда только для админов.")
-        return
+def _add_source_usage_text() -> str:
+    return (
+        "Использование:\n"
+        "• Нажми /add_source и отправь @username или chat_id\n"
+        "• Или одной строкой: /add_source @channel trusted\n\n"
+        "trust_level:\n"
+        "• trusted — сразу open\n"
+        "• moderated — draft + модерация (по умолчанию)\n\n"
+        "Userbot (string session) должен быть участником канала/группы."
+    )
 
-    parsed = _parse_add_source_args(message.text or "")
-    if not parsed:
-        await message.answer(
-            "Использование:\n"
-            "/add_source @channel_username trusted\n"
-            "/add_source -100123456789 moderated\n\n"
-            "trust_level:\n"
-            "• trusted — сразу open\n"
-            "• moderated — draft + модерация\n\n"
-            "Userbot (string session) должен быть участником канала/группы.\n"
-            "Бот MyConductor в группе не обязателен, если указываешь chat_id."
-        )
-        return
 
-    target, trust = parsed
+async def _register_ingest_source(message: types.Message, bot, target: str, trust: str) -> None:
     chat_id: int
     username: str | None = None
     title: str
@@ -87,7 +94,7 @@ async def cmd_add_source(message: types.Message, bot):
             "Не удалось получить чат по @username.\n\n"
             "Проверь:\n"
             "• канал публичный и username верный\n"
-            "• или укажи chat_id: /add_source -100123456789 moderated\n"
+            "• или укажи chat_id: `-100123456789 moderated`\n"
             "• userbot подписан на источник\n\n"
             f"Ошибка: {e}"
         )
@@ -130,6 +137,55 @@ def _format_sources_list(sources) -> tuple[str, InlineKeyboardMarkup | None]:
         label = "❌ Выкл" if s.is_active else "✅ Вкл"
         buttons.append([InlineKeyboardButton(text=f"{label} #{s.id}", callback_data=f"tgsrc:{action}:{s.id}")])
     return "\n".join(lines), InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+@telegram_ingest_router.message(Command("add_source"))
+async def cmd_add_source(message: types.Message, bot, state: FSMContext):
+    if not _is_admin(message.from_user.id):
+        await message.answer("⛔ Команда только для админов.")
+        return
+
+    parsed = _parse_add_source_args(message.text or "")
+    if not parsed:
+        await state.set_state(IngestAdminSetup.waiting_source_target)
+        await message.answer(
+            "📡 Введите @username или chat_id.\n\n"
+            "Можно сразу указать trust:\n"
+            "• `@channel moderated`\n"
+            "• `-100123456789 trusted`\n\n"
+            "По умолчанию: moderated\n"
+            "Отмена: /cancel"
+        )
+        return
+
+    target, trust = parsed
+    await _register_ingest_source(message, bot, target, trust)
+
+
+@telegram_ingest_router.message(IngestAdminSetup.waiting_source_target)
+async def cmd_add_source_target_input(message: types.Message, bot, state: FSMContext):
+    if not _is_admin(message.from_user.id):
+        await state.clear()
+        await message.answer("⛔ Команда только для админов.")
+        return
+
+    text = (message.text or "").strip()
+    if text.lower().startswith("/cancel"):
+        await state.clear()
+        await message.answer("Отменено.")
+        return
+    if text.startswith("/"):
+        await state.clear()
+        return
+
+    parsed = _parse_source_line(text)
+    if not parsed:
+        await message.answer(_add_source_usage_text())
+        return
+
+    target, trust = parsed
+    await state.clear()
+    await _register_ingest_source(message, bot, target, trust)
 
 
 @telegram_ingest_router.message(Command("list_sources"))
