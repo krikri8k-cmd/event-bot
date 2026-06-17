@@ -12736,6 +12736,7 @@ async def main():
             types.BotCommand(command="unban", description="✅ Разбанить пользователя (админ)"),
             types.BotCommand(command="banlist", description="📋 Список забаненных (админ)"),
             types.BotCommand(command="admin_event", description="🔍 Диагностика события (админ)"),
+            types.BotCommand(command="admin_delete_event", description="🗑 Удалить событие (админ)"),
             types.BotCommand(command="add_source", description="📡 Добавить Telegram-канал (ingest)"),
             types.BotCommand(command="list_sources", description="📋 Список ingest-источников"),
             types.BotCommand(command="ingest_stats", description="📊 Статистика ingest"),
