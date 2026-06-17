@@ -2829,6 +2829,10 @@ class EventEditing(StatesGroup):
     waiting_for_description = State()
 
 
+class AdminTools(StatesGroup):
+    waiting_event_id = State()
+
+
 def edit_event_keyboard(event_id: int, lang: str = "ru") -> InlineKeyboardMarkup:
     """Создаёт клавиатуру для редактирования события"""
     return InlineKeyboardMarkup(
@@ -7517,66 +7521,101 @@ async def on_banlist(message: types.Message):
         await message.answer(format_translation("admin.error.exception", user_lang, error=error_text))
 
 
+async def _prompt_admin_event_id(message: types.Message, state: FSMContext, *, action: str) -> None:
+    user_lang = get_user_language_or_default(message.from_user.id)
+    await state.set_state(AdminTools.waiting_event_id)
+    await state.update_data(admin_action=action)
+    prompt_key = "admin.delete_event.prompt_id" if action == "delete" else "admin.event.prompt_id"
+    await message.answer(t(prompt_key, user_lang))
+
+
+async def _send_admin_event_diagnostics(message: types.Message, event_id: int, user_lang: str) -> None:
+    with get_session() as session:
+        event = session.get(Event, event_id)
+        if not event:
+            await message.answer(format_translation("admin.event.not_found", user_lang, event_id=event_id))
+            return
+
+        title = html.escape(event.title)
+        description = html.escape(event.description or "Не указано")
+        location = html.escape(event.location_name or "Не указано")
+        address = html.escape(getattr(event, "address", "Не указано"))
+        url = html.escape(event.url or "Не указано")
+        location_url = html.escape(event.location_url or "Не указано")
+        source = html.escape(event.source or "Не указано")
+        organizer = html.escape(event.organizer_username or "Не указано")
+
+        info_lines = [
+            f"🔍 <b>Диагностика события #{event_id}</b>",
+            f"<b>Название:</b> {title}",
+            f"<b>Описание:</b> {description}",
+            f"<b>Время:</b> {event.time_local or 'Не указано'}",
+            f"<b>Место:</b> {location}",
+            f"<b>Адрес:</b> {address}",
+            f"<b>Координаты:</b> {event.lat}, {event.lng}",
+            f"<b>URL события:</b> {url}",
+            f"<b>URL места:</b> {location_url}",
+            f"<b>{t('event.source_link', user_lang)}:</b> {source}",
+            f"<b>Организатор:</b> {organizer}",
+            f"<b>AI генерация:</b> {'Да' if event.is_generated_by_ai else 'Нет'}",
+        ]
+
+        if not hasattr(event, "venue_name") or not getattr(event, "venue_name", None):
+            info_lines.append("⚠️ <b>ПРЕДУПРЕЖДЕНИЕ:</b> venue_name отсутствует!")
+            logger.warning(f"Событие {event_id}: venue_name отсутствует")
+
+        is_publishable = bool(event.url or event.location_url)
+        info_lines.append(f"<b>Публикуемо:</b> {'Да' if is_publishable else 'Нет'}")
+        if not is_publishable:
+            info_lines.append("⚠️ <b>ПРЕДУПРЕЖДЕНИЕ:</b> Нет source_url для публикации!")
+
+        await message.answer("\n".join(info_lines), parse_mode="HTML", disable_web_page_preview=True)
+
+
+async def _send_admin_delete_result(message: types.Message, event_id: int, user_lang: str) -> None:
+    from database import get_engine
+    from utils.admin_event_delete import admin_delete_event
+
+    result = admin_delete_event(get_engine(), event_id)
+    if not result.get("ok"):
+        if result.get("reason") == "not_found":
+            await message.answer(format_translation("admin.delete_event.not_found", user_lang, event_id=event_id))
+        else:
+            await message.answer(format_translation("admin.delete_event.failed", user_lang, event_id=event_id))
+        return
+
+    lines = [
+        format_translation(
+            "admin.delete_event.success",
+            user_lang,
+            event_id=result["event_id"],
+            title=result["title"],
+            source=result["source"] or "—",
+            status=result["status"] or "—",
+            participations=result["participations_removed"],
+        )
+    ]
+    if result.get("community_deleted"):
+        lines.append(t("admin.delete_event.community", user_lang))
+    await message.answer("\n".join(lines))
+
+
 @main_router.message(Command("admin_event"))
-async def on_admin_event(message: types.Message):
+async def on_admin_event(message: types.Message, state: FSMContext):
     """Обработчик команды /admin_event для диагностики событий"""
     user_lang = get_user_language_or_default(message.from_user.id)
+    if not is_admin_user(message.from_user.id):
+        await message.answer(t("admin.permission.denied", user_lang))
+        return
+
     try:
-        # Извлекаем ID события из команды
         command_parts = message.text.split()
         if len(command_parts) < 2:
-            await message.answer(t("admin.event.usage", user_lang))
+            await _prompt_admin_event_id(message, state, action="view")
             return
 
         event_id = int(command_parts[1])
-
-        # Ищем событие в БД
-        with get_session() as session:
-            event = session.get(Event, event_id)
-            if not event:
-                await message.answer(format_translation("admin.event.not_found", user_lang, event_id=event_id))
-                return
-
-            # Формируем диагностическую информацию в HTML
-            title = html.escape(event.title)
-            description = html.escape(event.description or "Не указано")
-            location = html.escape(event.location_name or "Не указано")
-            address = html.escape(getattr(event, "address", "Не указано"))
-            url = html.escape(event.url or "Не указано")
-            location_url = html.escape(event.location_url or "Не указано")
-            source = html.escape(event.source or "Не указано")
-            organizer = html.escape(event.organizer_username or "Не указано")
-
-            info_lines = [
-                f"🔍 <b>Диагностика события #{event_id}</b>",
-                f"<b>Название:</b> {title}",
-                f"<b>Описание:</b> {description}",
-                f"<b>Время:</b> {event.time_local or 'Не указано'}",
-                f"<b>Место:</b> {location}",
-                f"<b>Адрес:</b> {address}",
-                f"<b>Координаты:</b> {event.lat}, {event.lng}",
-                f"<b>URL события:</b> {url}",
-                f"<b>URL места:</b> {location_url}",
-                f"<b>{t('event.source_link', user_lang)}:</b> {source}",
-                f"<b>Организатор:</b> {organizer}",
-                f"<b>AI генерация:</b> {'Да' if event.is_generated_by_ai else 'Нет'}",
-            ]
-
-            # Проверяем наличие venue_name
-            if not hasattr(event, "venue_name") or not getattr(event, "venue_name", None):
-                info_lines.append("⚠️ <b>ПРЕДУПРЕЖДЕНИЕ:</b> venue_name отсутствует!")
-                logger.warning(f"Событие {event_id}: venue_name отсутствует")
-
-            # Проверяем publishable
-            is_publishable = bool(event.url or event.location_url)
-            info_lines.append(f"<b>Публикуемо:</b> {'Да' if is_publishable else 'Нет'}")
-
-            if not is_publishable:
-                info_lines.append("⚠️ <b>ПРЕДУПРЕЖДЕНИЕ:</b> Нет source_url для публикации!")
-
-            text = "\n".join(info_lines)
-            await message.answer(text, parse_mode="HTML", disable_web_page_preview=True)
-
+        await _send_admin_event_diagnostics(message, event_id, user_lang)
     except ValueError:
         await message.answer(t("admin.event.invalid_id", user_lang))
     except Exception as e:
@@ -7585,7 +7624,7 @@ async def on_admin_event(message: types.Message):
 
 
 @main_router.message(Command("admin_delete_event"))
-async def on_admin_delete_event(message: types.Message):
+async def on_admin_delete_event(message: types.Message, state: FSMContext):
     """Жёсткое удаление события по ID (только ADMIN_IDS)."""
     user_lang = get_user_language_or_default(message.from_user.id)
     if not is_admin_user(message.from_user.id):
@@ -7595,41 +7634,55 @@ async def on_admin_delete_event(message: types.Message):
     try:
         command_parts = message.text.split()
         if len(command_parts) < 2:
-            await message.answer(t("admin.delete_event.usage", user_lang))
+            await _prompt_admin_event_id(message, state, action="delete")
             return
 
         event_id = int(command_parts[1])
-        from database import get_engine
-        from utils.admin_event_delete import admin_delete_event
-
-        result = admin_delete_event(get_engine(), event_id)
-        if not result.get("ok"):
-            if result.get("reason") == "not_found":
-                await message.answer(format_translation("admin.delete_event.not_found", user_lang, event_id=event_id))
-            else:
-                await message.answer(format_translation("admin.delete_event.failed", user_lang, event_id=event_id))
-            return
-
-        lines = [
-            format_translation(
-                "admin.delete_event.success",
-                user_lang,
-                event_id=result["event_id"],
-                title=result["title"],
-                source=result["source"] or "—",
-                status=result["status"] or "—",
-                participations=result["participations_removed"],
-            )
-        ]
-        if result.get("community_deleted"):
-            lines.append(t("admin.delete_event.community", user_lang))
-        await message.answer("\n".join(lines))
+        await _send_admin_delete_result(message, event_id, user_lang)
     except ValueError:
         await message.answer(t("admin.event.invalid_id", user_lang))
     except Exception as e:
         logger.error(f"Ошибка в команде admin_delete_event: {e}")
         error_text = str(e).replace("{", "{{").replace("}", "}}")
         await message.answer(format_translation("admin.error.exception", user_lang, error=error_text))
+
+
+@main_router.message(AdminTools.waiting_event_id)
+async def on_admin_event_id_input(message: types.Message, state: FSMContext):
+    """Второй шаг: админ нажал /admin_event или /admin_delete_event и отправляет только ID."""
+    user_lang = get_user_language_or_default(message.from_user.id)
+    if not is_admin_user(message.from_user.id):
+        await state.clear()
+        await message.answer(t("admin.permission.denied", user_lang))
+        return
+
+    text = (message.text or "").strip()
+    if text.lower().startswith("/cancel"):
+        await state.clear()
+        await message.answer(t("admin.tools.cancelled", user_lang))
+        return
+    if text.startswith("/"):
+        await state.clear()
+        return
+
+    try:
+        event_id = int(text)
+    except ValueError:
+        await message.answer(t("admin.event.invalid_id", user_lang))
+        return
+
+    data = await state.get_data()
+    action = data.get("admin_action", "view")
+    await state.clear()
+
+    try:
+        if action == "delete":
+            await _send_admin_delete_result(message, event_id, user_lang)
+        else:
+            await _send_admin_event_diagnostics(message, event_id, user_lang)
+    except Exception as e:
+        logger.error("Ошибка admin tools action=%s event_id=%s: %s", action, event_id, e)
+        await message.answer(t("admin.event.error", user_lang))
 
 
 @main_router.message(Command("diag_webhook"))
