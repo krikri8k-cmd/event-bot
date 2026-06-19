@@ -11,6 +11,7 @@ from datetime import datetime
 from sqlalchemy import text
 
 from utils.event_category_manager import EventCategoryManager
+from utils.event_dedupe import compute_dedupe_key, dedupe_events_for_display, find_duplicate_event_id
 from utils.event_translation import (
     detect_event_language,
     translate_event_to_english,
@@ -30,7 +31,7 @@ _SEARCH_EVENT_SELECT = """
     community_name, community_link, chat_id, location_name as venue_name,
     location_name as address, place_id,
     '' as geo_hash, starts_at as starts_at_normalized, ends_at, time_mode,
-    categories, raw_category
+    categories, raw_category, referral_code
 """
 
 
@@ -89,6 +90,8 @@ def _search_row_to_event_dict(row) -> dict:
         "categories": _parse_categories_value(row[30] if len(row) > 30 else None),
         "raw_category": row[31] if len(row) > 31 else None,
         "tags": _parse_raw_category_tags(row[31] if len(row) > 31 else None),
+        "referral_code": row[32] if len(row) > 32 else None,
+        "dedupe_key": row[33] if len(row) > 33 else None,
     }
 
 
@@ -310,6 +313,16 @@ class UnifiedEventsService:
                 empty_reason=empty_reason,
                 duration_ms=(time.time() - start_time) * 1000,
             )
+
+            before_dedupe = len(events)
+            events = dedupe_events_for_display(events)
+            if before_dedupe != len(events):
+                logger.info(
+                    "Deduped nearby events for display: %s -> %s (city=%s)",
+                    before_dedupe,
+                    len(events),
+                    city,
+                )
 
             return events
 
@@ -596,6 +609,7 @@ class UnifiedEventsService:
         categories = category_manager.assign_categories(category_ctx, source)
         raw_category = category_manager.resolve_raw_category(category_ctx, source)
         categories_json = json.dumps(categories, ensure_ascii=False)
+        dedupe_key = compute_dedupe_key(title, starts_at_utc, lat, lng, city)
 
         with self.engine.begin() as conn:
             existing_row = conn.execute(
@@ -652,6 +666,28 @@ class UnifiedEventsService:
                 description_en = existing_row[4] if existing_row and len(existing_row) > 4 else None
                 location_name_en = existing_row[5] if existing_row and len(existing_row) > 5 else None
 
+            if not existing_row:
+                duplicate_id = find_duplicate_event_id(
+                    conn,
+                    dedupe_key=dedupe_key,
+                    title=title,
+                    starts_at=starts_at_utc,
+                    lat=lat,
+                    lng=lng,
+                    city=city,
+                    exclude_source=source,
+                    exclude_external_id=external_id,
+                )
+                if duplicate_id:
+                    logger.info(
+                        "Duplicate parser event skipped: source=%s external_id=%s -> existing id=%s title=%r",
+                        source,
+                        external_id,
+                        duplicate_id,
+                        (title or "")[:80],
+                    )
+                    return duplicate_id
+
             if existing_row:
                 event_id = existing_row[0]
                 conn.execute(
@@ -671,6 +707,7 @@ class UnifiedEventsService:
                         organizer_id = COALESCE(:organizer_id, organizer_id),
                         organizer_username = COALESCE(:organizer_username, organizer_username),
                         referral_code = COALESCE(:referral_code, referral_code),
+                        dedupe_key = :dedupe_key,
                         updated_at_utc = NOW()
                     WHERE source = :source AND external_id = :external_id
                 """),
@@ -699,6 +736,7 @@ class UnifiedEventsService:
                         "organizer_id": organizer_id,
                         "organizer_username": organizer_username,
                         "referral_code": referral_code,
+                        "dedupe_key": dedupe_key,
                         "source": source,
                         "external_id": external_id,
                     },
@@ -712,13 +750,13 @@ class UnifiedEventsService:
                      starts_at, ends_at, time_mode, city, lat, lng, location_name, location_name_en,
                      location_url, url, country, is_generated_by_ai, status,
                      current_participants, place_id, organizer_id, categories, raw_category,
-                     community_name, community_link, chat_id, organizer_username, referral_code)
+                     community_name, community_link, chat_id, organizer_username, referral_code, dedupe_key)
                     VALUES
                     (:source, :external_id, 'parser', :title, :title_en, :description, :description_en,
                      :starts_at, :ends_at, :time_mode, :city, :lat, :lng, :location_name, :location_name_en,
                      :location_url, :url, :country, :is_ai, :status, 0, :place_id, :organizer_id,
                      CAST(:categories AS jsonb), :raw_category,
-                     :community_name, :community_link, :chat_id, :organizer_username, :referral_code)
+                     :community_name, :community_link, :chat_id, :organizer_username, :referral_code, :dedupe_key)
                     ON CONFLICT (source, external_id) DO UPDATE SET
                         title = EXCLUDED.title,
                         title_en = EXCLUDED.title_en,
@@ -744,7 +782,8 @@ class UnifiedEventsService:
                         chat_id = COALESCE(EXCLUDED.chat_id, events.chat_id),
                         organizer_id = COALESCE(EXCLUDED.organizer_id, events.organizer_id),
                         organizer_username = COALESCE(EXCLUDED.organizer_username, events.organizer_username),
-                        referral_code = COALESCE(EXCLUDED.referral_code, events.referral_code)
+                        referral_code = COALESCE(EXCLUDED.referral_code, events.referral_code),
+                        dedupe_key = COALESCE(EXCLUDED.dedupe_key, events.dedupe_key)
                     RETURNING id
                 """),
                     {
@@ -776,6 +815,7 @@ class UnifiedEventsService:
                         "organizer_id": organizer_id,
                         "organizer_username": organizer_username,
                         "referral_code": referral_code,
+                        "dedupe_key": dedupe_key,
                     },
                 )
                 event_id = result.fetchone()[0]
