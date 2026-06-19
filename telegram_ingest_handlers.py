@@ -112,27 +112,29 @@ async def _register_ingest_source(message: types.Message, bot, target: str, trus
     await message.answer(
         f"✅ Источник добавлен\n"
         f"• ID: {source.id}\n"
-        f"• chat_id: `{source.chat_id}`\n"
-        f"• title: {source.title}\n"
-        f"• trust: {source.trust_level}\n"
-        f"• city: {source.default_city} ({source.timezone})\n\n"
+        f"• chat_id: <code>{source.chat_id}</code>\n"
+        f"• title: {html.escape(source.title or '—')}\n"
+        f"• trust: {html.escape(source.trust_level or '—')}\n"
+        f"• city: {html.escape(source.default_city or '—')} ({html.escape(source.timezone or '—')})\n\n"
         f"Userbot должен быть подписан на этот канал.",
-        parse_mode="Markdown",
+        parse_mode="HTML",
     )
 
 
 def _format_sources_list(sources) -> tuple[str, InlineKeyboardMarkup | None]:
     if not sources:
         return (
-            "Список источников пуст. Добавь: `/add_source @channel moderated`",
+            "Список источников пуст. Добавь: <code>/add_source @channel moderated</code>",
             None,
         )
-    lines = ["📡 **Telegram sources:**\n"]
+    lines = ["📡 <b>Telegram sources:</b>\n"]
     buttons: list[list[InlineKeyboardButton]] = []
     for s in sources:
         status = "🟢" if s.is_active else "⚫"
         uname = f"@{s.username}" if s.username else "—"
-        lines.append(f"{status} `{s.id}` | {s.title} | {uname} | {s.trust_level}")
+        title = html.escape(s.title or "—")
+        trust = html.escape(s.trust_level or "—")
+        lines.append(f"{status} <code>{s.id}</code> | {title} | {html.escape(uname)} | {trust}")
         action = "off" if s.is_active else "on"
         label = "❌ Выкл" if s.is_active else "✅ Вкл"
         buttons.append([InlineKeyboardButton(text=f"{label} #{s.id}", callback_data=f"tgsrc:{action}:{s.id}")])
@@ -197,7 +199,7 @@ async def cmd_list_sources(message: types.Message):
     engine = get_engine()
     service = TelegramSourcesService(engine)
     text, markup = _format_sources_list(service.list_sources())
-    await message.answer(text, parse_mode="Markdown", reply_markup=markup)
+    await message.answer(text, parse_mode="HTML", reply_markup=markup)
 
 
 @telegram_ingest_router.callback_query(F.data.startswith("tgsrc:"))
@@ -219,7 +221,7 @@ async def on_toggle_source(callback: types.CallbackQuery):
     await callback.answer("Обновлено" if ok else "Не найдено", show_alert=not ok)
     if ok and callback.message:
         text, markup = _format_sources_list(service.list_sources())
-        await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=markup)
+        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=markup)
 
 
 @telegram_ingest_router.message(Command("ingest_stats"))
