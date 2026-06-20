@@ -54,7 +54,10 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
-# Logs
+# TikTok review_url tooling (regeneratable outputs)
+scripts/tiktok_reviews_*.csv
+scripts/tiktok_search_*.txt
+
 *.log
 logs/
 
