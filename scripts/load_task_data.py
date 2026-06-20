@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Скрипт для загрузки шаблонов заданий и мест в БД
+Скрипт для загрузки мест (task_places) в БД.
 """
 
 import json
@@ -11,38 +11,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from config import load_settings
-from database import TaskPlace, TaskTemplate, get_session, init_engine
-
-
-def load_task_templates():
-    """Загрузить шаблоны заданий из JSON"""
-    templates_path = Path(__file__).parent.parent / "seeds" / "task_templates.json"
-
-    if not templates_path.exists():
-        print(f"❌ Файл {templates_path} не найден")
-        return False
-
-    with open(templates_path, encoding="utf-8") as f:
-        templates_data = json.load(f)
-
-    with get_session() as session:
-        # Очищаем существующие шаблоны
-        session.query(TaskTemplate).delete()
-
-        for template_data in templates_data:
-            template = TaskTemplate(
-                category=template_data["category"],
-                place_type=template_data["place_type"],
-                title=template_data["title"],
-                description=template_data["description"],
-                rocket_value=template_data["rocket_value"],
-            )
-            session.add(template)
-
-        session.commit()
-        print(f"✅ Загружено {len(templates_data)} шаблонов заданий")
-
-    return True
+from database import TaskPlace, get_session, init_engine
 
 
 def load_task_places():
@@ -90,19 +59,13 @@ def load_task_places():
 
 def main():
     """Основная функция"""
-    print("🚀 Загрузка данных для функции 'Цель на Районе'")
+    print("🚀 Загрузка мест для квестов (task_places)")
 
-    # Инициализируем БД
     settings = load_settings()
     init_engine(settings.database_url)
 
-    # Загружаем данные
-    success = True
-    success &= load_task_templates()
-    success &= load_task_places()
-
-    if success:
-        print("🎉 Все данные успешно загружены!")
+    if load_task_places():
+        print("🎉 Данные успешно загружены!")
     else:
         print("❌ Произошли ошибки при загрузке данных")
         sys.exit(1)

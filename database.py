@@ -202,25 +202,13 @@ class TaskPlace(Base):
     created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class TaskTemplate(Base):
-    __tablename__ = "task_templates"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    category: Mapped[str] = mapped_column(String(20), nullable=False)  # 'food', 'health', 'places', 'entertainment'
-    place_type: Mapped[str] = mapped_column(String(50), nullable=False)  # 'park', 'cafe', 'library', etc.
-    title: Mapped[str] = mapped_column(String(120), nullable=False)
-    description: Mapped[str] = mapped_column(Text, nullable=False)
-    rocket_value: Mapped[int] = mapped_column(Integer, default=1)
-    created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-
 class DailyViewTasks(Base):
     __tablename__ = "daily_views_tasks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
     view_type: Mapped[str] = mapped_column(String(20), nullable=False)  # 'template', 'place'
-    view_key: Mapped[str] = mapped_column(String(100), nullable=False)  # template_id или place_id
+    view_key: Mapped[str] = mapped_column(String(100), nullable=False)  # place_id
     view_date: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
