@@ -1,6 +1,8 @@
 import pytest
 
 from utils.event_category_manager import (
+    BALIFORUM_KNOWN_TAGS,
+    BALIFORUM_TAG_EN_MAP,
     EventCategoryManager,
     dedupe_categories,
     format_source_display_tags,
@@ -49,6 +51,14 @@ def test_localize_baliforum_tags_en():
     assert localize_baliforum_tags(["Фестиваль", "Музыка"], "en") == ["Festival", "Music"]
     assert localize_baliforum_tags(["Фестиваль", "Музыка"], "ru") == ["Фестиваль", "Музыка"]
     assert localize_baliforum_tags(["Неизвестный тег"], "en") == ["Неизвестный тег"]
+    assert localize_baliforum_tags(["Йога", "Здоровье"], "en") == ["Yoga", "Health"]
+    assert localize_baliforum_tags(["Духовное", "Здоровье"], "en") == ["Spiritual", "Health"]
+
+
+@pytest.mark.no_db
+def test_all_known_baliforum_tags_have_en_translation():
+    missing = sorted(tag for tag in BALIFORUM_KNOWN_TAGS if tag not in BALIFORUM_TAG_EN_MAP)
+    assert missing == [], f"Missing EN map for BaliForum tags: {missing}"
 
 
 @pytest.mark.no_db

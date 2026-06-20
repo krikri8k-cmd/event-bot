@@ -34,7 +34,44 @@ BALIFORUM_TAG_EN_MAP: dict[str, str] = {
     "ремесло": "Crafts",
     "шоу": "Show",
     "стендап": "Stand-up",
+    "здоровье": "Health",
+    "импровизация": "Improv",
+    # internal categories that may appear in raw_category / legacy rows
+    "выставка": "Exhibition",
 }
+
+# All event-type labels currently used on baliforum.ru (for i18n audit).
+BALIFORUM_KNOWN_TAGS: frozenset[str] = frozenset(
+    {
+        "искусство",
+        "вечеринка",
+        "еда",
+        "семья",
+        "йога",
+        "кино",
+        "игра",
+        "напитки",
+        "бизнес",
+        "концерт",
+        "открытый микрофон",
+        "медитация",
+        "тренинг",
+        "фестиваль",
+        "мастер-класс",
+        "духовное",
+        "музыка",
+        "танцы",
+        "дети",
+        "спорт",
+        "живая музыка",
+        "ремесло",
+        "шоу",
+        "стендап",
+        "здоровье",
+        "импровизация",
+        "выставка",
+    }
+)
 
 BALIFORUM_TAG_MAP: dict[str, str] = {
     "выставка": "Выставка",
