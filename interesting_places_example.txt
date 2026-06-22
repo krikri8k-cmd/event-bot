@@ -30,19 +30,15 @@ https://maps.app.goo.gl/smBkmt2Zpd4jxeQT9
 
 places:beach:bali:
 
-# review https://www.tiktok.com/@jasmuller_/video/7534611622329978119
+# review https://www.instagram.com/p/CED7DvLnOBF/
 Balangan Beach
 https://maps.app.goo.gl/ZgQRby6xjhmUsB2u7
 
-# review https://www.tiktok.com/@world.traveler365/video/7641501408885263624
+# review https://www.instagram.com/p/DI_194pSPOb/
 Beach Dreamland
 https://maps.app.goo.gl/1zjhtrcNQwdS1jtt5
 
-# review https://www.tiktok.com/@travelerstamps/video/7547346707646860552
-Bingin Beach
-https://maps.app.goo.gl/PePYKg2jyq4VVtDN8
-
-# review https://www.tiktok.com/@lilleke99/video/7561019384727162134
+# review https://www.instagram.com/p/ChP5T4QF_kI/
 Broken Ship Nunggalan
 https://maps.app.goo.gl/QLuPtrSK8ibdgT3bA
 
@@ -57,26 +53,31 @@ https://maps.app.goo.gl/V7ZDJvVML8d8VeDR6
 Padang Padang Beach
 https://maps.app.goo.gl/4FshR6yMrn654QVc9
 
+# review https://www.instagram.com/p/DN_2I_Rkzdh/
 Pantai Olen
 https://maps.app.goo.gl/Jpw1wqN4bnhjxMtp7
 
+places:cafe:bali:
+
+# review https://www.instagram.com/reel/DWME-PkgrmS/
+Taman Dedari
+https://maps.app.goo.gl/Y54ZqXggyxtsPkUdA
+
 places:cliff:bali:
 
-# review https://www.tiktok.com/@rumilife_official/video/7525793977618943287
+# review https://www.instagram.com/p/C6gD9c4r37U/
 Cliff Jump Tegal Wangi Beach
 https://maps.app.goo.gl/KxxaXhDCDeGGR1BZA
 
-Cliff overlooking the ocean
-https://maps.app.goo.gl/Qt33Kd7zooSMPrUP7
-
-# review https://www.tiktok.com/@_trinipacheco/video/7537450030064651576
+# review https://www.instagram.com/p/C7s2mvRPu8C/
 Dimastos Sunset point
 https://maps.app.goo.gl/gZ1MQ6KRc1FkwEKJ7
 
+# review https://www.instagram.com/p/DX_A3wKqBZO/
 End of route Uluwatu Temple View point
 https://maps.app.goo.gl/vRMrP7soeJfLTn5A6
 
-# review https://www.tiktok.com/@_kadekwawan60/video/7572064873941699858
+# review https://www.instagram.com/p/Col9ZIVDpD8/
 Happy sunset batujaran
 https://maps.app.goo.gl/qMGvDCC7mNvhMa2A6
 
@@ -84,14 +85,11 @@ https://maps.app.goo.gl/qMGvDCC7mNvhMa2A6
 Honeymoon Beach
 https://maps.app.goo.gl/vsnGL8QPGzWGoYPU9
 
-# review https://www.tiktok.com/@kububaliexperience/video/7592931732685409544
+# review https://www.instagram.com/p/DVFgHDyETRS/
 Kubu Beach
 https://maps.app.goo.gl/5kgSoBdmFrq9yKCu6
 
-Leon's Camping
-https://maps.app.goo.gl/2BtZ54fqpng9e1eM8
-
-# review https://www.tiktok.com/@balinextstop/video/7558401454050905355
+# review https://www.instagram.com/p/C7K2b8CSK05/
 Tebing Pantai Balangan
 https://maps.app.goo.gl/T13yovVqvjsKCwUy7
 
@@ -100,13 +98,15 @@ places:culture:bali:
 ADA Studio Paint Art
 https://maps.app.goo.gl/sqVL4UBhxAiP1Eqn7
 
+# review https://www.instagram.com/p/B1PXKFPlFrI/
 Ikat Gallery
 https://maps.app.goo.gl/Crh9xmwnENuee5yA6
 
-# review https://www.tiktok.com/@aksosma.32.badung/video/7563847592564608264
+# review https://www.instagram.com/reel/DZO2UYCSmpj/
 Nyaman Art Gallery
 https://maps.app.goo.gl/hphMXVPAUNWrh9jE8
 
+# review https://www.instagram.com/reel/CIhBQ6_lj82/
 Purpa Fine Art Gallery
 https://maps.app.goo.gl/PSgL7j7TmTGA7APa9
 
@@ -123,9 +123,6 @@ https://maps.app.goo.gl/PZEtbK5bDNhorqZBA
 # review https://www.tiktok.com/@nuanucreativecity/video/7639297831861275925
 Magic Garden
 https://maps.app.goo.gl/wumBjyGxDKHRn37x7
-
-Nuanu Ganesha
-https://maps.app.goo.gl/39HKCtVxrkRYC8nr7
 
 places:temple:bali:
 

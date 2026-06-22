@@ -11,19 +11,15 @@
 
 food:cafe:bali:
 
-# review https://www.tiktok.com/@marcelthernel/video/7623472767794416916
+# review https://www.instagram.com/reel/DT_487YgXQB/
 7AM Bakers
 https://maps.app.goo.gl/YaLypcxY9C2ERPpN6
-
-# review https://www.tiktok.com/@cobicaseybedford/video/7500730279091277063
-7AM Bakers Umalas
-https://maps.app.goo.gl/YU8VEAa6gxiUC86HA
 
 # review https://www.tiktok.com/@bali.adventures2/video/7613943985282780437
 Akamana Grill Garden
 https://maps.app.goo.gl/ZbzKN1L3SJrQW6GR7
 
-# review https://www.instagram.com/reels/DUmPp89ks0G/
+# review https://www.instagram.com/reel/DZ1v0-JTWE_/
 Alchemy Uluwatu
 https://maps.app.goo.gl/4GoSXRrkyRAa1Bnj7
 
@@ -31,10 +27,11 @@ https://maps.app.goo.gl/4GoSXRrkyRAa1Bnj7
 Ambrosia (Kebab & Gourmet)
 https://maps.app.goo.gl/hufMn5pJkQ1CnPcq9|Myguide 10% Discount
 
-# review https://www.instagram.com/reels/DUmPp89ks0G/
+# review https://www.instagram.com/reel/DBFOXLXoAOE/
 AMINO
 https://maps.app.goo.gl/7TMr4U9K3uAcM74q6
 
+# review https://www.instagram.com/reel/Cfnpv5YloE3/
 ARTE Italian
 https://maps.app.goo.gl/XwY5cFPnvZMTSVuq9
 
@@ -42,40 +39,33 @@ https://maps.app.goo.gl/XwY5cFPnvZMTSVuq9
 Bali Beans
 https://maps.app.goo.gl/4aajTSkGw5NS8rR46
 
-# review https://www.tiktok.com/@balibuda/video/7456650855429786887
-Bali Buda
-https://maps.app.goo.gl/b5CQyxZgrp1bqGgC7
-
-# review https://www.tiktok.com/@kane_eatz/video/7648674893030018325
-Bella Cucina
-https://maps.app.goo.gl/g5UTfTnLWhDhB6Bi8
-
-# review https://www.tiktok.com/@adam.setiadii/video/7540606982164696376
+# review https://www.instagram.com/reel/CeyKgijALGJ/
 BGS Bali
 https://maps.app.goo.gl/gx9gR1HKdYsusYY57
 
-# review https://www.tiktok.com/@chaiofthetiger/video/7373992466300685574
+# review https://www.instagram.com/reel/C0LM6ioJU6B/
+Brie
+https://maps.app.goo.gl/hq4dgo4DwbCnSwaz6
+
+# review https://www.instagram.com/reel/DWLLO-Uk2Cn/
 CHAI OF THE TIGER
 https://maps.app.goo.gl/QQUtDbSfMEveg4gk9
 
+# review https://www.instagram.com/p/DZTI-NazUjL/
 Chef's Crate
 https://maps.app.goo.gl/oKTSChgDj5tD6pDx9|BAGUS 11% Discount Food
 
-# review https://www.tiktok.com/@clover.cafe.ubud/video/7374224736491998470
-Clover Cafe
-https://maps.app.goo.gl/g8i6HkWmZg9VdCAo9
-
-# review https://www.tiktok.com/@intankusumasari1/video/7487822307080129800
+# review https://www.instagram.com/reel/DYWMYPeh_ji/
 COARSE & FINE COFFEE
 https://maps.app.goo.gl/DZZnNnUQY5Pn5qNe7
 
-# review https://www.tiktok.com/@martyna.skoniecka/video/7548827923122359574
+# review https://www.instagram.com/reel/DW2lZJwD_dK/
+Copenhagen
+https://maps.app.goo.gl/UWF3XD51EzGqcFAH8
+
+# review https://www.instagram.com/reel/DS_66Qnj_8X/
 Copenhagen
 https://maps.app.goo.gl/QAyLberkARdXSAJ18
-
-# review https://www.tiktok.com/@bali.cafe.diary/video/7640522400731352340
-Copenhagen Berawa
-https://maps.app.goo.gl/VQc62YowARhVjvHZ7
 
 # review https://www.tiktok.com/@dangcookies/video/7539395416765304069
 Dang! Cookies
@@ -85,24 +75,17 @@ https://maps.app.goo.gl/m4SuRQAEgCFu8prM9
 EASY CAFE
 https://maps.app.goo.gl/WCpZcp6Vcfm3HZkU8
 
-# review https://www.tiktok.com/@infonongkrongjogja/video/7440061729561693495
-Element Restaurant
-https://maps.app.goo.gl/95jwJMwXJQZ7iQ3j8
-
-# review https://www.tiktok.com/@ugekunyik/video/7525421468952431877
+# review https://www.instagram.com/reel/DZKLT9WBZCy/
 Feel Food Cafe
 https://maps.app.goo.gl/dDdaLhjxnoPDnqGL9
 
-# review https://www.tiktok.com/@odikabayu/video/7371039720794623237
+# review https://www.instagram.com/reel/DWtF6N2ibW9/
 Foodology Ubud
 https://maps.app.goo.gl/kukAZLpp2aJLdEb78
 
-# review https://www.tiktok.com/@annisasyifaan/video/7472054424978902277
+# review https://www.instagram.com/reel/DXOjAbOjwcJ/
 Green Rabbit
 https://maps.app.goo.gl/kvV9XZXKMwFW1jJc6
-
-HOME Cafe JATAYU
-https://maps.app.goo.gl/C17xqumKLHAhHLPbA
 
 Honey Murena - Asian & Uzbek Restaraunt, Cocktail Bar
 https://maps.app.goo.gl/UCbuDjRHrYndRBfW7|HONEY 10% Discount
@@ -111,9 +94,11 @@ https://maps.app.goo.gl/UCbuDjRHrYndRBfW7|HONEY 10% Discount
 Hungry Bird Coffee Roaster
 https://maps.app.goo.gl/eYtrPbbou7GLTnuG6
 
+# review https://www.instagram.com/reel/DS8Zx_Wk6pVr92Ivo5nsB35SD6I4FUrL0sJE0Q0/
 Iraga Coffee & Roastery
 https://maps.app.goo.gl/vZg5VUVVVnBNYVvUA
 
+# review https://www.instagram.com/reel/DZMCTMZiSNM/
 JUST KITCHEN Georgian
 https://maps.app.goo.gl/ruK5C8tLtc8M4CHg8
 
@@ -121,17 +106,12 @@ https://maps.app.goo.gl/ruK5C8tLtc8M4CHg8
 KAI Cafe & Bar
 https://maps.app.goo.gl/nDRGwfdgDFZ42Tsm7
 
-# review https://www.tiktok.com/@kalos.bali/video/7428874185847344389
+# review https://www.instagram.com/reel/DX3hZ1WxPB9/
 Kalos Bali
 https://maps.app.goo.gl/9Pby1V1zHB1oADuz7
 
-# review https://www.instagram.com/reels/DUmPp89ks0G/
 Kisik
 https://maps.app.goo.gl/mbfcvS2qnRqpNNwj8
-
-# review https://www.tiktok.com/@bloucafecanggu/video/7633704170490498324
-Koloni
-https://maps.app.goo.gl/HMK1vxkwXYLQcSbb9
 
 # review https://www.instagram.com/p/DLe3BPgK1Cr/
 Koral - Bali’s First Aquarium Restaurant
@@ -161,27 +141,23 @@ https://maps.app.goo.gl/jBrehhSxMNwoxons8
 Mamma Mia Pizza & Pasta
 https://maps.app.goo.gl/GzF7LBnTnE2KbsPN7
 
-# review https://www.tiktok.com/@margaretbistro/video/7647454205086551314
-Margaret Bistro
-https://maps.app.goo.gl/em67D6jeyBpF8ZMp9
-
 # review https://www.tiktok.com/@marrooshbali/video/7502051024509635845
 Marroosh Bali
 https://maps.app.goo.gl/Wfx2WJLfnkdYojv79
 
-# review https://www.tiktok.com/@balifoodandtravels/video/7602544501537688840
+# review https://www.instagram.com/p/DV8lm95if8b/
 Matcha Cafe
 https://maps.app.goo.gl/u6SdkJVURiBoov43A
 
-# review https://www.tiktok.com/@milkandmadu/video/7590628629818739989
+# review https://www.instagram.com/p/DUMuudJjepY/
 Milk madu
 https://maps.app.goo.gl/rupivjcrXn3wMhHG6
 
-# review https://www.tiktok.com/@odikabayu/video/7502031444525567240
+# review https://www.instagram.com/reel/DXHH9FiGt0k/
 Monsieur Spoon
 https://maps.app.goo.gl/LfTWWzvEVuGYYGgA8
 
-# review https://www.tiktok.com/@odikabayu/video/7502031444525567240
+# review https://www.instagram.com/reel/DRmSQeDD9px/
 Monsieur Spoon
 https://maps.app.goo.gl/5HevzuSCQoFhjj2F6
 
@@ -193,15 +169,11 @@ https://maps.app.goo.gl/3btMPaFiY6V7zMZ99|My guide 10% Discount
 Muse Cafe & Art
 https://maps.app.goo.gl/KM8s7zxZtZr2DxGLA
 
-# review https://www.tiktok.com/@jalanbarengawan/video/7175019690652126490
-Nook
-https://maps.app.goo.gl/CKyGvx1G15Y3MQr69
-
 # review https://www.tiktok.com/@nostimo.bali/video/7194642758374657306
 Nostimo Greek Grill
 https://maps.app.goo.gl/7xq5GsnPK2j9XCXaA
 
-# review https://www.tiktok.com/@nudebali/video/7600698264681303314
+# review https://www.instagram.com/reel/DZlms0tPSKi/
 Nüde cafe
 https://maps.app.goo.gl/5M3tHYB6Fiue9Doz5
 
@@ -213,19 +185,19 @@ https://maps.app.goo.gl/jFDqhbx1NKUbMc6e6|EVENT
 Rabbithole
 https://maps.app.goo.gl/5QFPHAa5ZfPCY4jWA
 
-# review https://www.instagram.com/reels/DUmPp89ks0G/
+# review https://www.instagram.com/reel/DREC0oEk2B4/
 Rasgulai
 https://maps.app.goo.gl/pUexMB6abDt97Txd8
 
-# review https://www.instagram.com/reels/DUmPp89ks0G/
+# review https://www.instagram.com/reel/C7G0ZBuScWP/
 Rock Bar
 https://maps.app.goo.gl/k4t61RS1SEXkgLS59
 
-# review https://www.instagram.com/reels/DUmPp89ks0G/
+# review https://www.instagram.com/reel/DTcGO8Ikvic/
 Rolling Fork
 https://maps.app.goo.gl/8G3WZVk3bSR3TkGj7
 
-# review https://www.tiktok.com/@baliwisatakuliner/video/7236023531635625221
+# review https://www.instagram.com/reel/DWfkMV9AsP1/
 RÜSTERS
 https://maps.app.goo.gl/nVaKCZhP33F7thKC7
 
@@ -233,11 +205,11 @@ https://maps.app.goo.gl/nVaKCZhP33F7thKC7
 Sala Bistro Ubud
 https://maps.app.goo.gl/asCq5mx4dxvXPLp59
 
-# review https://www.instagram.com/reels/DUmPp89ks0G/
+# review https://www.instagram.com/reel/DZm4OyaJe6P/
 Salad Lab
 https://maps.app.goo.gl/6cEGjmRFqzxi3VUj8
 
-# review https://www.tiktok.com/@lewislangford/video/7643662475128245525
+# review https://www.instagram.com/p/CX3nrdiFPBf/?img_index=1
 Satu Mangkok
 https://maps.app.goo.gl/MtoDfKewEngfvmRg7
 
@@ -245,18 +217,19 @@ https://maps.app.goo.gl/MtoDfKewEngfvmRg7
 SATUSATU COFFEE
 https://maps.app.goo.gl/Se4JmGvLELjmDPeG7
 
-# review https://www.instagram.com/reels/DUmPp89ks0G/
+# review https://www.instagram.com/reel/DSR9KAgEali/
 Segaran Terrace
 https://maps.app.goo.gl/1mHkJaLtWL3Lyjo8A
 
-# review https://www.tiktok.com/@marcusapi/video/7379964755324292358
+# review https://www.instagram.com/reel/DZxYCZ9CKlo/
 Sinamon Bali Ubud
 https://maps.app.goo.gl/2rtvrDCYPJAhcQMc8
 
-# review https://www.instagram.com/reels/DUmPp89ks0G/
+# review https://www.instagram.com/reel/DUDG6htknEX/
 Single Fin Bali
 https://maps.app.goo.gl/zjTauwf16TDPBZwE8
 
+# review https://www.instagram.com/reel/DSB1Hwjgfbq/
 Slavic Roots
 https://maps.app.goo.gl/93YopYYK1UmfnU426
 
@@ -264,21 +237,17 @@ https://maps.app.goo.gl/93YopYYK1UmfnU426
 ST. ALi - Bali
 https://maps.app.goo.gl/wV7wi5xP9hZ4eqHF6
 
-# review https://www.tiktok.com/@theforeignsun/video/7414016343680371973
+# review https://www.instagram.com/reel/CiQ_0qjh9Pz/
 Sun Sun Warung
 https://maps.app.goo.gl/moUgJxNt8f3hEtNYA
 
-# review https://www.tiktok.com/@odikabayu/video/7190952213714341146
+# review https://www.instagram.com/reel/DZl6k4GTlnc/
 Sunkiss Restaurant
 https://maps.app.goo.gl/caii3qWjjU6n22iu9
 
 # review https://www.tiktok.com/@syrcobase/video/7562101605579951372
 Syrco BASÈ
 https://maps.app.goo.gl/rZkogdRtkRRFiPv46
-
-# review https://www.tiktok.com/@foryoubali/video/7385355452902542597
-Taman Dedari
-https://maps.app.goo.gl/Y54ZqXggyxtsPkUdA
 
 # review https://www.tiktok.com/@arewehavingdessert/video/7519035864186588418
 Teamo
@@ -288,11 +257,11 @@ https://maps.app.goo.gl/iV8pnWAqiPfZgvA48
 The Avocado Factory
 https://maps.app.goo.gl/Ks2NFtvfuHich97v7
 
-# review https://www.instagram.com/reels/DUmPp89ks0G/
+# review https://www.instagram.com/reel/DXvWNbHxts-/
 The Cashew Tree
 https://maps.app.goo.gl/ZYcrJ7vAJQXuypnG8
 
-# review https://www.instagram.com/reels/DUmPp89ks0G/
+# review https://www.instagram.com/reel/DWVpglbgPLc/
 The Chai Tea House
 https://maps.app.goo.gl/B6j8gH85uCCTCs3L7
 
@@ -308,20 +277,28 @@ https://maps.app.goo.gl/54iBu5mVujstVRq2A
 Touché
 https://maps.app.goo.gl/A1pdwZ42FQBQyto78
 
-# review https://www.tiktok.com/@petualanganhari/video/7410033614521486597
+# review https://www.instagram.com/reel/DSUDx9-ju8s/
 UNIBOWL PokeBowl Bali
 https://maps.app.goo.gl/9jYjf3FjxmGQVzz88
 
+# review https://www.instagram.com/reel/DSW59OpEvOO/
 Usha Cafe&Bakery
 https://maps.app.goo.gl/frzG51H3ijLPqEc46
 
-# review https://www.tiktok.com/@eddyhartawan91/video/7650072195443920136
+# review https://www.instagram.com/reel/DXTYAAQkl-8/
+Usha Canggu
+https://maps.app.goo.gl/5oYzpVaYiRHLRK3f8
+
+# review https://www.instagram.com/reel/DYKUxnSTGQc/
 WORD.BALI
 https://maps.app.goo.gl/chLspLCopdf8fcjv6
 
-# review https://www.tiktok.com/@rickydsbali/video/7461982954646932741
+# review https://www.instagram.com/reel/DYuAYjRysoi/
 Zest
 https://maps.app.goo.gl/kZTLwrjqYeyV2pc47
+
+# review https://www.instagram.com/reel/DZOdMVPhz-n/
+https://maps.app.goo.gl/T8s9tj1njmG226ydA
 
 food:coworking:bali:
 
@@ -329,11 +306,10 @@ food:coworking:bali:
 Outpost Coworking
 https://maps.app.goo.gl/XwXkQUjqBqKDGbbe9
 
-# review https://www.tiktok.com/@balitravelfolder/video/7325290566948818181
 Ubud Co-Working
 https://maps.app.goo.gl/ESprcxfxCAKYF7WT9
 
-# review https://www.tiktok.com/@antonutama0/video/7651089536541379861
+# review https://www.instagram.com/reel/DZT_XIMxQBe/
 Ubud.Space
 https://maps.app.goo.gl/eKYSgaKM71YytMfy5
 
