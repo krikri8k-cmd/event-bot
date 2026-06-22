@@ -14,6 +14,6 @@ if sys.stdout.encoding != "utf-8":
 print("DEPRECATED: run_add_places.py больше не импортирует места из food_places_example.txt.")
 print("  Канон — production task_places в Postgres (@MyGuide).")
 print("  Обновить файлы из БД:")
-print("    railway run -e production python scripts/export_task_places_to_example_files.py")
+print("    railway run -e production -s event-bot python scripts/export_task_places_to_example_files.py --production")
 print("  Правки мест — Railway UI или scripts/deactivate_task_place.py")
 sys.exit(1)

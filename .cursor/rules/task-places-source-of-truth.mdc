@@ -38,8 +38,8 @@ alwaysApply: true
 - **Новые места:** только целевые скрипты с `--dry-run` и подтверждением; не трогать проверенные строки.
 - **Develop:** не подменяет канон; при расхождении ориентир — production `task_places`.
 - **Синхронизация файлов с БД** (после правок в production):
-  - `railway run -e production python scripts/export_task_places_to_example_files.py`
-  - проверка: `railway run -e production python scripts/compare_task_places_with_files.py`
+  - `railway run -e production -s event-bot python scripts/export_task_places_to_example_files.py --production`
+  - проверка: `railway run -e production -s event-bot python scripts/compare_task_places_with_files.py --production`
 - Файлы `*_places_example.txt` — зеркало production `task_places`, не редактировать вручную без последующей сверки.
 
 ## Поля

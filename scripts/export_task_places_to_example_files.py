@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -18,8 +19,8 @@ if sys.stdout.encoding != "utf-8":
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from config import load_settings  # noqa: E402
 from database import TaskPlace, get_session, init_engine  # noqa: E402
+from utils.task_places_export_db import database_host_hint, resolve_task_places_database_url  # noqa: E402
 from utils.task_places_safety import MIRROR_HEADER  # noqa: E402
 
 CATEGORY_FILES = {
@@ -94,13 +95,20 @@ def _build_category_content(category: str, places: list[TaskPlace]) -> str:
 
 
 def main() -> int:
-    dry_run = "--dry-run" in sys.argv
-    settings = load_settings()
-    if not settings.database_url:
-        print("ERROR: DATABASE_URL не задан", file=sys.stderr)
-        return 1
+    parser = argparse.ArgumentParser(description="Экспорт task_places → *_places_example.txt")
+    parser.add_argument(
+        "--production",
+        action="store_true",
+        help="production Postgres (@MyGuide), не develop из APP_ENV=dev",
+    )
+    parser.add_argument("--dry-run", action="store_true", help="не записывать файлы")
+    args = parser.parse_args()
 
-    init_engine(settings.database_url)
+    db_url = resolve_task_places_database_url(production=args.production)
+    tier = "production" if args.production else "develop/local"
+    print(f"БД ({tier}): {database_host_hint(db_url)}")
+
+    init_engine(db_url)
     with get_session() as session:
         places = session.query(TaskPlace).filter(TaskPlace.is_active.is_(True)).order_by(TaskPlace.id).all()
 
@@ -115,11 +123,11 @@ def main() -> int:
         out = project_root / fname
         count = len(by_category.get(cat, []))
         print(f"  {fname}: {count} мест")
-        if dry_run:
+        if args.dry_run:
             continue
         out.write_text(content, encoding="utf-8")
 
-    if dry_run:
+    if args.dry_run:
         print("DRY RUN — файлы не записаны")
     else:
         print("OK — файлы обновлены")

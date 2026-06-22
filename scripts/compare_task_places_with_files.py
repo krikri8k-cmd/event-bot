@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -18,8 +19,8 @@ if sys.stdout.encoding != "utf-8":
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from config import load_settings  # noqa: E402
 from database import TaskPlace, get_session, init_engine  # noqa: E402
+from utils.task_places_export_db import database_host_hint, resolve_task_places_database_url  # noqa: E402
 
 PLACE_FILES = [
     "food_places_example.txt",
@@ -103,24 +104,31 @@ def parse_simple_file_quiet(file_path: Path) -> list[dict]:
     return result
 
 
-def load_db_places() -> list[TaskPlace]:
-    settings = load_settings()
-    if not settings.database_url:
-        print("ERROR: DATABASE_URL не задан", file=sys.stderr)
-        sys.exit(1)
-    init_engine(settings.database_url)
+def load_db_places(*, production: bool) -> list[TaskPlace]:
+    db_url = resolve_task_places_database_url(production=production)
+    tier = "production" if production else "develop/local"
+    print(f"БД ({tier}): {database_host_hint(db_url)}")
+    init_engine(db_url)
     with get_session() as session:
         return session.query(TaskPlace).order_by(TaskPlace.id).all()
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Сверка *_places_example.txt с task_places")
+    parser.add_argument(
+        "--production",
+        action="store_true",
+        help="production Postgres (@MyGuide), не develop из APP_ENV=dev",
+    )
+    args = parser.parse_args()
+
     file_entries: list[dict] = []
     for fname in PLACE_FILES:
         path = project_root / fname
         if path.exists():
             file_entries.extend(parse_simple_file_quiet(path))
 
-    db_places = load_db_places()
+    db_places = load_db_places(production=args.production)
     active_db = [p for p in db_places if p.is_active]
     inactive_db = [p for p in db_places if not p.is_active]
 

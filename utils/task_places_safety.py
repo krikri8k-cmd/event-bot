@@ -17,9 +17,10 @@ EXAMPLE_MIRROR_FILES = frozenset(
 
 MIRROR_HEADER = """# ЗЕРКАЛО production task_places — НЕ импортировать в БД.
 # Бот (@MyGuide) читает только Postgres. Направление: таблица → файлы.
-# Обновить из БД: railway run -e production python scripts/export_task_places_to_example_files.py
-# Проверка:       railway run -e production python scripts/compare_task_places_with_files.py
-# Правки мест:    Railway UI или точечный SQL (не add_places_from_simple_file.py для этих файлов).
+# Export prod: python scripts/export_task_places_to_example_files.py --production
+#   через: railway run -e production -s event-bot
+# Compare prod: python scripts/compare_task_places_with_files.py --production
+# Правки мест: Railway UI или точечный SQL (не add_places_from_simple_file.py для этих файлов).
 """
 
 
