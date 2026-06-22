@@ -1,446 +1,350 @@
 # Файл для добавления food мест
+# Сгенерировано из task_places (Postgres). Не править вручную без синхронизации с БД.
 # Формат: food:place_type:region:promo_code
-# Затем ссылки на Google Maps (по одной на строку)
-# Промокод можно указать после ссылки через | (приоритетнее)
-
-# ============================================
-# МОСКВА
-# ============================================
-
-# Кафе в Москве
-food:cafe:moscow:
-https://maps.google.com/?cid=123456789
-
-# Рестораны в Москве
-food:restaurant:moscow:
-https://maps.google.com/?cid=111222333
-https://maps.google.com/?cid=444555666
-
-# Уличная еда в Москве
-food:street_food:moscow:
-https://maps.google.com/?cid=555666777
-
-# Рынки в Москве
-food:market:moscow:
-https://maps.google.com/?cid=777888999
-
-# Пекарни в Москве
-food:bakery:moscow:
-https://maps.google.com/?cid=999000111|BAKE20
-
-# Коворкинг-кафе в Москве
-food:coworking:moscow:
-https://maps.google.com/?cid=111222333
-
-# ============================================
-# САНКТ-ПЕТЕРБУРГ
-# ============================================
-
-# Кафе в СПб
-food:cafe:spb:
-https://maps.google.com/?cid=123456789
-
-# Рестораны в СПб
-food:restaurant:spb:
-https://maps.google.com/?cid=111222333
-https://maps.google.com/?cid=444555666
-
-# Уличная еда в СПб
-food:street_food:spb:
-https://maps.google.com/?cid=555666777
-
-# Рынки в СПб
-food:market:spb:
-https://maps.google.com/?cid=777888999
-
-# Пекарни в СПб
-food:bakery:spb:
-https://maps.google.com/?cid=999000111|BAKE20
-
-# Коворкинг-кафе в СПб
-food:coworking:spb:
-https://maps.google.com/?cid=111222333
+# Затем: название (опционально), ссылка Google Maps, промокод через |
 
 # ============================================
 # БАЛИ
 # ============================================
 
-# Кафе на Бали
 food:cafe:bali:
 
-Кафе Убуд 
+# review https://www.tiktok.com/@marcelthernel/video/7623472767794416916
+7AM Bakers
+https://maps.app.goo.gl/YaLypcxY9C2ERPpN6
 
+# review https://www.tiktok.com/@cobicaseybedford/video/7500730279091277063
+7AM Bakers Umalas
+https://maps.app.goo.gl/YU8VEAa6gxiUC86HA
+
+# review https://www.tiktok.com/@bali.adventures2/video/7613943985282780437
+Akamana Grill Garden
+https://maps.app.goo.gl/ZbzKN1L3SJrQW6GR7
+
+# review https://www.instagram.com/reels/DUmPp89ks0G/
+Alchemy Uluwatu
+https://maps.app.goo.gl/4GoSXRrkyRAa1Bnj7
+
+# review https://www.tiktok.com/@travelwithholl/video/7630472168555466006
 Ambrosia (Kebab & Gourmet)
 https://maps.app.goo.gl/hufMn5pJkQ1CnPcq9|Myguide 10% Discount
 
-Usha Cafe&Bakery
-https://maps.app.goo.gl/frzG51H3ijLPqEc46
+# review https://www.instagram.com/reels/DUmPp89ks0G/
+AMINO
+https://maps.app.goo.gl/7TMr4U9K3uAcM74q6
 
-COARSE & FINE COFFEE 
-https://maps.app.goo.gl/DZZnNnUQY5Pn5qNe7
+ARTE Italian
+https://maps.app.goo.gl/XwY5cFPnvZMTSVuq9
 
-Nostimo Greek Grill 
-https://maps.app.goo.gl/7xq5GsnPK2j9XCXaA
+# review https://www.tiktok.com/@balibeanscoffeeandco/video/7488635036921629960
+Bali Beans
+https://maps.app.goo.gl/4aajTSkGw5NS8rR46
 
-Merlin's
-https://maps.app.goo.gl/kZTLwrjqYeyV2pc47
+# review https://www.tiktok.com/@balibuda/video/7456650855429786887
+Bali Buda
+https://maps.app.goo.gl/b5CQyxZgrp1bqGgC7
 
-Taco Casa Fresh Mexican Grill
-https://maps.app.goo.gl/78CPNPD9Qhh1rf5E8
+# review https://www.tiktok.com/@kane_eatz/video/7648674893030018325
+Bella Cucina
+https://maps.app.goo.gl/g5UTfTnLWhDhB6Bi8
 
-Mamma Mia Pizza & Pasta
-https://maps.app.goo.gl/GzF7LBnTnE2KbsPN7
+# review https://www.tiktok.com/@adam.setiadii/video/7540606982164696376
+BGS Bali
+https://maps.app.goo.gl/gx9gR1HKdYsusYY57
 
-Pison 
-https://maps.app.goo.gl/Cwzy8NxQTNcif4m48
-
-Monsieur Spoon 
-https://maps.app.goo.gl/LfTWWzvEVuGYYGgA8
-
-FLOCK BALI
-https://maps.app.goo.gl/4XNRAm7Cmr1N9DEv7
-
-HOME Cafe JATAYU 
-https://maps.app.goo.gl/C17xqumKLHAhHLPbA
-
-GENIO by twist
-https://maps.app.goo.gl/Rdm1hWMzMmkmjXC29
-
-CHAI OF THE TIGER 
+# review https://www.tiktok.com/@chaiofthetiger/video/7373992466300685574
+CHAI OF THE TIGER
 https://maps.app.goo.gl/QQUtDbSfMEveg4gk9
 
-Sayuri Healing Food
-https://maps.app.goo.gl/Pj8aYgDL5Yi1xTLC9
+Chef's Crate
+https://maps.app.goo.gl/oKTSChgDj5tD6pDx9|BAGUS 11% Discount Food
 
-Sunkiss Restaurant
-https://maps.app.goo.gl/caii3qWjjU6n22iu9
+# review https://www.tiktok.com/@clover.cafe.ubud/video/7374224736491998470
+Clover Cafe
+https://maps.app.goo.gl/g8i6HkWmZg9VdCAo9
 
-Iraga Coffee & Roastery
-https://maps.app.goo.gl/vZg5VUVVVnBNYVvUA
+# review https://www.tiktok.com/@intankusumasari1/video/7487822307080129800
+COARSE & FINE COFFEE
+https://maps.app.goo.gl/DZZnNnUQY5Pn5qNe7
 
-Livingstone Holyground
-https://maps.app.goo.gl/jXaKQ2axUkTL55fC6
+# review https://www.tiktok.com/@martyna.skoniecka/video/7548827923122359574
+Copenhagen
+https://maps.app.goo.gl/QAyLberkARdXSAJ18
 
-Akamana Grill Garden 
-https://maps.app.goo.gl/ZbzKN1L3SJrQW6GR7
+# review https://www.tiktok.com/@bali.cafe.diary/video/7640522400731352340
+Copenhagen Berawa
+https://maps.app.goo.gl/VQc62YowARhVjvHZ7
 
-Syrco BASÈ 
-https://maps.app.goo.gl/rZkogdRtkRRFiPv46
+# review https://www.tiktok.com/@dangcookies/video/7539395416765304069
+Dang! Cookies
+https://maps.app.goo.gl/m4SuRQAEgCFu8prM9
 
-Melali Ubud
-https://maps.app.goo.gl/ratCzGjijV5fTMbq6
+# review https://www.instagram.com/reels/DUmPp89ks0G/
+EASY CAFE
+https://maps.app.goo.gl/WCpZcp6Vcfm3HZkU8
 
-Bali Buda Ubud
-https://maps.app.goo.gl/MqJEap24UH7NduDD7
-
-Sun Sun Warung
-https://maps.app.goo.gl/moUgJxNt8f3hEtNYA
-
-Muse Cafe & Art 
-https://maps.app.goo.gl/KM8s7zxZtZr2DxGLA
-
-Milk & Madu Ubud
-Milk madu
-https://maps.app.goo.gl/rupivjcrXn3wMhHG6
-
-La Baracca Bali (Ubud)
-https://maps.app.goo.gl/Eynn75PuVMgXvv6UA
-
-Sinamon Bali Ubud
-https://maps.app.goo.gl/2rtvrDCYPJAhcQMc8
-
-Sala Bistro Ubud
-https://maps.app.goo.gl/asCq5mx4dxvXPLp59
-
-Plant Bistro
-https://maps.app.goo.gl/nUoUXoCJdR4weSdY7
-
-Zest
-https://maps.app.goo.gl/kZTLwrjqYeyV2pc47
-
+# review https://www.tiktok.com/@infonongkrongjogja/video/7440061729561693495
 Element Restaurant
 https://maps.app.goo.gl/95jwJMwXJQZ7iQ3j8
 
-Clover Cafe 
-https://maps.app.goo.gl/g8i6HkWmZg9VdCAo9
+# review https://www.tiktok.com/@ugekunyik/video/7525421468952431877
+Feel Food Cafe
+https://maps.app.goo.gl/dDdaLhjxnoPDnqGL9
 
-Brie
-https://maps.app.goo.gl/hq4dgo4DwbCnSwaz6
-
-Alchemy Bali
-https://maps.app.goo.gl/RubVPUhgDWTdQxHC8
-
-Green Rabbit
-https://maps.app.goo.gl/kvV9XZXKMwFW1jJc6
-
-TYGR UBUD
-https://maps.app.goo.gl/tzpWmT5qEtfu4Vrw7
-
-BGS Ubud 
-https://maps.app.goo.gl/hiWkqQU4SjEZ4Q9a9
-
+# review https://www.tiktok.com/@odikabayu/video/7371039720794623237
 Foodology Ubud
 https://maps.app.goo.gl/kukAZLpp2aJLdEb78
 
-Taman Dedari
-https://maps.app.goo.gl/Y54ZqXggyxtsPkUdA
+# review https://www.tiktok.com/@annisasyifaan/video/7472054424978902277
+Green Rabbit
+https://maps.app.goo.gl/kvV9XZXKMwFW1jJc6
 
-RÜSTERS
-https://maps.app.goo.gl/nVaKCZhP33F7thKC7
-
-Locavore NXT
-https://maps.app.goo.gl/EEWH9jYgjVoAnYLu5
-
-Titi Batu 
-https://maps.app.goo.gl/54iBu5mVujstVRq2A
-
-Satu Mangkok 
-https://maps.app.goo.gl/MtoDfKewEngfvmRg7
-
-WORD.BALI 
-https://maps.app.goo.gl/chLspLCopdf8fcjv6
-
-Kalos Bali
-https://maps.app.goo.gl/9Pby1V1zHB1oADuz7
-
-Кафе Чангу
-
-
-# @nastya.mavi | review https://www.instagram.com/p/DYWfiL8uCDx/
-Tiflis Canggu
-https://maps.app.goo.gl/w5PsjQvXhsSvncwe6
-
-# @dimin10 | review https://www.instagram.com/p/C_4l6odSURX/
-Tiflis Umalas
-https://maps.app.goo.gl/yKhd7ygv8w5EWwr76
-
-# @nastya.mavi | review https://www.instagram.com/p/DMM6QZnv_96/
-Milano
-https://maps.app.goo.gl/R1Yx6AVfVmxdPprW9
-
-# @nastya.mavi | review https://www.instagram.com/p/DMNZ3ExPMIV/
-Alma Tapas Bar
-https://maps.app.goo.gl/kKn84wF6DQKcbHoZ9
-
-Murmur Restaurant Lounge
-https://maps.app.goo.gl/3btMPaFiY6V7zMZ99|My guide 10% Discount
+HOME Cafe JATAYU
+https://maps.app.goo.gl/C17xqumKLHAhHLPbA
 
 Honey Murena - Asian & Uzbek Restaraunt, Cocktail Bar
 https://maps.app.goo.gl/UCbuDjRHrYndRBfW7|HONEY 10% Discount
 
-Chef's Crate
-https://maps.app.goo.gl/oKTSChgDj5tD6pDx9|BAGUS 11% Discount Food
+# review https://www.tiktok.com/@hungrybirdbali/video/6952657492656672001
+Hungry Bird Coffee Roaster
+https://maps.app.goo.gl/eYtrPbbou7GLTnuG6
 
-UNIBOWL PokeBowl Bali
-https://maps.app.goo.gl/9jYjf3FjxmGQVzz88
-
-Nüde cafe 
-https://maps.app.goo.gl/5M3tHYB6Fiue9Doz5
-
-7AM Bakers Umalas
-https://maps.app.goo.gl/YU8VEAa6gxiUC86HA
-
-La Casetta
-https://maps.app.goo.gl/XBXa8nRt2LKNTkeK9
-
-Usha Canggu
-https://maps.app.goo.gl/5oYzpVaYiRHLRK3f8
+Iraga Coffee & Roastery
+https://maps.app.goo.gl/vZg5VUVVVnBNYVvUA
 
 JUST KITCHEN Georgian
 https://maps.app.goo.gl/ruK5C8tLtc8M4CHg8
 
-Bali Beans
-https://maps.app.goo.gl/4aajTSkGw5NS8rR46
-
-Nook
-https://maps.app.goo.gl/CKyGvx1G15Y3MQr69
-
-Nyom Nyom 
-https://maps.app.goo.gl/zeh6mFFsoL8wNp316
-
-SATUSATU COFFEE 
-https://maps.app.goo.gl/Se4JmGvLELjmDPeG7
-
-Slavic Roots 
-https://maps.app.goo.gl/93YopYYK1UmfnU426
-
+# review https://www.tiktok.com/@kaicafeberawa/video/7320103120527281409
 KAI Cafe & Bar
 https://maps.app.goo.gl/nDRGwfdgDFZ42Tsm7
 
+# review https://www.tiktok.com/@kalos.bali/video/7428874185847344389
+Kalos Bali
+https://maps.app.goo.gl/9Pby1V1zHB1oADuz7
+
+# review https://www.instagram.com/reels/DUmPp89ks0G/
+Kisik
+https://maps.app.goo.gl/mbfcvS2qnRqpNNwj8
+
+# review https://www.tiktok.com/@bloucafecanggu/video/7633704170490498324
 Koloni
 https://maps.app.goo.gl/HMK1vxkwXYLQcSbb9
 
-Rabbithole 
-https://maps.app.goo.gl/5QFPHAa5ZfPCY4jWA
-
-Dang! Cookies
-https://maps.app.goo.gl/m4SuRQAEgCFu8prM9
-
-Hungry Bird Coffee Roaster
-https://maps.app.goo.gl/eYtrPbbou7GLTnuG6
-
-Margaret Bistro
-https://maps.app.goo.gl/em67D6jeyBpF8ZMp9
-
-Matcha Cafe 
-https://maps.app.goo.gl/u6SdkJVURiBoov43A
-
-Monsieur Spoon
-https://maps.app.goo.gl/5HevzuSCQoFhjj2F6
-
-Copenhagen Berawa
-https://maps.app.goo.gl/VQc62YowARhVjvHZ7
-
-Motion Cafe 
-https://maps.app.goo.gl/oc1ngob9m2Eee9Qh8
-
-SECRET SPOT 
-https://maps.app.goo.gl/28D1Wvp9ZVPHmeyy9
-
-The Avocado Factory
-https://maps.app.goo.gl/Ks2NFtvfuHich97v7
-
-BGS Bali 
-https://maps.app.goo.gl/gx9gR1HKdYsusYY57
-
-Teamo 
-https://maps.app.goo.gl/iV8pnWAqiPfZgvA48
-
-Marroosh Bali
-https://maps.app.goo.gl/Wfx2WJLfnkdYojv79
-
-Feel Food Cafe
-https://maps.app.goo.gl/dDdaLhjxnoPDnqGL9
-
-Copenhagen
-https://maps.app.goo.gl/UWF3XD51EzGqcFAH8
-
-Bali Buda
-https://maps.app.goo.gl/b5CQyxZgrp1bqGgC7
-
-Roots
-https://maps.app.goo.gl/UxDEYoAAhw8hk5Zp9
-
-BAKED.
-https://maps.app.goo.gl/3QusPc9T21hWmoFk8
-
-ST. ALi - Bali
-https://maps.app.goo.gl/wV7wi5xP9hZ4eqHF6
-
-Touché 
-https://maps.app.goo.gl/A1pdwZ42FQBQyto78
-
-
-ARTE Italian 
-https://maps.app.goo.gl/XwY5cFPnvZMTSVuq9
-
-7AM Bakers 
-https://maps.app.goo.gl/YaLypcxY9C2ERPpN6
-
-Nüde cafe 
-https://maps.app.goo.gl/jFDqhbx1NKUbMc6e6|EVENT
-
-Copenhagen 
-https://maps.app.goo.gl/QAyLberkARdXSAJ18
-
-# @dimin10 | review https://www.instagram.com/p/DXdAbdLkvKU/
-Madam Lee Korean BBQ
-https://maps.app.goo.gl/jBrehhSxMNwoxons8
-
-
-
-Кафе Букит
-
-
-# @nastya.mavi | review https://www.instagram.com/p/DLopeq6vXBG/
-Bella Cucina
-https://maps.app.goo.gl/g5UTfTnLWhDhB6Bi8
-
-# @nastya.mavi | review https://www.instagram.com/p/DLcYGRyRjsz/
-KO Japanese Restaurant, Teppanyaki and Sushi
-https://maps.app.goo.gl/JDsW2U3wexFj3TKs5
-
-Chef's Crate
-https://maps.app.goo.gl/oKTSChgDj5tD6pDx9|BAGUS 11% Discount Food
-
-# @v.d_fitness | review https://www.instagram.com/reels/DUmPp89ks0G/
-EASY CAFE
-https://maps.app.goo.gl/WCpZcp6Vcfm3HZkU8
-
-
-# @voyageglam | review https://www.instagram.com/p/DLe3BPgK1Cr/
+# review https://www.instagram.com/p/DLe3BPgK1Cr/
 Koral - Bali’s First Aquarium Restaurant
 https://maps.app.goo.gl/qpF5cuV7AEDiBwBdA
 
-AMINO
-https://maps.app.goo.gl/7TMr4U9K3uAcM74q6
+# review https://www.tiktok.com/@elisealwayseats/video/7553499346239556894
+La Baracca Bali (Ubud)
+https://maps.app.goo.gl/Eynn75PuVMgXvv6UA
 
-The Chai Tea House
-https://maps.app.goo.gl/B6j8gH85uCCTCs3L7
+# review https://www.tiktok.com/@digital.nomad.diaries/video/7607089822074785055
+La Casetta
+https://maps.app.goo.gl/XBXa8nRt2LKNTkeK9
 
-Salad Lab 
-https://maps.app.goo.gl/6cEGjmRFqzxi3VUj8
+# review https://www.tiktok.com/@livingstonebakery/video/7303544628513426693
+Livingstone Holyground
+https://maps.app.goo.gl/jXaKQ2axUkTL55fC6
 
-Rolling Fork 
-https://maps.app.goo.gl/8G3WZVk3bSR3TkGj7
+# review https://www.tiktok.com/@secondzau/video/7370627021392579856
+Locavore NXT
+https://maps.app.goo.gl/EEWH9jYgjVoAnYLu5
 
-The Cashew Tree
-https://maps.app.goo.gl/ZYcrJ7vAJQXuypnG8
+# review https://www.instagram.com/p/DXdAbdLkvKU/
+Madam Lee Korean BBQ
+https://maps.app.goo.gl/jBrehhSxMNwoxons8
 
-Alchemy Uluwatu
-https://maps.app.goo.gl/4GoSXRrkyRAa1Bnj7
+# review https://www.tiktok.com/@mammamiarenon/video/6992208321264520475
+Mamma Mia Pizza & Pasta
+https://maps.app.goo.gl/GzF7LBnTnE2KbsPN7
 
-Segaran Terrace
-https://maps.app.goo.gl/1mHkJaLtWL3Lyjo8A
+# review https://www.tiktok.com/@margaretbistro/video/7647454205086551314
+Margaret Bistro
+https://maps.app.goo.gl/em67D6jeyBpF8ZMp9
 
-Kisik 
-https://maps.app.goo.gl/mbfcvS2qnRqpNNwj8
+# review https://www.tiktok.com/@marrooshbali/video/7502051024509635845
+Marroosh Bali
+https://maps.app.goo.gl/Wfx2WJLfnkdYojv79
 
-Rock Bar
-https://maps.app.goo.gl/k4t61RS1SEXkgLS59
+# review https://www.tiktok.com/@balifoodandtravels/video/7602544501537688840
+Matcha Cafe
+https://maps.app.goo.gl/u6SdkJVURiBoov43A
 
-Single Fin Bali
-https://maps.app.goo.gl/zjTauwf16TDPBZwE8
+# review https://www.tiktok.com/@milkandmadu/video/7590628629818739989
+Milk madu
+https://maps.app.goo.gl/rupivjcrXn3wMhHG6
 
+# review https://www.tiktok.com/@odikabayu/video/7502031444525567240
+Monsieur Spoon
+https://maps.app.goo.gl/LfTWWzvEVuGYYGgA8
+
+# review https://www.tiktok.com/@odikabayu/video/7502031444525567240
+Monsieur Spoon
+https://maps.app.goo.gl/5HevzuSCQoFhjj2F6
+
+# review https://www.tiktok.com/@murmurbali/video/7555847477795032331
+Murmur Restaurant Lounge
+https://maps.app.goo.gl/3btMPaFiY6V7zMZ99|My guide 10% Discount
+
+# review https://www.tiktok.com/@katrin_kamo/video/7195027550173662465
+Muse Cafe & Art
+https://maps.app.goo.gl/KM8s7zxZtZr2DxGLA
+
+# review https://www.tiktok.com/@jalanbarengawan/video/7175019690652126490
+Nook
+https://maps.app.goo.gl/CKyGvx1G15Y3MQr69
+
+# review https://www.tiktok.com/@nostimo.bali/video/7194642758374657306
+Nostimo Greek Grill
+https://maps.app.goo.gl/7xq5GsnPK2j9XCXaA
+
+# review https://www.tiktok.com/@nudebali/video/7600698264681303314
+Nüde cafe
+https://maps.app.goo.gl/5M3tHYB6Fiue9Doz5
+
+# review https://www.tiktok.com/@nudebali/video/7600698264681303314
+Nüde cafe
+https://maps.app.goo.gl/jFDqhbx1NKUbMc6e6|EVENT
+
+# review https://www.tiktok.com/@thomaslmanuel/video/7269554110729358634
+Rabbithole
+https://maps.app.goo.gl/5QFPHAa5ZfPCY4jWA
+
+# review https://www.instagram.com/reels/DUmPp89ks0G/
 Rasgulai
 https://maps.app.goo.gl/pUexMB6abDt97Txd8
 
-# Рестораны на Бали
-food:restaurant:bali:
+# review https://www.instagram.com/reels/DUmPp89ks0G/
+Rock Bar
+https://maps.app.goo.gl/k4t61RS1SEXkgLS59
 
-# @nastya.mavi | review https://www.instagram.com/p/DMNZ3ExPMIV/
-Alma Tapas Bar
-https://maps.app.goo.gl/kKn84wF6DQKcbHoZ9
+# review https://www.instagram.com/reels/DUmPp89ks0G/
+Rolling Fork
+https://maps.app.goo.gl/8G3WZVk3bSR3TkGj7
 
-# @nastya.mavi | review https://www.instagram.com/p/DMM6QZnv_96/
-Milano
-https://maps.app.goo.gl/R1Yx6AVfVmxdPprW9
+# review https://www.tiktok.com/@baliwisatakuliner/video/7236023531635625221
+RÜSTERS
+https://maps.app.goo.gl/nVaKCZhP33F7thKC7
 
-# @nastya.mavi | review https://www.instagram.com/p/DLcYGRyRjsz/
-KO Japanese Restaurant, Teppanyaki and Sushi
-https://maps.app.goo.gl/JDsW2U3wexFj3TKs5
+# review https://www.tiktok.com/@odikabayu/video/7351739095464283397
+Sala Bistro Ubud
+https://maps.app.goo.gl/asCq5mx4dxvXPLp59
 
-# Уличная еда на Бали
-food:street_food:bali:
-https://maps.google.com/?cid=555666777
+# review https://www.instagram.com/reels/DUmPp89ks0G/
+Salad Lab
+https://maps.app.goo.gl/6cEGjmRFqzxi3VUj8
 
-# Рынки на Бали
-food:market:bali:
-https://maps.google.com/?cid=777888999
+# review https://www.tiktok.com/@lewislangford/video/7643662475128245525
+Satu Mangkok
+https://maps.app.goo.gl/MtoDfKewEngfvmRg7
 
-# Пекарни на Бали
-food:bakery:bali:
+# review https://www.tiktok.com/@adyhola/video/7524628383939038486
+SATUSATU COFFEE
+https://maps.app.goo.gl/Se4JmGvLELjmDPeG7
 
-# Коворкинг-кафе на Бали
+# review https://www.instagram.com/reels/DUmPp89ks0G/
+Segaran Terrace
+https://maps.app.goo.gl/1mHkJaLtWL3Lyjo8A
+
+# review https://www.tiktok.com/@marcusapi/video/7379964755324292358
+Sinamon Bali Ubud
+https://maps.app.goo.gl/2rtvrDCYPJAhcQMc8
+
+# review https://www.instagram.com/reels/DUmPp89ks0G/
+Single Fin Bali
+https://maps.app.goo.gl/zjTauwf16TDPBZwE8
+
+Slavic Roots
+https://maps.app.goo.gl/93YopYYK1UmfnU426
+
+# review https://www.tiktok.com/@sundayculinary/video/7648462639286193415
+ST. ALi - Bali
+https://maps.app.goo.gl/wV7wi5xP9hZ4eqHF6
+
+# review https://www.tiktok.com/@theforeignsun/video/7414016343680371973
+Sun Sun Warung
+https://maps.app.goo.gl/moUgJxNt8f3hEtNYA
+
+# review https://www.tiktok.com/@odikabayu/video/7190952213714341146
+Sunkiss Restaurant
+https://maps.app.goo.gl/caii3qWjjU6n22iu9
+
+# review https://www.tiktok.com/@syrcobase/video/7562101605579951372
+Syrco BASÈ
+https://maps.app.goo.gl/rZkogdRtkRRFiPv46
+
+# review https://www.tiktok.com/@foryoubali/video/7385355452902542597
+Taman Dedari
+https://maps.app.goo.gl/Y54ZqXggyxtsPkUdA
+
+# review https://www.tiktok.com/@arewehavingdessert/video/7519035864186588418
+Teamo
+https://maps.app.goo.gl/iV8pnWAqiPfZgvA48
+
+# review https://www.instagram.com/p/DYWfiL8uCDx/
+The Avocado Factory
+https://maps.app.goo.gl/Ks2NFtvfuHich97v7
+
+# review https://www.instagram.com/reels/DUmPp89ks0G/
+The Cashew Tree
+https://maps.app.goo.gl/ZYcrJ7vAJQXuypnG8
+
+# review https://www.instagram.com/reels/DUmPp89ks0G/
+The Chai Tea House
+https://maps.app.goo.gl/B6j8gH85uCCTCs3L7
+
+# review https://www.instagram.com/p/C_4l6odSURX/
+Tiflis Umalas
+https://maps.app.goo.gl/yKhd7ygv8w5EWwr76
+
+# review https://www.tiktok.com/@yourstayin/video/7460488502845639958
+Titi Batu
+https://maps.app.goo.gl/54iBu5mVujstVRq2A
+
+# review https://www.tiktok.com/@iwanderlista/video/7448169781108280598
+Touché
+https://maps.app.goo.gl/A1pdwZ42FQBQyto78
+
+# review https://www.tiktok.com/@petualanganhari/video/7410033614521486597
+UNIBOWL PokeBowl Bali
+https://maps.app.goo.gl/9jYjf3FjxmGQVzz88
+
+Usha Cafe&Bakery
+https://maps.app.goo.gl/frzG51H3ijLPqEc46
+
+# review https://www.tiktok.com/@eddyhartawan91/video/7650072195443920136
+WORD.BALI
+https://maps.app.goo.gl/chLspLCopdf8fcjv6
+
+# review https://www.tiktok.com/@rickydsbali/video/7461982954646932741
+Zest
+https://maps.app.goo.gl/kZTLwrjqYeyV2pc47
+
 food:coworking:bali:
 
-Коворкинги Убуд
+# review https://www.tiktok.com/@destination.outpost/video/7511276524075486471
+Outpost Coworking
+https://maps.app.goo.gl/XwXkQUjqBqKDGbbe9
 
+# review https://www.tiktok.com/@balitravelfolder/video/7325290566948818181
 Ubud Co-Working
 https://maps.app.goo.gl/ESprcxfxCAKYF7WT9
 
-Ubud.Space 
+# review https://www.tiktok.com/@antonutama0/video/7651089536541379861
+Ubud.Space
 https://maps.app.goo.gl/eKYSgaKM71YytMfy5
 
-Outpost Coworking
-https://maps.app.goo.gl/XwXkQUjqBqKDGbbe9
+food:restaurant:bali:
+
+# review https://www.instagram.com/p/DMNZ3ExPMIV/
+Alma Tapas Bar
+https://maps.app.goo.gl/kKn84wF6DQKcbHoZ9
+
+# review https://www.instagram.com/p/DLcYGRyRjsz/
+KO Japanese Restaurant, Teppanyaki and Sushi
+https://maps.app.goo.gl/JDsW2U3wexFj3TKs5
+
+# review https://www.instagram.com/p/DMM6QZnv_96/
+Milano
+https://maps.app.goo.gl/R1Yx6AVfVmxdPprW9

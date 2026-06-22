@@ -1,0 +1,44 @@
+---
+description: task_places в Postgres (production) — единственный источник правды по местам, обзорам и подсказкам
+alwaysApply: true
+---
+
+# task_places — единственный источник правды
+
+**Канон:** таблица `task_places` в **production Postgres** (Railway env `production`, бот @MyGuide). Данные вручную проверены и приведены в порядок: места, `review_url`, `task_hint` / `task_hint_en`, `partner_id`, `is_active`.
+
+Не считать источником правды файлы в репо, seeds, example-txt или develop-БД, если они расходятся с production.
+
+## Runtime
+
+- Бот и квесты читают места **только из Postgres** (`TaskPlace`, `tasks_location_service`, `tasks_service`).
+- В выдаче — строки с `is_active = true`.
+- `food_places_example.txt`, `seeds/bali_places.json`, `tasks/places_database.py` — **не** источник данных; только архив/справочник для скриптов.
+
+## Запрещено без явной просьбы пользователя
+
+- Массовая перезаливка `task_places` из JSON/txt (`load_task_data.py`, `add_places_from_simple_file.py`, `run_add_places.py`).
+- Затирание production-таблицы данными из develop, seeds или example-файлов.
+- `session.query(TaskPlace).delete()` или полная очистка таблицы.
+- Автогенерация / backfill поверх уже проверенных `task_hint*` и `review_url`.
+- `DELETE FROM task_places` — FK `user_tasks.place_id`.
+
+## Как менять данные
+
+- **Точечно:** Railway UI (production Postgres) или `UPDATE task_places SET … WHERE id = …`.
+- **Закрытое место:** `is_active = false`, строку не удалять.
+- **Новые места:** только целевые скрипты с `--dry-run` и подтверждением; не трогать проверенные строки.
+- **Develop:** не подменяет канон; при расхождении ориентир — production `task_places`.
+- **Синхронизация файлов с БД** (после правок в production):
+  - `railway run -e production python scripts/export_task_places_to_example_files.py`
+  - проверка: `railway run -e production python scripts/compare_task_places_with_files.py`
+- Файлы `*_places_example.txt` — зеркало production `task_places`, не редактировать вручную без последующей сверки.
+
+## Поля
+
+| Поле | Назначение |
+|------|------------|
+| `review_url` | ссылка на видеообзор |
+| `task_hint` / `task_hint_en` | текст квеста RU / EN |
+| `partner_id` | блогер из `partners` |
+| `is_active` | показывать в боте (@MyGuide) |

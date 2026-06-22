@@ -1,142 +1,65 @@
 # Файл для добавления мест категории «Развлечения» (entertainment)
-# Формат как у food_places_example.txt:
-#   entertainment:place_type:region:promo_code
-# Ниже — по желанию: строка с названием, затем одна ссылка Google Maps на строку.
-# Промокод: после ссылки через | (приоритетнее промо в шапке).
-# Строки # ... — заметки для себя; парсер их не пишет в БД.
-#
-# place_type (должны совпадать с tasks_location_service.py → entertainment):
-#   nightclub, bar, rooftop, beach_party, live_music, show_event, workshop_trip, karaoke, lounge
-#
-# Загрузка (после того как под заголовками появятся ссылки — иначе скрипт скажет, что мест нет):
-#   python scripts/add_places_from_simple_file.py entertainment_places_example.txt
-#   python scripts/add_places_from_simple_file.py entertainment_places_example.txt --update
+# Сгенерировано из task_places (Postgres). Не править вручную без синхронизации с БД.
+# Формат: entertainment:place_type:region:promo_code
 
 # ============================================
-# МОСКВА
+# БАЛИ
 # ============================================
 
-entertainment:bar:moscow:
-
-entertainment:nightclub:moscow:
-
-entertainment:rooftop:moscow:
-
-entertainment:karaoke:moscow:
-
-entertainment:lounge:moscow:
-
-entertainment:live_music:moscow:
-
-entertainment:show_event:moscow:
-
-entertainment:beach_party:moscow:
-
-entertainment:workshop_trip:moscow:
-
-# ============================================
-# САНКТ-ПЕТЕРБУРГ
-# ============================================
-
-entertainment:bar:spb:
-
-entertainment:nightclub:spb:
-
-entertainment:rooftop:spb:
-
-entertainment:karaoke:spb:
-
-entertainment:live_music:spb:
-
-entertainment:lounge:spb:
-
-entertainment:show_event:spb:
-
-entertainment:beach_party:spb:
-
-entertainment:workshop_trip:spb:
-
-# ============================================
-# БАЛИ (ссылки из food_places_example + interesting_places_example в репо)
-# Подписи ниже — зоны острова (для себя в файле; в БД у всех region=bali).
-# ============================================
-
-# Бары / клаф-бары
-entertainment:bar:bali:
-
-# Джимбаран (Ayana)
-Rock Bar
-https://maps.app.goo.gl/k4t61RS1SEXkgLS59
-
-# Букит — Улувату (скала / сёрф)
-Single Fin Bali
-https://maps.app.goo.gl/zjTauwf16TDPBZwE8
-
-# Руфтоп
-entertainment:rooftop:bali:
-
-# Чангу / Берава
-Sol Rooftop
-https://maps.app.goo.gl/PJzDcYu9L1uMM5xMA
-
-# Пляжные клубы / day-party (были в interesting как beach_club)
 entertainment:beach_party:bali:
 
-# Убуд 
-
-# @nastya.mavi | review https://www.instagram.com/p/DMNT9pMv075/
-The Jungle Club Ubud by Wonderspace
-https://maps.app.goo.gl/PN5ppXfpV7Mkedir9
-
-# Чангу / Берава / Переренан
-FINNS
-https://maps.app.goo.gl/Pgs6DsgQGEazoSd38
-
+# review https://www.tiktok.com/@atlas.beachclub/video/7636245664556453141
 Atlas Beach Club
 https://maps.app.goo.gl/wwMctA5VBoiqLhVz8
 
-La Brisa
-https://maps.app.goo.gl/bKc3oPtazepLKqpcA
+# review https://www.tiktok.com/@finnsbeachclubbali/video/7578093755492732181
+FINNS
+https://maps.app.goo.gl/Pgs6DsgQGEazoSd38
 
-The Lawn
-https://maps.app.goo.gl/XWwg85eQK9HoNwqS7
-
-Lyma Beach
-https://maps.app.goo.gl/Jmi89CLnasDbm5d58
-
-# Букит (юг острова)
-Ocean Beach Pool
-https://maps.app.goo.gl/7TobbqoMexCHwuRQA
-
-Ulu Beach
-https://maps.app.goo.gl/pyBWT3Jo7u1dg1vQ8
-
-# Джимбаран (Ayana — пляжный клуб)
+# review https://www.tiktok.com/@ayanahotels/video/7603155987033279764
 Kubu Beach Club
 https://maps.app.goo.gl/rJgzChjfJy75Hu8X9
 
-# Лаунж / chill с музыкой
+# review https://www.tiktok.com/@labrisabali/video/7544265766141578504
+La Brisa
+https://maps.app.goo.gl/bKc3oPtazepLKqpcA
+
+# review https://www.tiktok.com/@lymabeach/video/7551731997601729803
+Lyma Beach
+https://maps.app.goo.gl/Jmi89CLnasDbm5d58
+
+# review https://www.tiktok.com/@ayanahotels/video/7537975634027351303
+Ocean Beach Pool
+https://maps.app.goo.gl/7TobbqoMexCHwuRQA
+
+# review https://www.instagram.com/p/DMNT9pMv075/
+The Jungle Club Ubud by Wonderspace
+https://maps.app.goo.gl/PN5ppXfpV7Mkedir9
+
+# review https://www.tiktok.com/@ellliesophiej/video/7554082592383978774
+The Lawn
+https://maps.app.goo.gl/XWwg85eQK9HoNwqS7
+
+# review https://www.tiktok.com/@bali_buddies/video/7577217494973238536
+Ulu Beach
+https://maps.app.goo.gl/pyBWT3Jo7u1dg1vQ8
+
 entertainment:lounge:bali:
 
-# Букит — Улувату
-Ulu Cliffhouse
-https://maps.app.goo.gl/dx1gc1fdagQ89W5G8
-
-# @nastya.mavi | review https://www.instagram.com/p/DKhDCqMvwQx/
-Chill ZONE movie & lounge
-https://maps.app.goo.gl/Xrzx9pmKHW1JViA88
-
-# Нуса-Дуа
+# review https://www.tiktok.com/@2kangmaeum/video/7515584021913505030
 Beach House at Regent
 https://maps.app.goo.gl/FfNND2eS24QQkM9M7
 
-# Ниже — типы из бота; в репозитории не было готовых ссылок, дополни своими с карт
-entertainment:nightclub:bali:
+# review https://www.instagram.com/p/DKhDCqMvwQx/
+Chill ZONE movie & lounge
+https://maps.app.goo.gl/Xrzx9pmKHW1JViA88
 
-entertainment:live_music:bali:
+# review https://www.tiktok.com/@caneel_/video/7116792505592532225
+Ulu Cliffhouse
+https://maps.app.goo.gl/dx1gc1fdagQ89W5G8
 
-entertainment:show_event:bali:
+entertainment:rooftop:bali:
 
-entertainment:karaoke:bali:
-
-entertainment:workshop_trip:bali:
+# review https://www.tiktok.com/@solrooftopbali/video/7449224999765904662
+Sol Rooftop
+https://maps.app.goo.gl/PJzDcYu9L1uMM5xMA

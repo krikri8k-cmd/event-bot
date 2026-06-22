@@ -1,201 +1,143 @@
 # Файл для добавления интересных мест (places)
+# Сгенерировано из task_places (Postgres). Не править вручную без синхронизации с БД.
 # Формат: places:place_type:region:promo_code
-# Затем ссылки на Google Maps (по одной на строку)
-# Промокод можно указать после ссылки через | (приоритетнее)
-#
-# Подкатегории для places:
-# - park (парк)
-# - exhibition (выставка)
-# - temple (храм)
-# - trail (тропа/маршрут)
-# - viewpoint (смотровая площадка)
-# - beach (пляж)
-# - cliff (скала/утес)
-# - beach_club → в боте как развлечения; список ссылок в entertainment_places_example.txt
-# - culture (культура - лавки, музеи)
+
+# ============================================
+# МОСКВА
+# ============================================
+
+places:park:moscow:
+
+https://maps.google.com/?q=55.7350,37.6050
+
+https://maps.app.goo.gl/rGYd8biht51DFFB79
+
+places:temple:moscow:
+
+https://maps.google.com/?q=55.7450,37.6250
+
+https://maps.app.goo.gl/faoUJd5JESRAbRAR7
+
+https://maps.app.goo.gl/smBkmt2Zpd4jxeQT9
+
 
 # ============================================
 # БАЛИ
 # ============================================
 
-
-
-# Парки
-places:park:bali:
-
-Чангу
-
-Dogville - Kaba-Kaba
-https://maps.app.goo.gl/PZEtbK5bDNhorqZBA
-
-Nuanu Ganesha
-https://maps.app.goo.gl/39HKCtVxrkRYC8nr7
-
-Magic Garden
-https://maps.app.goo.gl/wumBjyGxDKHRn37x7
-
-Букит 
-
-# Выставки
-places:exhibition:bali:
-
-# Храмы
-places:temple:bali:
-
-Чангу
-
-Pura Tanah Lot
-https://maps.app.goo.gl/oSMQd6ZfLzuBTPux6
-
-Pura Taman Ayun
-https://maps.app.goo.gl/2YZ239QKvdcDcpv58
-
-Букит
-
-
-Pura Luhur Uluwatu
-https://maps.app.goo.gl/zusoTrtNNi3VVXdm6
-
-Kecak Uluwatu
-https://maps.app.goo.gl/TU25qoDp4z91iKtDA
-
-# Тропы/маршруты
-places:trail:bali:
-
-# Смотровые площадки
-places:viewpoint:bali:
-
-# Пляжи
 places:beach:bali:
 
-Чангу
+# review https://www.tiktok.com/@jasmuller_/video/7534611622329978119
+Balangan Beach
+https://maps.app.goo.gl/ZgQRby6xjhmUsB2u7
 
-Букит
+# review https://www.tiktok.com/@world.traveler365/video/7641501408885263624
+Beach Dreamland
+https://maps.app.goo.gl/1zjhtrcNQwdS1jtt5
 
-Пляж 
+# review https://www.tiktok.com/@travelerstamps/video/7547346707646860552
+Bingin Beach
+https://maps.app.goo.gl/PePYKg2jyq4VVtDN8
+
+# review https://www.tiktok.com/@lilleke99/video/7561019384727162134
+Broken Ship Nunggalan
+https://maps.app.goo.gl/QLuPtrSK8ibdgT3bA
 
 KUAKUA beach
 https://maps.app.goo.gl/4CfCZ7Wnof4iW8Dv8
 
+# review https://www.tiktok.com/@cangdevsya/video/7595530838784216328
 Nyang Nyang Beach
 https://maps.app.goo.gl/V7ZDJvVML8d8VeDR6
 
-Broken Ship Nunggalan
-https://maps.app.goo.gl/QLuPtrSK8ibdgT3bA
+# review https://www.tiktok.com/@karinprmst/video/7457804824915004678
+Padang Padang Beach
+https://maps.app.goo.gl/4FshR6yMrn654QVc9
 
 Pantai Olen
 https://maps.app.goo.gl/Jpw1wqN4bnhjxMtp7
 
-Beach Dreamland
-https://maps.app.goo.gl/1zjhtrcNQwdS1jtt5
-
-Bingin Beach
-https://maps.app.goo.gl/PePYKg2jyq4VVtDN8
-
-Balangan Beach
-https://maps.app.goo.gl/ZgQRby6xjhmUsB2u7
-
-Padang Padang Beach
-https://maps.app.goo.gl/4FshR6yMrn654QVc9
-
-# Скалы/утесы
 places:cliff:bali:
 
-Чангу
-
-Букит
-
-Tebing Pantai Balangan
-https://maps.app.goo.gl/T13yovVqvjsKCwUy7
-
-Dimastos Sunset point
-https://maps.app.goo.gl/gZ1MQ6KRc1FkwEKJ7
-
-Happy sunset batujaran
-https://maps.app.goo.gl/qMGvDCC7mNvhMa2A6
-
-End of route Uluwatu Temple View point
-https://maps.app.goo.gl/vRMrP7soeJfLTn5A6
-
-Kubu Beach
-https://maps.app.goo.gl/5kgSoBdmFrq9yKCu6
-
-Honeymoon Beach
-https://maps.app.goo.gl/vsnGL8QPGzWGoYPU9
-
-Leon's Camping
-https://maps.app.goo.gl/2BtZ54fqpng9e1eM8
-
+# review https://www.tiktok.com/@rumilife_official/video/7525793977618943287
 Cliff Jump Tegal Wangi Beach
 https://maps.app.goo.gl/KxxaXhDCDeGGR1BZA
 
 Cliff overlooking the ocean
 https://maps.app.goo.gl/Qt33Kd7zooSMPrUP7
 
-# Культура (лавки, музеи)
+# review https://www.tiktok.com/@_trinipacheco/video/7537450030064651576
+Dimastos Sunset point
+https://maps.app.goo.gl/gZ1MQ6KRc1FkwEKJ7
+
+End of route Uluwatu Temple View point
+https://maps.app.goo.gl/vRMrP7soeJfLTn5A6
+
+# review https://www.tiktok.com/@_kadekwawan60/video/7572064873941699858
+Happy sunset batujaran
+https://maps.app.goo.gl/qMGvDCC7mNvhMa2A6
+
+# review https://www.tiktok.com/@balitravelfolder/video/7538292216486169863
+Honeymoon Beach
+https://maps.app.goo.gl/vsnGL8QPGzWGoYPU9
+
+# review https://www.tiktok.com/@kububaliexperience/video/7592931732685409544
+Kubu Beach
+https://maps.app.goo.gl/5kgSoBdmFrq9yKCu6
+
+Leon's Camping
+https://maps.app.goo.gl/2BtZ54fqpng9e1eM8
+
+# review https://www.tiktok.com/@balinextstop/video/7558401454050905355
+Tebing Pantai Balangan
+https://maps.app.goo.gl/T13yovVqvjsKCwUy7
+
 places:culture:bali:
-
-Чангу
-
-Nyaman Art Gallery
-https://maps.app.goo.gl/hphMXVPAUNWrh9jE8
-
-Ikat Gallery
-https://maps.app.goo.gl/Crh9xmwnENuee5yA6
 
 ADA Studio Paint Art
 https://maps.app.goo.gl/sqVL4UBhxAiP1Eqn7
 
-Purpa Fine Art Gallery 
+Ikat Gallery
+https://maps.app.goo.gl/Crh9xmwnENuee5yA6
+
+# review https://www.tiktok.com/@aksosma.32.badung/video/7563847592564608264
+Nyaman Art Gallery
+https://maps.app.goo.gl/hphMXVPAUNWrh9jE8
+
+Purpa Fine Art Gallery
 https://maps.app.goo.gl/PSgL7j7TmTGA7APa9
 
-Север Бали 
-
-# @docpolli | review:https://www.instagram.com/reel/DUsSBDygVra/?utm_source=ig_web_copy_link&igsh=NTc4MTIwNjQ2YQ==
+# review https://www.instagram.com/reel/DUsSBDygVra/?utm_source=ig_web_copy_link&igsh=NTc4MTIwNjQ2YQ==
 Taman Ujung
 https://maps.app.goo.gl/qD4P8hoCyxiT4KJVA
 
-# ============================================
-# МОСКВА
-# ============================================
+places:park:bali:
 
-# Парки
-places:park:moscow:
+# review https://www.tiktok.com/@dogville_bali/video/7549893513408826630
+Dogville - Kaba-Kaba
+https://maps.app.goo.gl/PZEtbK5bDNhorqZBA
 
-# Выставки
-places:exhibition:moscow:
+# review https://www.tiktok.com/@nuanucreativecity/video/7639297831861275925
+Magic Garden
+https://maps.app.goo.gl/wumBjyGxDKHRn37x7
 
-# Храмы
-places:temple:moscow:
+Nuanu Ganesha
+https://maps.app.goo.gl/39HKCtVxrkRYC8nr7
 
-# Тропы/маршруты
-places:trail:moscow:
+places:temple:bali:
 
-# Смотровые площадки
-places:viewpoint:moscow:
+# review https://www.tiktok.com/@moniq_dmk/video/7524979468356668679
+Kecak Uluwatu
+https://maps.app.goo.gl/TU25qoDp4z91iKtDA
 
-# Культура (лавки, музеи)
-places:culture:moscow:
+# review https://www.tiktok.com/@tereveling_/video/7488528984917986576
+Pura Luhur Uluwatu
+https://maps.app.goo.gl/zusoTrtNNi3VVXdm6
 
-# ============================================
-# САНКТ-ПЕТЕРБУРГ
-# ============================================
+# review https://www.tiktok.com/@bali_terkini/video/7385796273984621830
+Pura Taman Ayun
+https://maps.app.goo.gl/2YZ239QKvdcDcpv58
 
-# Парки
-places:park:spb:
-
-# Выставки
-places:exhibition:spb:
-
-# Храмы
-places:temple:spb:
-
-# Тропы/маршруты
-places:trail:spb:
-
-# Смотровые площадки
-places:viewpoint:spb:
-
-# Культура (лавки, музеи)
-places:culture:spb:
-
+# review https://www.tiktok.com/@destinasiwisatabali/video/7510884560654126344
+Pura Tanah Lot
+https://maps.app.goo.gl/oSMQd6ZfLzuBTPux6

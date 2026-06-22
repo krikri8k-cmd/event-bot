@@ -1,219 +1,185 @@
 # Файл для добавления health мест
+# Сгенерировано из task_places (Postgres). Не править вручную без синхронизации с БД.
 # Формат: health:place_type:region:promo_code
-# Затем ссылки на Google Maps (по одной на строку)
-# Промокод можно указать после ссылки через | (приоритетнее)
-#
-# Подкатегории для health:
-# - gym (тренажерный зал)
-# - spa (спа)
-# - lab (лаборатория)
-# - clinic (клиника)
-# - nature (природа)
-# - park (парк)
-# - beach (пляж)
-# - yoga_studio (йога студия)
-# - outdoor_space (открытое пространство)
+
+# ============================================
+# МОСКВА
+# ============================================
+
+health:cafe:moscow:
+
+# review https://instagram.com/reel/test-review
+https://maps.app.goo.gl/ZAvphnPXfgXxod67A|EVENT2024
+
+https://maps.google.com/?q=55.7520,37.6150|PROMO50
+
+https://maps.google.com/?q=55.7500,37.6100|EVENT2024
+
+https://maps.app.goo.gl/KLwv9g88ejSNWzB3A|EVENT2024
+
+https://maps.app.goo.gl/BNhAeY8TX41RNASD7|EVENT2024
+
+health:gym:moscow:
+
+https://maps.google.com/?q=55.7400,37.6200
+
+https://maps.app.goo.gl/G2yoFVyPrKFGfpCB6
+
+https://maps.app.goo.gl/LhqMn2waGrcCwg9K8
+
+health:park:moscow:
+
+https://maps.google.com/?q=55.7320,37.6010
+
+https://maps.google.com/?q=55.7300,37.6000
+
+https://maps.app.goo.gl/RspER1TcfmU2sqxX8
+
+
+# ============================================
+# САНКТ-ПЕТЕРБУРГ
+# ============================================
+
+health:cafe:spb:
+
+https://maps.google.com/?q=59.9343,30.3351
+
+https://maps.app.goo.gl/mjULEtEucQfm4FAW6
+
 
 # ============================================
 # БАЛИ
 # ============================================
 
-# @dimin10 | review https://www.instagram.com/p/DX3XmLAvejZ/
-Svaha Spa Bisma
-https://maps.app.goo.gl/xofPh7Ub8Up62CWL8
+health:cafe:bali:
 
-# Тренажерные залы
-health:gym:bali:
+# review https://instagram.com/reel/test-bali-review
+https://maps.google.com/?q=-8.5069,115.2625
 
-# Spa
+https://maps.app.goo.gl/T8s9tj1njmG226ydA
 
 health:spa:bali:
 
-Убуд
+# review https://www.tiktok.com/@alphagymbali/video/7494175996443118855
+Alpha Gym
+https://maps.app.goo.gl/ETUpapiVMkESwAXYA
 
-# Spa
+# review https://www.tiktok.com/@shintya_audrey/video/7058502370946256155
+Avenue Fitness
+https://maps.app.goo.gl/eKnDDKoDxgiNXUXE8
 
-# @voyageglam | review https://www.instagram.com/p/DK45c6zqq8x/
+# review https://www.instagram.com/p/DK45c6zqq8x/
 Bali Dacha
 https://maps.app.goo.gl/mmgJ4eRMFe3PnEmQ8|"Jungle26" Club day - 50.000 IDR, private rent 10%
-
-
-# Тренажерные залы
-
-Raw Gym & Café Ubud
-https://maps.app.goo.gl/p7zT3uKenYpVvywo9
-
-Ubud.Fitness
-https://maps.app.goo.gl/d6mN2tX2J5vGzaRk9
-
-The Collective Club Pilates Studio 
-https://maps.app.goo.gl/BrPSyN7Gg3tA45pi6
-
-NOVA wellness club
-https://maps.app.goo.gl/EMLTtL359DduXi3R7
 
 Bali Swasthya Yoga Centre
 https://maps.app.goo.gl/gvpHWPrxRCwpZxLi9
 
-Ubud Fitness Center
-https://maps.app.goo.gl/VJgjqoXWHAE7ChQc7
-
-FitCircle Ubud
-https://maps.app.goo.gl/HHaZoEAZXcePdMkP7
-
-Rendezvous Fitness Bali
-https://maps.app.goo.gl/WJMkxvomM1AomcmA8
-
-Спортзалы Чангу 
-
-De Gym Kerobokan
-https://maps.app.goo.gl/KiQHSLe2uqCwAjhj8
-
-WEFITNESS BALI
-https://maps.app.goo.gl/7NZ7ZYQ3KFiX3m9o6
-
-Infinitus Gym Bali
-https://maps.app.goo.gl/4LqW84FffecCGmom8
-
-Alpha Gym 
-https://maps.app.goo.gl/ETUpapiVMkESwAXYA
-
-LEVEL UP GYM
-https://maps.app.goo.gl/ypJgofdQTtHSf3jf6
-
-CrossFit Canggu 
-https://maps.app.goo.gl/Y2pT7iDxr5jqjmty5
-
-POWER + REVIVE STUDIO
-https://maps.app.goo.gl/FaSwA3sE8GbFjwy97
-
-Canggu GYM
-https://maps.app.goo.gl/vHpjcbhRV8YhMvw4A
-
-TOPGYM 
-https://maps.app.goo.gl/ufPJYmGHeJzEwbF38
-
-Avenue Fitness
-https://maps.app.goo.gl/eKnDDKoDxgiNXUXE8
-
-Wellness Gym 
-https://maps.app.goo.gl/UaDGxjjPh66uPsTB6
-
-OBSIDIAN HYROX
-https://maps.app.goo.gl/mVDvDiX33CPowh6XA
-
-Surya Gym Bali
-https://maps.app.goo.gl/H5SJ9XuNLRg7eFqW8
-
-Elite Fit Bali
-https://maps.app.goo.gl/G3JpMn33dNbBrvT96
-
-Victory Fitness Club
-https://maps.app.goo.gl/dzKKk24gEAhTNywZ9
-
-Wrong Gym
-https://maps.app.goo.gl/kTbyxieTd38JyvLn6
-
-BYND Fitness Club 
-https://maps.app.goo.gl/H43VWphFew1PcTAT8
-
-Букит
-
+# review https://www.tiktok.com/@david.kirschbaum/video/7200347799420964101
 Bambu Fitness Bali
 https://maps.app.goo.gl/LoJrNR5UPGa2Va8j6
 
-# Спа и wellness
-health:spa:bali:
+# review https://www.tiktok.com/@caloconnor_/video/7506396907451747606
+BYND Fitness Club
+https://maps.app.goo.gl/H43VWphFew1PcTAT8
 
-Букит
+# review https://www.tiktok.com/@baliquicktalk/video/7589460741195943189
+Canggu GYM
+https://maps.app.goo.gl/vHpjcbhRV8YhMvw4A
 
-# @v.d_fitness | review https://www.instagram.com/reels/DTElhSrErat/
-Tropical Temptation
-https://maps.app.goo.gl/6c1bJc1oaoDfgbro6
+# review https://www.tiktok.com/@crossfitcanggu/video/7307032964259466502
+CrossFit Canggu
+https://maps.app.goo.gl/Y2pT7iDxr5jqjmty5
 
+# review https://www.tiktok.com/@evolution_gymbali/video/7633354281512357140
+De Gym Kerobokan
+https://maps.app.goo.gl/KiQHSLe2uqCwAjhj8
 
+# review https://www.tiktok.com/@elitefitbali/video/7529504436713000210
+Elite Fit Bali
+https://maps.app.goo.gl/G3JpMn33dNbBrvT96
+
+# review https://www.tiktok.com/@traveltippz/video/7553544686401490178
+FitCircle Ubud
+https://maps.app.goo.gl/HHaZoEAZXcePdMkP7
+
+# review https://www.tiktok.com/@infinitus.gym/video/7612962581812153621
+Infinitus Gym Bali
+https://maps.app.goo.gl/4LqW84FffecCGmom8
+
+# review https://www.tiktok.com/@lifewithus61/video/7485307645595880726
+LEVEL UP GYM
+https://maps.app.goo.gl/ypJgofdQTtHSf3jf6
+
+NOVA wellness club
+https://maps.app.goo.gl/EMLTtL359DduXi3R7
+
+# review https://www.tiktok.com/@foryoubali/video/7581067822508363015
+OBSIDIAN HYROX
+https://maps.app.goo.gl/mVDvDiX33CPowh6XA
+
+# review https://www.tiktok.com/@powerandrevive.studio/video/7247774713114594565
+POWER + REVIVE STUDIO
+https://maps.app.goo.gl/FaSwA3sE8GbFjwy97
+
+# review https://www.tiktok.com/@rawgym.ubud/video/7594787887887961362
+Raw Gym & Café Ubud
+https://maps.app.goo.gl/p7zT3uKenYpVvywo9
+
+# review https://www.tiktok.com/@ebventure/video/7636402710044052758
+Rendezvous Fitness Bali
+https://maps.app.goo.gl/WJMkxvomM1AomcmA8
+
+# review https://www.tiktok.com/@z.blogs/video/7233451694732889390
 Senses Spa
 https://maps.app.goo.gl/eQDRPVmumRmpVkUL7
 
 Spa Factory Bali
 https://maps.app.goo.gl/KxPsXncySZXgTwYr6
 
-# Йога студии
-health:yoga_studio:bali:
+# review https://www.tiktok.com/@sisi_trainer/video/7571406083038760214
+Surya Gym Bali
+https://maps.app.goo.gl/H5SJ9XuNLRg7eFqW8
 
-# Клиники и лаборатории
-health:clinic:bali:
-health:lab:bali:
+# review https://www.instagram.com/p/DX3XmLAvejZ/
+Svaha Spa Bisma
+https://maps.app.goo.gl/xofPh7Ub8Up62CWL8
 
-# Природа и парки
-health:nature:bali:
-health:park:bali:
-health:beach:bali:
-health:outdoor_space:bali:
+# review https://www.tiktok.com/@morganbudd_/video/7379539174581488903
+The Collective Club Pilates Studio
+https://maps.app.goo.gl/BrPSyN7Gg3tA45pi6
 
-# ============================================
-# МОСКВА
-# ============================================
+# review https://www.tiktok.com/@topstretchingasia/video/7527959102836739350
+TOPGYM
+https://maps.app.goo.gl/ufPJYmGHeJzEwbF38
 
-# Тренажерные залы
-health:gym:moscow:
+# review https://www.instagram.com/reels/DTElhSrErat/
+Tropical Temptation
+https://maps.app.goo.gl/6c1bJc1oaoDfgbro6
 
-# Спа и wellness
-health:spa:moscow:
+# review https://www.tiktok.com/@fitnessplusindonesia/video/7326761444698098951
+Ubud Fitness Center
+https://maps.app.goo.gl/VJgjqoXWHAE7ChQc7
 
-# Йога студии
-health:yoga_studio:moscow:
+# review https://www.tiktok.com/@laprimadom/video/7637839543814638879
+Ubud.Fitness
+https://maps.app.goo.gl/d6mN2tX2J5vGzaRk9
 
-# Клиники и лаборатории
-health:clinic:moscow:
-health:lab:moscow:
+# review https://www.tiktok.com/@aleksandramariarose/video/7238800524122934571
+Victory Fitness Club
+https://maps.app.goo.gl/dzKKk24gEAhTNywZ9
 
-# Природа и парки
-health:nature:moscow:
-health:park:moscow:
-health:outdoor_space:moscow:
+# review https://www.tiktok.com/@sternehln/video/7611087688187333906
+WEFITNESS BALI
+https://maps.app.goo.gl/7NZ7ZYQ3KFiX3m9o6
 
-# ============================================
-# САНКТ-ПЕТЕРБУРГ
-# ============================================
+# review https://www.tiktok.com/@balitravelfolder/video/7646298085462740242
+Wellness Gym
+https://maps.app.goo.gl/UaDGxjjPh66uPsTB6
 
-# Тренажерные залы
-health:gym:spb:
+# review https://www.tiktok.com/@jacked_eats/video/7496816261297392918
+Wrong Gym
+https://maps.app.goo.gl/kTbyxieTd38JyvLn6
 
-# Спа и wellness
-health:spa:spb:
-
-# Йога студии
-health:yoga_studio:spb:
-
-# Клиники и лаборатории
-health:clinic:spb:
-health:lab:spb:
-
-# Природа и парки
-health:nature:spb:
-health:park:spb:
-health:outdoor_space:spb:
-
-# ============================================
-# ДЖАКАРТА
-# ============================================
-
-# Тренажерные залы
-health:gym:jakarta:
-
-# Спа и wellness
-health:spa:jakarta:
-
-# Йога студии
-health:yoga_studio:jakarta:
-
-# Клиники и лаборатории
-health:clinic:jakarta:
-health:lab:jakarta:
-
-# Природа и парки
-health:nature:jakarta:
-health:park:jakarta:
-health:outdoor_space:jakarta:
-
+Букит
+https://maps.app.goo.gl/v29RsjVU7i9eBs6z6
