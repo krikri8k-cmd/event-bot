@@ -12,6 +12,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from config import load_settings
 from database import TaskPlace, get_session, init_engine
+from utils.task_places_safety import refuse_destructive_task_places_reset
 
 
 def load_task_places():
@@ -26,6 +27,8 @@ def load_task_places():
         places_data = json.load(f)
 
     with get_session() as session:
+        existing = session.query(TaskPlace).count()
+        refuse_destructive_task_places_reset(existing)
         # Очищаем существующие места
         session.query(TaskPlace).delete()
 

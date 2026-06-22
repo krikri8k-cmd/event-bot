@@ -20,6 +20,7 @@ sys.path.insert(0, str(project_root))
 
 from config import load_settings  # noqa: E402
 from database import TaskPlace, get_session, init_engine  # noqa: E402
+from utils.task_places_safety import MIRROR_HEADER  # noqa: E402
 
 CATEGORY_FILES = {
     "food": "food_places_example.txt",
@@ -35,23 +36,10 @@ REGION_LABELS = {
 }
 
 FILE_HEADER = {
-    "food": """# Файл для добавления food мест
-# Сгенерировано из task_places (Postgres). Не править вручную без синхронизации с БД.
-# Формат: food:place_type:region:promo_code
-# Затем: название (опционально), ссылка Google Maps, промокод через |
-""",
-    "health": """# Файл для добавления health мест
-# Сгенерировано из task_places (Postgres). Не править вручную без синхронизации с БД.
-# Формат: health:place_type:region:promo_code
-""",
-    "entertainment": """# Файл для добавления мест категории «Развлечения» (entertainment)
-# Сгенерировано из task_places (Postgres). Не править вручную без синхронизации с БД.
-# Формат: entertainment:place_type:region:promo_code
-""",
-    "places": """# Файл для добавления интересных мест (places)
-# Сгенерировано из task_places (Postgres). Не править вручную без синхронизации с БД.
-# Формат: places:place_type:region:promo_code
-""",
+    "food": MIRROR_HEADER + "# Формат секций: food:place_type:region:promo_code\n",
+    "health": MIRROR_HEADER + "# Формат секций: health:place_type:region:promo_code\n",
+    "entertainment": MIRROR_HEADER + "# Формат секций: entertainment:place_type:region:promo_code\n",
+    "places": MIRROR_HEADER + "# Формат секций: places:place_type:region:promo_code\n",
 }
 
 REGION_ORDER = ["moscow", "spb", "bali", "jakarta", "unknown"]

@@ -14,6 +14,7 @@ sys.path.insert(0, str(project_root))
 
 from database import init_engine  # noqa: E402
 from scripts.add_places_from_simple_file import add_place_from_url, parse_simple_file  # noqa: E402
+from utils.task_places_safety import refuse_unsafe_task_places_import  # noqa: E402
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -35,6 +36,9 @@ if __name__ == "__main__":
     txt_file = sys.argv[1]
     auto_confirm = "--yes" in sys.argv
     dry_run = "--dry-run" in sys.argv
+
+    if not dry_run:
+        refuse_unsafe_task_places_import(txt_file, update_existing=True)
 
     # Получаем DATABASE_URL (пропускаем --yes и --dry-run если есть)
     db_url = None

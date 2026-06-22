@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Упрощенный скрипт для добавления и обновления локаций из простого текстового файла
+Упрощенный скрипт для добавления локаций из txt (НЕ из *_places_example.txt — это зеркало БД).
 
 Формат файла:
     # Комментарии начинаются с #
@@ -57,6 +57,7 @@ _preserved_database_url = (os.environ.get("DATABASE_URL") or "").strip() or None
 from database import TaskPlace, get_session, init_engine  # noqa: E402
 from tasks_location_service import get_user_region  # noqa: E402
 from utils.geo_utils import parse_google_maps_link  # noqa: E402
+from utils.task_places_safety import refuse_unsafe_task_places_import  # noqa: E402
 
 if _preserved_database_url:
     os.environ["DATABASE_URL"] = _preserved_database_url
@@ -481,6 +482,8 @@ def main():
     if not os.path.exists(txt_file):
         print(f"ERROR: Файл не найден: {txt_file}")
         sys.exit(1)
+
+    refuse_unsafe_task_places_import(txt_file, update_existing=update_existing)
 
     # Инициализируем БД
     db_url = os.getenv("DATABASE_URL")

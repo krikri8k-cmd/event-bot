@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
-"""Запуск добавления мест с правильной кодировкой"""
+"""DEPRECATED: food_places_example.txt — зеркало production task_places, не для импорта."""
 
-import os
 import sys
-from pathlib import Path
 
-# Устанавливаем UTF-8 для stdout
 if sys.stdout.encoding != "utf-8":
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -14,6 +11,9 @@ if sys.stdout.encoding != "utf-8":
 
         sys.stdout = codecs.getwriter("utf-8")(sys.stdout.buffer, "strict")
 
-# Запускаем скрипт
-os.chdir(Path(__file__).parent)
-os.system("python scripts/add_places_from_simple_file.py food_places_example.txt")
+print("DEPRECATED: run_add_places.py больше не импортирует места из food_places_example.txt.")
+print("  Канон — production task_places в Postgres (@MyGuide).")
+print("  Обновить файлы из БД:")
+print("    railway run -e production python scripts/export_task_places_to_example_files.py")
+print("  Правки мест — Railway UI или scripts/deactivate_task_place.py")
+sys.exit(1)
