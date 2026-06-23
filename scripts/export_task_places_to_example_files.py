@@ -20,6 +20,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from database import TaskPlace, get_session, init_engine  # noqa: E402
+from utils.place_tags import get_place_tag_slugs  # noqa: E402
 from utils.task_places_export_db import database_host_hint, resolve_task_places_database_url  # noqa: E402
 from utils.task_places_safety import MIRROR_HEADER  # noqa: E402
 
@@ -48,6 +49,9 @@ REGION_ORDER = ["moscow", "spb", "bali", "jakarta", "unknown"]
 
 def _line_for_place(p: TaskPlace) -> list[str]:
     lines: list[str] = []
+    tag_slugs = get_place_tag_slugs(p)
+    if tag_slugs:
+        lines.append(f"# tags {', '.join(tag_slugs)}")
     if p.review_url:
         lines.append(f"# review {p.review_url}")
     name = (p.name or "").strip()

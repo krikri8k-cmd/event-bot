@@ -404,7 +404,7 @@ def get_tasks_with_places(
             "nightclub",
             "bar",
             "rooftop",
-            "beach_party",
+            "beach_club",
             "live_music",
             "show_event",
             "workshop_trip",

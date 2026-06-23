@@ -199,6 +199,7 @@ class TaskPlace(Base):
     task_hint: Mapped[str | None] = mapped_column(String(200))  # Короткое задание/подсказка (1 предложение)
     name_en: Mapped[str | None] = mapped_column(String(255))  # название на английском
     task_hint_en: Mapped[str | None] = mapped_column(String(200))  # задание/подсказка на английском
+    place_tags: Mapped[list | None] = mapped_column(JSON, nullable=True)  # доп. подкатегории ["cafe","gym"]
     created_at_utc: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -383,6 +384,10 @@ def _ensure_events_community_en_columns() -> None:
         ("events", "ALTER TABLE events ADD COLUMN IF NOT EXISTS raw_category TEXT"),
         ("task_places", "ALTER TABLE task_places ADD COLUMN IF NOT EXISTS name_en VARCHAR(255)"),
         ("task_places", "ALTER TABLE task_places ADD COLUMN IF NOT EXISTS task_hint_en VARCHAR(200)"),
+        (
+            "task_places",
+            "ALTER TABLE task_places ADD COLUMN IF NOT EXISTS place_tags JSONB NOT NULL DEFAULT '[]'::jsonb",
+        ),
     ]
     with engine.begin() as conn:
         for table, sql in statements:

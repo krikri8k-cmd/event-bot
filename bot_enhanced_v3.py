@@ -58,6 +58,7 @@ from utils.event_category_manager import format_source_display_tags
 from utils.event_translation import ensure_bilingual
 from utils.geo_utils import get_timezone, haversine_km
 from utils.i18n import format_translation, get_bot_username, t
+from utils.place_tags import format_place_categories_line_html
 from utils.static_map import build_static_map_url, fetch_static_map
 from utils.unified_events_service import UnifiedEventsService
 from utils.user_language import (
@@ -9255,6 +9256,10 @@ def _render_place_card_html(
     location_line = _format_place_location_line(place, lang)
     if location_line:
         lines.append(location_line)
+
+    categories_line = format_place_categories_line_html(place, lang)
+    if categories_line:
+        lines.append(categories_line)
 
     review_url = getattr(place, "review_url", None)
     if review_url:

@@ -27,10 +27,16 @@ def resolve_task_places_database_url(*, production: bool) -> str:
 
         load_settings(require_bot=False)
         for candidate in (
+            os.environ.get("DATABASE_PUBLIC_URL"),
             _RAILWAY_DATABASE_URL,
             os.environ.get("PROD_DB_URL"),
             os.environ.get("DATABASE_URL"),
         ):
+            url = (candidate or "").strip()
+            if url and "railway.internal" not in url:
+                return url
+        # fallback: internal URL (только внутри Railway-сети)
+        for candidate in (_RAILWAY_DATABASE_URL, os.environ.get("DATABASE_URL")):
             url = (candidate or "").strip()
             if url:
                 return url

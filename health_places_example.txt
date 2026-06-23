@@ -1,8 +1,9 @@
 # ЗЕРКАЛО production task_places — НЕ импортировать в БД.
 # Бот (@MyGuide) читает только Postgres. Направление: таблица → файлы.
-# Обновить из БД: railway run -e production -s event-bot python scripts/export_task_places_to_example_files.py --production
-# Проверка:       railway run -e production -s event-bot python scripts/compare_task_places_with_files.py --production
-# Правки мест:    Railway UI или точечный SQL (не add_places_from_simple_file.py для этих файлов).
+# Export prod: python scripts/export_task_places_to_example_files.py --production
+#   через: railway run -e production -s event-bot
+# Compare prod: python scripts/compare_task_places_with_files.py --production
+# Правки мест: Railway UI или точечный SQL (не add_places_from_simple_file.py для этих файлов).
 # Формат секций: health:place_type:region:promo_code
 
 # ============================================
@@ -11,30 +12,41 @@
 
 health:cafe:moscow:
 
+# tags cafe, activity
 https://maps.app.goo.gl/ZAvphnPXfgXxod67A
 
+# tags cafe, activity
 https://maps.google.com/?q=55.7520,37.6150
 
+# tags cafe, activity
 https://maps.google.com/?q=55.7500,37.6100
 
+# tags cafe, activity
 https://maps.app.goo.gl/KLwv9g88ejSNWzB3A
 
+# tags cafe, activity
 https://maps.app.goo.gl/BNhAeY8TX41RNASD7
 
 health:gym:moscow:
 
+# tags gym, activity
 https://maps.google.com/?q=55.7400,37.6200
 
+# tags gym, activity, yoga
 https://maps.app.goo.gl/G2yoFVyPrKFGfpCB6
 
+# tags gym, activity, yoga
 https://maps.app.goo.gl/LhqMn2waGrcCwg9K8
 
 health:park:moscow:
 
+# tags park, activity
 https://maps.google.com/?q=55.7320,37.6010
 
+# tags park, activity
 https://maps.google.com/?q=55.7300,37.6000
 
+# tags park, activity
 https://maps.app.goo.gl/RspER1TcfmU2sqxX8
 
 
@@ -44,8 +56,10 @@ https://maps.app.goo.gl/RspER1TcfmU2sqxX8
 
 health:cafe:spb:
 
+# tags cafe, activity
 https://maps.google.com/?q=59.9343,30.3351
 
+# tags cafe, activity
 https://maps.app.goo.gl/mjULEtEucQfm4FAW6
 
 
@@ -55,124 +69,156 @@ https://maps.app.goo.gl/mjULEtEucQfm4FAW6
 
 health:gym:bali:
 
+# tags gym, activity
 # review https://www.tiktok.com/@alphagymbali/video/7494175996443118855
 Alpha Gym
 https://maps.app.goo.gl/ETUpapiVMkESwAXYA
 
+# tags gym, yoga
 # review https://www.tiktok.com/@shintya_audrey/video/7058502370946256155
 Avenue Fitness
 https://maps.app.goo.gl/eKnDDKoDxgiNXUXE8
 
+# tags gym, activity, yoga
 # review https://www.instagram.com/reel/DOxI26-kqVc/
 Bali Swasthya Yoga Centre
 https://maps.app.goo.gl/gvpHWPrxRCwpZxLi9
 
+# tags gym, activity, yoga
 # review https://www.instagram.com/reel/DZZB5L3JC0G/
 Bambu Fitness Bali
 https://maps.app.goo.gl/LoJrNR5UPGa2Va8j6
 
+# tags gym, activity
 # review https://www.instagram.com/reel/DW09qD1EfQ5/
 BYND Fitness Club Bali - Gym
 https://maps.app.goo.gl/H43VWphFew1PcTAT8
 
+# tags gym, activity, yoga
 # review https://www.instagram.com/reel/DOfxoclj2Nk/
 Canggu GYM
 https://maps.app.goo.gl/vHpjcbhRV8YhMvw4A
 
+# tags gym, activity
 # review https://www.tiktok.com/@crossfitcanggu/video/7307032964259466502
 CrossFit Canggu
 https://maps.app.goo.gl/Y2pT7iDxr5jqjmty5
 
+# tags gym, activity
 # review https://www.instagram.com/reel/DOabu4cj0qy/
 De Gym Kerobokan
 https://maps.app.goo.gl/KiQHSLe2uqCwAjhj8
 
+# tags gym, activity, yoga
 # review https://www.instagram.com/reel/C6VhbeBxFkK/
 Elite Fit Bali
 https://maps.app.goo.gl/G3JpMn33dNbBrvT96
 
+# tags gym, activity, yoga
 # review https://www.instagram.com/reel/DQNzdyVEo1_/
 FitCircle Ubud
 https://maps.app.goo.gl/HHaZoEAZXcePdMkP7
 
+# tags gym, activity, yoga
 # review https://www.tiktok.com/@infinitus.gym/video/7612962581812153621
 Infinitus Gym Bali
 https://maps.app.goo.gl/4LqW84FffecCGmom8
 
+# tags gym, activity
 # review https://www.tiktok.com/@lifewithus61/video/7485307645595880726
 LEVEL UP GYM
 https://maps.app.goo.gl/ypJgofdQTtHSf3jf6
 
+# tags gym, activity, yoga
 # review https://www.instagram.com/reel/DXH3AMcCmcw/
 NOVA wellness club
 https://maps.app.goo.gl/EMLTtL359DduXi3R7
 
+# tags gym
 # review https://www.instagram.com/reel/DYB-C9QhAQo/
 OBSIDIAN HYROX
 https://maps.app.goo.gl/mVDvDiX33CPowh6XA
 
+# tags gym
 # review https://www.tiktok.com/@powerandrevive.studio/video/7247774713114594565
 POWER + REVIVE STUDIO
 https://maps.app.goo.gl/FaSwA3sE8GbFjwy97
 
+# tags gym, activity
 # review https://www.tiktok.com/@rawgym.ubud/video/7594787887887961362
 Raw Gym & Café Ubud
 https://maps.app.goo.gl/p7zT3uKenYpVvywo9
 
+# tags gym, activity, yoga
 # review https://www.tiktok.com/@ebventure/video/7636402710044052758
 Rendezvous Fitness Bali
 https://maps.app.goo.gl/WJMkxvomM1AomcmA8
 
+# tags gym, yoga
 # review https://www.tiktok.com/@sisi_trainer/video/7571406083038760214
 Surya Gym Bali
 https://maps.app.goo.gl/H5SJ9XuNLRg7eFqW8
 
-# review https://www.tiktok.com/@morganbudd_/video/7379539174581488903
-The Collective Club Pilates Studio
-https://maps.app.goo.gl/BrPSyN7Gg3tA45pi6
-
+# tags gym, activity, yoga
 # review https://www.tiktok.com/@topstretchingasia/video/7527959102836739350
 TOPGYM
 https://maps.app.goo.gl/ufPJYmGHeJzEwbF38
 
+# tags gym, activity, yoga
 # review https://www.instagram.com/reel/DG9vAdLxbqn/
 Ubud Fitness Center
 https://maps.app.goo.gl/FnqzvspPYDX7Q8ZG7
 
+# tags gym, activity, yoga
 # review https://www.instagram.com/reel/CyjrFT1y-CF/
 Ubud.Fitness
 https://maps.app.goo.gl/d6mN2tX2J5vGzaRk9
 
+# tags gym, activity
 # review https://www.tiktok.com/@aleksandramariarose/video/7238800524122934571
 Victory Fitness Club
 https://maps.app.goo.gl/dzKKk24gEAhTNywZ9
 
+# tags gym, yoga
 # review https://www.instagram.com/reel/DS7BEhFkb0T/
 WEFITNESS BALI
 https://maps.app.goo.gl/7NZ7ZYQ3KFiX3m9o6
 
+# tags gym, yoga
 # review https://www.instagram.com/reel/DZHVh-YSuww/
 Wellness Gym
 https://maps.app.goo.gl/UaDGxjjPh66uPsTB6
 
+# tags gym, activity
 # review https://www.tiktok.com/@jacked_eats/video/7496816261297392918
 Wrong Gym
 https://maps.app.goo.gl/kTbyxieTd38JyvLn6
 
+health:pilates:bali:
+
+# tags pilates
+# review https://www.tiktok.com/@morganbudd_/video/7379539174581488903
+The Collective Club Pilates Studio
+https://maps.app.goo.gl/BrPSyN7Gg3tA45pi6
+
 health:spa:bali:
 
+# tags spa
 # review https://www.instagram.com/p/DK45c6zqq8x/
 Bali Dacha
 https://maps.app.goo.gl/mmgJ4eRMFe3PnEmQ8|"Jungle26" Club day - 50.000 IDR, private rent 10%
 
+# tags spa
 # review https://www.instagram.com/reel/DY6tLS4p2Fw/
 Senses Spa
 https://maps.app.goo.gl/eQDRPVmumRmpVkUL7
 
+# tags spa
 # review https://www.instagram.com/p/DX3XmLAvejZ/
 Svaha Spa Bisma
 https://maps.app.goo.gl/xofPh7Ub8Up62CWL8
 
+# tags spa
 # review https://www.instagram.com/reels/DTElhSrErat/
 Tropical Temptation
 https://maps.app.goo.gl/6c1bJc1oaoDfgbro6

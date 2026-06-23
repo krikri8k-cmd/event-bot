@@ -1,8 +1,9 @@
 # ЗЕРКАЛО production task_places — НЕ импортировать в БД.
 # Бот (@MyGuide) читает только Postgres. Направление: таблица → файлы.
-# Обновить из БД: railway run -e production -s event-bot python scripts/export_task_places_to_example_files.py --production
-# Проверка:       railway run -e production -s event-bot python scripts/compare_task_places_with_files.py --production
-# Правки мест:    Railway UI или точечный SQL (не add_places_from_simple_file.py для этих файлов).
+# Export prod: python scripts/export_task_places_to_example_files.py --production
+#   через: railway run -e production -s event-bot
+# Compare prod: python scripts/compare_task_places_with_files.py --production
+# Правки мест: Railway UI или точечный SQL (не add_places_from_simple_file.py для этих файлов).
 # Формат секций: places:place_type:region:promo_code
 
 # ============================================
@@ -11,16 +12,21 @@
 
 places:park:moscow:
 
+# tags park, activity
 https://maps.google.com/?q=55.7350,37.6050
 
+# tags park, activity
 https://maps.app.goo.gl/rGYd8biht51DFFB79
 
 places:temple:moscow:
 
+# tags temple, activity
 https://maps.google.com/?q=55.7450,37.6250
 
+# tags temple
 https://maps.app.goo.gl/faoUJd5JESRAbRAR7
 
+# tags temple
 https://maps.app.goo.gl/smBkmt2Zpd4jxeQT9
 
 
@@ -30,114 +36,140 @@ https://maps.app.goo.gl/smBkmt2Zpd4jxeQT9
 
 places:beach:bali:
 
+# tags beach, activity
 # review https://www.instagram.com/p/CED7DvLnOBF/
 Balangan Beach
 https://maps.app.goo.gl/ZgQRby6xjhmUsB2u7
 
+# tags beach, activity
 # review https://www.instagram.com/p/DI_194pSPOb/
 Beach Dreamland
 https://maps.app.goo.gl/1zjhtrcNQwdS1jtt5
 
+# tags beach, activity
 # review https://www.instagram.com/p/ChP5T4QF_kI/
 Broken Ship Nunggalan
 https://maps.app.goo.gl/QLuPtrSK8ibdgT3bA
 
+# tags beach, activity
 KUAKUA beach
 https://maps.app.goo.gl/4CfCZ7Wnof4iW8Dv8
 
+# tags beach, activity
 # review https://www.tiktok.com/@cangdevsya/video/7595530838784216328
 Nyang Nyang Beach
 https://maps.app.goo.gl/V7ZDJvVML8d8VeDR6
 
+# tags beach, activity
 # review https://www.tiktok.com/@karinprmst/video/7457804824915004678
 Padang Padang Beach
 https://maps.app.goo.gl/4FshR6yMrn654QVc9
 
+# tags beach, activity
 # review https://www.instagram.com/p/DN_2I_Rkzdh/
 Pantai Olen
 https://maps.app.goo.gl/Jpw1wqN4bnhjxMtp7
 
 places:cafe:bali:
 
+# tags cafe
 # review https://www.instagram.com/reel/DWME-PkgrmS/
 Taman Dedari
 https://maps.app.goo.gl/Y54ZqXggyxtsPkUdA
 
 places:cliff:bali:
 
+# tags cliff, activity
 # review https://www.instagram.com/p/C6gD9c4r37U/
 Cliff Jump Tegal Wangi Beach
 https://maps.app.goo.gl/KxxaXhDCDeGGR1BZA
 
+# tags cliff, activity
 # review https://www.instagram.com/p/C7s2mvRPu8C/
 Dimastos Sunset point
 https://maps.app.goo.gl/gZ1MQ6KRc1FkwEKJ7
 
+# tags cliff, temple
 # review https://www.instagram.com/p/DX_A3wKqBZO/
 End of route Uluwatu Temple View point
 https://maps.app.goo.gl/vRMrP7soeJfLTn5A6
 
+# tags cliff, activity
 # review https://www.instagram.com/p/Col9ZIVDpD8/
 Happy sunset batujaran
 https://maps.app.goo.gl/qMGvDCC7mNvhMa2A6
 
+# tags cliff
 # review https://www.tiktok.com/@balitravelfolder/video/7538292216486169863
 Honeymoon Beach
 https://maps.app.goo.gl/vsnGL8QPGzWGoYPU9
 
+# tags cliff, activity
 # review https://www.instagram.com/p/DVFgHDyETRS/
 Kubu Beach
 https://maps.app.goo.gl/5kgSoBdmFrq9yKCu6
 
+# tags cliff, activity
 # review https://www.instagram.com/p/C7K2b8CSK05/
 Tebing Pantai Balangan
 https://maps.app.goo.gl/T13yovVqvjsKCwUy7
 
 places:culture:bali:
 
+# tags culture_art, activity
 ADA Studio Paint Art
 https://maps.app.goo.gl/sqVL4UBhxAiP1Eqn7
 
+# tags culture_art
 # review https://www.instagram.com/p/B1PXKFPlFrI/
 Ikat Gallery
 https://maps.app.goo.gl/Crh9xmwnENuee5yA6
 
+# tags culture_art
 # review https://www.instagram.com/reel/DZO2UYCSmpj/
 Nyaman Art Gallery
 https://maps.app.goo.gl/hphMXVPAUNWrh9jE8
 
+# tags culture_art
 # review https://www.instagram.com/reel/CIhBQ6_lj82/
 Purpa Fine Art Gallery
 https://maps.app.goo.gl/PSgL7j7TmTGA7APa9
 
+# tags culture_art
 # review https://www.instagram.com/reel/DUsSBDygVra/?utm_source=ig_web_copy_link&igsh=NTc4MTIwNjQ2YQ==
 Taman Ujung
 https://maps.app.goo.gl/qD4P8hoCyxiT4KJVA
 
 places:park:bali:
 
+# tags park, trekking_trail
 # review https://www.tiktok.com/@dogville_bali/video/7549893513408826630
 Dogville - Kaba-Kaba
 https://maps.app.goo.gl/PZEtbK5bDNhorqZBA
 
+# tags park, activity
 # review https://www.tiktok.com/@nuanucreativecity/video/7639297831861275925
 Magic Garden
 https://maps.app.goo.gl/wumBjyGxDKHRn37x7
 
 places:temple:bali:
 
+# tags temple
 # review https://www.tiktok.com/@moniq_dmk/video/7524979468356668679
 Kecak Uluwatu
 https://maps.app.goo.gl/TU25qoDp4z91iKtDA
 
+# tags temple, cliff
 # review https://www.tiktok.com/@tereveling_/video/7488528984917986576
 Pura Luhur Uluwatu
 https://maps.app.goo.gl/zusoTrtNNi3VVXdm6
 
+# tags temple
 # review https://www.tiktok.com/@bali_terkini/video/7385796273984621830
 Pura Taman Ayun
 https://maps.app.goo.gl/2YZ239QKvdcDcpv58
 
+# tags temple, activity
 # review https://www.tiktok.com/@destinasiwisatabali/video/7510884560654126344
 Pura Tanah Lot
 https://maps.app.goo.gl/oSMQd6ZfLzuBTPux6
