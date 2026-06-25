@@ -20,8 +20,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "📍 События рядом: находи события в радиусе 5–20 км\n"
             "🎯 Интересные места: промокоды и AI развлечения вокруг\n\n"
             "➕ Создать: организуй встречи и приглашай друзей\n"
-            '🔗 Добавить бота в чат: добавь бота версия "Community" в чат — '
-            "появится лента встреч и планов только для участников сообщества.\n\n"
+            "🛎 Услуги: полезные сервисы и предложения от партнёров\n\n"
             "🚀 Начинай приключение"
         ),
         "menu.button.events_nearby": "📍 События рядом",
@@ -30,7 +29,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "menu.button.create_event": "➕ Создать событие",
         "menu.use_buttons": "Используйте кнопки меню для навигации:",
         "menu.button.my_activities": "📝 Мои активности",
-        "menu.button.add_bot_to_chat": "🔗 Добавить бота в чат",
+        "menu.button.services": "🛎 Услуги",
         "menu.button.start": "🚀 Старт",
         # Команды бота
         "command.start": "🚀 Запустить бота и показать меню",
@@ -40,7 +39,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "command.tasks": "🎯 Интересные места - найти задания поблизости",
         "command.mytasks": "🏆 Мои квесты - просмотр выполненных заданий",
         "command.partner": "👤 Места от блогера",
-        "command.share": "🔗 Добавить бота в чат",
+        "command.add_to_chat": "🔗 Добавить бота в чат",
         "command.help": "💬 Написать отзыв Разработчику",
         "help.feedback.text": (
             "💬 **Написать отзыв Разработчику**\n\n"
@@ -60,9 +59,9 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "📍 /nearby - Найти события рядом\n"
             "➕ /create - Создать событие\n"
             "📋 /myevents - Мои события\n"
-            "🔗 /share - Добавить бота в чат\n\n"
             "💡 **Совет:** Используйте кнопки меню для удобной навигации!"
         ),
+        "services.choose": "🛎 **Услуги**\n\nВыберите услугу:",
         # Групповой чат
         "group.greeting": '👋 Привет! Я {bot_username} - версия "Community".\n\n'
         "🎯 **В этом чате я помогаю:**\n"
@@ -800,8 +799,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "📍 Nearby events: find events within 5–20 km radius\n"
         "🎯 Interesting places: promo codes and AI entertainment around\n\n"
         "➕ Create: organize meetings and invite friends\n"
-        '🔗 Add bot to chat: add bot "Community" version to chat — '
-        "get a feed of meetings and plans only for community members.\n\n"
+        "🛎 Services: useful services and offers from partners\n\n"
         "🚀 Start your adventure",
         "menu.button.events_nearby": "📍 Nearby events",
         "menu.button.interesting_places": "🎯 Interesting places",
@@ -809,7 +807,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "menu.button.create_event": "➕ Create event",
         "menu.use_buttons": "Use menu buttons for navigation:",
         "menu.button.my_activities": "📝 My activities",
-        "menu.button.add_bot_to_chat": "🔗 Add bot to chat",
+        "menu.button.services": "🛎 Services",
         "menu.button.start": "🚀 Start",
         # Bot commands
         "command.start": "🚀 Start bot and show menu",
@@ -819,7 +817,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "command.tasks": ("🎯 Interesting places - find tasks nearby"),
         "command.mytasks": "🏆 My quests - view completed tasks",
         "command.partner": "👤 Places by blogger",
-        "command.share": "🔗 Add bot to chat",
+        "command.add_to_chat": "🔗 Add bot to chat",
         "command.help": "💬 Write feedback to Developer",
         "help.feedback.text": (
             "💬 **Write feedback to Developer**\n\n"
@@ -839,9 +837,9 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "📍 /nearby - Find nearby events\n"
             "➕ /create - Create event\n"
             "📋 /myevents - My events\n"
-            "🔗 /share - Add bot to chat\n\n"
             "💡 **Tip:** Use menu buttons for easy navigation!"
         ),
+        "services.choose": "🛎 **Services**\n\nChoose a service:",
         # Group chat
         "group.greeting": '👋 Hello! I am {bot_username} - "Community" version.\n\n'
         "🎯 **In this chat I help:**\n"

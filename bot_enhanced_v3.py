@@ -83,9 +83,9 @@ _TASKS_TITLE_BUTTON_TEXTS = (t("tasks.title", "ru"), t("tasks.title", "en"))
 _MY_ACTIVITIES_BUTTON_TEXTS = (t("menu.button.my_activities", "ru"), t("menu.button.my_activities", "en"))
 _HELP_BUTTON_TEXTS = (t("command.help", "ru"), t("command.help", "en"))
 _START_BUTTON_TEXTS = (t("menu.button.start", "ru"), t("menu.button.start", "en"))
-_ADD_BOT_TO_CHAT_BUTTON_TEXTS = (
-    t("menu.button.add_bot_to_chat", "ru"),
-    t("menu.button.add_bot_to_chat", "en"),
+_SERVICES_BUTTON_TEXTS = (
+    t("menu.button.services", "ru"),
+    t("menu.button.services", "en"),
 )
 # Допускаем мягкие разделители (_ . -), чтобы пользователь мог ввести видимое имя блогера
 # (например doc_polli, nastya.mavi, v.d_fitness). Пробел сознательно НЕ разрешён, иначе обычные
@@ -3245,12 +3245,17 @@ def main_menu_kb(lang: str | None = None, user_id: int | None = None) -> ReplyKe
             KeyboardButton(text=t("menu.button.my_activities", lang)),
         ],
         [
-            KeyboardButton(text=t("menu.button.add_bot_to_chat", lang)),
+            KeyboardButton(text=t("menu.button.services", lang)),
             KeyboardButton(text=t("menu.button.start", lang)),
         ],
     ]
 
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+
+def build_services_inline_keyboard(lang: str) -> InlineKeyboardMarkup:
+    """Inline-клавиатура выбора услуги. Кнопки конкретных услуг добавим позже."""
+    return InlineKeyboardMarkup(inline_keyboard=[])
 
 
 def build_geo_request_reply_keyboard(lang: str) -> ReplyKeyboardMarkup:
@@ -3294,7 +3299,6 @@ def _build_public_commands(lang: str) -> list:
         types.BotCommand(command="myevents", description=t("command.myevents", lang)),
         types.BotCommand(command="tasks", description=t("command.tasks", lang)),
         types.BotCommand(command="mytasks", description=t("command.mytasks", lang)),
-        types.BotCommand(command="share", description=t("command.share", lang)),
         types.BotCommand(command="help", description=t("command.help", lang)),
     ]
 
@@ -3471,7 +3475,6 @@ async def dump_commands_healthcheck(bot):
             types.BotCommand(command="myevents", description="📋 Мои события - просмотр созданных событий"),
             types.BotCommand(command="tasks", description="🎯 Интересные места - найти задания поблизости"),
             types.BotCommand(command="mytasks", description="🏆 Мои квесты - просмотр выполненных заданий"),
-            types.BotCommand(command="share", description="🔗 Добавить бота в чат"),
             types.BotCommand(command="help", description=t("command.help", "ru")),
         ]
 
@@ -7300,10 +7303,9 @@ async def on_my_events(message: types.Message):
         await message.answer(text, reply_markup=keyboard)
 
 
-@main_router.message(Command("share"))
-@main_router.message(F.text.in_(_ADD_BOT_TO_CHAT_BUTTON_TEXTS))
-async def on_share(message: types.Message):
-    """Обработчик кнопки 'Добавить бота в чат'"""
+@main_router.message(Command("add_to_chat"))
+async def on_add_to_chat(message: types.Message):
+    """Скрытая команда: инструкция по добавлению бота в чат (Community)."""
     user_id = message.from_user.id
     bot_info = await get_bot_info_cached()
     user_lang = get_user_language_or_default(user_id)
@@ -7334,6 +7336,18 @@ async def on_share(message: types.Message):
     # Если фото нет или произошла ошибка, отправляем только текст
     user_id = message.from_user.id
     await message.answer(text, reply_markup=main_menu_kb(user_id=user_id))
+
+
+@main_router.message(F.text.in_(_SERVICES_BUTTON_TEXTS))
+async def on_services(message: types.Message):
+    """Обработчик кнопки «Услуги» — выбор конкретной услуги (inline-кнопки добавим позже)."""
+    user_id = message.from_user.id
+    user_lang = get_user_language_or_default(user_id)
+    services_kb = build_services_inline_keyboard(user_lang)
+    kwargs: dict = {"parse_mode": "Markdown"}
+    if services_kb.inline_keyboard:
+        kwargs["reply_markup"] = services_kb
+    await message.answer(t("services.choose", user_lang), **kwargs)
 
 
 def is_admin_user(user_id: int) -> bool:
