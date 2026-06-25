@@ -13,6 +13,7 @@ import asyncio
 import contextlib
 import logging
 import re
+import time
 from datetime import UTC, datetime, timedelta
 
 from aiogram import Bot, F, Router, types
@@ -1220,6 +1221,19 @@ async def handle_group_bot_member(update: ChatMemberUpdated, bot: Bot, session: 
             exc_info=True,
         )
 
+    old_status = update.old_chat_member.status
+    bot_just_added = old_status in ("left", "kicked") and new_status in ("administrator", "member")
+    if bot_just_added and chat.type in ("group", "supergroup"):
+        adder_id = update.from_user.id if update.from_user else None
+        is_forum = getattr(chat, "is_forum", False)
+        await send_group_welcome_on_add(
+            bot,
+            chat.id,
+            adder_user_id=adder_id,
+            chat_type=chat.type,
+            is_forum=is_forum,
+        )
+
 
 # ПРИНУДИТЕЛЬНАЯ КЛАВИАТУРА ДЛЯ ВСЕХ СООБЩЕНИЙ В ГРУППЕ
 # УБРАНО: force_keyboard_for_all_messages - больше не принудительно добавляем клавиатуру к каждому сообщению
@@ -1250,6 +1264,76 @@ def group_kb(chat_id: int, lang: str = "ru") -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text=t("group.button.hide_bot", lang), callback_data="group_hide_execute")],
         ]
     )
+
+
+_RECENT_GROUP_WELCOME_TTL_SEC = 30
+_recent_group_welcome_at: dict[int, float] = {}
+
+
+def _should_send_group_welcome(chat_id: int) -> bool:
+    now = time.monotonic()
+    last = _recent_group_welcome_at.get(chat_id, 0.0)
+    if now - last < _RECENT_GROUP_WELCOME_TTL_SEC:
+        return False
+    _recent_group_welcome_at[chat_id] = now
+    return True
+
+
+async def send_group_welcome_on_add(
+    bot: Bot,
+    chat_id: int,
+    *,
+    adder_user_id: int | None,
+    chat_type: str,
+    message_thread_id: int | None = None,
+    is_forum: bool = False,
+) -> bool:
+    """Приветствие при добавлении бота в группу (new_chat_members или my_chat_member)."""
+    if chat_type == "channel":
+        return False
+    if not _should_send_group_welcome(chat_id):
+        logger.info("ℹ️ Приветствие для чата %s уже отправлено недавно, пропуск", chat_id)
+        return False
+
+    try:
+        await bot.set_chat_menu_button(menu_button=types.MenuButtonCommands())
+        await asyncio.sleep(0.5)
+        with contextlib.suppress(Exception):
+            await bot.set_chat_menu_button(chat_id=chat_id, menu_button=types.MenuButtonCommands())
+    except Exception as e:
+        logger.warning("⚠️ MenuButton при welcome chat=%s: %s", chat_id, e)
+
+    try:
+        await ensure_group_start_command(bot, chat_id)
+    except Exception as e:
+        logger.warning("⚠️ Команды при welcome chat=%s: %s", chat_id, e)
+
+    lookup_user_id = adder_user_id if adder_user_id else 0
+    wlang = await get_user_language_async(lookup_user_id, chat_id)
+    bot_info = await bot.get_me()
+    bot_username = bot_info.username or get_bot_username()
+    welcome_text = format_translation("group.welcome_on_add", wlang, bot_username=bot_username)
+    if bot_username and bot_username in welcome_text:
+        welcome_text = welcome_text.replace(bot_username, bot_username.replace("_", "\\_"))
+    welcome_kb = group_kb(chat_id, wlang)
+
+    send_kwargs: dict = {"parse_mode": "Markdown", "reply_markup": welcome_kb}
+    thread_id = message_thread_id
+    if is_forum and thread_id is None:
+        thread_id = 1
+    if is_forum and thread_id:
+        send_kwargs["message_thread_id"] = thread_id
+
+    try:
+        await bot.send_message(chat_id, welcome_text, **send_kwargs)
+        logger.info("✅ Приветственное сообщение отправлено в чат %s", chat_id)
+        return True
+    except Exception as e:
+        if "TOPIC_CLOSED" in str(e):
+            logger.warning("⚠️ Тема форума закрыта в чате %s", chat_id)
+        else:
+            logger.error("❌ Ошибка welcome chat=%s: %s", chat_id, e, exc_info=True)
+        return False
 
 
 # === ОБРАБОТЧИКИ ===
@@ -1453,88 +1537,8 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
                 await session.commit()
                 logger.info(f"✅ Запись chat_settings обновлена для чата {message.chat.id}")
 
-            # Простое приветствие без выбора ветки (только в группах, не в каналах)
-            if message.chat.type != "channel":
-                # ВАЖНО: Устанавливаем MenuButton при добавлении бота в группу
-                # Это нужно для отображения кнопки "Команды бота" на всех устройствах, включая MacBook
-                # Для MacBook важно установить MenuButton глобально ПЕРЕД попыткой установки для конкретного чата
-                try:
-                    # СНАЧАЛА устанавливаем глобально для всех групп (важно для MacBook)
-                    await bot.set_chat_menu_button(menu_button=types.MenuButtonCommands())
-                    logger.info("✅ MenuButton установлен глобально при добавлении бота (приоритет для MacBook)")
-
-                    # Небольшая задержка для применения глобальной установки
-                    await asyncio.sleep(0.5)
-
-                    # Затем пробуем установить для конкретного чата (для других устройств)
-                    try:
-                        await bot.set_chat_menu_button(chat_id=message.chat.id, menu_button=types.MenuButtonCommands())
-                        logger.info(f"✅ MenuButton дополнительно установлен для чата {message.chat.id} при добавлении")
-                    except Exception as chat_specific_error:
-                        error_str = str(chat_specific_error).lower()
-                        # Для супергрупп это нормально - глобальная установка уже работает
-                        if "chat_id" in error_str or "неверный" in error_str or "invalid" in error_str:
-                            logger.info(
-                                f"ℹ️ Установка MenuButton для конкретного чата {message.chat.id} не требуется "
-                                f"при добавлении (супергруппа - используем глобальную установку)"
-                            )
-                        else:
-                            logger.warning(
-                                f"⚠️ Не удалось установить MenuButton для чата {message.chat.id} "
-                                f"при добавлении: {chat_specific_error}"
-                            )
-
-                except Exception as global_error:
-                    logger.warning(f"⚠️ Не удалось установить MenuButton глобально при добавлении: {global_error}")
-                    # Fallback: пробуем только для конкретного чата
-                    try:
-                        await bot.set_chat_menu_button(chat_id=message.chat.id, menu_button=types.MenuButtonCommands())
-                        logger.info(f"✅ MenuButton установлен для чата {message.chat.id} при добавлении (fallback)")
-                    except Exception as fallback_error:
-                        logger.warning(
-                            f"⚠️ Fallback установка MenuButton при добавлении также не удалась: {fallback_error}"
-                        )
-
-                # Устанавливаем команды для конкретного чата
-                try:
-                    await bot.set_my_commands(
-                        [types.BotCommand(command="start", description="🎉 События чата")],
-                        scope=types.BotCommandScopeChat(chat_id=message.chat.id),
-                    )
-                    logger.info(f"✅ Команды установлены при добавлении бота в группу {message.chat.id}")
-                except Exception as cmd_error:
-                    logger.warning(
-                        f"⚠️ Не удалось установить команды при добавлении в группу {message.chat.id}: {cmd_error}"
-                    )
-
-                try:
-                    _wlang = await get_user_language_async(message.from_user.id, message.chat.id)
-                    bot_username = bot_info.username or get_bot_username()
-                    welcome_text = format_translation("group.welcome_on_add", _wlang, bot_username=bot_username)
-                    if bot_username and bot_username in welcome_text:
-                        welcome_text = welcome_text.replace(bot_username, bot_username.replace("_", "\\_"))
-                    welcome_kb = group_kb(message.chat.id, _wlang)
-                    await message.answer(welcome_text, parse_mode="Markdown", reply_markup=welcome_kb)
-                    logger.info(f"✅ Приветственное сообщение отправлено в чат {message.chat.id}")
-                except Exception as answer_error:
-                    logger.error(
-                        f"❌ Ошибка при отправке приветственного сообщения в чат {message.chat.id}: {answer_error}",
-                        exc_info=True,
-                    )
-                    # Проверяем, не закрыта ли тема форума
-                    if "TOPIC_CLOSED" in str(answer_error):
-                        logger.warning(
-                            "⚠️ Тема форума закрыта в чате %s. Бот не может отправлять сообщения в закрытую тему.",
-                            message.chat.id,
-                        )
-                    else:
-                        logger.warning(f"⚠️ Не удалось отправить приветственное сообщение: {answer_error}")
-            else:
-                # Для каналов - логируем, что бот готов к работе
-                logger.info(f"✅ Бот готов к работе в канале {message.chat.id}. Используйте /start для начала работы")
         except Exception as e:
             error_str = str(e)
-            # Проверяем, не закрыта ли тема форума
             if "TOPIC_CLOSED" in error_str:
                 logger.warning(
                     "⚠️ Тема форума закрыта в чате %s. Бот не может отправлять сообщения в закрытую тему.",
@@ -1544,11 +1548,24 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
                 logger.error(
                     f"❌ ОШИБКА при создании/обновлении chat_settings для чата {message.chat.id}: {e}", exc_info=True
                 )
-            # Пробуем откатить транзакцию
             try:
                 await session.rollback()
             except Exception as rollback_error:
                 logger.error(f"❌ Ошибка при откате транзакции: {rollback_error}")
+
+        if message.chat.type != "channel":
+            is_forum = getattr(message.chat, "is_forum", False)
+            thread_id = getattr(message, "message_thread_id", None)
+            await send_group_welcome_on_add(
+                bot,
+                message.chat.id,
+                adder_user_id=adder_user_id,
+                chat_type=message.chat.type,
+                message_thread_id=thread_id,
+                is_forum=is_forum,
+            )
+        else:
+            logger.info(f"✅ Бот готов к работе в канале {message.chat.id}. Используйте /start для начала работы")
     else:
         logger.info(f"ℹ️ В чат {message.chat.id} добавлен не наш бот или не бот вообще")
 

@@ -3309,6 +3309,7 @@ def _build_public_commands(lang: str) -> list:
         types.BotCommand(command="myevents", description=t("command.myevents", lang)),
         types.BotCommand(command="tasks", description=t("command.tasks", lang)),
         types.BotCommand(command="mytasks", description=t("command.mytasks", lang)),
+        types.BotCommand(command="add_to_chat", description=t("command.add_to_chat", lang)),
         types.BotCommand(command="help", description=t("command.help", lang)),
     ]
 
@@ -3485,6 +3486,7 @@ async def dump_commands_healthcheck(bot):
             types.BotCommand(command="myevents", description="📋 Мои события - просмотр созданных событий"),
             types.BotCommand(command="tasks", description="🎯 Интересные места - найти задания поблизости"),
             types.BotCommand(command="mytasks", description="🏆 Мои квесты - просмотр выполненных заданий"),
+            types.BotCommand(command="add_to_chat", description=t("command.add_to_chat", "ru")),
             types.BotCommand(command="help", description=t("command.help", "ru")),
         ]
 
