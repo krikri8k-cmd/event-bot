@@ -1509,14 +1509,12 @@ async def handle_new_members(message: Message, bot: Bot, session: AsyncSession):
 
                 try:
                     _wlang = await get_user_language_async(message.from_user.id, message.chat.id)
-                    welcome_text = (
-                        t("group.welcome_added", _wlang)
-                        + "\n\n"
-                        + t("group.welcome_press_start", _wlang)
-                        + "\n\n"
-                        + t("group.welcome_pin", _wlang)
-                    )
-                    await message.answer(welcome_text, parse_mode="Markdown")
+                    bot_username = bot_info.username or get_bot_username()
+                    welcome_text = format_translation("group.welcome_on_add", _wlang, bot_username=bot_username)
+                    if bot_username and bot_username in welcome_text:
+                        welcome_text = welcome_text.replace(bot_username, bot_username.replace("_", "\\_"))
+                    welcome_kb = group_kb(message.chat.id, _wlang)
+                    await message.answer(welcome_text, parse_mode="Markdown", reply_markup=welcome_kb)
                     logger.info(f"✅ Приветственное сообщение отправлено в чат {message.chat.id}")
                 except Exception as answer_error:
                     logger.error(

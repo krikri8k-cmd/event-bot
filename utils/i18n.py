@@ -302,9 +302,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "group.list.error": "❌ Ошибка отображения. Попробуйте позже.",
         "group.list.error_events": "❌ Ошибка отображения событий",
         "group.list.error_try_later": "Попробуйте позже или обратитесь к администратору.",
-        "group.welcome_added": "🎉 Бот добавлен в группу!",
-        "group.welcome_press_start": "Жми /start для создания и поиска событий",
-        "group.welcome_pin": "📌 Закрепи, чтобы все знали",
+        "group.welcome_on_add": (
+            "🎉 Всем привет. Я @{bot_username} — ваш личный помощник по событиям.\n\n"
+            "🧑‍💻 Админ, чтобы всё работало как часы, выдай мне права администратора "
+            "с разрешением на удаление сообщений. Обещаю вести себя прилично!\n\n"
+            "👥 Ребята, нажимайте кнопку ниже или пишите /start, чтобы создавать свои ивенты "
+            "или искать, куда сходить.\n\n"
+            "📌 Закрепите меня, чтобы новые участники сразу видели, как со мной работать."
+        ),
         "group.topic_closed": "Бот не может отправлять сообщения в закрытую тему.",
         "group.test_autodelete_ok": "✅ Тест автоудаления запущен! Сообщение удалится через 10 секунд.",
         "group.test_autodelete_msg": "🧪 Тестовое сообщение — должно удалиться через 10 секунд",
@@ -1320,9 +1325,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "group.list.error": "❌ Display error. Try again later.",
         "group.list.error_events": "❌ Error displaying events",
         "group.list.error_try_later": "Please try again later or contact the administrator.",
-        "group.welcome_added": "🎉 Bot added to the group!",
-        "group.welcome_press_start": "Press /start to create and find events",
-        "group.welcome_pin": "📌 Pin this message so everyone sees it",
+        "group.welcome_on_add": (
+            "🎉 Hi everyone! I'm @{bot_username} — your personal events assistant.\n\n"
+            "🧑‍💻 Admin, for everything to run smoothly, please grant me admin rights "
+            "with permission to delete messages. I promise to behave!\n\n"
+            "👥 Everyone, tap the button below or type /start to create your own events "
+            "or find something to do.\n\n"
+            "📌 Pin me so new members can see right away how to work with me."
+        ),
         "group.topic_closed": "The bot cannot send messages to a closed topic.",
         "group.test_autodelete_ok": "✅ Autodelete test started! Message will disappear in 10 seconds.",
         "group.test_autodelete_msg": "🧪 Test message — will be deleted in 10 seconds",
