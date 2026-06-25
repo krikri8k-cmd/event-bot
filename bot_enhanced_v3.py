@@ -87,6 +87,7 @@ _SERVICES_BUTTON_TEXTS = (
     t("menu.button.services", "ru"),
     t("menu.button.services", "en"),
 )
+_MYBALITRIPS_URL = "https://mybalitrips.com/?utm_pid=1398"
 # Допускаем мягкие разделители (_ . -), чтобы пользователь мог ввести видимое имя блогера
 # (например doc_polli, nastya.mavi, v.d_fitness). Пробел сознательно НЕ разрешён, иначе обычные
 # фразы из двух слов в чате трактовались бы как slug. Точное сопоставление с базой делает
@@ -3254,8 +3255,17 @@ def main_menu_kb(lang: str | None = None, user_id: int | None = None) -> ReplyKe
 
 
 def build_services_inline_keyboard(lang: str) -> InlineKeyboardMarkup:
-    """Inline-клавиатура выбора услуги. Кнопки конкретных услуг добавим позже."""
-    return InlineKeyboardMarkup(inline_keyboard=[])
+    """Inline-клавиатура выбора услуги."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=t("services.button.tours_trips", lang),
+                    url=_MYBALITRIPS_URL,
+                )
+            ]
+        ]
+    )
 
 
 def build_geo_request_reply_keyboard(lang: str) -> ReplyKeyboardMarkup:

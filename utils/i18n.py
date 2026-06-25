@@ -62,6 +62,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "💡 **Совет:** Используйте кнопки меню для удобной навигации!"
         ),
         "services.choose": "🛎 **Услуги**\n\nВыберите услугу:",
+        "services.button.tours_trips": "🌴 Туры и Поездки",
         # Групповой чат
         "group.greeting": '👋 Привет! Я {bot_username} - версия "Community".\n\n'
         "🎯 **В этом чате я помогаю:**\n"
@@ -840,6 +841,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
             "💡 **Tip:** Use menu buttons for easy navigation!"
         ),
         "services.choose": "🛎 **Services**\n\nChoose a service:",
+        "services.button.tours_trips": "🌴 Tours & Trips",
         # Group chat
         "group.greeting": '👋 Hello! I am {bot_username} - "Community" version.\n\n'
         "🎯 **In this chat I help:**\n"
