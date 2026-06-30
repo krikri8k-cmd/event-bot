@@ -31,12 +31,27 @@ from database import TaskPlace, get_session, init_engine  # noqa: E402
 from tasks.ai_hints_generator import generate_hint_for_place  # noqa: E402
 from utils.event_translation import translate_task_hints_batch  # noqa: E402
 
-# Данные для патча: название, короткая ссылка (без |промо), промокод
+# Данные для патча: название, короткая ссылка (без |промо), промокод.
+# Опционально на место: category, place_type, region, review_url, place_tags.
+# Глобальные CATEGORY/PLACE_TYPE/REGION — дефолт, если в записи не заданы.
 PLACES = [
     {
         "name": "Taman Ujung",
         "url": "https://maps.app.goo.gl/qD4P8hoCyxiT4KJVA",
         "promo_code": "",
+        "category": "places",
+        "place_type": "culture",
+        "region": "bali",
+    },
+    {
+        "name": "Porch - Coffee Shop - Wine",
+        "url": "https://maps.app.goo.gl/FrDVEZAch44TPZLV6",
+        "promo_code": "My Guide 15%",
+        "review_url": "https://www.instagram.com/reel/DZwGJivJgYS/",
+        "place_tags": ["dance", "bar"],
+        "category": "food",
+        "place_type": "cafe",
+        "region": "bali",
     },
 ]
 
@@ -93,26 +108,40 @@ def main():
                 .first()
             )
 
+            review_url = p.get("review_url")
+            place_tags = p.get("place_tags")
+            category = p.get("category", CATEGORY)
+            place_type = p.get("place_type", PLACE_TYPE)
+            region = p.get("region", REGION)
+            task_type = "island" if region == "bali" else "urban"
+
             if row:
                 row.name = name
                 row.promo_code = promo_code
                 row.is_active = True
-                row.category = CATEGORY
-                row.place_type = PLACE_TYPE
-                row.region = REGION
+                row.category = category
+                row.place_type = place_type
+                row.region = region
+                row.task_type = task_type
+                if review_url:
+                    row.review_url = review_url
+                if place_tags is not None:
+                    row.place_tags = place_tags
                 action = "обновлён"
             else:
                 row = TaskPlace(
-                    category=CATEGORY,
-                    place_type=PLACE_TYPE,
-                    task_type="island",
+                    category=category,
+                    place_type=place_type,
+                    task_type=task_type,
                     name=name,
                     lat=0.0,
                     lng=0.0,
                     google_maps_url=url,
                     promo_code=promo_code,
                     is_active=True,
-                    region=REGION,
+                    region=region,
+                    review_url=review_url,
+                    place_tags=place_tags,
                 )
                 session.add(row)
                 action = "создан (координаты 0,0 — при необходимости обнови полным импортом)"
@@ -128,6 +157,10 @@ def main():
                 if hints_en and hints_en[0]:
                     row.task_hint_en = hints_en[0]
                 print(f"ID [{row.id}] {action}: {name}")
+                if place_tags is not None:
+                    print(f"    place_tags: {place_tags}")
+                if review_url:
+                    print(f"    review_url: {review_url}")
                 task_hint_preview = row.task_hint[:120] if row.task_hint else ""
                 task_hint_suffix = "..." if len(row.task_hint or "") > 120 else ""
                 print(f"    task_hint: {task_hint_preview}{task_hint_suffix}")
